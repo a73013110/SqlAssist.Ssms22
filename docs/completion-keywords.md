@@ -37,7 +37,7 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
 
 ### 依位置分層
 
-每個關鍵字帶著「可以出現在哪些位置」，由 `SqlKeywordPositionAnalyzer` 判斷游標的位置後過濾：
+每個關鍵字帶著「可以出現在哪些位置」，由 `SqlKeywordPositionAnalyzer` 判斷位置後過濾：
 
 ```text
 （語句開頭）          → SELECT、USE、BACKUP、RESTORE、CREATE…
@@ -50,7 +50,7 @@ SELECT * FROM t WHERE → EXISTS、NOT、CASE…
 SET NOCOUNT           → ON、OFF（SetOptionValue）
 BEGIN … END           → 下一句的字，加上 ELSE、TRY、CATCH（BlockEnd）
 IF @a = 1 SELECT 1    → 選取清單尾端，加上 ELSE（IfBodyEnd）
-DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給，其餘選項清單同理）
+DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給）
 ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
 ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CHECK、INDEX…
 CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFAULT（ColumnDefinition）
@@ -83,11 +83,11 @@ PIVOT (SUM(x) FOR y   → IN（PivotClause）
 
 `ORDER BY C` 回 `Any` 時有 118 個候選、欄位掉到第 14；回 `OrderByColumn` 只剩 30 個，`cs` 之後就是欄位。
 
-因此 `OrderByColumn`（`ORDER BY`／`GROUP BY` 要的那個欄位，含逗號之後的下一項）與
+因此 `OrderByColumn`（`ORDER BY`／`GROUP BY` 的欄位，含逗號之後）與
 `AlterTableAction`／`AlterTableAdd`／`AlterTableColumn`、`BlockEnd`、`IfBodyEnd`、`CursorOption` 這類敘述自己的格子
-都是**自己的成員**，不借用 `Any`。欄位之後是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`），三者不能混。
+都是**自己的成員**，不借用 `Any`。欄位之後是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`）。
 `SELECT a INTO t `、`OFFSET 10 `、`REFERENCES u (a) ` 這類子句尾端也各有位置，不借長得像的 `OrderByTail`。
-`FunctionCallTail` 是疊加位元：函式呼叫之後多接 `OVER`；限定名稱（`dbo.fn_Fee(a)`）是 UDF，不加。
+`FunctionCallTail` 是疊加位元：函式呼叫之後多接 `OVER`，`WITHIN GROUP (…)` 之後也是；限定名稱（`dbo.fn_Fee(a)`）是 UDF，不加。
 
 `ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個含點號的名稱單位」，
 `ADD` 清單的逗號之後走回同一個 `ADD`（`SqlTokenNavigator.SkipQualifiedNameBackward`）。

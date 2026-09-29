@@ -133,15 +133,35 @@ public sealed class SqlClausePhrase
     /// <paramref name="tokens"/> 前 <paramref name="count"/> 個詞元的尾端是不是這個片語；
     /// 是的話回傳片語第一個詞元的索引，否則 -1。
     /// </summary>
-    internal int MatchTail(IReadOnlyList<SqlToken> tokens, int count)
+    /// <param name="analyzer">同一段詞元的位置分析；<c>...</c> 要問它這一句的動詞。</param>
+    internal int MatchTail(IReadOnlyList<SqlToken> tokens, int count, SqlKeywordPositionAnalyzer analyzer)
     {
-        var index = count - 1;
+        return MatchBefore(tokens, count - 1, _elements.Length, analyzer);
+    }
 
-        for (var element = _elements.Length - 1; element >= 0; element--)
+    /// <summary>
+    /// 清單片語的標頭是不是以 <paramref name="anchor"/> 結尾；是的話回傳片語第一個詞元的索引，否則 -1。
+    /// </summary>
+    internal int MatchHead(IReadOnlyList<SqlToken> tokens, int anchor, SqlKeywordPositionAnalyzer analyzer)
+    {
+        return MatchBefore(tokens, anchor, _elements.Length - 1, analyzer);
+    }
+
+    /// <summary>前 <paramref name="end"/> 項是不是以 <paramref name="last"/> 結尾；是的話回傳第一個詞元的索引，否則 -1。</summary>
+    private int MatchBefore(IReadOnlyList<SqlToken> tokens, int last, int end, SqlKeywordPositionAnalyzer analyzer)
+    {
+        var index = last;
+
+        for (var element = end - 1; element >= 0; element--)
         {
             if (index < 0)
             {
                 return -1;
+            }
+
+            if (_elements[element].Kind == ElementKind.Rest)
+            {
+                return MatchRest(tokens, index, element, analyzer);
             }
 
             index = _elements[element].MatchBackward(tokens, index);
@@ -156,28 +176,38 @@ public sealed class SqlClausePhrase
     }
 
     /// <summary>
-    /// 清單片語的標頭是不是以 <paramref name="anchor"/> 結尾；是的話回傳片語第一個詞元的索引，否則 -1。
+    /// <c>...</c> 以 <paramref name="last"/> 結尾：它前面那幾項從這一句的動詞寫起，中間至少隔一個詞元。
     /// </summary>
-    internal int MatchHead(IReadOnlyList<SqlToken> tokens, int anchor)
+    /// <remarks>
+    /// 動詞之後、錨點之前那一段由敘述自己決定（<c>EXEC p @a = 1, @b = 2 WITH</c>、
+    /// <c>BACKUP DATABASE d TO DISK = 'x' WITH</c>），尾巴寫不出來；片語只說動詞是哪一個，動詞由位置分析找，
+    /// 走不出這一句。那一段的第一個詞元不能是關鍵字：動詞緊接關鍵字是另一種敘述
+    /// （<c>EXECUTE AS USER = 'u' WITH NO REVERT</c>），要另寫自己的片語。
+    /// </remarks>
+    private int MatchRest(IReadOnlyList<SqlToken> tokens, int last, int rest, SqlKeywordPositionAnalyzer analyzer)
     {
-        var index = anchor;
+        var verb = analyzer.FindVerb(last);
 
-        for (var element = _elements.Length - 2; element >= 0; element--)
+        if (verb < 0)
         {
-            if (index < 0)
-            {
-                return -1;
-            }
-
-            index = _elements[element].MatchBackward(tokens, index);
-
-            if (index == Element.Mismatch)
-            {
-                return -1;
-            }
+            return -1;
         }
 
-        return index + 1;
+        for (var head = verb; head < last; head++)
+        {
+            if (MatchBefore(tokens, head, rest, analyzer) != verb)
+            {
+                continue;
+            }
+
+            var first = tokens[head + 1];
+
+            return first.Kind == SqlTokenKind.Identifier && !first.IsQuoted && SqlKeywordCatalog.IsKeyword(first.Value)
+                ? -1
+                : verb;
+        }
+
+        return -1;
     }
 
     private IReadOnlyList<SqlSuggestion> BuildSuggestions()
@@ -201,10 +231,19 @@ public sealed class SqlClausePhrase
         var parts = pattern.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         var elements = new Element[parts.Length];
 
+        if (Array.IndexOf(parts, "...") != Array.LastIndexOf(parts, "..."))
+        {
+            throw new FormatException($"Phrase '{pattern}': ... can appear only once.");
+        }
+
         for (var index = 0; index < parts.Length; index++)
         {
             elements[index] = parts[index] switch
             {
+                // 前後都要有字面字：前面是動詞，後面是錨點，兩頭都釘住才比對得出來。
+                "..." when index > 0 && index < parts.Length - 1 && IsWord(parts[index - 1]) && IsWord(parts[index + 1]) =>
+                    new Element(ElementKind.Rest),
+                "..." => throw new FormatException($"Phrase '{pattern}': ... must sit between two words."),
                 "{name}" => new Element(ElementKind.Name),
                 "{value}" => new Element(ElementKind.Value),
                 "()" => new Element(ElementKind.Group),
@@ -221,6 +260,8 @@ public sealed class SqlClausePhrase
         return elements;
     }
 
+    private static bool IsWord(string part) => char.IsLetter(part[0]) || part[0] == '_';
+
     private enum ElementKind
     {
         Word,
@@ -228,7 +269,8 @@ public sealed class SqlClausePhrase
         Value,
         Group,
         OpenList,
-        List
+        List,
+        Rest
     }
 
     private readonly struct Element
@@ -291,6 +333,10 @@ public sealed class SqlClausePhrase
 
                 // 清單項從游標往回比對不到，由 MatchHead 從錨點比對標頭。
                 case ElementKind.List:
+                    return Mismatch;
+
+                // 要看這一句的動詞，由 MatchRest 比對。
+                case ElementKind.Rest:
                     return Mismatch;
 
                 default:

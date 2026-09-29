@@ -181,18 +181,11 @@ public enum SqlKeywordPosition : long
     /// <remarks>分析器同時回報 <see cref="ExpressionTail"/>：指派的值還能接運算子與 COLLATE。</remarks>
     UpdateSetTail = 1L << 43,
 
-    /// <summary>BACKUP DATABASE／LOG 的 WITH 與選項清單的逗號之後；選項由子句片語給。</summary>
-    /// <remarks>不寫成清單片語：WITH 之前是長度不定的裝置清單（<c>TO DISK = 'x', URL = 'y'</c>），標頭寫不成尾巴。</remarks>
-    BackupOption = 1 << 29,
-
-    /// <summary>RESTORE DATABASE／LOG 的 WITH 與選項清單的逗號之後；選項由子句片語給。</summary>
-    /// <remarks>不併進 <see cref="BackupOption"/>：兩者的選項不同。</remarks>
-    RestoreOption = 1 << 30,
-
     /// <summary>CREATE／ALTER PROCEDURE 的 WITH 與選項清單的逗號之後；選項由子句片語給。</summary>
     /// <remarks>
-    /// 模組的四種選項各自一格，理由與 <see cref="RestoreOption"/> 相同：<c>RECOMPILE</c> 只屬於程序，
-    /// <c>VIEW_METADATA</c> 只屬於檢視。
+    /// 模組的四種選項各自一格：<c>RECOMPILE</c> 只屬於程序，<c>VIEW_METADATA</c> 只屬於檢視。
+    /// 不併進 <see cref="OptionItem"/>：模組選項寫完之後還有 <see cref="ModuleHeader"/> 接 AS，
+    /// 清單片語的清單沒有這一格。
     /// </remarks>
     ProcedureOption = 1 << 12,
 
@@ -259,13 +252,6 @@ public enum SqlKeywordPosition : long
     /// <summary><c>CREATE FUNCTION f (…)</c> 的參數清單之後——RETURNS；RETURNS 不是關鍵字，由子句片語給。</summary>
     FunctionReturns = 1L << 49,
 
-    /// <summary><c>EXEC p … WITH</c> 與選項的逗號之後——RECOMPILE；RESULT SETS 由子句片語給。</summary>
-    /// <remarks>
-    /// 不寫成清單片語（<see cref="OptionItem"/>）：程序與 WITH 之間夾著長度不定的參數清單，標頭寫不成尾巴；
-    /// <c>WITH RESULT SETS (…)</c> 的兩層清單也以這一格認 EXEC。
-    /// </remarks>
-    ExecuteOption = 1L << 50,
-
     /// <summary><c>WITH RESULT SETS (</c> 與結果集之間的逗號之後——AS；OBJECT、TYPE、FOR XML 由子句片語給。</summary>
     /// <remarks>另一種寫法是一組資料行定義的左括號，那不是字。</remarks>
     ResultSetList = 1L << 58,
@@ -281,15 +267,16 @@ public enum SqlKeywordPosition : long
     ResultSetColumnTail = 1L << 60,
 
     /// <summary>
-    /// 清單片語宣告的選項清單：標頭（<c>ALTER LOGIN l WITH</c>、<c>RAISERROR (…) WITH</c>、<c>FOR XML</c>）
+    /// 清單片語宣告的選項清單：標頭（<c>ALTER LOGIN l WITH</c>、<c>BACKUP DATABASE d TO … WITH</c>、<c>FOR XML</c>）
     /// 與逗號之後；選項由那個片語給。
     /// </summary>
     /// <remarks>
     /// 所有這種清單共用一個位元。位置只說「這裡是某一句的選項清單」，是哪一句、接哪些字由片語的尾巴
-    /// 說：LOGIN、USER、DBCC、RAISERROR 的選項各不相同，每種各佔一個位元的話，敘述數一多位元就不夠。
-    /// 哪些敘述有這種清單也只由片語說一次，見 <c>tools/Generate-Keywords.ps1</c> 的 <c>,*</c>。
-    /// 仍各佔一格的清單寫不成標頭：中間夾著長度不定的一段（<see cref="ExecuteOption"/>、<see cref="BackupOption"/>、
-    /// <see cref="IndexOption"/>），選項寫完之後還有位置要回報（<see cref="ProcedureOption"/>、<see cref="TriggerOption"/>），
+    /// 說：LOGIN、USER、BACKUP、RESTORE、EXEC、RAISERROR、DBCC 的選項各不相同，每種各佔一個位元的話，
+    /// 敘述數一多位元就不夠。哪些敘述有這種清單也只由片語說一次，見 <c>tools/Generate-Keywords.ps1</c>
+    /// 的 <c>,*</c>；標頭中段長度不定的（<c>EXEC p @a = 1 WITH</c>）用 <c>...</c> 代表動詞到 WITH 之間。
+    /// 仍各佔一格的清單：中間夾著的不是這一句的其餘標頭（<see cref="IndexOption"/> 前面是索引鍵與篩選），
+    /// 選項寫完之後還有位置要回報（<see cref="ProcedureOption"/>、<see cref="TriggerOption"/>），
     /// 或不以逗號分隔（<see cref="CursorOption"/>）。
     /// </remarks>
     OptionItem = 1L << 62,
@@ -330,12 +317,12 @@ public enum SqlKeywordPosition : long
         | TableSourceTail | Predicate | ExpressionTail | OrderByTail | GroupByTail
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
         | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | TriggerHeader
-        | MergeWhen | MergeAction | MergeClause | BackupOption | RestoreOption
+        | MergeWhen | MergeAction | MergeClause
         | PermissionList | PermissionTarget | PermissionOn | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
         | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
         | ReferencesTail | FunctionCallTail | WindowOrderTail | OffsetTail | ModuleHeader | FunctionReturns
-        | ExecuteOption | ResultSetList | ResultSetColumn | ResultSetColumnTail | OptionItem | TableSampleTail | PivotClause
+        | ResultSetList | ResultSetColumn | ResultSetColumnTail | OptionItem | TableSampleTail | PivotClause
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

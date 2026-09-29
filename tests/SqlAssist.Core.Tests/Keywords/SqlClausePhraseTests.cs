@@ -68,18 +68,20 @@ public sealed class SqlClausePhraseTests
     /// </summary>
     /// <remarks>
     /// 附加片語只補關鍵字目錄給不了的片語開頭，不能把其他字藏起來；探測文字比對到別的片語時，
-    /// 附加的字會被那個片語蓋掉而永遠不出現。
+    /// 附加的字會被那個片語蓋掉而永遠不出現。那一格同時接得上別的附加片語時，比對回的是聯集，
+    /// 所以驗的是字都在，不是同一個物件。
     /// </remarks>
     [Theory]
     [MemberData(nameof(AdditiveProbes))]
     public void 附加片語的探測文字比對回自己而且只是可能(string probe)
     {
+        var additive = SqlClausePhraseCatalog.All.Single(phrase => phrase.IsAdditive && phrase.Probe == probe);
         var match = SqlKeywordPositionAnalyzer.Analyze(probe).Phrase;
 
         Assert.NotNull(match);
         Assert.False(match!.IsCertain);
         Assert.True(match.Phrase.IsAdditive);
-        Assert.Equal(probe, match.Phrase.Probe);
+        Assert.All(additive.Words, word => Assert.Contains(word, match.Phrase.Words));
     }
 
     [Fact]
@@ -246,6 +248,24 @@ public sealed class SqlClausePhraseTests
     [InlineData("RAISERROR ('x', 16, 1) WITH ", "LOG", "NOWAIT", "SETERROR")]
     [InlineData("RAISERROR (@msg, 16, 1, @CopyNo) WITH NOWAIT, ", "LOG", "SETERROR")]
     [InlineData("SELECT a FROM t FOR XML AUTO, ", "TYPE", "ROOT", "ELEMENTS")]
+    [InlineData("EXEC dbo.usp_Renew @CopyNo = 1, @Due = @d OUTPUT WITH ", "RECOMPILE", "RESULT")]
+    [InlineData("EXECUTE dbo.usp_Copies WITH RECOMPILE, ", "RESULT")]
+    [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE,\n    RESULT ", "SETS")]
+    [InlineData("BACKUP LOG LibArchive TO DISK = 'x' WITH ", "INIT", "COMPRESSION")]
+    [InlineData("RESTORE DATABASE LibArchive FROM DISK = 'x' WITH ", "FILE", "REPLACE", "NORECOVERY")]
+    [InlineData("RESTORE LOG LibArchive FROM DISK = 'x' WITH ", "NORECOVERY")]
+    [InlineData("SELECT STRING_AGG(Title, ', ') ", "WITHIN", "OVER", "AT")]
+    [InlineData("SELECT Branch, STRING_AGG(Title, ', ') WITHIN ", "GROUP")]
+    [InlineData("SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (", "ORDER")]
+    [InlineData("SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY Fee) ", "OVER")]
+    [InlineData("SELECT Branch FROM dbo.Copy ORDER BY STRING_AGG(Title, ', ') ", "WITHIN")]
+    [InlineData("DELETE FROM dbo.Loan WHERE ", "CURRENT")]
+    [InlineData("DELETE FROM dbo.Loan WHERE CURRENT ", "OF")]
+    [InlineData("UPDATE dbo.Loan SET Fee = 0 WHERE CURRENT ", "OF")]
+    [InlineData("DELETE FROM dbo.Loan WHERE CURRENT OF ", "GLOBAL")]
+    [InlineData("DBCC CHECKIDENT ('dbo.Lib_Tag', ", "NORESEED", "RESEED")]
+    [InlineData("DBCC CHECKDB (N'LibArchive', ", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST", "REPAIR_REBUILD")]
+    [InlineData("DBCC SQLPERF (", "LOGSPACE")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -295,9 +315,10 @@ public sealed class SqlClausePhraseTests
     [InlineData("DBCC CHECKDB WITH NO_INFOMSGS, ", "RECOMPILE")]
     [InlineData("CREATE LOGIN LibLogin WITH PASSWORD = 'x', ", "SELECT")]
     [InlineData("ALTER USER LibUser WITH NAME = LibUser2, ", "SELECT")]
-    [InlineData("RAISERROR ('x', 16, 1) WITH ", "SELECT")]
     [InlineData("RAISERROR ('x', 16, 1) WITH NOWAIT, ", "SELECT")]
     [InlineData("CREATE APPLICATION ROLE LibAppRole WITH PASSWORD = 'x', ", "SELECT")]
+    [InlineData("SELECT STRING_AGG(Title, ', ') WITHIN ", "SELECT")]
+    [InlineData("DELETE FROM dbo.Loan WHERE CURRENT ", "AND")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
@@ -331,6 +352,15 @@ public sealed class SqlClausePhraseTests
     [InlineData("RAISERROR ('x', 16, 1) WITH NOWAIT, ", "RECOMPILE")]
     [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE, ", "NOWAIT")]
     [InlineData("SELECT a FROM t FOR JSON PATH, ", "NOWAIT")]
+    [InlineData("EXECUTE AS USER = 'LibUser' WITH ", "RECOMPILE")]
+    [InlineData("GRANT EXECUTE ON dbo.usp_Renew TO LibRole WITH ", "RECOMPILE")]
+    [InlineData("RESTORE DATABASE LibArchive FROM DISK = 'x' WITH ", "COMPRESSION")]
+    [InlineData("SELECT Title ", "WITHIN")]
+    [InlineData("SELECT dbo.fn_Fee(CopyNo) ", "WITHIN")]
+    [InlineData("SELECT * FROM dbo.Copy WHERE CopyNo = 1 ", "WITHIN")]
+    [InlineData("DBCC CHECKIDENT (", "REPAIR_REBUILD")]
+    [InlineData("DBCC CHECKDB (", "RESEED")]
+    [InlineData("SELECT CONVERT(int, ", "RESEED")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));
@@ -369,6 +399,11 @@ public sealed class SqlClausePhraseTests
     [InlineData("DBCC CHECKDB WITH NO_INFOMSGS, ", true)]
     [InlineData("RAISERROR ('x', 16, 1) WITH NOWAIT, ", true)]
     [InlineData("SELECT a FROM t FOR JSON PATH, ", true)]
+    [InlineData("EXEC dbo.usp_Copies @Branch = 1 WITH ", true)]
+    [InlineData("SELECT STRING_AGG(Title, ', ') WITHIN ", true)]
+    [InlineData("DELETE FROM dbo.Loan WHERE CURRENT ", true)]
+    [InlineData("DBCC CHECKIDENT (", false)]
+    [InlineData("DBCC CHECKDB (N'LibArchive', ", false)]
     public void 封閉的片語換掉整份清單(string textBeforeCaret, bool closed)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -397,6 +432,59 @@ public sealed class SqlClausePhraseTests
         Assert.NotEqual(CompletionTarget.ClauseKeyword, context.Target);
         Assert.Contains(phraseWord, offered);
         Assert.Contains(catalogWord, offered);
+    }
+
+    /// <summary>
+    /// 一格同時是幾個位置時，接得上的附加片語全部算數：函式呼叫之後是選取清單尾端，也是函式呼叫之後。
+    /// </summary>
+    /// <remarks>只取第一個對上的話，<c>AT</c> 與 <c>WITHIN</c> 只剩一個。</remarks>
+    [Fact]
+    public void 同時對上的附加片語取聯集()
+    {
+        var match = SqlKeywordPositionAnalyzer.Analyze("SELECT STRING_AGG(Title, ', ') ").Phrase;
+
+        Assert.NotNull(match);
+        Assert.False(match!.IsCertain);
+        Assert.True(match.Phrase.IsAdditive);
+        Assert.Contains("AT", match.Phrase.Words);
+        Assert.Contains("WITHIN", match.Phrase.Words);
+        Assert.Same(match.Phrase, SqlKeywordPositionAnalyzer.Analyze("SELECT MAX(Fee) ").Phrase!.Phrase);
+    }
+
+    /// <summary>
+    /// <c>...</c> 代表動詞之後的其餘標頭：前後要是字面字、只能一個。
+    /// </summary>
+    [Theory]
+    [InlineData("... WITH ,*")]
+    [InlineData("EXEC ...")]
+    [InlineData("EXEC ... ... WITH")]
+    [InlineData("EXEC ... {name} WITH")]
+    [InlineData("EXEC () ... WITH")]
+    public void 其餘標頭要夾在兩個字面字之間(string pattern)
+    {
+        Assert.Throws<FormatException>(() => new SqlClausePhrase(pattern, SqlKeywordPosition.StatementStart, string.Empty, false, false, Array.Empty<string>()));
+    }
+
+    /// <summary>
+    /// <c>...</c> 從這一句的動詞算起，中間至少一個詞元，而且第一個不是關鍵字。
+    /// </summary>
+    /// <remarks>
+    /// <c>EXECUTE AS USER = 'u' WITH NO REVERT</c> 是另一種敘述，<c>GRANT EXECUTE ON … WITH GRANT OPTION</c>
+    /// 的 EXECUTE 是權限；兩者都不是程序呼叫的選項清單。
+    /// </remarks>
+    [Theory]
+    [InlineData("EXEC dbo.usp_Renew WITH ", true)]
+    [InlineData("EXEC @rc = dbo.usp_Renew @CopyNo = 1 WITH ", true)]
+    [InlineData("SELECT 1;\nEXEC [dbo].[usp_Renew] N'x', 1 WITH ", true)]
+    [InlineData("EXEC WITH ", false)]
+    [InlineData("EXECUTE AS USER = 'LibUser' WITH ", false)]
+    [InlineData("GRANT EXECUTE ON dbo.usp_Renew TO LibRole WITH ", false)]
+    [InlineData("SELECT 1 FROM t WITH ", false)]
+    public void 其餘標頭從動詞算起(string textBeforeCaret, bool matches)
+    {
+        var match = SqlKeywordPositionAnalyzer.Analyze(textBeforeCaret).Phrase;
+
+        Assert.Equal(matches, match is { IsCertain: true } && match.Phrase.Pattern == "EXEC ... WITH");
     }
 
     /// <summary>
@@ -445,6 +533,7 @@ public sealed class SqlClausePhraseTests
         {
             var items = phrase.Pattern.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             var tokens = SqlTokenizer.Tokenize(phrase.Probe);
+            var analyzer = SqlKeywordPositionAnalyzer.ForScript(tokens, phrase.Probe);
             var isLead = phrase.After == SqlKeywordPosition.Any;
 
             for (var index = isLead ? 1 : 0; index < items.Length; index++)
@@ -455,10 +544,22 @@ public sealed class SqlClausePhraseTests
                 }
 
                 // 前面那段直接取自探測文字：從尾端比對到這個字為止，名稱與括號的代入就與產生器相同。
-                var rest = new SqlClausePhrase(
-                    string.Join(" ", items.Skip(index)), SqlKeywordPosition.Any, string.Empty,
-                    isClosed: false, endsStatement: false, Array.Empty<string>());
-                var start = rest.MatchTail(tokens, tokens.Count);
+                // ... 要從動詞比對，拆不開：它前面的字由整條片語定位，那一段都是字面字，一個字一個詞元。
+                var gap = Array.IndexOf(items, "...");
+                int start;
+
+                if (index < gap)
+                {
+                    Assert.True(items.Take(gap).All(IsLiteral), phrase.Pattern);
+                    start = phrase.MatchTail(tokens, tokens.Count, analyzer) + index;
+                }
+                else
+                {
+                    var rest = new SqlClausePhrase(
+                        string.Join(" ", items.Skip(index)), SqlKeywordPosition.Any, string.Empty,
+                        isClosed: false, endsStatement: false, Array.Empty<string>());
+                    start = rest.MatchTail(tokens, tokens.Count, analyzer);
+                }
                 data.Add(phrase.Pattern, phrase.Probe.Substring(0, tokens[start].Start), items[index]);
             }
         }

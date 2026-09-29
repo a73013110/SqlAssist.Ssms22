@@ -294,7 +294,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             (caret.Keywords & SqlKeywordPosition.OptionItem) != SqlKeywordPosition.None
                 ? analyzer.FindPhraseListAnchor(tokens.Count - 1)
                 : -1;
-        var phrase = SqlClausePhraseCatalog.Match(tokens, textBeforeToken, caret.Keywords, listAnchor);
+        var phrase = SqlClausePhraseCatalog.Match(analyzer, tokens, textBeforeToken, caret.Keywords, listAnchor);
 
         return new SqlCaretPosition(caret.Keywords, caret.Slot, phrase, analyzer.StartsBatch());
     }
@@ -325,7 +325,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>同上，由這個分析器回答；語句開頭的判準問片語時走這裡，判過的開頭不必重算。</summary>
-    private SqlKeywordPosition PositionBefore(int index)
+    internal SqlKeywordPosition PositionBefore(int index)
     {
         if (index <= 0)
         {
@@ -642,7 +642,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                     != SqlKeywordPosition.None;
 
             // 隱含的界線是猜的，剖析器不猜：前一句寫到這裡接得上這個字，它就還是那一句。
-            head = head && !SqlClausePhraseCatalog.Continues(tokens, index, before, PositionBefore, token.Value);
+            head = head && !SqlClausePhraseCatalog.Continues(tokens, index, before, this, token.Value);
         }
 
         if (head && token.IsKeyword("SET") && !IntroducesOptions(index))
@@ -723,7 +723,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <c>RAISERROR (…)</c>、<c>THEN INSERT (a)</c>。分號、沒關上的左括號與配不起來的
     /// 右括號之前是別的東西。
     /// </remarks>
-    private int FindVerb(int from)
+    internal int FindVerb(int from)
     {
         for (var index = from; index >= 0; index--)
         {
@@ -2073,6 +2073,14 @@ public sealed partial class SqlKeywordPositionAnalyzer
         if (FindStatementSlot(close) is { } slot)
         {
             return new SqlCaretPosition(slot);
+        }
+
+        // STRING_AGG(…) WITHIN GROUP (ORDER BY …) 與前面那次呼叫是一個單位，之後照那次呼叫：還接得了 OVER。
+        // 不跳過的話 GROUP 會被當成 GROUP BY 的錨點。
+        if (open >= 3 && tokens[open - 1].IsKeyword("GROUP") && tokens[open - 2].IsKeyword("WITHIN") &&
+            tokens[open - 3].IsPunctuation(")"))
+        {
+            return AfterGroup(open - 3);
         }
 
         var position = FindClausePosition(open - 1);

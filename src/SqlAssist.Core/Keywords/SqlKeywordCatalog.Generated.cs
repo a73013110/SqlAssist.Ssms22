@@ -87,7 +87,7 @@ internal static class SqlKeywordCatalogData
         new("EXIT", SqlKeywordPosition.None),
         new("EXTERNAL", SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.DdlObject),
         new("FETCH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("FILE", SqlKeywordPosition.RestoreOption),
+        new("FILE", SqlKeywordPosition.OptionItem),
         new("FILLFACTOR", SqlKeywordPosition.IndexOption),
         new("FOR", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.PivotClause | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CursorOption),
         new("FOREIGN", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.ColumnDefinition),
@@ -264,8 +264,6 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE "),
         new(SqlKeywordPosition.ModuleHeader, "CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING "),
         new(SqlKeywordPosition.FunctionReturns, "CREATE FUNCTION f () "),
-        new(SqlKeywordPosition.ExecuteOption, "EXEC p WITH "),
-        new(SqlKeywordPosition.ExecuteOption, "EXEC p WITH RECOMPILE, "),
         new(SqlKeywordPosition.ResultSetList, "EXEC p WITH RESULT SETS ("),
         new(SqlKeywordPosition.ResultSetList, "EXEC p WITH RESULT SETS ((a int), "),
         new(SqlKeywordPosition.ResultSetColumn, "EXEC p WITH RESULT SETS (("),
@@ -274,6 +272,16 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.ResultSetColumnTail, "EXEC p WITH RESULT SETS ((a varchar(10) COLLATE Latin1_General_CI_AS "),
         new(SqlKeywordPosition.OptionItem, "ALTER USER u WITH "),
         new(SqlKeywordPosition.OptionItem, "ALTER USER u WITH NAME = n, "),
+        new(SqlKeywordPosition.OptionItem, "EXEC p WITH "),
+        new(SqlKeywordPosition.OptionItem, "EXEC p WITH RECOMPILE, "),
+        new(SqlKeywordPosition.OptionItem, "RAISERROR ('x', 16, 1) WITH "),
+        new(SqlKeywordPosition.OptionItem, "RAISERROR ('x', 16, 1) WITH NOWAIT, "),
+        new(SqlKeywordPosition.OptionItem, "DBCC CHECKDB WITH "),
+        new(SqlKeywordPosition.OptionItem, "DBCC CHECKDB WITH NO_INFOMSGS, "),
+        new(SqlKeywordPosition.OptionItem, "BACKUP DATABASE d TO DISK = 'x' WITH "),
+        new(SqlKeywordPosition.OptionItem, "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, "),
+        new(SqlKeywordPosition.OptionItem, "RESTORE DATABASE d FROM DISK = 'x' WITH "),
+        new(SqlKeywordPosition.OptionItem, "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, "),
         new(SqlKeywordPosition.GroupByTail, "SELECT * FROM t GROUP BY a "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t ORDER BY "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t GROUP BY "),
@@ -309,10 +317,6 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.MergeAction, "MERGE t USING s ON 1 = 1 WHEN MATCHED THEN "),
         new(SqlKeywordPosition.MergeAction, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED THEN "),
         new(SqlKeywordPosition.MergeClause, "MERGE t USING s ON 1 = 1 WHEN MATCHED THEN DELETE "),
-        new(SqlKeywordPosition.BackupOption, "BACKUP DATABASE d TO DISK = 'x' WITH "),
-        new(SqlKeywordPosition.BackupOption, "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, "),
-        new(SqlKeywordPosition.RestoreOption, "RESTORE DATABASE d FROM DISK = 'x' WITH "),
-        new(SqlKeywordPosition.RestoreOption, "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, "),
         new(SqlKeywordPosition.ProcedureOption, "CREATE PROCEDURE p WITH "),
         new(SqlKeywordPosition.ProcedureOption, "CREATE PROCEDURE p WITH ENCRYPTION, "),
         new(SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH "),
@@ -1353,7 +1357,7 @@ internal static class SqlKeywordCatalogData
             "DYNAMIC", "FAST_FORWARD", "FOR", "FORWARD_ONLY", "GLOBAL", "KEYSET", "LOCAL",
             "OPTIMISTIC", "READ_ONLY", "SCROLL", "SCROLL_LOCKS", "STATIC", "TYPE_WARNING",
         }),
-        ("", SqlKeywordPosition.BackupOption, "BACKUP DATABASE d TO DISK = 'x' WITH ", true, false, new string[]
+        ("BACKUP DATABASE ... WITH", SqlKeywordPosition.StatementStart, "BACKUP DATABASE d TO DISK = 'x' WITH ", true, false, new string[]
         {
             "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMPRESSION", "CONTINUE_AFTER_ERROR",
             "COPY_ONLY", "DESCRIPTION", "DIFFERENTIAL", "ENCRYPTION", "ENHANCEDINTEGRITY",
@@ -1363,7 +1367,73 @@ internal static class SqlKeywordCatalogData
             "REWIND", "SKIP", "SNAPSHOT", "STANDBY", "STATS", "STOP_ON_ERROR", "TRUNCATE_ONLY",
             "UNLOAD",
         }),
-        ("", SqlKeywordPosition.RestoreOption, "RESTORE DATABASE d FROM DISK = 'x' WITH ", true, false, new string[]
+        ("BACKUP DATABASE ... WITH ,*", SqlKeywordPosition.StatementStart, "BACKUP DATABASE d TO DISK = 'x' WITH BLOCKSIZE = 1, ", true, false, new string[]
+        {
+            "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMPRESSION", "CONTINUE_AFTER_ERROR",
+            "COPY_ONLY", "DESCRIPTION", "DIFFERENTIAL", "ENCRYPTION", "ENHANCEDINTEGRITY",
+            "EXPIREDATE", "FORMAT", "INIT", "MAXTRANSFERSIZE", "MEDIADESCRIPTION", "MEDIANAME",
+            "NAME", "NO_CHECKSUM", "NO_COMPRESSION", "NO_LOG", "NO_TRUNCATE", "NOFORMAT",
+            "NOINIT", "NORECOVERY", "NOREWIND", "NOSKIP", "NOUNLOAD", "RESTART", "RETAINDAYS",
+            "REWIND", "SKIP", "SNAPSHOT", "STANDBY", "STATS", "STOP_ON_ERROR", "TRUNCATE_ONLY",
+            "UNLOAD",
+        }),
+        ("BACKUP LOG ... WITH", SqlKeywordPosition.StatementStart, "BACKUP LOG d TO DISK = 'x' WITH ", true, false, new string[]
+        {
+            "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMPRESSION", "CONTINUE_AFTER_ERROR",
+            "COPY_ONLY", "DESCRIPTION", "DIFFERENTIAL", "ENCRYPTION", "ENHANCEDINTEGRITY",
+            "EXPIREDATE", "FORMAT", "INIT", "MAXTRANSFERSIZE", "MEDIADESCRIPTION", "MEDIANAME",
+            "NAME", "NO_CHECKSUM", "NO_COMPRESSION", "NO_LOG", "NO_TRUNCATE", "NOFORMAT",
+            "NOINIT", "NORECOVERY", "NOREWIND", "NOSKIP", "NOUNLOAD", "RESTART", "RETAINDAYS",
+            "REWIND", "SKIP", "SNAPSHOT", "STANDBY", "STATS", "STOP_ON_ERROR", "TRUNCATE_ONLY",
+            "UNLOAD",
+        }),
+        ("BACKUP LOG ... WITH ,*", SqlKeywordPosition.StatementStart, "BACKUP LOG d TO DISK = 'x' WITH BLOCKSIZE = 1, ", true, false, new string[]
+        {
+            "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMPRESSION", "CONTINUE_AFTER_ERROR",
+            "COPY_ONLY", "DESCRIPTION", "DIFFERENTIAL", "ENCRYPTION", "ENHANCEDINTEGRITY",
+            "EXPIREDATE", "FORMAT", "INIT", "MAXTRANSFERSIZE", "MEDIADESCRIPTION", "MEDIANAME",
+            "NAME", "NO_CHECKSUM", "NO_COMPRESSION", "NO_LOG", "NO_TRUNCATE", "NOFORMAT",
+            "NOINIT", "NORECOVERY", "NOREWIND", "NOSKIP", "NOUNLOAD", "RESTART", "RETAINDAYS",
+            "REWIND", "SKIP", "SNAPSHOT", "STANDBY", "STATS", "STOP_ON_ERROR", "TRUNCATE_ONLY",
+            "UNLOAD",
+        }),
+        ("RESTORE DATABASE ... WITH", SqlKeywordPosition.StatementStart, "RESTORE DATABASE d FROM DISK = 'x' WITH ", true, false, new string[]
+        {
+            "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMMIT_DIFFERENTIAL_BASE",
+            "CONTINUE_AFTER_ERROR", "ENABLE_BROKER", "ENHANCEDINTEGRITY",
+            "ERROR_BROKER_CONVERSATIONS", "FILE", "FILESTREAM", "KEEP_REPLICATION",
+            "KEEP_TEMPORAL_RETENTION", "LOADHISTORY", "MAXTRANSFERSIZE", "MEDIANAME",
+            "MEDIAPASSWORD", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY", "NOREWIND",
+            "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE", "RESTART",
+            "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT", "SNAPSHOTRESTOREPHASE",
+            "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK", "STOPBEFOREMARK",
+            "UNLOAD", "VERBOSE",
+        }),
+        ("RESTORE DATABASE ... WITH ,*", SqlKeywordPosition.StatementStart, "RESTORE DATABASE d FROM DISK = 'x' WITH BLOCKSIZE = 1, ", true, false, new string[]
+        {
+            "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMMIT_DIFFERENTIAL_BASE",
+            "CONTINUE_AFTER_ERROR", "ENABLE_BROKER", "ENHANCEDINTEGRITY",
+            "ERROR_BROKER_CONVERSATIONS", "FILE", "FILESTREAM", "KEEP_REPLICATION",
+            "KEEP_TEMPORAL_RETENTION", "LOADHISTORY", "MAXTRANSFERSIZE", "MEDIANAME",
+            "MEDIAPASSWORD", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY", "NOREWIND",
+            "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE", "RESTART",
+            "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT", "SNAPSHOTRESTOREPHASE",
+            "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK", "STOPBEFOREMARK",
+            "UNLOAD", "VERBOSE",
+        }),
+        ("RESTORE LOG ... WITH", SqlKeywordPosition.StatementStart, "RESTORE LOG d FROM DISK = 'x' WITH ", true, false, new string[]
+        {
+            "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMMIT_DIFFERENTIAL_BASE",
+            "CONTINUE_AFTER_ERROR", "ENABLE_BROKER", "ENHANCEDINTEGRITY",
+            "ERROR_BROKER_CONVERSATIONS", "FILE", "FILESTREAM", "KEEP_REPLICATION",
+            "KEEP_TEMPORAL_RETENTION", "LOADHISTORY", "MAXTRANSFERSIZE", "MEDIANAME",
+            "MEDIAPASSWORD", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY", "NOREWIND",
+            "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE", "RESTART",
+            "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT", "SNAPSHOTRESTOREPHASE",
+            "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK", "STOPBEFOREMARK",
+            "UNLOAD", "VERBOSE",
+        }),
+        ("RESTORE LOG ... WITH ,*", SqlKeywordPosition.StatementStart, "RESTORE LOG d FROM DISK = 'x' WITH BLOCKSIZE = 1, ", true, false, new string[]
         {
             "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMMIT_DIFFERENTIAL_BASE",
             "CONTINUE_AFTER_ERROR", "ENABLE_BROKER", "ENHANCEDINTEGRITY",
@@ -1750,6 +1820,21 @@ internal static class SqlKeywordCatalogData
         {
             "ZONE",
         }),
+        ("WITHIN GROUP", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP ", true, false, new string[]
+        {
+        }),
+        ("WITHIN GROUP (*", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (", true, false, new string[]
+        {
+            "GRAPH", "ORDER",
+        }),
+        ("CURRENT", SqlKeywordPosition.Predicate, "DELETE FROM t WHERE CURRENT ", true, false, new string[]
+        {
+            "OF",
+        }),
+        ("CURRENT OF", SqlKeywordPosition.Predicate, "DELETE FROM t WHERE CURRENT OF ", false, false, new string[]
+        {
+            "GLOBAL",
+        }),
         ("IS", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm, "SELECT * FROM t WHERE a IS ", true, false, new string[]
         {
             "DISTINCT", "NOT", "NULL",
@@ -1823,11 +1908,23 @@ internal static class SqlKeywordCatalogData
         {
             "RETURNS",
         }),
-        ("", SqlKeywordPosition.ExecuteOption, "EXEC p WITH ", true, false, new string[]
+        ("EXEC ... WITH", SqlKeywordPosition.StatementStart, "EXEC p WITH ", true, false, new string[]
         {
             "RECOMPILE", "RESULT",
         }),
-        ("RESULT SETS", SqlKeywordPosition.ExecuteOption, "EXEC p WITH RESULT SETS ", true, false, new string[]
+        ("EXEC ... WITH ,*", SqlKeywordPosition.StatementStart, "EXEC p WITH RECOMPILE, ", true, false, new string[]
+        {
+            "RECOMPILE", "RESULT",
+        }),
+        ("EXECUTE ... WITH", SqlKeywordPosition.StatementStart, "EXECUTE p WITH ", true, false, new string[]
+        {
+            "RECOMPILE", "RESULT",
+        }),
+        ("EXECUTE ... WITH ,*", SqlKeywordPosition.StatementStart, "EXECUTE p WITH RECOMPILE, ", true, false, new string[]
+        {
+            "RECOMPILE", "RESULT",
+        }),
+        ("RESULT SETS", SqlKeywordPosition.OptionItem, "EXEC p WITH RESULT SETS ", true, false, new string[]
         {
             "NONE", "UNDEFINED",
         }),
@@ -2137,11 +2234,15 @@ internal static class SqlKeywordCatalogData
             "EXCEPT", "FOR", "FROM", "GROUP", "HAVING", "INTERSECT", "INTO", "OPTION", "ORDER",
             "TIME", "UNION", "WHERE", "WINDOW",
         }),
+        ("WITHIN", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN ", true, false, new string[]
+        {
+            "GROUP",
+        }),
         ("GROUP", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP ", true, false, new string[]
         {
             "BY",
         }),
-        ("RESULT", SqlKeywordPosition.ExecuteOption, "EXEC p WITH RESULT ", true, false, new string[]
+        ("RESULT", SqlKeywordPosition.OptionItem, "EXEC p WITH RESULT ", true, false, new string[]
         {
             "SETS",
         }),
@@ -2185,6 +2286,19 @@ internal static class SqlKeywordCatalogData
         {
             "FOLLOWING", "PRECEDING",
         }),
+        ("DBCC CHECKDB (*", SqlKeywordPosition.StatementStart, "DBCC CHECKDB (", false, false, new string[]
+        {
+            "NULL", "SELECT", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST",
+            "REPAIR_REBUILD",
+        }),
+        ("DBCC CHECKIDENT (*", SqlKeywordPosition.StatementStart, "DBCC CHECKIDENT (", false, false, new string[]
+        {
+            "NULL", "SELECT", "NORESEED", "RESEED",
+        }),
+        ("DBCC SQLPERF (*", SqlKeywordPosition.StatementStart, "DBCC SQLPERF (", false, false, new string[]
+        {
+            "NULL", "SELECT", "LOGSPACE",
+        }),
     };
 
     /// <summary>附加片語：只認位置、比對永遠是「可能」，把關鍵字目錄給不了的片語開頭加進那個位置。</summary>
@@ -2192,5 +2306,6 @@ internal static class SqlKeywordCatalogData
     {
         (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE" }),
         (SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),
+        (SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN" }),
     };
 }

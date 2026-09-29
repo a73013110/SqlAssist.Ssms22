@@ -2124,7 +2124,7 @@
         "DBCC CLONEDATABASE", "DBCC FLUSHAUTHCACHE", "DBCC FREESESSIONCACHE", "DBCC FREESYSTEMCACHE", "DBCC HELP", "DBCC TRACEOFF", "DBCC TRACEON"
       ],
       "summary": "資料庫主控台命令：檢查一致性、看統計資料與記錄檔用量等維護工作。",
-      "signature": "DBCC command_name [ ( argument [ ,...n ] ) ] [ WITH option [ ,...n ] ]\n-- CHECKDB [ ( database_name [ , NOINDEX ] ) ] [ WITH NO_INFOMSGS , ALL_ERRORMSGS ]\n-- SHOW_STATISTICS ( 'table' , target ) [ WITH STAT_HEADER | DENSITY_VECTOR | HISTOGRAM ]\n-- CHECKIDENT ( 'table' [ , { NORESEED | RESEED [ , new_value ] } ] )",
+      "signature": "DBCC command_name [ ( argument [ ,...n ] ) ] [ WITH option [ ,...n ] ]\n-- CHECKDB [ ( database_name [ , NOINDEX | , { REPAIR_ALLOW_DATA_LOSS | REPAIR_FAST | REPAIR_REBUILD } ] ) ] [ WITH NO_INFOMSGS , ALL_ERRORMSGS ]\n-- SHOW_STATISTICS ( 'table' , target ) [ WITH STAT_HEADER | DENSITY_VECTOR | HISTOGRAM ]\n-- CHECKIDENT ( 'table' [ , { NORESEED | RESEED [ , new_value ] } ] )\n-- SQLPERF ( LOGSPACE )",
       "examples": [
         {
           "id": "basic",

@@ -74,8 +74,6 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.CursorOption |
         SqlKeywordPosition.TriggerHeader |
         SqlKeywordPosition.MergeWhen |
-        SqlKeywordPosition.BackupOption |
-        SqlKeywordPosition.RestoreOption |
         SqlKeywordPosition.ProcedureOption |
         SqlKeywordPosition.FunctionOption |
         SqlKeywordPosition.ViewOption |
@@ -96,7 +94,6 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.OffsetTail |
         SqlKeywordPosition.ModuleHeader |
         SqlKeywordPosition.FunctionReturns |
-        SqlKeywordPosition.ExecuteOption |
         SqlKeywordPosition.ResultSetList |
         SqlKeywordPosition.ResultSetColumn |
         SqlKeywordPosition.ResultSetColumnTail |
@@ -143,13 +140,10 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.TriggerEvent |
         SqlKeywordPosition.CursorOption |
         SqlKeywordPosition.IndexOption |
-        SqlKeywordPosition.BackupOption |
-        SqlKeywordPosition.RestoreOption |
         SqlKeywordPosition.ProcedureOption |
         SqlKeywordPosition.FunctionOption |
         SqlKeywordPosition.ViewOption |
         SqlKeywordPosition.TriggerOption |
-        SqlKeywordPosition.ExecuteOption |
         SqlKeywordPosition.OptionItem;
 
     /// <summary>

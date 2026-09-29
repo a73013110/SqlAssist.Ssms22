@@ -105,8 +105,8 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
-    /// 模組的選項清單寫完之後是本體；函式的參數清單之後是 RETURNS；EXEC 的 WITH 之後是它自己的選項，
-    /// 標頭寫得成尾巴的清單（RAISERROR、DBCC、LOGIN、USER、應用程式角色）共用 OptionItem。
+    /// 模組的選項清單寫完之後是本體；函式的參數清單之後是 RETURNS；EXEC、RAISERROR、DBCC、BACKUP／RESTORE 的 WITH
+    /// 與登入、使用者、應用程式角色一樣是選項清單，共用 OptionItem。
     /// </summary>
     [Theory]
     [InlineData("CREATE VIEW dbo.v WITH SCHEMABINDING ", SqlKeywordPosition.ModuleHeader)]
@@ -115,8 +115,8 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE FUNCTION f () ", SqlKeywordPosition.FunctionReturns)]
     [InlineData("CREATE OR ALTER FUNCTION dbo.fn_Fee (@CopyNo int) ", SqlKeywordPosition.FunctionReturns)]
     [InlineData("ALTER FUNCTION dbo.fn_Fee (@CopyNo int, @Days int = 1) ", SqlKeywordPosition.FunctionReturns)]
-    [InlineData("EXEC dbo.usp_Renew @CopyNo = 1, @Due = @d OUTPUT WITH ", SqlKeywordPosition.ExecuteOption)]
-    [InlineData("EXEC dbo.usp_Renew WITH RECOMPILE, ", SqlKeywordPosition.ExecuteOption)]
+    [InlineData("EXEC dbo.usp_Renew @CopyNo = 1, @Due = @d OUTPUT WITH ", SqlKeywordPosition.OptionItem)]
+    [InlineData("EXEC dbo.usp_Renew WITH RECOMPILE, ", SqlKeywordPosition.OptionItem)]
     [InlineData("RAISERROR ('x', 16, 1) WITH ", SqlKeywordPosition.OptionItem)]
     [InlineData("RAISERROR (@msg, 16, 1, @CopyNo) WITH NOWAIT, ", SqlKeywordPosition.OptionItem)]
     [InlineData("SELECT a FROM t WHERE b = 1\nRAISERROR ('x', 16, 1) WITH ", SqlKeywordPosition.OptionItem)]
@@ -125,6 +125,8 @@ public sealed class SqlKeywordPositionTests
     [InlineData("DBCC CHECKIDENT ('dbo.Lib_Tag', RESEED, 100) WITH ", SqlKeywordPosition.OptionItem)]
     [InlineData("CREATE APPLICATION ROLE LibAppRole WITH ", SqlKeywordPosition.OptionItem)]
     [InlineData("ALTER APPLICATION ROLE LibAppRole WITH NAME = LibAppRole2, ", SqlKeywordPosition.OptionItem)]
+    [InlineData("EXECUTE dbo.usp_Renew N'x' WITH ", SqlKeywordPosition.OptionItem)]
+    [InlineData("RESTORE LOG d FROM DISK = 'x' WITH NORECOVERY, ", SqlKeywordPosition.OptionItem)]
     [InlineData("CREATE LOGIN LibLogin WITH ", SqlKeywordPosition.OptionItem)]
     [InlineData("CREATE LOGIN LibLogin WITH PASSWORD = 'x' MUST_CHANGE, CHECK_EXPIRATION = ON, ", SqlKeywordPosition.OptionItem)]
     [InlineData("ALTER LOGIN LibLogin WITH NAME = LibLogin2, ", SqlKeywordPosition.OptionItem)]
@@ -188,7 +190,7 @@ public sealed class SqlKeywordPositionTests
     {
         const SqlKeywordPosition options = SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption |
             SqlKeywordPosition.ViewOption | SqlKeywordPosition.TriggerOption |
-            SqlKeywordPosition.ExecuteOption | SqlKeywordPosition.OptionItem;
+            SqlKeywordPosition.OptionItem;
         var position = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords;
 
         // 判不出位置（Any）也含這幾個位元，那不是判成選項。
@@ -212,6 +214,8 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT COUNT(*) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail)]
     [InlineData("SELECT * FROM t ORDER BY SUM(a) ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.FunctionCallTail)]
     [InlineData("SELECT dbo.fn_Fee(a) ", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT STRING_AGG(a, ',') WITHIN GROUP (ORDER BY a) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail)]
+    [InlineData("SELECT b, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY a DESC) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail)]
     [InlineData("SELECT * FROM t WHERE COALESCE(a, 1) ", SqlKeywordPosition.ExpressionTail)]
     [InlineData("SELECT * FROM t WITH (NOLOCK) ", SqlKeywordPosition.TableSourceTail)]
     [InlineData("SELECT * FROM (t1 JOIN t2 ON t1.x = t2.x) ", SqlKeywordPosition.TableSourceTail)]
@@ -1462,9 +1466,9 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE TABLE t (a int, CONSTRAINT pk PRIMARY KEY CLUSTERED (a ", SqlKeywordPosition.IndexKeyTail)]
     [InlineData("MERGE t USING s ON CASE WHEN ", SqlKeywordPosition.Predicate)]
     [InlineData("SELECT CASE WHEN ", SqlKeywordPosition.Predicate)]
-    [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH ", SqlKeywordPosition.BackupOption)]
-    [InlineData("BACKUP LOG d TO DISK = 'x' WITH INIT, STATS = 10, ", SqlKeywordPosition.BackupOption)]
-    [InlineData("RESTORE DATABASE d FROM DISK = 'x' WITH MOVE 'a' TO 'b', ", SqlKeywordPosition.RestoreOption)]
+    [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH ", SqlKeywordPosition.OptionItem)]
+    [InlineData("BACKUP LOG d TO DISK = 'x' WITH INIT, STATS = 10, ", SqlKeywordPosition.OptionItem)]
+    [InlineData("RESTORE DATABASE d FROM DISK = 'x' WITH MOVE 'a' TO 'b', ", SqlKeywordPosition.OptionItem)]
     [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH ENCRYPTION (ALGORITHM = AES_256, ", SqlKeywordPosition.Any)]
     [InlineData("BACKUP CERTIFICATE c TO FILE = 'x' WITH ", SqlKeywordPosition.Any)]
     [InlineData("CREATE TABLE t (a int REFERENCES dbo.Copy ", SqlKeywordPosition.ReferencesTail)]

@@ -6,18 +6,19 @@ namespace SqlAssist.Core.Keywords;
 public sealed partial class SqlKeywordPositionAnalyzer
 {
     /// <summary>
-    /// 清單片語宣告的選項清單（<c>CREATE LOGIN l WITH PASSWORD = 'x', CHECK_POLICY = OFF</c>）：
+    /// 清單片語宣告的選項清單（<c>CREATE LOGIN l WITH PASSWORD = 'x', CHECK_POLICY = OFF</c>、
+    /// <c>EXEC p WITH RECOMPILE, RESULT SETS (…)</c>、<c>BACKUP DATABASE d TO DISK = 'x' WITH INIT</c>）：
     /// 錨點是某個清單片語的標頭，選項由那個片語給。
     /// </summary>
     /// <remarks>
     /// 哪些敘述有這種清單只由片語說一次，這裡不列敘述；位置也只有一個，是哪一句由片語的標頭分。
-    /// 選項裡寫得出的東西與 BACKUP 的清單相同：開始另一句的字、分號與沒關上的左括號之外都是。
+    /// 選項裡寫得出的東西：開始另一句的字、分號與沒關上的左括號之外都是，一整組括號跳過。
     /// 選項寫完之後接的是逗號或下一句，不歸清單管。
     ///
     /// 排在 <see cref="OptionLists"/> 之前：靜態欄位依宣告順序初始化，那份陣列要放它。
     /// </remarks>
     private static readonly OptionList PhraseList = new(
-        isAnchor: (analyzer, index) => SqlClausePhraseCatalog.OpensList(analyzer.tokens, index, analyzer.PositionBefore),
+        isAnchor: (analyzer, index) => SqlClausePhraseCatalog.OpensList(analyzer.tokens, index, analyzer),
         isPart: (analyzer, index) => !analyzer.StartsClauseOfItsOwn(index),
         endsItem: null,
         header: (_, _) => new OptionSlots(SqlKeywordPosition.OptionItem, null),
@@ -30,7 +31,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 這幾格接的多半是非關鍵字的選項（<c>LOCAL</c>、<c>ENCRYPTION</c>、<c>COMPRESSION</c>），
     /// 由以位置為鍵的子句片語給；位置判不出來的話片語無從比對，整份目錄全部進場。
     /// 新增一種敘述的選項清單只要加一筆；新的位置照樣要有產生器的樣板與片語。
-    /// 標頭之後直接是逗號清單、選項只看標頭的敘述不必加在這裡：寫成清單片語，走 <see cref="PhraseList"/>。
+    /// 標頭之後是逗號清單、選項只看標頭的敘述不必加在這裡：寫成清單片語，走 <see cref="PhraseList"/>；
+    /// 標頭中段可變（<c>EXEC p @a = 1 WITH</c>）的片語用 <c>...</c>。
     /// </remarks>
     private static readonly OptionList[] OptionLists =
     {
@@ -97,17 +99,6 @@ public sealed partial class SqlKeywordPositionAnalyzer
             endsItem: (analyzer, index) => analyzer.EndsModuleOption(index),
             header: (analyzer, with) => analyzer.FindModuleOptionHeader(with)),
 
-        // EXEC p … WITH RECOMPILE, RESULT SETS (…)：WITH 與逗號之後是下一個選項，選項寫完之後接的是下一句。
-        // 程序與 WITH 之間夾著參數清單，標頭寫不成清單片語。
-        new(
-            isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
-            isPart: (analyzer, index) => analyzer.tokens[index].Kind == SqlTokenKind.Identifier,
-            endsItem: null,
-            header: (analyzer, with) => analyzer.CallsProcedure(with)
-                ? new OptionSlots(SqlKeywordPosition.ExecuteOption, null)
-                : null,
-            skipsGroups: true),
-
         // 外部索引鍵 REFERENCES dbo.Copy (CopyNo) ON DELETE CASCADE：參考與每個動作寫完之後是 ON、NOT 與其他條件約束。
         // 動作寫到一半（ON DELETE SET ）由片語給。GRANT REFERENCES 的 REFERENCES 是權限。
         new(
@@ -118,15 +109,6 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 ? null
                 : new OptionSlots(null, SqlKeywordPosition.ReferencesTail),
             separatedByCommas: false,
-            skipsGroups: true),
-
-        // BACKUP|RESTORE DATABASE|LOG … WITH：選項清單不在括號裡，括號裡的逗號走不出那組括號。
-        // WITH 之前是長度不定的裝置清單，標頭寫不成清單片語。
-        new(
-            isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
-            isPart: (analyzer, index) => !analyzer.StartsClauseOfItsOwn(index),
-            endsItem: null,
-            header: (analyzer, with) => analyzer.FindBackupHeader(with),
             skipsGroups: true),
 
         // CREATE INDEX … WITH (ONLINE = ON, FILLFACTOR = 80)：左括號與逗號之後是下一個選項。
@@ -323,13 +305,19 @@ public sealed partial class SqlKeywordPositionAnalyzer
     }
 
     /// <summary><paramref name="open"/> 是 <c>EXEC … WITH RESULT SETS (</c> 的左括號。</summary>
+    /// <remarks>
+    /// RESULT SETS 是 EXEC 選項清單裡的一項：前面是那份清單的一項開頭，而清單屬於 EXEC。
+    /// 別的選項清單寫不出 RESULT SETS，剖析器也不收。
+    /// </remarks>
     private bool OpensResultSets(int open)
     {
         return open >= 3 &&
             tokens[open].IsPunctuation("(") &&
             tokens[open - 1].IsKeyword("SETS") &&
             tokens[open - 2].IsKeyword("RESULT") &&
-            FindStatementSlot(open - 3) == SqlKeywordPosition.ExecuteOption;
+            FindStatementSlot(open - 3) == SqlKeywordPosition.OptionItem &&
+            FindVerb(open - 3) is var verb and >= 0 &&
+            (tokens[verb].IsKeyword("EXEC") || tokens[verb].IsKeyword("EXECUTE"));
     }
 
     /// <summary><paramref name="open"/> 開啟結果集清單裡的一組資料行定義。</summary>
@@ -824,21 +812,6 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return new OptionSlots(start, SqlKeywordPosition.ModuleHeader);
     }
 
-    /// <summary><paramref name="with"/> 的 WITH 屬於 <c>EXEC</c> 程序呼叫。</summary>
-    /// <remarks>
-    /// <c>EXECUTE AS USER = 'u' WITH NO REVERT</c> 是另一種敘述，<c>GRANT EXECUTE ON … WITH</c> 的 EXECUTE
-    /// 是權限，都不算：EXEC 要是這一句的開頭。
-    /// </remarks>
-    private bool CallsProcedure(int with)
-    {
-        var verb = FindVerb(with - 1);
-
-        return verb >= 0 && verb + 1 < with &&
-            IsStatementHead(verb) &&
-            (tokens[verb].IsKeyword("EXEC") || tokens[verb].IsKeyword("EXECUTE")) &&
-            !tokens[verb + 1].IsKeyword("AS");
-    }
-
     /// <summary>
     /// 這個詞元開始另一個子句或另一句：能開始一句的關鍵字、分號、沒關上的左括號。
     /// </summary>
@@ -848,26 +821,6 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         return token.IsPunctuation(";") || token.IsPunctuation("(") ||
             (token.Kind == SqlTokenKind.Identifier && IsBareKeyword(index) && StartsStatement(token));
-    }
-
-    /// <summary>
-    /// <paramref name="with"/> 的 WITH 屬於 <c>BACKUP</c>／<c>RESTORE DATABASE|LOG</c>。
-    /// </summary>
-    /// <remarks>
-    /// 只收 DATABASE 與 LOG：<c>BACKUP CERTIFICATE … WITH</c> 接的是別的選項。
-    /// </remarks>
-    private OptionSlots? FindBackupHeader(int with)
-    {
-        var verb = FindVerb(with - 1);
-
-        if (verb < 0 || verb + 1 >= with || !(tokens[verb + 1].IsKeyword("DATABASE") || tokens[verb + 1].IsKeyword("LOG")))
-        {
-            return null;
-        }
-
-        return tokens[verb].IsKeyword("BACKUP") ? new OptionSlots(SqlKeywordPosition.BackupOption, null)
-            : tokens[verb].IsKeyword("RESTORE") ? new OptionSlots(SqlKeywordPosition.RestoreOption, null)
-            : null;
     }
 
     /// <summary>一種選項清單在一項的開頭與寫完一項之後各是什麼位置；null 是那裡不歸這份清單管。</summary>

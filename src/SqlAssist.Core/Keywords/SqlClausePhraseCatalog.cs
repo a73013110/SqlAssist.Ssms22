@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using SqlAssist.Core.Parsing;
@@ -25,8 +26,15 @@ public static class SqlClausePhraseCatalog
     /// <summary>清單片語，依標頭最後一個字分桶；桶內項數多的排前面。</summary>
     private static readonly Dictionary<string, SqlClausePhrase[]> ListsByAnchor = IndexListsByAnchor();
 
-    /// <summary>沒有尾巴、只認游標處位置的片語。</summary>
-    private static readonly SqlClausePhrase[] AtPosition = Phrases.Where(phrase => phrase.Length == 0).ToArray();
+    /// <summary>沒有尾巴、只認游標處位置的片語；附加片語另列。</summary>
+    private static readonly SqlClausePhrase[] AtPosition =
+        Phrases.Where(phrase => phrase.Length == 0 && !phrase.IsAdditive).ToArray();
+
+    /// <summary>附加片語，依產生器的順序。</summary>
+    private static readonly SqlClausePhrase[] Additive = Phrases.Where(phrase => phrase.IsAdditive).ToArray();
+
+    /// <summary>同時對上的附加片語合成的片語，鍵是它們在 <see cref="Additive"/> 裡的位元；建議項的 Tag 要一直是同一個物件。</summary>
+    private static readonly ConcurrentDictionary<long, SqlClausePhrase> AdditiveUnions = new();
 
     /// <summary>任一個片語接得上的字；語句開頭的判準先問它，絕大多數的字不必比對。</summary>
     private static readonly HashSet<string> AllWords =
@@ -38,6 +46,7 @@ public static class SqlClausePhraseCatalog
     /// <summary>
     /// 游標前面是哪一個片語；比對不到時回傳 null。
     /// </summary>
+    /// <param name="analyzer">同一段詞元的位置分析：片語前一格的位置與 <c>...</c> 的動詞都問它。</param>
     /// <param name="tokens">游標<b>之前</b>、不含正在輸入的那個詞元的詞法單元。</param>
     /// <param name="textBeforeToken">同一段原文；前一格的位置要看換行。</param>
     /// <param name="caret">位置分析對游標處的回報；沒有尾巴的片語拿它當前一格。</param>
@@ -58,6 +67,7 @@ public static class SqlClausePhraseCatalog
     /// 清單片語排在它們之前：位置分析交出錨點時，游標在哪一句的清單裡是確定的。
     /// </remarks>
     internal static SqlClausePhraseMatch? Match(
+        SqlKeywordPositionAnalyzer analyzer,
         IReadOnlyList<SqlToken> tokens,
         string textBeforeToken,
         SqlKeywordPosition caret,
@@ -66,47 +76,41 @@ public static class SqlClausePhraseCatalog
         var onNewLine = tokens.Count > 0 &&
             SqlKeywordPositionAnalyzer.StartsOnNewLine(tokens[tokens.Count - 1].End, textBeforeToken.Length, textBeforeToken);
 
-        return Match(
-            tokens,
-            tokens.Count,
-            onNewLine,
-            caret,
-            listAnchor,
-            start => SqlKeywordPositionAnalyzer.PositionBefore(tokens, start, textBeforeToken));
+        return Match(tokens, tokens.Count, onNewLine, caret, listAnchor, analyzer);
     }
 
     /// <summary>
     /// <paramref name="anchor"/> 是某個清單片語標頭的最後一個詞元，而且標頭前一格確定對得上。
     /// </summary>
-    /// <param name="positionBefore">標頭第一個詞元前面那一格的位置；由呼叫端的分析器回答。</param>
+    /// <param name="analyzer">呼叫端的位置分析，回答標頭前一格的位置與 <c>...</c> 的動詞。</param>
     /// <remarks>
     /// 位置分析拿它認清單的錨點：哪些敘述有這種清單只由片語說一次，分析器不另列一份。
     /// 前一格判不出位置時不算：那一句可能根本不是這個意思，當成清單會封閉掉別的字。
     /// </remarks>
-    internal static bool OpensList(IReadOnlyList<SqlToken> tokens, int anchor, Func<int, SqlKeywordPosition> positionBefore)
+    internal static bool OpensList(IReadOnlyList<SqlToken> tokens, int anchor, SqlKeywordPositionAnalyzer analyzer)
     {
-        return MatchList(tokens, anchor, positionBefore) is { IsCertain: true };
+        return MatchList(tokens, anchor, analyzer) is { IsCertain: true };
     }
 
     /// <summary>
     /// 前 <paramref name="count"/> 個詞元寫到那裡，比對到的片語確定接得上 <paramref name="keyword"/>。
     /// </summary>
     /// <param name="before">位置分析對那一格的回報，不含換行補上的語句開頭。</param>
-    /// <param name="positionBefore">片語第一個詞元前面那一格的位置；由呼叫端的分析器回答。</param>
+    /// <param name="analyzer">呼叫端的位置分析，回答片語前一格的位置與 <c>...</c> 的動詞。</param>
     /// <remarks>
     /// 語句開頭的判準拿它分辨隱含的界線：剖析器不看換行，接得上的字就屬於前一句，
-    /// 所以這裡不像 <see cref="Match(IReadOnlyList{SqlToken}, string, SqlKeywordPosition)"/> 那樣
+    /// 所以這裡不像 <see cref="Match(SqlKeywordPositionAnalyzer, IReadOnlyList{SqlToken}, string, SqlKeywordPosition, int)"/> 那樣
     /// 在換行後略過已經完整的片語。只算確定的比對：前一格判不出來時，片語那個意思可能根本不成立。
     /// </remarks>
     internal static bool Continues(
         IReadOnlyList<SqlToken> tokens,
         int count,
         SqlKeywordPosition before,
-        Func<int, SqlKeywordPosition> positionBefore,
+        SqlKeywordPositionAnalyzer analyzer,
         string keyword)
     {
         return AllWords.Contains(keyword) &&
-            Match(tokens, count, onNewLine: false, before, listAnchor: -1, positionBefore) is { IsCertain: true } match &&
+            Match(tokens, count, onNewLine: false, before, listAnchor: -1, analyzer) is { IsCertain: true } match &&
             match.Phrase.Offers(keyword);
     }
 
@@ -116,7 +120,7 @@ public static class SqlClausePhraseCatalog
         bool onNewLine,
         SqlKeywordPosition caret,
         int listAnchor,
-        Func<int, SqlKeywordPosition> positionBefore)
+        SqlKeywordPositionAnalyzer analyzer)
     {
         SqlClausePhraseMatch? best = null;
 
@@ -128,10 +132,10 @@ public static class SqlClausePhraseCatalog
                 !last.IsQuoted &&
                 ByLastWord.TryGetValue(last.Value, out var candidates))
             {
-                best = FirstMatch(candidates, tokens, count, onNewLine, caret, positionBefore, minimumLength: 0);
+                best = FirstMatch(candidates, tokens, count, onNewLine, caret, analyzer, minimumLength: 0);
             }
 
-            best = FirstMatch(EndingWithPlaceholder, tokens, count, onNewLine, caret, positionBefore, best?.Phrase.Length + 1 ?? 0) ?? best;
+            best = FirstMatch(EndingWithPlaceholder, tokens, count, onNewLine, caret, analyzer, best?.Phrase.Length + 1 ?? 0) ?? best;
         }
 
         if (best is { IsCertain: true } || caret == SqlKeywordPosition.Any)
@@ -140,20 +144,53 @@ public static class SqlClausePhraseCatalog
         }
 
         // 錨點之後緊接的第一格由標頭本身那個片語說（CREATE LOGIN 的第一項只能是 PASSWORD），上面已比對過。
-        if (listAnchor >= 0 && listAnchor < count - 1 && MatchList(tokens, listAnchor, positionBefore) is { } listed)
+        if (listAnchor >= 0 && listAnchor < count - 1 && MatchList(tokens, listAnchor, analyzer) is { } listed)
         {
             return listed;
         }
 
         // 附加片語排在最後，只在什麼都沒比對到時才輪到：它只加字，不該擠掉一個可能的尾巴。
-        var atPosition = FirstMatch(AtPosition, tokens, count, onNewLine, caret, positionBefore, minimumLength: 0);
-        return atPosition is { Phrase.IsAdditive: true } && best is not null ? best : atPosition ?? best;
+        return FirstMatch(AtPosition, tokens, count, onNewLine, caret, analyzer, minimumLength: 0) ?? best ?? MatchAdditive(caret);
+    }
+
+    /// <summary>游標處的位置接得上的附加片語；對上幾個就取它們的字的聯集。</summary>
+    /// <remarks>
+    /// 位置是旗標，一格可以同時是幾個位置：<c>SELECT SUM(a) </c> 是選取清單尾端（<c>AT</c>），也是函式呼叫之後
+    /// （<c>WITHIN</c>）。附加片語只加字，同時成立的全部都算；只取第一個的話另一個的字就不見了。
+    /// </remarks>
+    private static SqlClausePhraseMatch? MatchAdditive(SqlKeywordPosition caret)
+    {
+        var mask = 0L;
+
+        for (var index = 0; index < Additive.Length; index++)
+        {
+            if ((Additive[index].After & caret) != SqlKeywordPosition.None)
+            {
+                mask |= 1L << index;
+            }
+        }
+
+        return mask == 0 ? null : AdditiveUnions.GetOrAdd(mask, CombineAdditive).Tentative;
+    }
+
+    private static SqlClausePhrase CombineAdditive(long mask)
+    {
+        var parts = Additive.Where((_, index) => (mask & (1L << index)) != 0).ToArray();
+
+        if (parts.Length == 1)
+        {
+            return parts[0];
+        }
+
+        var after = parts.Aggregate(SqlKeywordPosition.None, (union, phrase) => union | phrase.After);
+        var words = parts.SelectMany(phrase => phrase.Words).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        return new SqlClausePhrase(string.Empty, after, parts[0].Probe, isClosed: false, endsStatement: false, words, isAdditive: true);
     }
 
     private static SqlClausePhraseMatch? MatchList(
         IReadOnlyList<SqlToken> tokens,
         int anchor,
-        Func<int, SqlKeywordPosition> positionBefore)
+        SqlKeywordPositionAnalyzer analyzer)
     {
         var token = tokens[anchor];
 
@@ -164,9 +201,9 @@ public static class SqlClausePhraseCatalog
 
         foreach (var phrase in candidates)
         {
-            var start = phrase.MatchHead(tokens, anchor);
+            var start = phrase.MatchHead(tokens, anchor, analyzer);
 
-            if (start >= 0 && Qualify(phrase, positionBefore(start)) is { } match)
+            if (start >= 0 && Qualify(phrase, analyzer.PositionBefore(start)) is { } match)
             {
                 return match;
             }
@@ -181,7 +218,7 @@ public static class SqlClausePhraseCatalog
         int count,
         bool onNewLine,
         SqlKeywordPosition caret,
-        Func<int, SqlKeywordPosition> positionBefore,
+        SqlKeywordPositionAnalyzer analyzer,
         int minimumLength)
     {
         foreach (var phrase in candidates)
@@ -196,9 +233,9 @@ public static class SqlClausePhraseCatalog
                 continue;
             }
 
-            var start = phrase.MatchTail(tokens, count);
+            var start = phrase.MatchTail(tokens, count, analyzer);
 
-            if (start >= 0 && Qualify(phrase, start == count ? caret : positionBefore(start)) is { } match)
+            if (start >= 0 && Qualify(phrase, start == count ? caret : analyzer.PositionBefore(start)) is { } match)
             {
                 return match;
             }
