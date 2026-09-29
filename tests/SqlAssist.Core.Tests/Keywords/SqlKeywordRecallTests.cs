@@ -137,6 +137,11 @@ public sealed class SqlKeywordRecallTests
     {
         var phrase = context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>();
 
+        if (SqlInstanceList.For(context.Target) is { } instanceList)
+        {
+            return instanceList.Suggestions(context.ScriptSources, SqlInstanceListData.Empty);
+        }
+
         return context.Target switch
         {
             CompletionTarget.GlobalVariable => SqlGlobalVariableCatalog.All,
@@ -163,7 +168,7 @@ public sealed class SqlKeywordRecallTests
     /// </summary>
     /// <remarks>
     /// 內建函式與名稱不在裡面：它們的清單來自同一條位置規則，但語料裡寫的名稱是使用者取的，
-    /// 列不列得出與這一格的文法無關。全域變數、變數與定序也不是字。
+    /// 列不列得出與這一格的文法無關。全域變數、變數與執行個體名單的值也不是字。
     /// </remarks>
     private static HashSet<string> AuditedWords()
     {

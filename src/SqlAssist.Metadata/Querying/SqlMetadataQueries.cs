@@ -129,9 +129,7 @@ ORDER BY s.name;";
     /// </summary>
     /// <remarks>
     /// <c>sys.fn_helpcollations()</c> 從 SQL Server 2000 就有，而且不看權限——
-    /// 這是一份與資料無關的常數表。它與物件清單分開快取：名單屬於<b>伺服器</b>，
-    /// 與目前連線的是哪一個資料庫無關，跟著每一份目錄各存一次的話，
-    /// 使用者每打出一個跨資料庫的限定字就多五千多個字串。
+    /// 這是一份與資料無關的常數表。與物件清單分開快取，見 <c>SqlServerInstanceListCache</c>。
     ///
     /// 不做成寫死的內建目錄：SQL Server 2019 之後有五千五百筆以上，
     /// 而每一版都在增加——寫死的那一份會在下一版開始漏掉名稱，
@@ -155,6 +153,58 @@ ORDER BY c.name;";
     /// </remarks>
     public const string DatabaseCollation = @"
 SELECT CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'));";
+
+    /// <summary>
+    /// 這台伺服器支援的語言名稱與英文別名。
+    /// </summary>
+    /// <remarks>
+    /// <c>sys.syslanguages</c> 是相容性檢視，但從 SQL Server 2000 起每一版都有，而且沒有
+    /// 對應的新目錄檢視。別名一起讀：名稱是當地寫法（<c>Deutsch</c>），使用者記得的常是
+    /// 別名（<c>German</c>）。
+    /// </remarks>
+    public const string Languages = @"
+SELECT l.name, l.alias
+FROM sys.syslanguages AS l
+ORDER BY l.name;";
+
+    /// <summary>
+    /// 這條連線的語言，也就是登入的預設語言。
+    /// </summary>
+    /// <remarks>
+    /// 中繼資料用的是自己開的連線，問得到的是登入的預設語言，不是查詢視窗裡
+    /// <c>SET LANGUAGE</c> 之後的那一個；後者寫在指令碼裡，由指令碼已用值那一份補上。
+    /// </remarks>
+    public const string LoginLanguage = @"
+SELECT CONVERT(nvarchar(128), @@LANGUAGE);";
+
+    /// <summary>
+    /// 這台伺服器支援的時區名稱與目前的 UTC 位移。
+    /// </summary>
+    /// <remarks>
+    /// <c>sys.time_zone_info</c> 從 SQL Server 2016 起才有。直接 SELECT 的話整句在舊版上是
+    /// 「無效的物件名稱」，降級會把它變成「這一輪沒有資料」，而失敗不進快取，每一次都再撞一次。
+    /// 所以先問它在不在，在才用動態 SQL 讀：舊版得到一份成功的空名單，那一版本來就沒有
+    /// <c>AT TIME ZONE</c>。
+    /// </remarks>
+    public const string TimeZones = @"
+IF EXISTS (SELECT 1 FROM sys.all_views AS v WHERE v.name = N'time_zone_info' AND v.schema_id = 4)
+    EXEC (N'SELECT z.name, z.current_utc_offset FROM sys.time_zone_info AS z ORDER BY z.name;');";
+
+    /// <summary>
+    /// 伺服器的時區。
+    /// </summary>
+    /// <remarks>
+    /// <c>CURRENT_TIMEZONE_ID()</c> 要 SQL Server 2022（與 Azure SQL）才有，而版本號分不出
+    /// Azure（永遠回 12）。所以直接試：包在動態 SQL 裡，認不得這個函式時是下一層的編譯錯誤，
+    /// 接得住，回一列 NULL——這一版問不到不是失敗，不該進「詳細記錄」。
+    /// </remarks>
+    public const string ServerTimeZone = @"
+BEGIN TRY
+    EXEC (N'SELECT CONVERT(nvarchar(128), CURRENT_TIMEZONE_ID());');
+END TRY
+BEGIN CATCH
+    SELECT CONVERT(nvarchar(128), NULL);
+END CATCH;";
 
     /// <summary>
     /// 第二層：單一物件的欄位。主索引鍵資訊由 sys.indexes／sys.index_columns 帶出，

@@ -48,6 +48,8 @@
   "LocalVariable": "Local variable",
   "GlobalVariable": "Global variable",
   "Collation": "Collation",
+  "Language": "Language",
+  "TimeZone": "Time zone",
   "DatePart": "Date part",
   "TableHint": "Table hint",
   "QueryHint": "Query hint",

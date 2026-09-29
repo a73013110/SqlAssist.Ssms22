@@ -1,5 +1,4 @@
 {
-  "CollationUsedInScript": "Collation used in this script",
   "NameWithDescription": "{name} ({description})",
   "AliasOf": "{alias} (alias of {source})"
 }

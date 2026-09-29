@@ -74,8 +74,8 @@ public static class SuggestionCategories
             or SuggestionKind.DatePart
             or SuggestionKind.TableHint
             or SuggestionKind.QueryHint
-            or SuggestionKind.Collation
-            or SuggestionKind.CollationInUse
+            or SuggestionKind.InstanceListValue
+            or SuggestionKind.InstanceListValueInUse
             or SuggestionKind.Cursor => null,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };

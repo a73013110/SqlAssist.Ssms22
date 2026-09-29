@@ -33,7 +33,7 @@
 | 搜尋範圍、伺服器、資料庫清單 | [範圍](search-scope.md) |
 | 建議清單、排名、列尾標記、IntelliSense | [補全](completion.md) |
 | CompletionContext、觸發、大小寫 | [上下文](completion-context.md) |
-| `COLLATE` 之後、定序名單、fn_helpcollations | [定序](completion-collation.md) |
+| 定序、語言、時區名單，`COLLATE`、`AT TIME ZONE` | [執行個體名單](completion-instance-lists.md) |
 | `ON` 是資料表或述詞、MERGE 動作子句 | [ON／MERGE](completion-on-merge.md) |
 | TVF／純量函式、系統物件範圍 | [物件種類](completion-object-kinds.md) |
 | 多段式名稱、資料庫／結構描述判定 | [限定名稱](qualified-names.md) |

@@ -1,0 +1,15 @@
+{
+  // 伺服器執行個體名單（定序、語言、時區）在建議清單上的說明。
+  // COLLATE 之後兩個不必問伺服器的名稱。
+  "CollationDatabaseDefault": "使用目前資料庫的定序",
+  "CollationCatalogDefault": "使用全文檢索目錄的定序；只在全文檢索述詞裡合法",
+  // 「使用中的值」：排在名單前面的那一個。
+  "CollationInUse": "目前資料庫的定序",
+  // 中繼資料連線的 @@LANGUAGE，也就是登入的預設語言，不是查詢視窗 SET LANGUAGE 之後的值。
+  "LanguageInUse": "登入的預設語言",
+  "TimeZoneInUse": "伺服器的時區",
+  // 從這份指令碼本身收集到的值。
+  "CollationInScript": "這份指令碼已經用過的定序",
+  "LanguageInScript": "這份指令碼已經用過的語言",
+  "TimeZoneInScript": "這份指令碼已經用過的時區"
+}

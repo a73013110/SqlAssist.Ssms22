@@ -128,5 +128,3 @@
 
 - 單獨的 `CURRENT`：`WHERE CURRENT OF` 也是它，只收視窗框架裡的幾種前綴。
 - `STRING_AGG(…) WITHIN `：剖析器把 `WITHIN` 當成欄位別名，探出來的是別名之後的字。
-- `SET LANGUAGE` 的語言、`AT TIME ZONE` 的時區：剖析器收任何名稱，名單只在伺服器上
-  （`sys.syslanguages`、`sys.time_zone_info`）。

@@ -130,26 +130,25 @@ public enum SuggestionKind
     /// </remarks>
     LinkedServer,
 
-    /// <summary>伺服器支援的定序名稱；只出現在 <c>COLLATE</c> 之後。</summary>
+    /// <summary>
+    /// 伺服器執行個體名單上的值（定序、語言、時區）；只出現在那份名單的位置。
+    /// </summary>
     /// <remarks>
-    /// 與 <see cref="Keyword"/> 分開：定序在文法上不是關鍵字，關鍵字目錄裡只有
-    /// <c>COLLATE</c> 本身；而這一份有五千多筆，混進一般清單的話每一次按鍵都要
-    /// 多比對五千個一定比不中的名稱。
+    /// 三份名單共用這一類：它們從不出現在同一格，排名與過濾的規則也完全一樣，
+    /// 是哪一份由 <see cref="SqlSuggestion.Tag"/> 上的 <see cref="SqlInstanceList"/> 分辨。
+    /// 與 <see cref="Keyword"/> 分開：這些在文法上不是關鍵字，而定序一份就有五千多筆，
+    /// 混進一般清單的話每一次按鍵都要多比對五千個一定比不中的名稱。
     /// </remarks>
-    Collation,
+    InstanceListValue,
 
-    /// <summary>目前資料庫與這份指令碼實際在用的定序。</summary>
+    /// <summary>執行個體名單上實際在用的值：伺服器在用的那一個與這份指令碼寫過的。</summary>
     /// <remarks>
-    /// 與 <see cref="Collation"/> 分開的理由與 <see cref="ScriptDataSource"/> 對
-    /// <see cref="Table"/> 完全相同：東西是同一種，排名必須不同。五千多個定序
-    /// 名稱長得幾乎一樣（只差 <c>_CI_AS</c>、<c>_CS_AS</c> 這種尾巴），模糊比對
-    /// 撈回來的順序沒有意義，而使用者要的幾乎一定是這個資料庫的那一個、
-    /// 或者他在上面幾行剛寫過的那一個。
-    ///
-    /// 目前資料庫的定序算在裡面：這份指令碼裡每一個沒有加 <c>COLLATE</c> 的
-    /// 字串比較用的就是它，加上 <c>COLLATE</c> 通常正是要把某一邊<b>對齊</b>到它。
+    /// 與 <see cref="InstanceListValue"/> 分開的理由與 <see cref="ScriptDataSource"/> 對
+    /// <see cref="Table"/> 完全相同：東西是同一種，排名必須不同。定序名稱長得幾乎一樣
+    /// （只差 <c>_CI_AS</c>、<c>_CS_AS</c> 這種尾巴），模糊比對撈回來的順序沒有意義，
+    /// 而使用者要的幾乎一定是這個資料庫的那一個、或者他在上面幾行剛寫過的那一個。
     /// </remarks>
-    CollationInUse,
+    InstanceListValueInUse,
 
     /// <summary>敘述裡資料來源的別名（<c>FROM dbo.Loan l</c> 的 <c>l</c>），含外層查詢的。</summary>
     /// <remarks>

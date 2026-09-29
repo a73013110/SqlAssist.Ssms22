@@ -113,14 +113,17 @@ public enum CompletionTarget
     /// <remarks>
     /// 與其他封閉位置差在清單的來源：日期部分與兩種提示的名稱寫在
     /// <see cref="Keywords.SqlArgumentCatalog"/> 裡，定序名稱只有伺服器知道
-    /// （<c>sys.fn_helpcollations()</c>，SQL Server 2019 之後五千多筆且隨版本增加），
-    /// 寫死一份的下一個版本就開始說謊。
-    ///
-    /// 三種 <c>COLLATE</c> 的位置——運算式之後、資料行定義、
-    /// <c>CREATE</c>／<c>ALTER DATABASE</c>——在這裡不分：文法上接得了的東西
-    /// 完全一樣，分開只是多兩條會漏的路。
+    /// （SQL Server 2019 之後五千多筆且隨版本增加），寫死一份的下一個版本就開始說謊。
+    /// 這一個與 <see cref="Language"/>、<see cref="TimeZone"/> 是同一種名單，
+    /// 位置、來源與排名都在 <see cref="SqlInstanceList"/>。
     /// </remarks>
     Collation,
+
+    /// <summary><c>SET LANGUAGE</c> 與 <c>DEFAULT_LANGUAGE =</c> 之後的語言名稱。</summary>
+    Language,
+
+    /// <summary><c>AT TIME ZONE</c> 之後的時區名稱。</summary>
+    TimeZone,
 
     /// <summary>
     /// 游標前面是封閉的子句片語（<c>SET STATISTICS </c>、<c>ALTER INDEX i ON t </c>…），

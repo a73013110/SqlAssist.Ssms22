@@ -5,7 +5,6 @@
   "WindowNotCreated": "SSMS 沒有建立出新的查詢視窗。",
   "EditorUnavailable": "已開啟新的查詢視窗，但取不到它的編輯器，定義沒有寫入。",
   // 以下是建議清單項目的說明。
-  "CurrentDatabaseCollation": "目前資料庫的定序",
   // {parameter} 是參數宣告，例如 @BranchId int。
   "ParameterOf": "{routine} 的參數：{parameter}",
   // 欄位來自沒有名稱的查詢結果（例如衍生資料表）時的來源名稱。

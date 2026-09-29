@@ -151,14 +151,14 @@ internal static class SuggestionScore
             SuggestionKind.DatePart => 25,
             SuggestionKind.TableHint => 25,
             SuggestionKind.QueryHint => 25,
-            SuggestionKind.Collation => 25,
+            SuggestionKind.InstanceListValue => 25,
             SuggestionKind.Cursor => 25,
 
-            // 唯一與同類別比大小的一個：COLLATE 之後那份清單有五千多筆，
-            // 而名稱長得幾乎一樣（只差 _CI_AS、_CS_AS 這種尾巴），模糊比對的
-            // 順序沒有意義。目前資料庫的定序與這份指令碼已經寫過的那一個
-            // 排在前面，其餘照舊——差一個層級就壓得過長度懲罰與最近使用。
-            SuggestionKind.CollationInUse => 30,
+            // 唯一與同類別比大小的一個：定序那份清單有五千多筆，而名稱長得幾乎
+            // 一樣（只差 _CI_AS、_CS_AS 這種尾巴），模糊比對的順序沒有意義。伺服器
+            // 在用的與這份指令碼已經寫過的排在前面，其餘照舊——差一個層級就壓得過
+            // 長度懲罰與最近使用。語言與時區是同一條。
+            SuggestionKind.InstanceListValueInUse => 30,
 
             // 自訂型別排在內建型別之上：DECLARE @t | 打出前綴時，
             // 使用者要的是自己那一個，內建型別他背得起來。

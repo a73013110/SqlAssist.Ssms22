@@ -105,7 +105,7 @@ public static class SqlInsertionText
     /// <c>[@@ROWCOUNT]</c>。
     ///
     /// 寫成 <c>switch</c> 而不是一串 <c>||</c>：這個方法在建立清單時每一筆建議都
-    /// 走一遍，列舉的 <c>switch</c> 讓編譯器有機會編成一次跳躍表而不是十一次比較；
+    /// 走一遍，列舉的 <c>switch</c> 讓編譯器有機會編成一次跳躍表而不是一串比較；
     /// 新增一種建議時，該不該進這份名單也只有這裡要看。
     /// </remarks>
     private static bool CarriesOwnInsertionText(SuggestionKind kind)
@@ -124,6 +124,8 @@ public static class SqlInsertionText
             SuggestionKind.TableHint => true,
             SuggestionKind.QueryHint => true,
             SuggestionKind.Alias => true,
+            SuggestionKind.InstanceListValue => true,
+            SuggestionKind.InstanceListValueInUse => true,
             _ => false
         };
     }
@@ -173,6 +175,30 @@ public static class SqlInsertionText
         return settings.UseSquareBrackets && !SqlIdentifier.IsScriptScoped(name)
             ? SqlIdentifier.Quote(name)
             : SqlIdentifier.QuoteIfNeeded(name);
+    }
+
+    /// <summary>
+    /// 執行個體名單上的值（定序、語言、時區）寫進指令碼的樣子。
+    /// </summary>
+    /// <remarks>
+    /// 這些不是物件名稱，「插入物件時加上方括號」管不到它們：定序加了方括號是語法錯誤，
+    /// 語言只在形狀不合時才包（<c>[Português (Brasil)]</c>），時區一定是字串常值。
+    /// 樣子由名單決定（<see cref="SqlInstanceList.Form"/>），建立建議時算一次，
+    /// 之後 <see cref="Build"/> 原樣送出。
+    /// </remarks>
+    public static string InstanceListValue(string name, SqlInstanceValueForm form)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        return form switch
+        {
+            SqlInstanceValueForm.Identifier => SqlIdentifier.QuoteIfNeeded(name),
+            SqlInstanceValueForm.String => SqlStringLiteral.Quote(name),
+            _ => name
+        };
     }
 
     /// <summary>

@@ -169,9 +169,11 @@ public static class SuggestionContextFilter
             CompletionTarget.QueryHint => kind == SuggestionKind.QueryHint,
 
             // 兩類是同一種東西、不同的來源，排名才分開；能不能出現在這個位置
-            // 沒有差別。
-            CompletionTarget.Collation => kind is SuggestionKind.Collation
-                or SuggestionKind.CollationInUse,
+            // 沒有差別。三份名單的候選清單只有自己那一份，不必再比 Tag。
+            CompletionTarget.Collation
+                or CompletionTarget.Language
+                or CompletionTarget.TimeZone => kind is SuggestionKind.InstanceListValue
+                or SuggestionKind.InstanceListValueInUse,
 
             // 哪幾個關鍵字由片語決定，見 IsAllowedForPosition。
             CompletionTarget.ClauseKeyword => kind == SuggestionKind.Keyword,
@@ -192,8 +194,8 @@ public static class SuggestionContextFilter
                 or SuggestionKind.DatePart
                 or SuggestionKind.TableHint
                 or SuggestionKind.QueryHint
-                or SuggestionKind.Collation
-                or SuggestionKind.CollationInUse
+                or SuggestionKind.InstanceListValue
+                or SuggestionKind.InstanceListValueInUse
                 or SuggestionKind.Cursor)
         };
     }

@@ -53,8 +53,8 @@ public sealed class SqlCatalogQualifierTests
         [nameof(SqlMetadataQueries.DatabaseCollation)] =
             "問的是「目前這個資料庫」，而指出它的方式只有 DB_NAME／DB_ID；" +
             "sys.databases 要先知道名字，那個名字正是這條要問的東西。" +
-            "這一條只在本機目錄上執行——連結伺服器的目錄一律不問定序，" +
-            "見 SqlMetadataCatalog.GetCollationsAsync。"
+            "這一條只在本機目錄上執行——連結伺服器的目錄一律不問執行個體名單，" +
+            "見 SqlMetadataCatalog.GetInstanceListAsync。"
     };
 
     public static TheoryData<string, string> AllQueries()

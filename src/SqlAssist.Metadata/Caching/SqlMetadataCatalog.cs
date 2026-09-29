@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Core.Completion;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Notifications;
@@ -60,10 +61,10 @@ public sealed class SqlMetadataCatalog
     /// <summary>系統物件；只有真的被問到才載入，見 <see cref="GetSystemObjectsAsync"/>。</summary>
     private IReadOnlyList<SqlObjectInfo>? _systemObjects;
 
-    private readonly SemaphoreSlim _collationGate = new(1, 1);
+    private readonly SemaphoreSlim _instanceListGate = new(1, 1);
 
-    /// <summary>定序；只有游標落在 <c>COLLATE</c> 之後才載入，見 <see cref="GetCollationsAsync"/>。</summary>
-    private SqlCollations? _collations;
+    /// <summary>執行個體名單；只有游標落在那份名單的位置才載入，見 <see cref="GetInstanceListAsync"/>。</summary>
+    private readonly Dictionary<CompletionTarget, SqlInstanceListData> _instanceLists = new();
 
     public SqlMetadataCatalog(
         ISqlConnectionSource connectionSource,
@@ -473,62 +474,84 @@ public sealed class SqlMetadataCatalog
     }
 
     /// <summary>
-    /// 取得定序名單與目前資料庫的定序；第一次被問到才查資料庫。
+    /// 取得一份執行個體名單（定序、語言、時區）與在用的那一個；第一次被問到才查資料庫。
     /// </summary>
     /// <remarks>
-    /// 與系統物件同一種處境：一份幾千筆、只有一個位置用得到、而且不會在一次
+    /// 與系統物件同一種處境：一份幾十到幾千筆、只有一個位置用得到、而且不會在一次
     /// 工作階段中途變動的清單，因此同樣只在真的被問到時才載入、不設有效期。
     /// 差別在快取的層級——名單屬於伺服器而不是資料庫，跨目錄共用，
-    /// 見 <see cref="SqlServerCollationCache"/>。
+    /// 見 <see cref="SqlServerInstanceListCache"/>；在用的那一個（資料庫的定序、
+    /// 登入的語言、伺服器的時區）跟著這份目錄。
     ///
-    /// 查不到時回傳 <see cref="SqlCollations.Empty"/> 並且<b>不</b>記進快取，
-    /// 與其他層同一條規則。那個位置不會因此空掉：<c>DATABASE_DEFAULT</c> 與
-    /// 這份指令碼已經寫過的定序都不必問伺服器，由 Core 那一側補上。
+    /// 查不到時回傳 <see cref="SqlInstanceListData.Empty"/> 並且<b>不</b>記進快取，
+    /// 與其他層同一條規則。那個位置不會因此空掉：文法上的字與這份指令碼已經寫過的值
+    /// 都不必問伺服器，由 Core 那一側補上。
     ///
-    /// 連結伺服器的目錄一律回傳空的：定序屬於執行個體，而使用者正在編輯的
+    /// 連結伺服器的目錄一律回傳空的：名單屬於執行個體，而使用者正在編輯的
     /// 這份指令碼跑在<b>本機</b>那條連線上。把對面那台的名單列出來，
     /// 選中的每一個名稱都可能在這裡不存在，而畫面上看不出差別。
     /// </remarks>
-    public async Task<SqlCollations> GetCollationsAsync(CancellationToken cancellationToken)
+    public async Task<SqlInstanceListData> GetInstanceListAsync(
+        SqlInstanceList list,
+        CancellationToken cancellationToken)
     {
-        if (_qualifier.IsRemote)
+        if (list is null)
         {
-            return SqlCollations.Empty;
+            throw new ArgumentNullException(nameof(list));
         }
 
-        if (Volatile.Read(ref _collations) is { } cached)
+        if (_qualifier.IsRemote)
+        {
+            return SqlInstanceListData.Empty;
+        }
+
+        if (TryGetCachedInstanceList(list, out var cached))
         {
             return cached;
         }
 
-        await _collationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _instanceListGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
-            if (Volatile.Read(ref _collations) is { } raced)
+            if (TryGetCachedInstanceList(list, out var raced))
             {
                 return raced;
             }
 
+            var query = SqlInstanceListQuery.For(list);
             var loaded = await Task
                 .Run(
-                    () => TryLoad(NotificationCatalog.LoadingCollations, NotificationOrigin.Typing,
-                        () => LoadCollations(cancellationToken)),
+                    () => TryLoad(query.EntriesTitle, NotificationOrigin.Typing,
+                        () => LoadInstanceList(list, query, cancellationToken)),
                     cancellationToken)
                 .ConfigureAwait(false);
 
             if (loaded is null)
             {
-                return SqlCollations.Empty;
+                return SqlInstanceListData.Empty;
             }
 
-            SqlServerCollationCache.Set(_connectionSource.ServerCacheKey, loaded.Names);
-            Volatile.Write(ref _collations, loaded);
+            SqlServerInstanceListCache.Set(_connectionSource.ServerCacheKey, list, loaded.Entries);
+
+            lock (_instanceLists)
+            {
+                _instanceLists[list.Target] = loaded;
+            }
+
             return loaded;
         }
         finally
         {
-            _collationGate.Release();
+            _instanceListGate.Release();
+        }
+    }
+
+    private bool TryGetCachedInstanceList(SqlInstanceList list, out SqlInstanceListData data)
+    {
+        lock (_instanceLists)
+        {
+            return _instanceLists.TryGetValue(list.Target, out data!);
         }
     }
 
@@ -926,31 +949,36 @@ public sealed class SqlMetadataCatalog
             cancellationToken)) ?? new List<string>();
     }
 
-    private SqlCollations LoadCollations(CancellationToken cancellationToken)
+    private SqlInstanceListData LoadInstanceList(
+        SqlInstanceList list,
+        SqlInstanceListQuery query,
+        CancellationToken cancellationToken)
     {
         using var connection = _connectionSource.OpenConnection();
 
         // 同一台伺服器已經問過就不再問第二次；那一份與連到哪個資料庫無關。
-        var names = SqlServerCollationCache.TryGet(_connectionSource.ServerCacheKey, out var shared)
+        var entries = SqlServerInstanceListCache.TryGet(_connectionSource.ServerCacheKey, list, out var shared)
             ? shared
             : ReadList(
                 connection,
-                SqlMetadataQueries.Collations,
-                record => record.GetString(0),
+                query.Entries,
+                record => new SqlInstanceListEntry(
+                    record.GetString(0),
+                    record.FieldCount > 1 && !record.IsDBNull(1) ? record.GetString(1) : null),
                 cancellationToken);
 
-        return new SqlCollations(names, ReadDatabaseCollation(connection, cancellationToken));
+        return new SqlInstanceListData(entries, ReadInUse(connection, query, cancellationToken));
     }
 
     /// <remarks>
     /// 與資料庫清單同理：這一個查不到不該讓整份名單跟著沒有。少了它只是
-    /// 「排在最前面的那一個不見了」，而整份名單沒有的話那個位置只剩兩個字。
+    /// 「排在最前面的那一個不見了」，而整份名單沒有的話那個位置只剩文法上的字。
     /// </remarks>
-    private string? ReadDatabaseCollation(IDbConnection connection, CancellationToken cancellationToken)
+    private string? ReadInUse(IDbConnection connection, SqlInstanceListQuery query, CancellationToken cancellationToken)
     {
-        var rows = TryLoad(NotificationCatalog.LoadingDatabaseCollation, NotificationOrigin.Typing, () => ReadList(
+        var rows = TryLoad(query.InUseTitle, NotificationOrigin.Typing, () => ReadList(
             connection,
-            SqlMetadataQueries.DatabaseCollation,
+            query.InUse,
             record => record.IsDBNull(0) ? null : record.GetString(0),
             cancellationToken));
 

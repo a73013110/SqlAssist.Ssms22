@@ -550,27 +550,16 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 return context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>();
         }
 
-        // 定序只有伺服器知道，但那個位置不會因為問不到而空掉：DATABASE_DEFAULT
-        // 這兩個字與這份指令碼已經寫過的定序都不必送出查詢。關掉「列出資料庫物件
-        // 與欄位」的人要的是「不要連線」，剩下的正好是這一份。
-        if (context.Target == CompletionTarget.Collation)
+        // 定序、語言與時區的名單只有伺服器知道，但那個位置不會因為問不到而空掉：
+        // 文法上的字（DATABASE_DEFAULT）與這份指令碼已經寫過的值都不必送出查詢。
+        // 關掉「列出資料庫物件與欄位」的人要的是「不要連線」，剩下的正好是這一份。
+        if (SqlInstanceList.For(context.Target) is { } instanceList)
         {
-            var known = SqlCollationCatalog.Defaults.Concat(context.ScriptSources).ToArray();
+            var server = settings.IncludeDatabaseObjects
+                ? await _metadataService.GetInstanceListAsync(instanceList, token).ConfigureAwait(false)
+                : SqlInstanceListData.Empty;
 
-            if (!settings.IncludeDatabaseObjects)
-            {
-                return known;
-            }
-
-            var exclude = new HashSet<string>(
-                known.Select(item => item.DisplayText),
-                StringComparer.OrdinalIgnoreCase);
-
-            var collations = await _metadataService
-                .GetCollationSuggestionsAsync(exclude, token)
-                .ConfigureAwait(false);
-
-            return known.Concat(collations).ToArray();
+            return instanceList.Suggestions(context.ScriptSources, server);
         }
 
         // 內建型別是一份封閉的清單，但使用者自訂的資料表型別在資料庫裡，
@@ -747,6 +736,8 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         CompletionTarget.TableHint => SqlKindText.TableHint,
         CompletionTarget.QueryHint => SqlKindText.QueryHint,
         CompletionTarget.Collation => SqlKindText.Collation,
+        CompletionTarget.Language => SqlKindText.Language,
+        CompletionTarget.TimeZone => SqlKindText.TimeZone,
         CompletionTarget.ClauseKeyword => SqlKindText.Keyword,
         _ => "",
     };

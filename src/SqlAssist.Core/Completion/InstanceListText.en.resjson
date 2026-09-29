@@ -1,0 +1,10 @@
+{
+  "CollationDatabaseDefault": "Use current database collation",
+  "CollationCatalogDefault": "Use full-text catalog collation; full-text predicates only",
+  "CollationInUse": "Current database collation",
+  "LanguageInUse": "Login default language",
+  "TimeZoneInUse": "Server time zone",
+  "CollationInScript": "Collation used in this script",
+  "LanguageInScript": "Language used in this script",
+  "TimeZoneInScript": "Time zone used in this script"
+}

@@ -81,6 +81,8 @@ internal static partial class SqlIcons
     /// 再多一類就分不出誰是誰。
     /// </remarks>
     private static readonly Definition Collation = new(KnownMonikers.SortAscending, () => SqlKindText.Collation);
+    private static readonly Definition Language = new(KnownMonikers.SetLanguage, () => SqlKindText.Language);
+    private static readonly Definition TimeZone = new(KnownMonikers.WorldLocal, () => SqlKindText.TimeZone);
     private static readonly Definition SchemaOrDatabase =
         new(KnownMonikers.DatabaseSchema, () => CompletionText.FilterSchemasAndDatabases);
 
@@ -158,7 +160,19 @@ internal static partial class SqlIcons
     {
         SqlObjectInfo objectInfo => GetImageElement(objectInfo.Kind),
         SqlScriptTable => ScriptDataSource.Element,
+        SqlInstanceList list => GetDefinition(list).Element,
         _ => GetImageElement(suggestion.Kind)
+    };
+
+    /// <remarks>
+    /// 三份執行個體名單共用兩個 <see cref="SuggestionKind"/>，是哪一份由建議項帶著的
+    /// <see cref="SqlInstanceList"/> 分辨；它們從不出現在同一份清單裡，但圖示仍要說出是什麼。
+    /// </remarks>
+    private static Definition GetDefinition(SqlInstanceList list) => list.Target switch
+    {
+        CompletionTarget.Language => Language,
+        CompletionTarget.TimeZone => TimeZone,
+        _ => Collation
     };
 
     public static ImageElement GetImageElement(SqlObjectKind kind) => GetDefinition(kind).Element;
@@ -203,7 +217,8 @@ internal static partial class SqlIcons
         SuggestionKind.TableHint => TableHint,
         SuggestionKind.QueryHint => QueryHint,
         SuggestionKind.LinkedServer => LinkedServer,
-        SuggestionKind.Collation or SuggestionKind.CollationInUse => Collation,
+        // 只有種類、沒有建議項時分不出是哪一份名單；帶著建議項的那一條看 Tag。
+        SuggestionKind.InstanceListValue or SuggestionKind.InstanceListValueInUse => Unknown,
         SuggestionKind.Alias => Alias,
         SuggestionKind.Cursor => Cursor,
         _ => Unknown

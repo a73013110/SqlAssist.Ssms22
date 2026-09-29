@@ -1,6 +1,4 @@
 {
-  "CollationDatabaseDefault": "Use current database collation",
-  "CollationCatalogDefault": "Use full-text catalog collation; full-text predicates only",
   "KindDataType": "Built-in data type",
   "DatePartTableTitle": "datepart names"
 }

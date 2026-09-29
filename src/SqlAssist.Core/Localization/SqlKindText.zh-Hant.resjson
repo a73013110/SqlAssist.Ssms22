@@ -59,6 +59,10 @@
   "LocalVariable": "區域變數",
   "GlobalVariable": "全域變數",
   "Collation": "定序",
+  // SET LANGUAGE、DEFAULT_LANGUAGE = 之後的語言名稱（sys.syslanguages）。
+  "Language": "語言",
+  // AT TIME ZONE 之後的時區名稱（sys.time_zone_info）。
+  "TimeZone": "時區",
   // DATEADD、DATEDIFF 等函式的第一個引數（year、month…）。
   "DatePart": "日期部分",
   "TableHint": "資料表提示",

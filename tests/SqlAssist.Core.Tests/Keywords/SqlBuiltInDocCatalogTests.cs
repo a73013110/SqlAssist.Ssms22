@@ -1,4 +1,5 @@
 using System;
+using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 using Xunit;
@@ -582,7 +583,7 @@ public sealed class SqlBuiltInDocCatalogTests
                 .Concat(SqlArgumentCatalog.QueryHints)
                 .Concat(SqlArgumentCatalog.DateParts)
                 .Concat(SqlDataTypeCatalog.All)
-                .Concat(SqlCollationCatalog.Defaults);
+                .Concat(SqlInstanceList.All.SelectMany(list => list.Defaults));
 
             foreach (var suggestion in catalogs)
             {

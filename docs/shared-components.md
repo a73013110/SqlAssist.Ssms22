@@ -8,52 +8,53 @@
 | 一個名稱有幾段、哪一段是什麼（右對齊、空的中間段、段數上限） | `Core/Parsing/SqlObjectPath.cs` |
 | 把連線指向同一台伺服器的另一個資料庫 | `Metadata/Querying/SqlDatabaseScopedConnectionSource.cs` |
 | 把查詢指向連結伺服器（`OPENQUERY` 包裝、`sys.` 限定字、內嵌 object_id） | `Metadata/Querying/SqlCatalogQualifier.cs` |
-| 認出限定字最左邊那一段是結構描述、資料庫還是連結伺服器 | `Metadata/Model/SqlQualifierResolver.cs` |
-| 目錄的快取鍵怎麼組（伺服器＋資料庫＋連結伺服器） | `Metadata/Querying/SqlConnectionCacheKey.cs` |
+| 限定字最左邊那段是結構描述、資料庫還是連結伺服器 | `Metadata/Model/SqlQualifierResolver.cs` |
+| 目錄的快取鍵（伺服器＋資料庫＋連結伺服器） | `Metadata/Querying/SqlConnectionCacheKey.cs` |
 | 略過 SQL 註解與空白 | `Core/Parsing/SqlTrivia.cs` |
-| 括號配對、還沒關上的左括號、判斷括號後是不是查詢、往回跳過限定名稱 | `Core/Parsing/SqlTokenNavigator.cs` |
+| 括號配對、未關上的左括號、括號後是不是查詢、往回跳過限定名稱 | `Core/Parsing/SqlTokenNavigator.cs` |
 | 分辨 `ON` 後面是資料表還是述詞 | `Core/Parsing/SqlDdlTarget.cs` |
 | 讀出暫存資料表與資料表變數的資料行 | `Core/Parsing/SqlScriptTableCollector.cs` |
-| 指令碼宣告的物件建議（井號名稱分成暫存資料表或暫存程序；資料指標） | `Core/Completion/SqlScriptObjectSuggestions.cs` |
+| 指令碼宣告的物件建議（井號名稱分成暫存資料表或暫存程序、資料指標） | `Core/Completion/SqlScriptObjectSuggestions.cs` |
 | 認出 `DECLARE c [SCROLL] CURSOR` 宣告的資料指標名稱 | `Core/Parsing/SqlCursorDeclaration.cs` |
 | 指令碼宣告的資料來源換成物件明細（含宣告原文） | `Metadata/Model/SqlScriptTableDetail.cs` |
-| 拿名稱向這份指令碼換宣告（Hover、預覽與 F12 共用，名稱決定種類） | `Metadata/Model/SqlScriptDeclarations.cs` |
-| 詞法分析 | `Core/Parsing/SqlTokenizer.cs` |
+| 拿名稱向這份指令碼換宣告（Hover、預覽、F12 共用，名稱決定種類） | `Metadata/Model/SqlScriptDeclarations.cs` |
+| 詞法分析；字串常值讀寫 | `Core/Parsing/SqlTokenizer.cs`、`SqlStringLiteral.cs` |
 | 區塊配對與祖先查詢 | `Core/Parsing/BlockMatcher.cs` |
 | 模糊比對與命中高亮 | `Core/Matching/FuzzyMatcher.cs` |
 | 建議清單開不開、軟硬選；排名、無前綴可見度、分類篩選 | `Core/Completion/SqlCompletionPolicy.cs`；`SuggestionList.cs` |
 | 識別字加括號與拿掉括號（形狀、保留字、指令碼自己宣告的名稱）；正在打的左方括號與它的右半截 | `Core/Parsing/SqlIdentifier.cs` |
 | 提交建議時寫進編輯器的文字（補不補結構描述、要不要方括號） | `Core/Completion/SqlInsertionText.cs` |
+| 定序、語言、時區名單的位置、已用值、排名 | `Core/Completion/SqlInstanceList.cs` |
 | 型別格式化 | `Metadata/Formatting/SqlTypeFormatter.cs` |
 | 中繼資料快取與失敗降級 | `Metadata/Caching/SqlMetadataCatalog.cs` |
 | 篩選名單的去空白、去重、排序與游標指紋 | `Core/SqlMemory/SqlConnectionNames.cs` |
-| 範圍列的伺服器與資料庫篩選（單選／多選、換伺服器清資料庫、套用查詢視窗的連線） | `Core/Connections/SqlConnectionScope.cs` |
-| 一個物件掛在誰身上（父物件、子物件的型別代碼、DEFAULT 的資料行） | `Metadata/Caching/SqlMetadataCatalog.cs` 的 `GetParentAsync` |
+| 範圍列的伺服器與資料庫篩選（單選／多選、換伺服器清資料庫、套用查詢視窗連線） | `Core/Connections/SqlConnectionScope.cs` |
+| 一個物件掛在誰身上（父物件、子物件的型別代碼、DEFAULT 的資料行） | `Metadata/Caching/SqlMetadataCatalog.GetParentAsync` |
 | 物件總管節點的 URN（節點路徑、候選順序與跳脫） | `Metadata/Model/SqlObjectExplorerUrn.cs` |
-| 一輪搜尋的排名、去重、合併與世代作廢；每個目標的完整度與進度 | `Core/Search/SearchAggregator.cs`、`SearchTarget.cs`、`SearchRun.cs` |
+| 一輪搜尋的排名、去重、合併與世代作廢；各目標完整度與進度 | `Core/Search/SearchAggregator.cs`、`SearchTarget.cs`、`SearchRun.cs` |
 | 還要多久（進度平滑、說不準時不說） | `Core/Search/SearchEta.cs` |
 | 一份文字上「有幾處命中、現在停在第幾處、上下一處與環繞」 | `Core/Matching/MatchCursor.cs` |
 | 命中的併段、標記上限與少標了那一句（各功能只決定拿什麼找） | `Core/Matching/MatchHighlights.cs` |
-| 字面比對（大小寫、全字、重疊與上限；字串與 UTF-16LE 位元組同一套），選項的驗證與記住的格式 | `Core/Matching/TextMatcher.cs`、`TextMatchState.cs` |
+| 字面比對（大小寫、全字、重疊、上限；字串與 UTF-16LE 同一套），選項的驗證與記住的格式 | `Core/Matching/TextMatcher.cs`、`TextMatchState.cs` |
 | 片段上的高亮區段平移到整份文字 | `Core/Matching/MatchProjection.cs` 的 `Shift` |
 | 名稱與資料行的命中怎麼比（沒開修飾走模糊，開了大小寫或全字走字面） | `Core/Search/SearchIdentifierMatch.cs` |
 | 搜尋索引的位元組預算、版本戳與失效 | `Metadata/Search/SqlCatalogSearchIndexCache.cs` |
 | Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs`（語法可重用，資料每次重新比對） |
 | 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
 | 浮動預覽的落點、避障與方向遲滯；搬動、縮放與收進界內 | `Core/Preview/PreviewPlacementEngine.cs`、`PreviewDragEngine.cs` |
-| 浮動預覽什麼時候收、釘住的窗怎麼借用與還回；等內容時在膠囊停多久 | `Core/Preview/PreviewLifecycle.cs`、`PreviewReveal.cs` |
-| 重建 `CREATE TABLE`／`CREATE TYPE`、索引、條件約束與擴充屬性的排版 | `Metadata/Formatting/TSqlScriptRenderer.cs` |
+| 浮動預覽何時收、釘住的窗怎麼借用與還回；等內容時在膠囊停多久 | `Core/Preview/PreviewLifecycle.cs`、`PreviewReveal.cs` |
+| 重建資料表、型別、索引、條件約束與擴充屬性的排版 | `Metadata/Formatting/TSqlScriptRenderer.cs` |
 | 單獨一個條件約束是哪一種、在父物件上的哪一列 | `Metadata/Model/SqlConstraintMatch.cs`、`SqlObjectStructure.FindConstraint` |
 | 指令碼的所有開關與三組具名風格 | `Core/Scripting/SqlScriptOptions.cs` |
 | 擴充屬性的 `sp_addextendedproperty` 八個引數 | `Metadata/Formatting/SqlExtendedPropertyScript.cs` |
 | 說明收成單行與截斷 | `Metadata/Formatting/SqlDescriptionText.cs` |
-| 內建名稱的簽章、用途與範例（提示、說明面板與浮動預覽共用）；游標處或清單候選是不是語句 | `Core/Keywords/SqlBuiltInDocCatalog.cs`（清單端記答案 `SqlStatementCandidates.cs`） |
+| 內建名稱的簽章、用途與範例（提示、說明面板、浮動預覽共用）；游標處或清單候選是不是語句 | `Core/Keywords/SqlBuiltInDocCatalog.cs`（清單端記答案 `SqlStatementCandidates.cs`） |
 | 檔頭、健檢與降級摘要的逐行 SQL 註解 | `Metadata/Formatting/SqlScriptComment.cs` |
 | 索引選項的預設值是什麼 | `Metadata/Model/SqlIndexOptions.cs` |
 | 結構健檢的規則集合與失敗隔離 | `Metadata/Analysis/SqlSchemaAnalyzer.cs` |
 | 送進查詢視窗前的換行統一與游標落點 | `Metadata/Formatting/SqlObjectScript.cs` |
 | 同義字與序列的 `CREATE` 定義（目錄檢視組回 T-SQL） | `Metadata/Formatting/SqlCatalogScript.cs` |
-| 分隔字元自動配對的判斷，以及「這一個是我補的」 | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |
+| 分隔字元自動配對的判斷與「這一個是我補的」 | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |
 | 版本顯示、健康檢查，以及「關於與診斷」與匿名摘要共用的欄位 | `Core/Diagnostics/` |
 | 介面文字與目前語言（產生的文字類別取值、切換、固定語言的範圍、句子外的數字） | `Core/Localization/SqlText.cs`；文字在各資料夾的 `*.resjson` |
 | 跨功能共用詞與 SQL 種類名稱 | `Core/Localization/CommonText`、`SqlKindText`（`.resjson`） |

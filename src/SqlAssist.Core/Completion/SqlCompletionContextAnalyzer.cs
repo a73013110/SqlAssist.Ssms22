@@ -100,6 +100,13 @@ public static class SqlCompletionContextAnalyzer
             return new SqlCompletionContext(SqlCompletionSlot.Grammar, tokenStart, prefix, argumentTarget);
         }
 
+        // 名單只有伺服器知道的那幾種（定序、語言、時區）同理；片語認得出 SET LANGUAGE 與
+        // AT TIME ZONE，但剖析器在那一格什麼名稱都收，片語給不出字，也就不封閉。
+        if (SqlInstanceList.TryResolve(textBeforeToken, tokens, out var instanceList))
+        {
+            return new SqlCompletionContext(SqlCompletionSlot.Grammar, tokenStart, prefix, instanceList.Target);
+        }
+
         // 型別的位置要排在「這裡不接受任何關鍵字」之前問：CAST(x AS | 在位置分析
         // 眼中與 SELECT x AS | 的別名一模一樣，會被那一條整份收掉。
         //
@@ -255,14 +262,16 @@ public static class SqlCompletionContextAnalyzer
                 SqlScriptTableCollector.Collect(tokens)));
         }
 
-        // 定序與游標只要「這份指令碼寫過哪些」（COLLATE 之後、DECLARE c CURSOR），
+        // 執行個體名單與游標只要「這份指令碼寫過哪些」（COLLATE 之後、DECLARE c CURSOR），
         // 敘述有哪些資料來源與欄位都無關，底下整趟範圍解析可以省下來。
-        switch (context.Target)
+        if (SqlInstanceList.For(context.Target) is { } instanceList)
         {
-            case CompletionTarget.Collation:
-                return context.WithScriptSources(SqlScriptCollationSuggestions.Create(tokens));
-            case CompletionTarget.Cursor:
-                return context.WithScriptSources(SqlScriptObjectSuggestions.Cursors(tokens));
+            return context.WithScriptSources(instanceList.ScriptValues(sql, tokens));
+        }
+
+        if (context.Target == CompletionTarget.Cursor)
+        {
+            return context.WithScriptSources(SqlScriptObjectSuggestions.Cursors(tokens));
         }
 
         var scope = SqlScopeAnalyzer.Analyze(sql, tokens, caretPosition);

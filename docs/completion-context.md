@@ -9,17 +9,16 @@
 
 ## 引數與提示的封閉清單
 
-有四個位置除了那一份清單以外沒有別的東西是對的，它們與資料型別是同一種判斷、
+有三個位置除了那一份清單以外沒有別的東西是對的，它們與資料型別是同一種判斷、
 同一個代價權衡——判定成立時整份清單就換掉，所以只收看得出來的：
 
 ```text
 SELECT DATEADD(|              → DAY、MONTH、YEAR…（15 個日期部分）
 SELECT * FROM dbo.Loan WITH (| → NOLOCK、UPDLOCK、INDEX(…（21 個資料表提示）
 SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 個查詢提示）
-WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 ```
 
-四種都認得出來，是因為游標**前面**那個字就把話說完了。CTE 的 `WITH` 不會誤判——
+三種都認得出來，是因為游標**前面**那個字就把話說完了。CTE 的 `WITH` 不會誤判——
 `;WITH c AS (` 的 `WITH` 與左括號之間隔著一個名稱。
 
 日期部分只在**第一個**引數：打過逗號之後那裡要的是數字與日期。提示則是一份清單，
@@ -33,7 +32,7 @@ WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 是因為那個位置本來也沒有正確答案——要的是使用者自己取的資料行名稱，換掉的只是一份
 同樣不對的關鍵字清單。
 
-定序是唯一清單不在本機的一種，見 [定序](completion-collation.md)。
+名單只在伺服器上的定序、語言與時區見[執行個體名單](completion-instance-lists.md)。
 
 `SET NOCOUNT ` 之後的 `ON`、`OFF` 不是封閉清單，走關鍵字位置 `SetOptionValue`（名稱不列）：
 識別字的值（`SET DATEFORMAT dmy`）寫完換行還接得了下一句，整份換掉就錯了。規則見
@@ -84,14 +83,14 @@ WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 | `CREATE`／`ALTER`／`DROP INDEX`／`STATISTICS`／`TRIGGER` 之後的 `ON` | Table、View | 插入名稱 |
 | `USE` | 這台伺服器上的資料庫 | 插入名稱 |
 | `OPEN`、`CLOSE`、`DEALLOCATE`、`FETCH [… FROM]`、`WHERE CURRENT OF`，可夾 `GLOBAL` | 指令碼 `DECLARE c CURSOR` 宣告的資料指標，另列片語的字（`FETCH ` 的方向、`OPEN `／`CLOSE ` 的金鑰） | 插入名稱 |
-| `COLLATE` | 定序名稱與 `DATABASE_DEFAULT` | 插入名稱 |
+| `COLLATE`、`SET LANGUAGE`、`DEFAULT_LANGUAGE =`、`AT TIME ZONE` | [執行個體名單](completion-instance-lists.md)與指令碼已用值 | 依名單的寫法 |
 | `FROM a, `、`FROM a, LibArchive.` | 同 `FROM` 那一列 | 插入名稱 |
 | `UPDATE t SET `、`INSERT INTO t (`、`ON t (` 這種資料行的位置 | 那張表的資料行，見[欄位](completion-columns.md#文法指定的所屬資料表) | 插入名稱 |
 | `dbo.`、`[dbo].` | 該結構描述的物件 | 插入名稱 |
 | `LibArchive.dbo.`、`LibArchive..` | 那個資料庫的物件 | 插入名稱 |
 | `[192.0.2.10].[LibArchive].[dbo].` | — | 認得出來，但不給建議 |
 
-表中「只顯示」之外，寫得出名稱開頭的列（`USE`、`COLLATE` 與限定字那幾列除外）
+表中「只顯示」之外，寫得出名稱開頭的列（`USE`、執行個體名單與限定字那幾列除外）
 另列結構描述、資料庫與連結伺服器，見[限定名稱](qualified-names.md#右對齊猜錯時整條往左挪)。
 
 `USING` 與 `FROM` 收在同一列不是為了湊數：MERGE 的來源與 FROM 的來源是同一條文法，

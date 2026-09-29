@@ -37,6 +37,11 @@
 伺服器上**一起安靜地消失**。`COLUMNPROPERTY` 對認不得的屬性名稱回傳 NULL，
 `NULL > 0` 不成立，舊版自然得到 0，不必為此再開一條依版本組字串的路。
 
+整個目錄檢視或函式「這一版沒有」時另有一條：那不是失敗，不該降級、不該進「詳細記錄」，也不該因為
+失敗不進快取而每一次重撞。先問它在不在（`sys.all_views`），在才用動態 SQL 讀；問不出在不在的內建函式
+（`CURRENT_TIMEZONE_ID()`，版本號又分不出 Azure）包進動態 SQL，以 `TRY…CATCH` 接住下一層的編譯錯誤、
+回一列 NULL。例子見[執行個體名單](completion-instance-lists.md)。
+
 「這一版沒有」與「從來就沒有」是同一種病。`sys.tables` 沒有 `uses_quoted_identifier`
 （那是 `sys.sql_modules` 的欄位），第四層曾經直接 SELECT 它，於是**每一張資料表**的
 索引與條件約束整條查不到，而預覽顯示的是「沒有可用的連線」——連線好好的。
