@@ -289,6 +289,9 @@ public enum SqlKeywordPosition : long
     /// <summary><c>RAISERROR (…) WITH</c> 與選項的逗號之後；LOG、NOWAIT、SETERROR 都不是關鍵字，由子句片語給。</summary>
     RaiserrorOption = 1L << 51,
 
+    /// <summary><c>DBCC CHECKDB … WITH</c> 與選項的逗號之後——NO_INFOMSGS、TABLOCK；都不是關鍵字，由子句片語給。</summary>
+    DbccOption = 1L << 61,
+
     /// <summary>SET 之後——ROWCOUNT、TEXTSIZE、IDENTITY_INSERT、TRANSACTION。</summary>
     SetTarget = 1 << 14,
 
@@ -330,7 +333,7 @@ public enum SqlKeywordPosition : long
         | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
         | ReferencesTail | FunctionCallTail | WindowOrderTail | OffsetTail | ModuleHeader | FunctionReturns
-        | ExecuteOption | ResultSetList | ResultSetColumn | ResultSetColumnTail | RaiserrorOption | TableSampleTail | PivotClause | ForXmlOption | ForJsonOption
+        | ExecuteOption | ResultSetList | ResultSetColumn | ResultSetColumnTail | RaiserrorOption | DbccOption | TableSampleTail | PivotClause | ForXmlOption | ForJsonOption
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

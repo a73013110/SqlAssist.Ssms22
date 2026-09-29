@@ -278,6 +278,8 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.ResultSetColumnTail, "EXEC p WITH RESULT SETS ((a varchar(10) COLLATE Latin1_General_CI_AS "),
         new(SqlKeywordPosition.RaiserrorOption, "RAISERROR ('x', 16, 1) WITH "),
         new(SqlKeywordPosition.RaiserrorOption, "RAISERROR ('x', 16, 1) WITH NOWAIT, "),
+        new(SqlKeywordPosition.DbccOption, "DBCC CHECKDB WITH "),
+        new(SqlKeywordPosition.DbccOption, "DBCC CHECKDB WITH NO_INFOMSGS, "),
         new(SqlKeywordPosition.GroupByTail, "SELECT * FROM t GROUP BY a "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t ORDER BY "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t GROUP BY "),
@@ -1634,6 +1636,23 @@ internal static class SqlKeywordCatalogData
         {
             "GLOBAL",
         }),
+        ("DBCC", SqlKeywordPosition.StatementStart, "DBCC ", true, false, new string[]
+        {
+            "CHECKALLOC", "CHECKCATALOG", "CHECKCONSTRAINTS", "CHECKDB", "CHECKFILEGROUP",
+            "CHECKIDENT", "CHECKTABLE", "INPUTBUFFER", "OPENTRAN", "OUTPUTBUFFER", "PROCCACHE",
+            "SHOW_STATISTICS", "SHOWCONTIG", "SQLPERF", "TRACESTATUS", "USEROPTIONS",
+            "CLEANTABLE", "DBREINDEX", "DROPCLEANBUFFERS", "FREEPROCCACHE", "INDEXDEFRAG",
+            "SHRINKDATABASE", "SHRINKFILE", "UPDATEUSAGE", "CLONEDATABASE", "FLUSHAUTHCACHE",
+            "FREESESSIONCACHE", "FREESYSTEMCACHE", "HELP", "TRACEOFF", "TRACEON",
+        }),
+        ("DBCC {name}", SqlKeywordPosition.StatementStart, "DBCC t ", true, true, new string[]
+        {
+            "WITH",
+        }),
+        ("DBCC {name} ()", SqlKeywordPosition.StatementStart, "DBCC t (a) ", true, true, new string[]
+        {
+            "WITH",
+        }),
         ("FOR", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR ", true, false, new string[]
         {
             "BROWSE", "JSON", "READ", "UPDATE", "XML",
@@ -1795,6 +1814,13 @@ internal static class SqlKeywordCatalogData
         ("", SqlKeywordPosition.RaiserrorOption, "RAISERROR ('x', 16, 1) WITH ", true, false, new string[]
         {
             "LOG", "NOWAIT", "SETERROR",
+        }),
+        ("", SqlKeywordPosition.DbccOption, "DBCC CHECKDB WITH ", true, false, new string[]
+        {
+            "ALL_CONSTRAINTS", "ALL_ERRORMSGS", "ALL_INDEXES", "ALL_LEVELS", "COUNT_ROWS",
+            "DATA_PURITY", "DENSITY_VECTOR", "ESTIMATEONLY", "EXTENDED_LOGICAL_CHECKS", "FAST",
+            "HISTOGRAM", "HISTOGRAM_STEPS", "MARK_IN_USE_FOR_REMOVAL", "NO_INFOMSGS",
+            "PHYSICAL_ONLY", "STAT_HEADER", "STATS_STREAM", "TABLERESULTS", "TABLOCK",
         }),
         ("", SqlKeywordPosition.TableSampleTail, "SELECT * FROM t TABLESAMPLE (10 ", true, false, new string[]
         {

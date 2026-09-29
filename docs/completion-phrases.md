@@ -45,22 +45,22 @@
 - `Values`：剖析器把值當名稱看、分不出來時才手寫（`SET DATEFORMAT` 的 `dmy`）。
   每個值仍要剖析得過（接得上一組續尾，或開得了一組清單：索引鍵之後的 `WITH` 只接 `(`），
   過不了就中止產生；`Closed` 由人宣告那一格只有這幾個值。
-- `Template`：用 `After` 位置的第幾個樣板探測。同一個位置的樣板接得上的字不一定相同：
-  `IS` 要 `WHERE a `，代表樣板 `WHERE a = 1 ` 之後寫不出它。
+- `Template`：用 `After` 位置的第幾個樣板探測：`IS` 要 `WHERE a `，代表樣板 `WHERE a = 1 ` 之後寫不出它。
 
 ### 片語裡的每一個字
 
-寫得出 `CREATE OR ALTER`，`CREATE ` 之後就要有 `OR`、`CREATE OR ` 之後就要有 `ALTER`。逐字探測問不出
+寫得出 `CREATE OR ALTER`，`CREATE ` 之後就要有 `OR`。逐字探測問不出
 這種字：`CREATE OR` 接任何續尾都在 `CREATE` 就報錯。所以產生器拿整段剖析得過的片語當證據，
 把每一個字補進它前面那段；那段還不是片語就另立一個，條件是尾巴認得出來——以字面字結尾，
-`Lead` 片語至少兩項。以名稱或值結尾的一段之後什麼都可能接，單獨的 `ON`、`NEXT` 到處比對得上，
-立了會封閉掉不相干的清單。
+`Lead` 片語至少兩項。以名稱或值結尾的一段之後什麼都可能接，單獨的 `ON`、`NEXT` 到處比對得上。
+
+語句說明的名稱與別名也是證據，只補進已有的片語（另立會封閉 `BEGIN ` 其餘的字）。`DBCC ` 之後
+什麼都收、探不出字，名單只有說明；ScriptDom 的 DBCC 名單混著 `WRITEPAGE` 等內部命令，不用。
 
 第一個字前面那段是位置，不是片語。那個位置有只認位置的片語就補進去；沒有、關鍵字目錄在那裡
 也給不了（`AT` 不在 `SelectListTail`，`ENABLE` 不是關鍵字）時，另立**附加片語**：只認位置，
-比對永遠是「可能」，只把字加進清單、不藏別的字。換成只認位置的普通片語不行——比對確定時這一格的
-關鍵字只來自片語，`SELECT a ` 之後就只剩 `AT`。前面那段已有片語列得出這個字（`CREATE ` 之後的
-`SYNONYM`）就不立。
+比對永遠是「可能」，只加字、不藏字——普通片語比對確定時，`SELECT a ` 之後就只剩 `AT`。
+前面那段已有片語列得出這個字（`CREATE ` 之後的 `SYNONYM`）就不立。
 
 新增一個片語只要加一行再重跑，執行期不必改。
 
@@ -128,5 +128,5 @@
 
 - 單獨的 `CURRENT`：`WHERE CURRENT OF` 也是它，只收視窗框架裡的幾種前綴。
 - `STRING_AGG(…) WITHIN `：剖析器把 `WITHIN` 當成欄位別名，探出來的是別名之後的字。
-- `DBCC` 的命令、`SET LANGUAGE` 的語言、`AT TIME ZONE` 的時區：剖析器收任何名稱，
-  名單只在 `DbccCommand` 列舉或伺服器上（`sys.syslanguages`、`sys.time_zone_info`）。
+- `SET LANGUAGE` 的語言、`AT TIME ZONE` 的時區：剖析器收任何名稱，名單只在伺服器上
+  （`sys.syslanguages`、`sys.time_zone_info`）。

@@ -312,7 +312,7 @@ $ContextTemplates = [ordered]@{
     ModuleHeader     = @('CREATE VIEW v WITH SCHEMABINDING ', 'CREATE PROCEDURE p WITH RECOMPILE ', 'CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING ')
     FunctionReturns  = @('CREATE FUNCTION f () ')
 
-    # EXEC、RAISERROR 的 WITH 選項多半不是關鍵字，由子句片語給。
+    # EXEC、RAISERROR、DBCC 的 WITH 選項多半不是關鍵字，由子句片語給。
     ExecuteOption    = @('EXEC p WITH ', 'EXEC p WITH RECOMPILE, ')
 
     # WITH RESULT SETS 的兩層括號：外層每一項是一組資料行定義或 AS OBJECT／TYPE／FOR XML，
@@ -321,6 +321,7 @@ $ContextTemplates = [ordered]@{
     ResultSetColumn  = @('EXEC p WITH RESULT SETS ((', 'EXEC p WITH RESULT SETS ((a int, ')
     ResultSetColumnTail = @('EXEC p WITH RESULT SETS ((a int ', 'EXEC p WITH RESULT SETS ((a varchar(10) COLLATE Latin1_General_CI_AS ')
     RaiserrorOption  = @("RAISERROR ('x', 16, 1) WITH ", "RAISERROR ('x', 16, 1) WITH NOWAIT, ")
+    DbccOption       = @('DBCC CHECKDB WITH ', 'DBCC CHECKDB WITH NO_INFOMSGS, ')
 
     # GROUP BY 的欄位之後：HAVING、ORDER 與 WITH ROLLUP，不接 ASC、DESC。
     GroupByTail      = @('SELECT * FROM t GROUP BY a ')
@@ -682,6 +683,13 @@ $ClausePhrases = @(
     @{ Pattern = 'DEALLOCATE' }
     @{ Pattern = 'FETCH'; Expand = 2 }
 
+    # DBCC 之後的命令剖析器什麼名稱都收（未公開的命令、DBCC dllname (FREE)），探不出字；
+    # 字來自語句說明登錄的命令（見探測之後那一段），由人宣告封閉：那一格不是任何物件的名稱。
+    # 命令寫完已經是完整的一句，WITH 同時是 CTE 的開頭被扣掉了，手寫補回；選項由位置給（DbccOption）。
+    @{ Pattern = 'DBCC'; Closed = $true }
+    @{ Pattern = 'DBCC {name}'; Values = @('WITH') }
+    @{ Pattern = 'DBCC {name} ()'; Values = @('WITH') }
+
     # FOR 有好幾種意思，由前一格的位置分開：查詢寫完之後是 XML、JSON、BROWSE、UPDATE、READ，
     # 資料表之後多一個 SYSTEM_TIME，游標選項之後是查詢，觸發程序標頭之後是 INSERT 這些事件。
     # 查詢寫到 FOR UPDATE 已經完整，展開停在那裡；游標要的 OF 另外探。
@@ -719,7 +727,7 @@ $ClausePhrases = @(
     @{ Pattern = 'RESULT SETS'; After = @('ExecuteOption') }
     @{ Pattern = 'AS'; After = @('ResultSetList'); Expand = 1 }
     @{ Pattern = 'NOT'; After = @('ResultSetColumnTail') }
-    @{ Pattern = ''; After = @('RaiserrorOption') }
+    @{ Pattern = ''; After = @('RaiserrorOption', 'DbccOption') }
     @{ Pattern = ''; After = @('TableSampleTail') }
 
     # FOR XML、FOR JSON 的逗號之後是指示詞；模式由上面 FOR 往下展開的片語給，那裡比對到的是更長的尾巴。
@@ -767,9 +775,10 @@ $ClausePhrases = @(
 # 片語的續尾在第三階段那一組之外多幾條：SET 選項值、選項清單的 = ON、字串與括號的結尾，
 # 以及幾個要多看一個詞元才分得出來的地方（AFTER 後面沒有 INSERT 就是語法錯誤）。
 # 模組選項的名稱要看到本體才驗（寫到檔案結尾為止任何名稱都過），所以函式的兩種本體也在。
-# CREATE LOGIN 的 WITH PASSWORD 只收字串。DECRYPTION BY 之後的 ASYMMETRIC、SYMMETRIC 要看到金鑰名稱才驗。
+# CREATE LOGIN 的 WITH PASSWORD 只收字串，DBCC 的 WITH 只收它自己的選項。
+# DECRYPTION BY 之後的 ASYMMETRIC、SYMMETRIC 要看到金鑰名稱才驗。
 $PhraseContinuations = @($Continuations) + @(
-    ' ON', " 'x'", ' = ON', ' = ON)', ' = 1', ' ON)', ' ROWS ONLY',
+    ' ON', " 'x'", ' = ON', ' = ON)', ' = 1', ' ON)', ' ROWS ONLY', ' NO_INFOMSGS',
     ' PRECEDING)', " ZONE 'UTC'", ' IN (1)', ' FOR SELECT 1', ' ACTION)',
     ' (a)', ' TIES a FROM t ORDER BY a', ' FROM x', ' INSERT AS SELECT 1', ' OF INSERT AS SELECT 1',
     ' LEVEL READ COMMITTED', ' READ COMMITTED', ' COMMITTED', ' READ', ' TRIGGER ALL',
@@ -1255,6 +1264,33 @@ foreach ($entry in $ClausePhrases) {
             if ($phrases[$key].Words -notcontains $word) {
                 $phrases[$key].Words = @($phrases[$key].Words) + $word
             }
+        }
+    }
+}
+
+# 語句說明登錄的名稱與別名也是證據：寫得出 DBCC CHECKDB，DBCC 之後就要有 CHECKDB。
+# 剖析器在那一格什麼名稱都收時（DBCC 的命令）探測問不出字，說明是唯一的名單；清單列得出的字
+# 也就一定對得到說明。只補進已經有的片語：前面那段沒有片語的字由關鍵字目錄給（BEGIN TRY 的 TRY），
+# 為它另立一個會把那一格其餘的字封閉掉。整段在語句開頭剖析不過的（END TRY 要在區塊裡）不算證據。
+$statementDocs = Join-Path $PSScriptRoot '..\src\SqlAssist.Core\Keywords\BuiltInDocs\statements.json'
+$statementNames = (Get-Content -LiteralPath $statementDocs -Raw -Encoding utf8 | ConvertFrom-Json).docs |
+    Where-Object kind -eq 'statement' |
+    ForEach-Object { @($_.name) + @($_.aliases) } |
+    Where-Object { $_ -match ' ' }
+
+foreach ($name in $statementNames) {
+    $items = @($name -split ' ')
+
+    if (-not (Test-PatternAccepted -Probe (Get-PhraseProbe -Lead '' -Pattern $name))) {
+        Write-Host "語句說明的名稱在語句開頭剖析不過，不當證據：$name"
+        continue
+    }
+
+    for ($index = 1; $index -lt $items.Count; $index++) {
+        $key = "StatementStart`t$($items[0..($index - 1)] -join ' ')"
+
+        if ($phrases.Contains($key) -and $phrases[$key].Words -notcontains $items[$index]) {
+            $phrases[$key].Words = @($phrases[$key].Words) + $items[$index]
         }
     }
 }

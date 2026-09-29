@@ -78,7 +78,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
             endsItem: (analyzer, index) => analyzer.EndsModuleOption(index),
             header: (analyzer, with) => analyzer.FindModuleOptionHeader(with)),
 
-        // EXEC p … WITH RECOMPILE, RESULT SETS (…)、RAISERROR (…) WITH NOWAIT, LOG：WITH 與逗號之後是下一個選項。
+        // EXEC p … WITH RECOMPILE, RESULT SETS (…)、RAISERROR (…) WITH NOWAIT, LOG、
+        // DBCC CHECKDB (…) WITH NO_INFOMSGS, TABLOCK：WITH 與逗號之後是下一個選項。
         // 選項寫完之後接的是下一句，不歸清單管。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
@@ -802,7 +803,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return new OptionSlots(start, SqlKeywordPosition.ModuleHeader);
     }
 
-    /// <summary><paramref name="with"/> 的 WITH 屬於 <c>EXEC</c> 程序呼叫或 <c>RAISERROR</c>。</summary>
+    /// <summary><paramref name="with"/> 的 WITH 屬於 <c>EXEC</c> 程序呼叫、<c>RAISERROR</c> 或 <c>DBCC</c>。</summary>
     /// <remarks>
     /// <c>EXECUTE AS USER = 'u' WITH NO REVERT</c> 是另一種敘述，<c>GRANT EXECUTE ON … WITH</c> 的 EXECUTE
     /// 是權限，都不算：EXEC 要是這一句的開頭。RAISERROR 連同它的引數是一個單位，
@@ -824,8 +825,17 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return null;
         }
 
-        return (tokens[verb].IsKeyword("EXEC") || tokens[verb].IsKeyword("EXECUTE")) && IsStatementHead(verb) &&
-            !tokens[verb + 1].IsKeyword("AS")
+        if (!IsStatementHead(verb))
+        {
+            return null;
+        }
+
+        if (tokens[verb].IsKeyword("DBCC"))
+        {
+            return new OptionSlots(SqlKeywordPosition.DbccOption, null);
+        }
+
+        return (tokens[verb].IsKeyword("EXEC") || tokens[verb].IsKeyword("EXECUTE")) && !tokens[verb + 1].IsKeyword("AS")
             ? new OptionSlots(SqlKeywordPosition.ExecuteOption, null)
             : null;
     }

@@ -218,6 +218,13 @@ public sealed class SqlClausePhraseTests
     [InlineData("DEALLOCATE ", "GLOBAL")]
     [InlineData("FETCH NEXT ", "FROM")]
     [InlineData("FETCH NEXT FROM ", "GLOBAL")]
+    [InlineData("DBCC ", "CHECKDB", "SHOW_STATISTICS", "SQLPERF", "CHECKTABLE", "TRACEON", "FREEPROCCACHE")]
+    [InlineData("BEGIN\n    DBCC ", "CHECKIDENT")]
+    [InlineData("DBCC CHECKDB ", "WITH")]
+    [InlineData("DBCC CHECKIDENT ('dbo.Lib_Tag', RESEED, 100) ", "WITH")]
+    [InlineData("DBCC CHECKDB WITH ", "NO_INFOMSGS", "ALL_ERRORMSGS", "TABLOCK", "PHYSICAL_ONLY")]
+    [InlineData("DBCC CHECKDB (N'LibArchive') WITH NO_INFOMSGS, ", "ALL_ERRORMSGS", "DATA_PURITY")]
+    [InlineData("DBCC SHOW_STATISTICS ('dbo.Loan', st_CopyNo) WITH ", "STAT_HEADER", "DENSITY_VECTOR", "HISTOGRAM")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -261,6 +268,10 @@ public sealed class SqlClausePhraseTests
     [InlineData("OPEN SYMMETRIC KEY k DECRYPTION BY CERTIFICATE ", "KEY")]
     [InlineData("OPEN SYMMETRIC KEY k DECRYPTION BY PASSWORD ", "KEY")]
     [InlineData("FETCH NEXT ", "INTO")]
+    [InlineData("DBCC ", "SELECT")]
+    [InlineData("DBCC CHECKDB ", "SELECT")]
+    [InlineData("DBCC CHECKDB WITH ", "SELECT")]
+    [InlineData("DBCC CHECKDB WITH NO_INFOMSGS, ", "RECOMPILE")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
@@ -316,6 +327,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("FETCH NEXT ", true)]
     [InlineData("OPEN SYMMETRIC KEY ", false)]
     [InlineData("CLOSE SYMMETRIC KEY ", false)]
+    [InlineData("DBCC ", true)]
+    [InlineData("DBCC CHECKDB WITH ", true)]
     public void 封閉的片語換掉整份清單(string textBeforeCaret, bool closed)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
