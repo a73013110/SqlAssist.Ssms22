@@ -56,7 +56,7 @@ public sealed class BlockMatcher
 
             if (!token.IsQuoted && token.Kind == SqlTokenKind.Identifier && ClosingKeywords.Contains(token.Value))
             {
-                if (token.IsKeyword("END") && Next("CONVERSATION")) continue;
+                if (token.IsKeyword("END") && !SqlTokenNavigator.ClosesBlock(tokens, i)) continue;
                 string? suffix = null;
                 foreach (var rule in Rules)
                     if (token.IsKeyword(rule.Close) && rule.Suffix is not null && Next(rule.Suffix)) { suffix = rule.Suffix; break; }

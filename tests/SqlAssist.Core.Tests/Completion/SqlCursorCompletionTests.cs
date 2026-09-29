@@ -83,7 +83,7 @@ public sealed class SqlCursorCompletionTests
     [InlineData("OPEN c\r\nFETCH |", "NEXT")]
     [InlineData("OPEN |", "SYMMETRIC")]
     [InlineData("OPEN |", "MASTER")]
-    [InlineData("CLOSE |", "ALL")]
+    [InlineData("CLOSE |", "ALL SYMMETRIC KEYS")]
     [InlineData("DEALLOCATE |", "GLOBAL")]
     public void 游標那一格只留游標與片語的字(string tail, string phraseWord)
     {

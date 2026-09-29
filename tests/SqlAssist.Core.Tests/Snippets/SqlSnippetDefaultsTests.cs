@@ -393,7 +393,6 @@ public sealed class SqlSnippetDefaultsTests
     /// 在 <see cref="SqlCompletionPolicy"/>。
     /// </remarks>
     [Theory]
-    [InlineData("cdb", "database")]
     [InlineData("ctb", "table")]
     [InlineData("cv", "view")]
     [InlineData("cp", "procedure")]
@@ -413,12 +412,15 @@ public sealed class SqlSnippetDefaultsTests
 
     /// <remarks>
     /// <c>ctb</c> 的資料行格是資料行定義的開頭：使用者多半在取新名字，但這一格也接得了
-    /// CONSTRAINT、PRIMARY KEY。所以打了字才有清單，而且不預先選中。
+    /// CONSTRAINT、PRIMARY KEY。<c>cdb</c> 的資料庫名稱格同理：<c>CREATE DATABASE</c> 之後也接得了
+    /// SCOPED、ENCRYPTION。所以打了字才有清單，而且不預先選中。
     /// </remarks>
-    [Fact]
-    public void 資料行定義的欄位是可能是名字的位置()
+    [Theory]
+    [InlineData("ctb", "column")]
+    [InlineData("cdb", "database")]
+    public void 可能是名字的欄位打了字才有清單(string shortcut, string fieldId)
     {
-        var context = AnalyzeBeforeField("ctb", "column");
+        var context = AnalyzeBeforeField(shortcut, fieldId);
 
         Assert.Equal(SqlCompletionSlot.MaybeName, context.Slot);
         Assert.False(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));

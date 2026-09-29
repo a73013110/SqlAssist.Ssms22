@@ -42,7 +42,7 @@ public sealed class SqlClausePhrase
         EndsStatement = endsStatement;
         Words = words;
         _elements = Parse(pattern);
-        _wordSet = new HashSet<string>(words, StringComparer.OrdinalIgnoreCase);
+        _wordSet = new HashSet<string>(Array.ConvertAll(words, FirstWord), StringComparer.OrdinalIgnoreCase);
         _suggestions = new SqlLanguageCache<IReadOnlyList<SqlSuggestion>>(_ => BuildSuggestions());
         Certain = new SqlClausePhraseMatch(this, isCertain: true);
         Tentative = new SqlClausePhraseMatch(this, isCertain: false);
@@ -82,6 +82,10 @@ public sealed class SqlClausePhrase
     public bool IsAdditive { get; }
 
     /// <summary>接得上的字，依產生器的順序。</summary>
+    /// <remarks>
+    /// 一項可以是幾個字：後面只接得了一個字的字與那個字併成一項（<c>ASYMMETRIC KEY</c>、
+    /// <c>ENCRYPTION BY PASSWORD</c>），選一次寫完。這一格接得上的是第一個字，見 <see cref="Offers"/>。
+    /// </remarks>
     public IReadOnlyList<string> Words { get; }
 
     /// <summary>這些字的建議項；說明是目前介面語言的。</summary>
@@ -115,7 +119,7 @@ public sealed class SqlClausePhrase
     /// </remarks>
     internal bool IsList => _elements.Length > 0 && _elements[_elements.Length - 1].Kind == ElementKind.List;
 
-    /// <summary>片語最後一項是字面值時的那個字；比對前先用它分桶。</summary>
+    /// <summary>片語最後一項是字面值（字或等號）時的那個字；比對前先用它分桶。</summary>
     internal string? LastWord =>
         _elements.Length > 0 && _elements[_elements.Length - 1] is { Kind: ElementKind.Word } last ? last.Word : null;
 
@@ -126,8 +130,15 @@ public sealed class SqlClausePhrase
     /// </remarks>
     internal int Length => _elements.Length;
 
-    /// <summary><paramref name="word"/> 是不是這個片語接得上的字。</summary>
+    /// <summary><paramref name="word"/> 是不是這個片語接得上的字；多字的一項認它的第一個字。</summary>
     internal bool Offers(string word) => _wordSet.Contains(word);
+
+    /// <summary>一項的第一個字：<c>ASYMMETRIC KEY</c> 在這一格接得上的是 <c>ASYMMETRIC</c>。</summary>
+    internal static string FirstWord(string item)
+    {
+        var space = item.IndexOf(' ');
+        return space < 0 ? item : item.Substring(0, space);
+    }
 
     /// <summary>
     /// <paramref name="tokens"/> 前 <paramref name="count"/> 個詞元的尾端是不是這個片語；
@@ -249,6 +260,7 @@ public sealed class SqlClausePhrase
                 "()" => new Element(ElementKind.Group),
                 "(*" when index == parts.Length - 1 => new Element(ElementKind.OpenList),
                 "(*" => throw new FormatException($"Phrase '{pattern}': (* must be the last element."),
+                "=" => new Element(ElementKind.Word, "="),
                 ",*" when index == parts.Length - 1 && index > 0 => new Element(ElementKind.List),
                 ",*" => throw new FormatException($"Phrase '{pattern}': ,* must follow a head and be the last element."),
                 _ when parts[index].IndexOfAny(new[] { '{', '(', ')', ',' }) >= 0 =>
@@ -303,6 +315,10 @@ public sealed class SqlClausePhrase
 
             switch (Kind)
             {
+                // 等號是選項的指派（ALGORITHM = AES_256），與字一樣是字面值。
+                case ElementKind.Word when Word == "=":
+                    return token.Kind == SqlTokenKind.Operator && token.Value == "=" ? last - 1 : Mismatch;
+
                 case ElementKind.Word:
                     return token.IsKeyword(Word!) && !(last >= 1 && tokens[last - 1].IsPunctuation("."))
                         ? last - 1

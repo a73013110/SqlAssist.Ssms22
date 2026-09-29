@@ -72,7 +72,7 @@ public sealed class SqlKeywordRecallTests
                 if (token.Kind != SqlTokenKind.Identifier ||
                     token.IsQuoted ||
                     (index >= 1 && tokens[index - 1].IsPunctuation(".")) ||
-                    !audited.Contains(token.Value))
+                    !(audited.Contains(token.Value) || IsWrittenAsWord(token.Text)))
                 {
                     continue;
                 }
@@ -149,7 +149,7 @@ public sealed class SqlKeywordRecallTests
             CompletionTarget.TableHint => SqlArgumentCatalog.TableHints,
             CompletionTarget.QueryHint => SqlArgumentCatalog.QueryHints,
             CompletionTarget.ClauseKeyword => phrase,
-            CompletionTarget.DataType => SqlDataTypeCatalog.All,
+            CompletionTarget.DataType => SqlDataTypeCatalog.All.Concat(phrase),
             _ => builtIn.Concat(phrase).Concat(context.ScriptSources)
         };
     }
@@ -190,6 +190,20 @@ public sealed class SqlKeywordRecallTests
         }
 
         return words;
+    }
+
+    /// <summary>
+    /// 語料裡全大寫的字：語料照慣例把字寫成大寫、名稱寫成大小寫混合。
+    /// </summary>
+    /// <remarks>
+    /// 只認清單裡已有的字的話，哪一份清單都沒收的字（<c>SUBJECT</c>、<c>ALGORITHM</c>、<c>GENERATED</c>）
+    /// 永遠不被稽核，而那正是最該抓的缺口。
+    /// </remarks>
+    private static bool IsWrittenAsWord(string text)
+    {
+        return text.Length >= 2 &&
+            char.IsLetter(text[0]) &&
+            text.All(c => c is >= 'A' and <= 'Z' or >= '0' and <= '9' or '_');
     }
 
     /// <summary>語料的每一段；段與段以空白行分開。</summary>

@@ -13,7 +13,8 @@
 - 字串沿用 ScriptDom 的完整詞元，支援空字串、Unicode 前綴與多行；不把跳脫的 `''`、
   `N` 前綴或字串內 SQL 當端點，未閉合字串不配對。
 - 複合端點分成詞元：`BEGIN /* 註解 */ TRY` 的中間不算高亮範圍。
-- 交易與 Service Broker 的 BEGIN／END 不當區塊；批次分隔 GO 清除未閉合堆疊。
+- 交易與 Service Broker 的 BEGIN／END、時態表的 `GENERATED ALWAYS AS ROW END` 不當區塊，END 的判準與位置分析共用
+  `SqlTokenNavigator.ClosesBlock`；批次分隔 GO 清除未閉合堆疊。
 - 錯配不向外搶 END；未閉合殘留與交叉區間忽略，已完成的內層保留。
 - 位置使用 UTF-16 半開區間；`FindPairAt` 不把詞元後方空白視為端點。
 - `FindPairAt`、`GetEnclosingBlock` 為 O(log n)；`GetAncestors` 由內而外，

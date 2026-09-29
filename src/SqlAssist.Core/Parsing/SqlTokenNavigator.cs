@@ -14,6 +14,23 @@ namespace SqlAssist.Core.Parsing;
 public static class SqlTokenNavigator
 {
     /// <summary>
+    /// <paramref name="index"/> 的 END 收掉一個區塊或 CASE。
+    /// </summary>
+    /// <remarks>
+    /// 兩種 END 不收：<c>END CONVERSATION</c> 是 Service Broker 的語句，<c>GENERATED ALWAYS AS ROW END</c>
+    /// 是時態表期間資料行的產生方式。當成區塊結尾的話，外層的 BEGIN 提早配對，位置分析也在那之後回報下一句。
+    /// </remarks>
+    public static bool ClosesBlock(IReadOnlyList<SqlToken> tokens, int index)
+    {
+        return tokens[index].IsKeyword("END") &&
+            !(index + 1 < tokens.Count && tokens[index + 1].IsKeyword("CONVERSATION")) &&
+            !(index >= 4 &&
+                tokens[index - 2].IsKeyword("AS") &&
+                tokens[index - 3].IsKeyword("ALWAYS") &&
+                tokens[index - 4].IsKeyword("GENERATED"));
+    }
+
+    /// <summary>
     /// 緊接在左括號後面時，代表這個括號開啟了一個新的查詢範圍。
     /// </summary>
     /// <remarks>

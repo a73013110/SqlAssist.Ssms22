@@ -68,7 +68,7 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 指派左邊寫限定字的（`SET t.Fee`）打 `t.` 就重開成同一份，別名本身不列。
 
 `UPDATE t⏎SET` 的 SET 仍是指派：片語前一格的換行只給真的開始一句的字，
-見[子句片語](completion-phrases.md#前一格)。
+見[子句片語](phrase-generator.md#前一格)。
 
 ## 資料表值函式的別名
 

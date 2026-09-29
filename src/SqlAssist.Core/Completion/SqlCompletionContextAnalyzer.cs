@@ -115,6 +115,7 @@ public static class SqlCompletionContextAnalyzer
         //
         // 限定字要帶著走：DECLARE @t dbo.| 只該列出 dbo 的自訂型別，
         // 而內建型別沒有結構描述，會被結構描述過濾自己擋掉——dbo.INT 不是東西。
+        // 片語也帶著：資料行定義裡的 PERIOD 在剖析器眼中也是資料行名稱，之後的 FOR 由片語給。
         if (SqlDataTypePosition.IsDataTypeSlot(tokens, textBeforeToken))
         {
             return new SqlCompletionContext(
@@ -123,7 +124,8 @@ public static class SqlCompletionContextAnalyzer
                 prefix,
                 CompletionTarget.DataType,
                 qualifierPath,
-                qualifierStart: qualifierStart);
+                qualifierStart: qualifierStart,
+                clausePhrase: caret.Phrase);
         }
 
         // 這個位置文法上只能是使用者自己取的名字：衍生資料表的別名、AS 之後的別名、

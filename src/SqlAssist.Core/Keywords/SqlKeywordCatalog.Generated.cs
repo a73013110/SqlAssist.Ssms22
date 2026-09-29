@@ -23,40 +23,40 @@ internal static class SqlKeywordCatalogData
     /// <summary>全部關鍵字，以及各自可以出現的位置。</summary>
     internal static readonly KeyValuePair<string, SqlKeywordPosition>[] Keywords =
     {
-        new("ADD", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("ADD", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("ALL", SqlKeywordPosition.SelectList | SqlKeywordPosition.OrderByColumn),
-        new("ALTER", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("ALTER", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("AND", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
         new("ANY", SqlKeywordPosition.None),
         new("APPLY", SqlKeywordPosition.None),
-        new("AS", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.ResultSetList | SqlKeywordPosition.TriggerEventEnd),
+        new("AS", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.ResultSetList | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.TriggerEventEnd),
         new("ASC", SqlKeywordPosition.IndexKeyTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowOrderTail),
         new("AUTHORIZATION", SqlKeywordPosition.DdlObject),
-        new("BACKUP", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("BEGIN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("BACKUP", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("BEGIN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("BETWEEN", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
-        new("BREAK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("BREAK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("BROWSE", SqlKeywordPosition.None),
-        new("BULK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause | SqlKeywordPosition.InsertTarget),
+        new("BULK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause | SqlKeywordPosition.InsertTarget),
         new("BY", SqlKeywordPosition.ByAnchor),
         new("CASCADE", SqlKeywordPosition.None),
         new("CASE", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("CATCH", SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd),
         new("CHECK", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.ColumnDefinition),
-        new("CHECKPOINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("CLOSE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("CHECKPOINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("CLOSE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("CLUSTERED", SqlKeywordPosition.DdlObject),
         new("COALESCE", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("COLLATE", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.TableSampleTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OffsetTail | SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.ResultSetColumnTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseArm | SqlKeywordPosition.CaseBody),
         new("COLUMN", SqlKeywordPosition.DdlObject),
-        new("COMMIT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("COMMIT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("COMPUTE", SqlKeywordPosition.None),
         new("CONSTRAINT", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.ColumnDefinition),
         new("CONTAINS", SqlKeywordPosition.Predicate),
         new("CONTAINSTABLE", SqlKeywordPosition.DataSource),
-        new("CONTINUE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("CONTINUE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("CONVERT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
-        new("CREATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("CREATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("CROSS", SqlKeywordPosition.TableSourceTail),
         new("CURRENT", SqlKeywordPosition.Predicate),
         new("CURRENT_DATE", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
@@ -65,28 +65,28 @@ internal static class SqlKeywordCatalogData
         new("CURRENT_USER", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("CURSOR", SqlKeywordPosition.None),
         new("DATABASE", SqlKeywordPosition.PermissionOn | SqlKeywordPosition.DdlObject),
-        new("DBCC", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("DEALLOCATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("DECLARE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("DBCC", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("DEALLOCATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("DECLARE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("DEFAULT", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject),
-        new("DELETE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
-        new("DENY", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("DELETE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OptionItem | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
+        new("DENY", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("DESC", SqlKeywordPosition.IndexKeyTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowOrderTail),
         new("DISTINCT", SqlKeywordPosition.SelectList),
         new("DISTRIBUTED", SqlKeywordPosition.BlockStart),
         new("DOUBLE", SqlKeywordPosition.None),
-        new("DROP", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("DROP", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("ELSE", SqlKeywordPosition.CaseBody | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("END", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseBody | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("END", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseBody | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("ERRLVL", SqlKeywordPosition.SetTarget),
         new("ESCAPE", SqlKeywordPosition.ExpressionTail),
         new("EXCEPT", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.GroupByTail),
-        new("EXEC", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause | SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption),
-        new("EXECUTE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause | SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption),
+        new("EXEC", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause | SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption),
+        new("EXECUTE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause | SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption),
         new("EXISTS", SqlKeywordPosition.Predicate),
         new("EXIT", SqlKeywordPosition.None),
         new("EXTERNAL", SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.DdlObject),
-        new("FETCH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("FETCH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("FILE", SqlKeywordPosition.OptionItem),
         new("FILLFACTOR", SqlKeywordPosition.IndexOption),
         new("FOR", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.PivotClause | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CursorOption),
@@ -97,29 +97,29 @@ internal static class SqlKeywordCatalogData
         new("FULL", SqlKeywordPosition.TableSourceTail),
         new("FUNCTION", SqlKeywordPosition.DdlObject),
         new("GO", SqlKeywordPosition.StatementStart),
-        new("GOTO", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("GRANT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("GOTO", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("GRANT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("GROUP", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail),
         new("HAVING", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.GroupByTail),
         new("HOLDLOCK", SqlKeywordPosition.TableSourceTail),
         new("IDENTIFIER", SqlKeywordPosition.None),
         new("IDENTITY", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.ReferencesTail),
         new("IDENTITY_INSERT", SqlKeywordPosition.SetTarget),
-        new("IF", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableColumn | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("IF", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableColumn | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("IN", SqlKeywordPosition.PivotClause | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
         new("INDEX", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition),
         new("INNER", SqlKeywordPosition.TableSourceTail),
-        new("INSERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
+        new("INSERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OptionItem | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
         new("INTERSECT", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.GroupByTail),
         new("INTO", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.InsertTarget),
         new("IS", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
         new("JOIN", SqlKeywordPosition.TableSourceTail),
         new("KEY", SqlKeywordPosition.None),
-        new("KILL", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("KILL", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("LEFT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("LIKE", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
-        new("LINENO", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("MERGE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("LINENO", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("MERGE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("NATIONAL", SqlKeywordPosition.None),
         new("NEXT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("NOCHECK", SqlKeywordPosition.AlterTableAction),
@@ -133,7 +133,7 @@ internal static class SqlKeywordCatalogData
         new("OFFSET", SqlKeywordPosition.OrderByTail),
         new("OFFSETS", SqlKeywordPosition.SetTarget),
         new("ON", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.PermissionList | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.SetOptionValue),
-        new("OPEN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("OPEN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("OPENDATASOURCE", SqlKeywordPosition.DataSource | SqlKeywordPosition.InsertTarget),
         new("OPENQUERY", SqlKeywordPosition.DataSource | SqlKeywordPosition.InsertTarget),
         new("OPENROWSET", SqlKeywordPosition.DataSource | SqlKeywordPosition.InsertTarget),
@@ -149,36 +149,36 @@ internal static class SqlKeywordCatalogData
         new("PIVOT", SqlKeywordPosition.TableSourceTail),
         new("PLAN", SqlKeywordPosition.None),
         new("PRIMARY", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition),
-        new("PRINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("PRINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("PROC", SqlKeywordPosition.DdlObject),
         new("PROCEDURE", SqlKeywordPosition.DdlObject),
         new("PUBLIC", SqlKeywordPosition.None),
-        new("RAISERROR", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("RAISERROR", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("READ", SqlKeywordPosition.None),
-        new("READTEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("RECONFIGURE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("READTEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("RECONFIGURE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("REFERENCES", SqlKeywordPosition.ReferencesTail),
         new("REPLICATION", SqlKeywordPosition.None),
-        new("RESTORE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("RESTORE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("RESTRICT", SqlKeywordPosition.None),
-        new("RETURN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("REVERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("REVOKE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("RETURN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("REVERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("REVOKE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("RIGHT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
-        new("ROLLBACK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("ROLLBACK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("ROWCOUNT", SqlKeywordPosition.SetTarget),
         new("ROWS", SqlKeywordPosition.TableSampleTail | SqlKeywordPosition.OffsetTail | SqlKeywordPosition.WindowOrderTail),
         new("RULE", SqlKeywordPosition.DdlObject),
-        new("SAVE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("SAVE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("SCHEMA", SqlKeywordPosition.PermissionOn | SqlKeywordPosition.DdlObject),
-        new("SELECT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("SELECT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("SEMANTICKEYPHRASETABLE", SqlKeywordPosition.DataSource),
         new("SEMANTICSIMILARITYDETAILSTABLE", SqlKeywordPosition.DataSource),
         new("SEMANTICSIMILARITYTABLE", SqlKeywordPosition.DataSource),
         new("SESSION_USER", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
-        new("SET", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("SETUSER", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("SHUTDOWN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("SET", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("SETUSER", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("SHUTDOWN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("SOME", SqlKeywordPosition.None),
         new("STATISTICS", SqlKeywordPosition.DdlObject | SqlKeywordPosition.SetTarget),
         new("STOPLIST", SqlKeywordPosition.None),
@@ -193,27 +193,27 @@ internal static class SqlKeywordCatalogData
         new("TRAN", SqlKeywordPosition.BlockStart | SqlKeywordPosition.SetTarget),
         new("TRANSACTION", SqlKeywordPosition.BlockStart | SqlKeywordPosition.SetTarget),
         new("TRIGGER", SqlKeywordPosition.DdlObject),
-        new("TRUNCATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("TRUNCATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("TRY", SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd),
         new("TRY_CONVERT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("TSEQUAL", SqlKeywordPosition.Predicate),
         new("UNION", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.GroupByTail),
         new("UNIQUE", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition),
         new("UNPIVOT", SqlKeywordPosition.TableSourceTail),
-        new("UPDATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
-        new("UPDATETEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("USE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("UPDATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OptionItem | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
+        new("UPDATETEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("USE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("USER", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.PermissionOn | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn | SqlKeywordPosition.DdlObject),
         new("USING", SqlKeywordPosition.TableSourceTail),
         new("VALUES", SqlKeywordPosition.TableSourceTail),
         new("VARYING", SqlKeywordPosition.ResultSetColumnTail),
         new("VIEW", SqlKeywordPosition.DdlObject),
-        new("WAITFOR", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("WAITFOR", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("WHEN", SqlKeywordPosition.CaseBody | SqlKeywordPosition.MergeClause),
         new("WHERE", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.UpdateSetTail),
-        new("WHILE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("WITH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.TriggerHeader | SqlKeywordPosition.MergeClause),
-        new("WRITETEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
+        new("WHILE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("WITH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.TriggerHeader | SqlKeywordPosition.MergeClause),
+        new("WRITETEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
     };
 
     /// <summary>定位置所用的樣板：每個位置與它的樣板文字。</summary>
@@ -282,6 +282,8 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.OptionItem, "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, "),
         new(SqlKeywordPosition.OptionItem, "RESTORE DATABASE d FROM DISK = 'x' WITH "),
         new(SqlKeywordPosition.OptionItem, "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, "),
+        new(SqlKeywordPosition.OptionItem, "CREATE TRIGGER tr ON DATABASE FOR "),
+        new(SqlKeywordPosition.OptionItem, "CREATE TRIGGER tr ON DATABASE FOR CREATE_TABLE, "),
         new(SqlKeywordPosition.GroupByTail, "SELECT * FROM t GROUP BY a "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t ORDER BY "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t GROUP BY "),
@@ -310,6 +312,8 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.IfBodyEnd, "IF 1 = 1 SET NOCOUNT ON "),
         new(SqlKeywordPosition.CursorOption, "DECLARE c CURSOR "),
         new(SqlKeywordPosition.CursorOption, "DECLARE c CURSOR LOCAL FAST_FORWARD "),
+        new(SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t "),
+        new(SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t START WITH 1 "),
         new(SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t "),
         new(SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t WITH ENCRYPTION "),
         new(SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN "),
@@ -376,19 +380,19 @@ internal static class SqlKeywordCatalogData
     internal static readonly KeyValuePair<string, SqlKeywordPosition>[] StatementEndings =
     {
         new("AS", SqlKeywordPosition.None),
-        new("BREAK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("BREAK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("CATCH", SqlKeywordPosition.BlockEnd),
-        new("CHECKPOINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("CHECKPOINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("COMMIT", SqlKeywordPosition.None),
-        new("CONTINUE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("CONTINUE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("OFF", SqlKeywordPosition.SetOptionValue),
         new("ON", SqlKeywordPosition.SetOptionValue),
-        new("RECONFIGURE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("RECONFIGURE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("RETURN", SqlKeywordPosition.None),
-        new("REVERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("REVERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("ROLLBACK", SqlKeywordPosition.None),
         new("SETUSER", SqlKeywordPosition.None),
-        new("SHUTDOWN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("SHUTDOWN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("THROW", SqlKeywordPosition.None),
         new("TRAN", SqlKeywordPosition.None),
         new("TRANSACTION", SqlKeywordPosition.None),
@@ -406,8 +410,8 @@ internal static class SqlKeywordCatalogData
             "ANSI_DEFAULTS", "ANSI_NULL_DFLT_OFF", "ANSI_NULL_DFLT_ON", "ANSI_NULLS",
             "ANSI_PADDING", "ANSI_WARNINGS", "ARITHABORT", "ARITHIGNORE",
             "CONCAT_NULL_YIELDS_NULL", "CONTEXT_INFO", "CURSOR_CLOSE_ON_COMMIT", "DATEFIRST",
-            "DATEFORMAT", "DEADLOCK_PRIORITY", "ERRLVL", "FIPS_FLAGGER", "FMTONLY", "FORCEPLAN",
-            "IDENTITY_INSERT", "IMPLICIT_TRANSACTIONS", "LANGUAGE", "LOCK_TIMEOUT",
+            "DATEFORMAT", "DEADLOCK_PRIORITY", "ERRLVL", "FIPS_FLAGGER OFF", "FMTONLY",
+            "FORCEPLAN", "IDENTITY_INSERT", "IMPLICIT_TRANSACTIONS", "LANGUAGE", "LOCK_TIMEOUT",
             "NO_BROWSETABLE", "NOCOUNT", "NOEXEC", "NUMERIC_ROUNDABORT", "OFFSETS", "PARSEONLY",
             "QUERY_GOVERNOR_COST_LIMIT", "QUOTED_IDENTIFIER", "REMOTE_PROC_TRANSACTIONS",
             "ROWCOUNT", "SHOWPLAN_ALL", "SHOWPLAN_TEXT", "SHOWPLAN_XML", "STATISTICS",
@@ -486,6 +490,10 @@ internal static class SqlKeywordCatalogData
         }),
         ("SET IDENTITY_INSERT", SqlKeywordPosition.StatementStart, "SET IDENTITY_INSERT ", false, false, new string[]
         {
+        }),
+        ("SET IDENTITY_INSERT {name}", SqlKeywordPosition.StatementStart, "SET IDENTITY_INSERT t ", true, false, new string[]
+        {
+            "OFF", "ON",
         }),
         ("SET IMPLICIT_TRANSACTIONS", SqlKeywordPosition.StatementStart, "SET IMPLICIT_TRANSACTIONS ", true, false, new string[]
         {
@@ -628,7 +636,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("SET TRAN ISOLATION LEVEL", SqlKeywordPosition.StatementStart, "SET TRAN ISOLATION LEVEL ", true, false, new string[]
         {
-            "READ", "REPEATABLE", "SERIALIZABLE", "SNAPSHOT",
+            "READ", "REPEATABLE READ", "SERIALIZABLE", "SNAPSHOT",
         }),
         ("SET TRAN ISOLATION LEVEL READ", SqlKeywordPosition.StatementStart, "SET TRAN ISOLATION LEVEL READ ", true, false, new string[]
         {
@@ -648,7 +656,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("SET TRANSACTION ISOLATION LEVEL", SqlKeywordPosition.StatementStart, "SET TRANSACTION ISOLATION LEVEL ", true, false, new string[]
         {
-            "READ", "REPEATABLE", "SERIALIZABLE", "SNAPSHOT",
+            "READ", "REPEATABLE READ", "SERIALIZABLE", "SNAPSHOT",
         }),
         ("SET TRANSACTION ISOLATION LEVEL READ", SqlKeywordPosition.StatementStart, "SET TRANSACTION ISOLATION LEVEL READ ", true, false, new string[]
         {
@@ -662,283 +670,879 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
-        ("SET IDENTITY_INSERT {name}", SqlKeywordPosition.StatementStart, "SET IDENTITY_INSERT t ", true, false, new string[]
-        {
-            "OFF", "ON",
-        }),
         ("CREATE", SqlKeywordPosition.StatementStart, "CREATE ", true, false, new string[]
         {
-            "AGGREGATE", "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "BROKER", "CERTIFICATE",
-            "CLUSTERED", "COLUMN", "CONTRACT", "CREDENTIAL", "CRYPTOGRAPHIC", "DATABASE",
-            "DEFAULT", "ENDPOINT", "EVENT", "EXTERNAL", "FEDERATION", "FULLTEXT", "FUNCTION",
-            "INDEX", "LOGIN", "MASTER", "MATERIALIZED", "MESSAGE", "NONCLUSTERED", "PARTITION",
-            "PRIMARY", "PROC", "PROCEDURE", "QUEUE", "REMOTE", "RESOURCE", "ROLE", "ROUTE",
-            "RULE", "SCHEMA", "SEARCH", "SECURITY", "SELECTIVE", "SEQUENCE", "SERVER",
-            "SERVICE", "STATISTICS", "SYMMETRIC", "SYNONYM", "TABLE", "TRIGGER", "TYPE",
-            "UNIQUE", "USER", "VIEW", "WORKLOAD", "OR",
+            "AGGREGATE", "APPLICATION ROLE", "ASSEMBLY", "ASYMMETRIC KEY", "BROKER PRIORITY",
+            "CERTIFICATE", "CLUSTERED INDEX", "COLUMN", "CONTRACT", "CREDENTIAL",
+            "CRYPTOGRAPHIC PROVIDER", "DATABASE", "DEFAULT", "ENDPOINT", "EVENT", "EXTERNAL",
+            "FEDERATION", "FULLTEXT", "FUNCTION", "INDEX", "LOGIN", "MASTER KEY",
+            "MATERIALIZED VIEW", "MESSAGE TYPE", "NONCLUSTERED INDEX", "PARTITION",
+            "PRIMARY XML INDEX", "PROC", "PROCEDURE", "QUEUE", "REMOTE", "RESOURCE POOL",
+            "ROLE", "ROUTE", "RULE", "SCHEMA", "SEARCH", "SECURITY POLICY",
+            "SELECTIVE XML INDEX", "SEQUENCE", "SERVER", "SERVICE", "STATISTICS",
+            "SYMMETRIC KEY", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "UNIQUE", "USER", "VIEW",
+            "WORKLOAD", "OR ALTER",
         }),
-        ("ALTER", SqlKeywordPosition.StatementStart, "ALTER ", true, false, new string[]
+        ("CREATE AGGREGATE", SqlKeywordPosition.StatementStart, "CREATE AGGREGATE ", false, false, new string[]
         {
-            "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "AUTHORIZATION", "BROKER", "CERTIFICATE",
-            "COLUMN", "CREDENTIAL", "CRYPTOGRAPHIC", "DATABASE", "ENDPOINT", "EVENT",
-            "EXTERNAL", "FEDERATION", "FULLTEXT", "FUNCTION", "INDEX", "LOGIN", "MASTER",
-            "MATERIALIZED", "MESSAGE", "PARTITION", "PROC", "PROCEDURE", "QUEUE", "REMOTE",
-            "RESOURCE", "ROLE", "ROUTE", "SCHEMA", "SEARCH", "SECURITY", "SEQUENCE", "SERVER",
-            "SERVICE", "SYMMETRIC", "TABLE", "TRIGGER", "USER", "VIEW",
         }),
-        ("DROP", SqlKeywordPosition.StatementStart, "DROP ", true, false, new string[]
+        ("CREATE AGGREGATE {name}", SqlKeywordPosition.StatementStart, "CREATE AGGREGATE t ", true, false, new string[]
         {
-            "AGGREGATE", "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "BROKER", "CERTIFICATE",
-            "COLUMN", "CONTRACT", "COUNTER", "CREDENTIAL", "CRYPTOGRAPHIC", "DATABASE",
-            "DEFAULT", "ENDPOINT", "EVENT", "EXTERNAL", "FEDERATION", "FULLTEXT", "FUNCTION",
-            "INDEX", "LOGIN", "MASTER", "MESSAGE", "PARTITION", "PROC", "PROCEDURE", "QUEUE",
-            "REMOTE", "RESOURCE", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEARCH", "SECURITY",
-            "SENSITIVITY", "SEQUENCE", "SERVER", "SERVICE", "SIGNATURE", "STATISTICS",
-            "SYMMETRIC", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "USER", "VIEW", "WORKLOAD",
         }),
-        ("DROP AGGREGATE", SqlKeywordPosition.StatementStart, "DROP AGGREGATE ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP APPLICATION", SqlKeywordPosition.StatementStart, "DROP APPLICATION ", true, false, new string[]
+        ("CREATE APPLICATION", SqlKeywordPosition.StatementStart, "CREATE APPLICATION ", true, false, new string[]
         {
             "ROLE",
         }),
-        ("DROP ASSEMBLY", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY ", false, false, new string[]
+        ("CREATE APPLICATION ROLE", SqlKeywordPosition.StatementStart, "CREATE APPLICATION ROLE ", false, false, new string[]
         {
-            "IF",
         }),
-        ("DROP ASYMMETRIC", SqlKeywordPosition.StatementStart, "DROP ASYMMETRIC ", true, false, new string[]
+        ("CREATE APPLICATION ROLE {name}", SqlKeywordPosition.StatementStart, "CREATE APPLICATION ROLE t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE ASSEMBLY", SqlKeywordPosition.StatementStart, "CREATE ASSEMBLY ", false, false, new string[]
+        {
+        }),
+        ("CREATE ASSEMBLY {name}", SqlKeywordPosition.StatementStart, "CREATE ASSEMBLY t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "FROM",
+        }),
+        ("CREATE ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC ", true, false, new string[]
         {
             "KEY",
         }),
-        ("DROP BROKER", SqlKeywordPosition.StatementStart, "DROP BROKER ", true, false, new string[]
+        ("CREATE ASYMMETRIC KEY", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY ", false, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "FROM", "WITH",
+        }),
+        ("CREATE BROKER", SqlKeywordPosition.StatementStart, "CREATE BROKER ", true, false, new string[]
         {
             "PRIORITY",
         }),
-        ("DROP CERTIFICATE", SqlKeywordPosition.StatementStart, "DROP CERTIFICATE ", false, false, new string[]
+        ("CREATE BROKER PRIORITY", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY ", false, false, new string[]
         {
         }),
-        ("DROP COLUMN", SqlKeywordPosition.StatementStart, "DROP COLUMN ", true, false, new string[]
+        ("CREATE BROKER PRIORITY {name}", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t ", true, false, new string[]
         {
-            "ENCRYPTION", "MASTER",
+            "FOR",
         }),
-        ("DROP CONTRACT", SqlKeywordPosition.StatementStart, "DROP CONTRACT ", false, false, new string[]
-        {
-        }),
-        ("DROP COUNTER", SqlKeywordPosition.StatementStart, "DROP COUNTER ", true, false, new string[]
-        {
-            "SIGNATURE",
-        }),
-        ("DROP CREDENTIAL", SqlKeywordPosition.StatementStart, "DROP CREDENTIAL ", false, false, new string[]
+        ("CREATE CERTIFICATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE ", false, false, new string[]
         {
         }),
-        ("DROP CRYPTOGRAPHIC", SqlKeywordPosition.StatementStart, "DROP CRYPTOGRAPHIC ", true, false, new string[]
+        ("CREATE CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "FROM", "WITH", "ENCRYPTION BY",
+        }),
+        ("CREATE CLUSTERED", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED ", true, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE CLUSTERED INDEX", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED INDEX ", false, false, new string[]
+        {
+        }),
+        ("CREATE CLUSTERED INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED INDEX t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE COLUMN", SqlKeywordPosition.StatementStart, "CREATE COLUMN ", true, false, new string[]
+        {
+            "ENCRYPTION KEY", "MASTER KEY",
+        }),
+        ("CREATE COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE COLUMN ENCRYPTION ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE COLUMN ENCRYPTION KEY", SqlKeywordPosition.StatementStart, "CREATE COLUMN ENCRYPTION KEY ", false, false, new string[]
+        {
+        }),
+        ("CREATE COLUMN ENCRYPTION KEY {name}", SqlKeywordPosition.StatementStart, "CREATE COLUMN ENCRYPTION KEY t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE COLUMN MASTER", SqlKeywordPosition.StatementStart, "CREATE COLUMN MASTER ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE COLUMN MASTER KEY", SqlKeywordPosition.StatementStart, "CREATE COLUMN MASTER KEY ", false, false, new string[]
+        {
+        }),
+        ("CREATE COLUMN MASTER KEY {name}", SqlKeywordPosition.StatementStart, "CREATE COLUMN MASTER KEY t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE CONTRACT", SqlKeywordPosition.StatementStart, "CREATE CONTRACT ", false, false, new string[]
+        {
+        }),
+        ("CREATE CONTRACT {name}", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t ", true, false, new string[]
+        {
+            "AUTHORIZATION",
+        }),
+        ("CREATE CREDENTIAL", SqlKeywordPosition.StatementStart, "CREATE CREDENTIAL ", false, false, new string[]
+        {
+        }),
+        ("CREATE CREDENTIAL {name}", SqlKeywordPosition.StatementStart, "CREATE CREDENTIAL t ", true, false, new string[]
+        {
+            "WITH IDENTITY",
+        }),
+        ("CREATE CRYPTOGRAPHIC", SqlKeywordPosition.StatementStart, "CREATE CRYPTOGRAPHIC ", true, false, new string[]
         {
             "PROVIDER",
         }),
-        ("DROP DATABASE", SqlKeywordPosition.StatementStart, "DROP DATABASE ", false, false, new string[]
-        {
-            "AUDIT", "ENCRYPTION", "IF",
-        }),
-        ("DROP DEFAULT", SqlKeywordPosition.StatementStart, "DROP DEFAULT ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP ENDPOINT", SqlKeywordPosition.StatementStart, "DROP ENDPOINT ", false, false, new string[]
+        ("CREATE CRYPTOGRAPHIC PROVIDER", SqlKeywordPosition.StatementStart, "CREATE CRYPTOGRAPHIC PROVIDER ", false, false, new string[]
         {
         }),
-        ("DROP EVENT", SqlKeywordPosition.StatementStart, "DROP EVENT ", true, false, new string[]
-        {
-            "NOTIFICATION", "SESSION",
-        }),
-        ("DROP EXTERNAL", SqlKeywordPosition.StatementStart, "DROP EXTERNAL ", true, false, new string[]
-        {
-            "DATA", "FILE", "LANGUAGE", "LIBRARY", "MODEL", "RESOURCE", "TABLE",
-        }),
-        ("DROP FEDERATION", SqlKeywordPosition.StatementStart, "DROP FEDERATION ", false, false, new string[]
-        {
-        }),
-        ("DROP FULLTEXT", SqlKeywordPosition.StatementStart, "DROP FULLTEXT ", true, false, new string[]
-        {
-            "CATALOG", "INDEX", "STOPLIST",
-        }),
-        ("DROP FUNCTION", SqlKeywordPosition.StatementStart, "DROP FUNCTION ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP INDEX", SqlKeywordPosition.StatementStart, "DROP INDEX ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP LOGIN", SqlKeywordPosition.StatementStart, "DROP LOGIN ", false, false, new string[]
-        {
-        }),
-        ("DROP MASTER", SqlKeywordPosition.StatementStart, "DROP MASTER ", true, false, new string[]
-        {
-            "KEY",
-        }),
-        ("DROP MESSAGE", SqlKeywordPosition.StatementStart, "DROP MESSAGE ", true, false, new string[]
-        {
-            "TYPE",
-        }),
-        ("DROP PARTITION", SqlKeywordPosition.StatementStart, "DROP PARTITION ", true, false, new string[]
-        {
-            "FUNCTION", "SCHEME",
-        }),
-        ("DROP PROC", SqlKeywordPosition.StatementStart, "DROP PROC ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP PROCEDURE", SqlKeywordPosition.StatementStart, "DROP PROCEDURE ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP QUEUE", SqlKeywordPosition.StatementStart, "DROP QUEUE ", false, false, new string[]
-        {
-        }),
-        ("DROP REMOTE", SqlKeywordPosition.StatementStart, "DROP REMOTE ", true, false, new string[]
-        {
-            "SERVICE",
-        }),
-        ("DROP RESOURCE", SqlKeywordPosition.StatementStart, "DROP RESOURCE ", true, false, new string[]
-        {
-            "POOL",
-        }),
-        ("DROP ROLE", SqlKeywordPosition.StatementStart, "DROP ROLE ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP ROUTE", SqlKeywordPosition.StatementStart, "DROP ROUTE ", false, false, new string[]
-        {
-        }),
-        ("DROP RULE", SqlKeywordPosition.StatementStart, "DROP RULE ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP SCHEMA", SqlKeywordPosition.StatementStart, "DROP SCHEMA ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP SEARCH", SqlKeywordPosition.StatementStart, "DROP SEARCH ", true, false, new string[]
-        {
-            "PROPERTY",
-        }),
-        ("DROP SECURITY", SqlKeywordPosition.StatementStart, "DROP SECURITY ", true, false, new string[]
-        {
-            "POLICY",
-        }),
-        ("DROP SENSITIVITY", SqlKeywordPosition.StatementStart, "DROP SENSITIVITY ", true, false, new string[]
-        {
-            "CLASSIFICATION",
-        }),
-        ("DROP SEQUENCE", SqlKeywordPosition.StatementStart, "DROP SEQUENCE ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP SERVER", SqlKeywordPosition.StatementStart, "DROP SERVER ", true, false, new string[]
-        {
-            "AUDIT", "ROLE",
-        }),
-        ("DROP SERVICE", SqlKeywordPosition.StatementStart, "DROP SERVICE ", false, false, new string[]
-        {
-        }),
-        ("DROP SIGNATURE", SqlKeywordPosition.StatementStart, "DROP SIGNATURE ", true, false, new string[]
+        ("CREATE CRYPTOGRAPHIC PROVIDER {name}", SqlKeywordPosition.StatementStart, "CREATE CRYPTOGRAPHIC PROVIDER t ", true, false, new string[]
         {
             "FROM",
         }),
-        ("DROP STATISTICS", SqlKeywordPosition.StatementStart, "DROP STATISTICS ", false, false, new string[]
+        ("CREATE DATABASE", SqlKeywordPosition.StatementStart, "CREATE DATABASE ", false, false, new string[]
+        {
+            "ENCRYPTION", "SCOPED",
+        }),
+        ("CREATE DATABASE {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ", true, true, new string[]
+        {
+            "AS", "COLLATE", "CONTAINMENT", "FOR", "KEY", "LOG", "ON",
+        }),
+        ("CREATE DEFAULT", SqlKeywordPosition.StatementStart, "CREATE DEFAULT ", false, false, new string[]
         {
         }),
-        ("DROP SYMMETRIC", SqlKeywordPosition.StatementStart, "DROP SYMMETRIC ", true, false, new string[]
+        ("CREATE DEFAULT {name}", SqlKeywordPosition.StatementStart, "CREATE DEFAULT t ", true, false, new string[]
+        {
+            "AS",
+        }),
+        ("CREATE ENDPOINT", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT ", false, false, new string[]
+        {
+        }),
+        ("CREATE ENDPOINT {name}", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT t ", true, false, new string[]
+        {
+            "AFFINITY", "AS", "AUTHORIZATION", "STATE",
+        }),
+        ("CREATE EVENT", SqlKeywordPosition.StatementStart, "CREATE EVENT ", true, false, new string[]
+        {
+            "NOTIFICATION", "SESSION",
+        }),
+        ("CREATE EVENT NOTIFICATION", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION ", false, false, new string[]
+        {
+        }),
+        ("CREATE EVENT NOTIFICATION {name}", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE EVENT SESSION", SqlKeywordPosition.StatementStart, "CREATE EVENT SESSION ", false, false, new string[]
+        {
+        }),
+        ("CREATE EVENT SESSION {name}", SqlKeywordPosition.StatementStart, "CREATE EVENT SESSION t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE EXTERNAL", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL ", true, false, new string[]
+        {
+            "DATA SOURCE", "FILE FORMAT", "LANGUAGE", "LIBRARY", "MODEL", "RESOURCE POOL",
+            "STREAM", "TABLE",
+        }),
+        ("CREATE EXTERNAL DATA", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL DATA ", true, false, new string[]
+        {
+            "SOURCE",
+        }),
+        ("CREATE EXTERNAL DATA SOURCE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL DATA SOURCE ", false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL DATA SOURCE {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL DATA SOURCE t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE EXTERNAL FILE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL FILE ", true, false, new string[]
+        {
+            "FORMAT",
+        }),
+        ("CREATE EXTERNAL FILE FORMAT", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL FILE FORMAT ", false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL FILE FORMAT {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL FILE FORMAT t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE EXTERNAL LANGUAGE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE ", false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL LANGUAGE {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "FROM",
+        }),
+        ("CREATE EXTERNAL LIBRARY", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY ", false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL LIBRARY {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "FROM",
+        }),
+        ("CREATE EXTERNAL MODEL", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL ", false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL MODEL {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "WITH",
+        }),
+        ("CREATE EXTERNAL RESOURCE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE ", true, false, new string[]
+        {
+            "POOL",
+        }),
+        ("CREATE EXTERNAL RESOURCE POOL", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE POOL ", false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL STREAM", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL STREAM ", false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL STREAM {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL STREAM t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE EXTERNAL TABLE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE ", false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE FEDERATION", SqlKeywordPosition.StatementStart, "CREATE FEDERATION ", false, false, new string[]
+        {
+        }),
+        ("CREATE FEDERATION {name}", SqlKeywordPosition.StatementStart, "CREATE FEDERATION t ", true, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT ", true, false, new string[]
+        {
+            "CATALOG", "INDEX ON", "STOPLIST",
+        }),
+        ("CREATE FULLTEXT CATALOG", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG ", false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT CATALOG {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t ", true, true, new string[]
+        {
+            "AS", "AUTHORIZATION", "IN", "ON",
+        }),
+        ("CREATE FULLTEXT INDEX", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE FULLTEXT INDEX ON", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON ", false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t ", true, false, new string[]
         {
             "KEY",
         }),
-        ("DROP SYNONYM", SqlKeywordPosition.StatementStart, "DROP SYNONYM ", false, false, new string[]
+        ("CREATE FULLTEXT STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT STOPLIST ", false, false, new string[]
         {
-            "IF",
         }),
-        ("DROP TABLE", SqlKeywordPosition.StatementStart, "DROP TABLE ", false, false, new string[]
+        ("CREATE FULLTEXT STOPLIST {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT STOPLIST t ", true, false, new string[]
         {
-            "IF",
+            "ADD", "ALTER", "AUTHORIZATION", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT",
+            "CLOSE", "COMMIT", "CONTINUE", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE",
+            "DENY", "DROP", "ELSE", "END", "EXEC", "EXECUTE", "FETCH", "FROM", "GOTO", "GRANT",
+            "IF", "INSERT", "KILL", "LINENO", "MERGE", "OPEN", "PRINT", "RAISERROR", "READTEXT",
+            "RECONFIGURE", "RESTORE", "RETURN", "REVERT", "REVOKE", "ROLLBACK", "SAVE",
+            "SELECT", "SET", "SETUSER", "SHUTDOWN", "TRUNCATE", "UPDATE", "UPDATETEXT", "USE",
+            "WAITFOR", "WHILE", "WITH", "WRITETEXT",
         }),
-        ("DROP TRIGGER", SqlKeywordPosition.StatementStart, "DROP TRIGGER ", false, false, new string[]
+        ("CREATE FUNCTION", SqlKeywordPosition.StatementStart, "CREATE FUNCTION ", false, false, new string[]
         {
-            "IF",
         }),
-        ("DROP TYPE", SqlKeywordPosition.StatementStart, "DROP TYPE ", false, false, new string[]
+        ("CREATE FUNCTION {name}", SqlKeywordPosition.StatementStart, "CREATE FUNCTION t ", true, false, new string[]
         {
-            "IF",
         }),
-        ("DROP USER", SqlKeywordPosition.StatementStart, "DROP USER ", false, false, new string[]
+        ("CREATE INDEX", SqlKeywordPosition.StatementStart, "CREATE INDEX ", false, false, new string[]
         {
-            "IF",
         }),
-        ("DROP VIEW", SqlKeywordPosition.StatementStart, "DROP VIEW ", false, false, new string[]
+        ("CREATE INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE INDEX t ", true, false, new string[]
         {
-            "IF",
+            "ON",
         }),
-        ("DROP WORKLOAD", SqlKeywordPosition.StatementStart, "DROP WORKLOAD ", true, false, new string[]
+        ("CREATE LOGIN", SqlKeywordPosition.StatementStart, "CREATE LOGIN ", false, false, new string[]
+        {
+        }),
+        ("CREATE LOGIN {name}", SqlKeywordPosition.StatementStart, "CREATE LOGIN t ", true, false, new string[]
+        {
+            "FROM", "WITH",
+        }),
+        ("CREATE MASTER", SqlKeywordPosition.StatementStart, "CREATE MASTER ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE MASTER KEY", SqlKeywordPosition.StatementStart, "CREATE MASTER KEY ", true, true, new string[]
+        {
+            "ENCRYPTION BY PASSWORD",
+        }),
+        ("CREATE MASTER KEY ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE MASTER KEY ENCRYPTION ", true, false, new string[]
+        {
+            "BY PASSWORD",
+        }),
+        ("CREATE MATERIALIZED", SqlKeywordPosition.StatementStart, "CREATE MATERIALIZED ", true, false, new string[]
+        {
+            "VIEW",
+        }),
+        ("CREATE MATERIALIZED VIEW", SqlKeywordPosition.StatementStart, "CREATE MATERIALIZED VIEW ", false, false, new string[]
+        {
+        }),
+        ("CREATE MATERIALIZED VIEW {name}", SqlKeywordPosition.StatementStart, "CREATE MATERIALIZED VIEW t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE MESSAGE", SqlKeywordPosition.StatementStart, "CREATE MESSAGE ", true, false, new string[]
+        {
+            "TYPE",
+        }),
+        ("CREATE MESSAGE TYPE", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE ", false, false, new string[]
+        {
+        }),
+        ("CREATE MESSAGE TYPE {name}", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t ", true, true, new string[]
+        {
+            "AUTHORIZATION", "VALIDATION",
+        }),
+        ("CREATE NONCLUSTERED", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED ", true, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE NONCLUSTERED INDEX", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED INDEX ", false, false, new string[]
+        {
+        }),
+        ("CREATE NONCLUSTERED INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED INDEX t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE PARTITION", SqlKeywordPosition.StatementStart, "CREATE PARTITION ", true, false, new string[]
+        {
+            "FUNCTION", "SCHEME",
+        }),
+        ("CREATE PARTITION FUNCTION", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION ", false, false, new string[]
+        {
+        }),
+        ("CREATE PARTITION FUNCTION {name}", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t ", true, false, new string[]
+        {
+        }),
+        ("CREATE PARTITION SCHEME", SqlKeywordPosition.StatementStart, "CREATE PARTITION SCHEME ", false, false, new string[]
+        {
+        }),
+        ("CREATE PARTITION SCHEME {name}", SqlKeywordPosition.StatementStart, "CREATE PARTITION SCHEME t ", true, false, new string[]
+        {
+            "AS",
+        }),
+        ("CREATE PRIMARY", SqlKeywordPosition.StatementStart, "CREATE PRIMARY ", true, false, new string[]
+        {
+            "XML INDEX",
+        }),
+        ("CREATE PRIMARY XML", SqlKeywordPosition.StatementStart, "CREATE PRIMARY XML ", true, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE PRIMARY XML INDEX", SqlKeywordPosition.StatementStart, "CREATE PRIMARY XML INDEX ", false, false, new string[]
+        {
+        }),
+        ("CREATE PRIMARY XML INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE PRIMARY XML INDEX t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE PROC", SqlKeywordPosition.StatementStart, "CREATE PROC ", false, false, new string[]
+        {
+        }),
+        ("CREATE PROC {name}", SqlKeywordPosition.StatementStart, "CREATE PROC t ", true, false, new string[]
+        {
+            "AS", "FOR", "WITH",
+        }),
+        ("CREATE PROCEDURE", SqlKeywordPosition.StatementStart, "CREATE PROCEDURE ", false, false, new string[]
+        {
+        }),
+        ("CREATE PROCEDURE {name}", SqlKeywordPosition.StatementStart, "CREATE PROCEDURE t ", true, false, new string[]
+        {
+            "AS", "FOR", "WITH",
+        }),
+        ("CREATE QUEUE", SqlKeywordPosition.StatementStart, "CREATE QUEUE ", false, false, new string[]
+        {
+        }),
+        ("CREATE QUEUE {name}", SqlKeywordPosition.StatementStart, "CREATE QUEUE t ", true, true, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE REMOTE", SqlKeywordPosition.StatementStart, "CREATE REMOTE ", false, false, new string[]
+        {
+            "SERVICE BINDING",
+        }),
+        ("CREATE REMOTE {name}", SqlKeywordPosition.StatementStart, "CREATE REMOTE t ", true, false, new string[]
+        {
+        }),
+        ("CREATE REMOTE SERVICE", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE ", true, false, new string[]
+        {
+            "BINDING",
+        }),
+        ("CREATE REMOTE SERVICE BINDING", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING ", false, false, new string[]
+        {
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name}", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "TO",
+        }),
+        ("CREATE RESOURCE", SqlKeywordPosition.StatementStart, "CREATE RESOURCE ", true, false, new string[]
+        {
+            "POOL",
+        }),
+        ("CREATE RESOURCE POOL", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL ", false, false, new string[]
+        {
+        }),
+        ("CREATE ROLE", SqlKeywordPosition.StatementStart, "CREATE ROLE ", false, false, new string[]
+        {
+        }),
+        ("CREATE ROLE {name}", SqlKeywordPosition.StatementStart, "CREATE ROLE t ", true, true, new string[]
+        {
+            "AUTHORIZATION",
+        }),
+        ("CREATE ROUTE", SqlKeywordPosition.StatementStart, "CREATE ROUTE ", false, false, new string[]
+        {
+        }),
+        ("CREATE ROUTE {name}", SqlKeywordPosition.StatementStart, "CREATE ROUTE t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "WITH",
+        }),
+        ("CREATE RULE", SqlKeywordPosition.StatementStart, "CREATE RULE ", false, false, new string[]
+        {
+        }),
+        ("CREATE RULE {name}", SqlKeywordPosition.StatementStart, "CREATE RULE t ", true, false, new string[]
+        {
+            "AS",
+        }),
+        ("CREATE SCHEMA", SqlKeywordPosition.StatementStart, "CREATE SCHEMA ", false, false, new string[]
+        {
+            "AUTHORIZATION",
+        }),
+        ("CREATE SCHEMA {name}", SqlKeywordPosition.StatementStart, "CREATE SCHEMA t ", true, true, new string[]
+        {
+            "AUTHORIZATION",
+        }),
+        ("CREATE SCHEMA AUTHORIZATION", SqlKeywordPosition.StatementStart, "CREATE SCHEMA AUTHORIZATION ", false, false, new string[]
+        {
+        }),
+        ("CREATE SEARCH", SqlKeywordPosition.StatementStart, "CREATE SEARCH ", false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE SEARCH {name}", SqlKeywordPosition.StatementStart, "CREATE SEARCH t ", true, false, new string[]
+        {
+        }),
+        ("CREATE SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE SEARCH PROPERTY ", true, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE SEARCH PROPERTY LIST ", false, false, new string[]
+        {
+        }),
+        ("CREATE SEARCH PROPERTY LIST {name}", SqlKeywordPosition.StatementStart, "CREATE SEARCH PROPERTY LIST t ", true, false, new string[]
+        {
+            "ADD", "ALTER", "AUTHORIZATION", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT",
+            "CLOSE", "COMMIT", "CONTINUE", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE",
+            "DENY", "DROP", "ELSE", "END", "EXEC", "EXECUTE", "FETCH", "FROM", "GOTO", "GRANT",
+            "IF", "INSERT", "KILL", "LINENO", "MERGE", "OPEN", "PRINT", "RAISERROR", "READTEXT",
+            "RECONFIGURE", "RESTORE", "RETURN", "REVERT", "REVOKE", "ROLLBACK", "SAVE",
+            "SELECT", "SET", "SETUSER", "SHUTDOWN", "TRUNCATE", "UPDATE", "UPDATETEXT", "USE",
+            "WAITFOR", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("CREATE SECURITY", SqlKeywordPosition.StatementStart, "CREATE SECURITY ", true, false, new string[]
+        {
+            "POLICY",
+        }),
+        ("CREATE SECURITY POLICY", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY ", false, false, new string[]
+        {
+        }),
+        ("CREATE SECURITY POLICY {name}", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ", true, true, new string[]
+        {
+            "NOT",
+        }),
+        ("CREATE SELECTIVE", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE ", true, false, new string[]
+        {
+            "XML INDEX",
+        }),
+        ("CREATE SELECTIVE XML", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE XML ", true, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE SELECTIVE XML INDEX", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE XML INDEX ", false, false, new string[]
+        {
+        }),
+        ("CREATE SELECTIVE XML INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE XML INDEX t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE SEQUENCE", SqlKeywordPosition.StatementStart, "CREATE SEQUENCE ", false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER", SqlKeywordPosition.StatementStart, "CREATE SERVER ", true, false, new string[]
+        {
+            "AUDIT SPECIFICATION", "ROLE",
+        }),
+        ("CREATE SERVER AUDIT", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT ", true, false, new string[]
+        {
+            "SPECIFICATION",
+        }),
+        ("CREATE SERVER AUDIT SPECIFICATION", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT SPECIFICATION ", false, false, new string[]
+        {
+            "TO",
+        }),
+        ("CREATE SERVER AUDIT SPECIFICATION {name}", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT SPECIFICATION t ", true, false, new string[]
+        {
+            "FOR",
+        }),
+        ("CREATE SERVER ROLE", SqlKeywordPosition.StatementStart, "CREATE SERVER ROLE ", false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER ROLE {name}", SqlKeywordPosition.StatementStart, "CREATE SERVER ROLE t ", true, true, new string[]
+        {
+            "AUTHORIZATION",
+        }),
+        ("CREATE SERVICE", SqlKeywordPosition.StatementStart, "CREATE SERVICE ", false, false, new string[]
+        {
+        }),
+        ("CREATE SERVICE {name}", SqlKeywordPosition.StatementStart, "CREATE SERVICE t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "ON",
+        }),
+        ("CREATE STATISTICS", SqlKeywordPosition.StatementStart, "CREATE STATISTICS ", false, false, new string[]
+        {
+        }),
+        ("CREATE STATISTICS {name}", SqlKeywordPosition.StatementStart, "CREATE STATISTICS t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE SYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY ", false, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "FROM PROVIDER", "WITH",
+        }),
+        ("CREATE SYNONYM", SqlKeywordPosition.StatementStart, "CREATE SYNONYM ", false, false, new string[]
+        {
+        }),
+        ("CREATE SYNONYM {name}", SqlKeywordPosition.StatementStart, "CREATE SYNONYM t ", true, false, new string[]
+        {
+            "FOR",
+        }),
+        ("CREATE TABLE", SqlKeywordPosition.StatementStart, "CREATE TABLE ", false, false, new string[]
+        {
+        }),
+        ("CREATE TABLE {name}", SqlKeywordPosition.StatementStart, "CREATE TABLE t ", true, false, new string[]
+        {
+            "AS", "WITH",
+        }),
+        ("CREATE TRIGGER", SqlKeywordPosition.StatementStart, "CREATE TRIGGER ", false, false, new string[]
+        {
+        }),
+        ("CREATE TRIGGER {name}", SqlKeywordPosition.StatementStart, "CREATE TRIGGER t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE TYPE", SqlKeywordPosition.StatementStart, "CREATE TYPE ", false, false, new string[]
+        {
+        }),
+        ("CREATE TYPE {name}", SqlKeywordPosition.StatementStart, "CREATE TYPE t ", true, false, new string[]
+        {
+            "AS", "EXTERNAL", "FROM",
+        }),
+        ("CREATE UNIQUE", SqlKeywordPosition.StatementStart, "CREATE UNIQUE ", true, false, new string[]
+        {
+            "CLUSTERED INDEX", "INDEX", "NONCLUSTERED INDEX",
+        }),
+        ("CREATE UNIQUE CLUSTERED", SqlKeywordPosition.StatementStart, "CREATE UNIQUE CLUSTERED ", true, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE UNIQUE CLUSTERED INDEX", SqlKeywordPosition.StatementStart, "CREATE UNIQUE CLUSTERED INDEX ", false, false, new string[]
+        {
+        }),
+        ("CREATE UNIQUE CLUSTERED INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE UNIQUE CLUSTERED INDEX t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE UNIQUE INDEX", SqlKeywordPosition.StatementStart, "CREATE UNIQUE INDEX ", false, false, new string[]
+        {
+        }),
+        ("CREATE UNIQUE INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE UNIQUE INDEX t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE UNIQUE NONCLUSTERED", SqlKeywordPosition.StatementStart, "CREATE UNIQUE NONCLUSTERED ", true, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE UNIQUE NONCLUSTERED INDEX", SqlKeywordPosition.StatementStart, "CREATE UNIQUE NONCLUSTERED INDEX ", false, false, new string[]
+        {
+        }),
+        ("CREATE UNIQUE NONCLUSTERED INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE UNIQUE NONCLUSTERED INDEX t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE USER", SqlKeywordPosition.StatementStart, "CREATE USER ", false, false, new string[]
+        {
+        }),
+        ("CREATE USER {name}", SqlKeywordPosition.StatementStart, "CREATE USER t ", true, true, new string[]
+        {
+            "FOR", "FROM", "WITHOUT LOGIN", "WITH",
+        }),
+        ("CREATE VIEW", SqlKeywordPosition.StatementStart, "CREATE VIEW ", false, false, new string[]
+        {
+        }),
+        ("CREATE VIEW {name}", SqlKeywordPosition.StatementStart, "CREATE VIEW t ", true, false, new string[]
+        {
+            "AS", "WITH",
+        }),
+        ("CREATE WORKLOAD", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD ", true, false, new string[]
         {
             "CLASSIFIER", "GROUP",
         }),
-        ("UPDATE", SqlKeywordPosition.StatementStart, "UPDATE ", false, false, new string[]
+        ("CREATE WORKLOAD CLASSIFIER", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD CLASSIFIER ", false, false, new string[]
         {
-            "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "STATISTICS", "TOP",
         }),
-        ("DELETE", SqlKeywordPosition.StatementStart, "DELETE ", false, false, new string[]
+        ("CREATE WORKLOAD CLASSIFIER {name}", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD CLASSIFIER t ", true, false, new string[]
         {
-            "FROM", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "TOP",
+            "WITH",
         }),
-        ("MERGE", SqlKeywordPosition.StatementStart, "MERGE ", false, false, new string[]
+        ("CREATE WORKLOAD GROUP", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP ", false, false, new string[]
         {
-            "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "TOP",
+        }),
+        ("CREATE WORKLOAD GROUP {name}", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t ", true, true, new string[]
+        {
+            "USING",
         }),
         ("CREATE OR ALTER", SqlKeywordPosition.StatementStart, "CREATE OR ALTER ", true, false, new string[]
         {
             "FUNCTION", "PROC", "PROCEDURE", "TRIGGER", "VIEW",
         }),
-        ("ALTER TABLE {name}", SqlKeywordPosition.StatementStart, "ALTER TABLE t ", true, false, new string[]
-        {
-            "ADD", "ALTER", "CHECK", "DISABLE", "DROP", "ENABLE", "MERGE", "NOCHECK", "REBUILD",
-            "SET", "SPLIT", "SWITCH", "WITH",
-        }),
-        ("DROP", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP ", false, false, new string[]
-        {
-            "COLUMN", "CONSTRAINT", "INDEX", "PERIOD",
-        }),
-        ("DROP COLUMN", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP COLUMN ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP COLUMN IF", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP COLUMN IF ", true, false, new string[]
-        {
-            "EXISTS",
-        }),
-        ("DROP CONSTRAINT", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP CONSTRAINT ", false, false, new string[]
-        {
-            "IF",
-        }),
-        ("DROP CONSTRAINT IF", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP CONSTRAINT IF ", true, false, new string[]
-        {
-            "EXISTS",
-        }),
-        ("DROP INDEX", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP INDEX ", false, false, new string[]
+        ("CREATE OR ALTER FUNCTION", SqlKeywordPosition.StatementStart, "CREATE OR ALTER FUNCTION ", false, false, new string[]
         {
         }),
-        ("DROP PERIOD", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP PERIOD ", true, true, new string[]
+        ("CREATE OR ALTER FUNCTION {name}", SqlKeywordPosition.StatementStart, "CREATE OR ALTER FUNCTION t ", true, false, new string[]
+        {
+        }),
+        ("CREATE OR ALTER PROC", SqlKeywordPosition.StatementStart, "CREATE OR ALTER PROC ", false, false, new string[]
+        {
+        }),
+        ("CREATE OR ALTER PROC {name}", SqlKeywordPosition.StatementStart, "CREATE OR ALTER PROC t ", true, false, new string[]
+        {
+            "AS", "FOR", "WITH",
+        }),
+        ("CREATE OR ALTER PROCEDURE", SqlKeywordPosition.StatementStart, "CREATE OR ALTER PROCEDURE ", false, false, new string[]
+        {
+        }),
+        ("CREATE OR ALTER PROCEDURE {name}", SqlKeywordPosition.StatementStart, "CREATE OR ALTER PROCEDURE t ", true, false, new string[]
+        {
+            "AS", "FOR", "WITH",
+        }),
+        ("CREATE OR ALTER TRIGGER", SqlKeywordPosition.StatementStart, "CREATE OR ALTER TRIGGER ", false, false, new string[]
+        {
+        }),
+        ("CREATE OR ALTER TRIGGER {name}", SqlKeywordPosition.StatementStart, "CREATE OR ALTER TRIGGER t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE OR ALTER VIEW", SqlKeywordPosition.StatementStart, "CREATE OR ALTER VIEW ", false, false, new string[]
+        {
+        }),
+        ("CREATE OR ALTER VIEW {name}", SqlKeywordPosition.StatementStart, "CREATE OR ALTER VIEW t ", true, false, new string[]
+        {
+            "AS", "WITH",
+        }),
+        ("ALTER", SqlKeywordPosition.StatementStart, "ALTER ", true, false, new string[]
+        {
+            "APPLICATION ROLE", "ASSEMBLY", "ASYMMETRIC KEY", "AUTHORIZATION ON",
+            "BROKER PRIORITY", "CERTIFICATE", "COLUMN", "CREDENTIAL", "CRYPTOGRAPHIC PROVIDER",
+            "DATABASE", "ENDPOINT", "EVENT SESSION", "EXTERNAL", "FEDERATION", "FULLTEXT",
+            "FUNCTION", "INDEX", "LOGIN", "MASTER KEY", "MATERIALIZED VIEW", "MESSAGE TYPE",
+            "PARTITION", "PROC", "PROCEDURE", "QUEUE", "REMOTE", "RESOURCE", "ROLE", "ROUTE",
+            "SCHEMA", "SEARCH", "SECURITY POLICY", "SEQUENCE", "SERVER", "SERVICE MASTER",
+            "SYMMETRIC KEY", "TABLE", "TRIGGER", "USER", "VIEW",
+        }),
+        ("ALTER APPLICATION", SqlKeywordPosition.StatementStart, "ALTER APPLICATION ", true, false, new string[]
+        {
+            "ROLE",
+        }),
+        ("ALTER APPLICATION ROLE", SqlKeywordPosition.StatementStart, "ALTER APPLICATION ROLE ", false, false, new string[]
+        {
+        }),
+        ("ALTER APPLICATION ROLE {name}", SqlKeywordPosition.StatementStart, "ALTER APPLICATION ROLE t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER ASSEMBLY", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY ", true, false, new string[]
+        {
+        }),
+        ("ALTER ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER ASYMMETRIC ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ALTER ASYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ALTER ASYMMETRIC KEY ", false, false, new string[]
+        {
+        }),
+        ("ALTER ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "ALTER ASYMMETRIC KEY t ", true, false, new string[]
+        {
+            "REMOVE", "WITH",
+        }),
+        ("ALTER AUTHORIZATION", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER AUTHORIZATION ON", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON ", false, false, new string[]
+        {
+            "ASSEMBLY TO", "CERTIFICATE TO", "CONTRACT TO", "DATABASE", "ENDPOINT TO",
+            "LOGIN TO", "OBJECT TO", "ROLE TO", "ROUTE TO", "SCHEMA", "SERVER", "SERVICE TO",
+            "TYPE TO", "USER",
+        }),
+        ("ALTER AUTHORIZATION ON {name}", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON t ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON ASSEMBLY", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON ASSEMBLY ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON CERTIFICATE", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON CERTIFICATE ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON CONTRACT", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON CONTRACT ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON DATABASE", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON DATABASE ", true, false, new string[]
+        {
+        }),
+        ("ALTER AUTHORIZATION ON ENDPOINT", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON ENDPOINT ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON LOGIN", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON LOGIN ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON OBJECT", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON OBJECT ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON ROLE", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON ROLE ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON ROUTE", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON ROUTE ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON SCHEMA", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON SCHEMA ", true, false, new string[]
+        {
+        }),
+        ("ALTER AUTHORIZATION ON SERVER", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON SERVER ", true, false, new string[]
+        {
+            "ROLE", "TO",
+        }),
+        ("ALTER AUTHORIZATION ON SERVICE", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON SERVICE ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON TYPE", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON TYPE ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER AUTHORIZATION ON USER", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON USER ", true, false, new string[]
+        {
+        }),
+        ("ALTER BROKER", SqlKeywordPosition.StatementStart, "ALTER BROKER ", true, false, new string[]
+        {
+            "PRIORITY",
+        }),
+        ("ALTER BROKER PRIORITY", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY ", false, false, new string[]
+        {
+        }),
+        ("ALTER BROKER PRIORITY {name}", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t ", true, false, new string[]
         {
             "FOR",
         }),
-        ("DROP PERIOD FOR", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP PERIOD FOR ", true, false, new string[]
+        ("ALTER CERTIFICATE", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE ", false, false, new string[]
         {
-            "SYSTEM_TIME",
+        }),
+        ("ALTER CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE t ", true, false, new string[]
+        {
+            "REMOVE", "WITH",
+        }),
+        ("ALTER COLUMN", SqlKeywordPosition.StatementStart, "ALTER COLUMN ", false, false, new string[]
+        {
+            "ENCRYPTION KEY",
+        }),
+        ("ALTER COLUMN {name}", SqlKeywordPosition.StatementStart, "ALTER COLUMN t ", true, false, new string[]
+        {
+        }),
+        ("ALTER COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER COLUMN ENCRYPTION ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ALTER COLUMN ENCRYPTION KEY", SqlKeywordPosition.StatementStart, "ALTER COLUMN ENCRYPTION KEY ", false, false, new string[]
+        {
+        }),
+        ("ALTER COLUMN ENCRYPTION KEY {name}", SqlKeywordPosition.StatementStart, "ALTER COLUMN ENCRYPTION KEY t ", true, false, new string[]
+        {
+            "ADD", "DROP",
+        }),
+        ("ALTER CREDENTIAL", SqlKeywordPosition.StatementStart, "ALTER CREDENTIAL ", false, false, new string[]
+        {
+        }),
+        ("ALTER CREDENTIAL {name}", SqlKeywordPosition.StatementStart, "ALTER CREDENTIAL t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER CRYPTOGRAPHIC", SqlKeywordPosition.StatementStart, "ALTER CRYPTOGRAPHIC ", true, false, new string[]
+        {
+            "PROVIDER",
+        }),
+        ("ALTER CRYPTOGRAPHIC PROVIDER", SqlKeywordPosition.StatementStart, "ALTER CRYPTOGRAPHIC PROVIDER ", false, false, new string[]
+        {
+        }),
+        ("ALTER CRYPTOGRAPHIC PROVIDER {name}", SqlKeywordPosition.StatementStart, "ALTER CRYPTOGRAPHIC PROVIDER t ", true, false, new string[]
+        {
+            "DISABLE", "ENABLE", "FROM",
+        }),
+        ("ALTER DATABASE", SqlKeywordPosition.StatementStart, "ALTER DATABASE ", false, false, new string[]
+        {
+            "CURRENT", "ENCRYPTION",
         }),
         ("ALTER DATABASE {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ", true, false, new string[]
         {
             "ADD", "COLLATE", "MODIFY", "PERFORM_CUTOVER", "REBUILD", "REMOVE", "SET",
         }),
-        ("ALTER DATABASE {name} SET", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ", true, false, new string[]
+        ("ALTER DATABASE CURRENT", SqlKeywordPosition.StatementStart, "ALTER DATABASE CURRENT ", true, false, new string[]
+        {
+            "ADD", "COLLATE", "MODIFY", "PERFORM_CUTOVER", "REBUILD LOG", "REMOVE", "SET",
+        }),
+        ("ALTER DATABASE CURRENT ADD", SqlKeywordPosition.StatementStart, "ALTER DATABASE CURRENT ADD ", true, false, new string[]
+        {
+            "FILE", "FILEGROUP", "LOG",
+        }),
+        ("ALTER DATABASE CURRENT COLLATE", SqlKeywordPosition.StatementStart, "ALTER DATABASE CURRENT COLLATE ", false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE CURRENT MODIFY", SqlKeywordPosition.StatementStart, "ALTER DATABASE CURRENT MODIFY ", true, false, new string[]
+        {
+            "FILE", "FILEGROUP", "NAME",
+        }),
+        ("ALTER DATABASE CURRENT REBUILD", SqlKeywordPosition.StatementStart, "ALTER DATABASE CURRENT REBUILD ", true, false, new string[]
+        {
+            "LOG",
+        }),
+        ("ALTER DATABASE CURRENT REMOVE", SqlKeywordPosition.StatementStart, "ALTER DATABASE CURRENT REMOVE ", true, false, new string[]
+        {
+            "FILE", "FILEGROUP",
+        }),
+        ("ALTER DATABASE CURRENT SET", SqlKeywordPosition.StatementStart, "ALTER DATABASE CURRENT SET ", true, false, new string[]
         {
             "ACCELERATED_DATABASE_RECOVERY", "ALLOW_SNAPSHOT_ISOLATION", "ANSI_NULL_DEFAULT",
             "ANSI_NULLS", "ANSI_PADDING", "ANSI_WARNINGS", "ARITHABORT", "AUTO_CLOSE",
@@ -958,6 +1562,1118 @@ internal static class SqlKeywordCatalogData
             "SUPPLEMENTAL_LOGGING", "TARGET_RECOVERY_TIME", "TEMPORAL_HISTORY_RETENTION",
             "TORN_PAGE_DETECTION", "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY",
             "TWO_DIGIT_YEAR_CUTOFF", "VARDECIMAL_STORAGE_FORMAT", "WITNESS",
+        }),
+        ("ALTER DATABASE ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION ", true, false, new string[]
+        {
+            "ADD", "COLLATE", "KEY", "MODIFY", "PERFORM_CUTOVER", "REBUILD LOG", "REMOVE",
+            "SET",
+        }),
+        ("ALTER DATABASE ENCRYPTION ADD", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION ADD ", true, false, new string[]
+        {
+            "FILE", "FILEGROUP", "LOG",
+        }),
+        ("ALTER DATABASE ENCRYPTION COLLATE", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION COLLATE ", false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ", true, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE ENCRYPTION MODIFY", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION MODIFY ", true, false, new string[]
+        {
+            "FILE", "FILEGROUP", "NAME",
+        }),
+        ("ALTER DATABASE ENCRYPTION REBUILD", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION REBUILD ", true, false, new string[]
+        {
+            "LOG",
+        }),
+        ("ALTER DATABASE ENCRYPTION REMOVE", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION REMOVE ", true, false, new string[]
+        {
+            "FILE", "FILEGROUP",
+        }),
+        ("ALTER DATABASE ENCRYPTION SET", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION SET ", true, false, new string[]
+        {
+            "ACCELERATED_DATABASE_RECOVERY", "ALLOW_SNAPSHOT_ISOLATION", "ANSI_NULL_DEFAULT",
+            "ANSI_NULLS", "ANSI_PADDING", "ANSI_WARNINGS", "ARITHABORT", "AUTO_CLOSE",
+            "AUTO_CREATE_STATISTICS", "AUTO_SHRINK", "AUTO_UPDATE_STATISTICS",
+            "AUTO_UPDATE_STATISTICS_ASYNC", "AUTOMATIC_TUNING", "CHANGE_TRACKING",
+            "COMPATIBILITY_LEVEL", "CONCAT_NULL_YIELDS_NULL", "CONTAINMENT",
+            "CURSOR_CLOSE_ON_COMMIT", "CURSOR_DEFAULT", "DATA_RETENTION",
+            "DATE_CORRELATION_OPTIMIZATION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
+            "DEFAULT_LANGUAGE", "DELAYED_DURABILITY", "DISABLE_BROKER", "EMERGENCY",
+            "ENABLE_BROKER", "ENCRYPTION", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM", "HADR",
+            "HONOR_BROKER_PRIORITY", "MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT",
+            "MIXED_PAGE_ALLOCATION", "MULTI_USER", "NESTED_TRIGGERS", "NEW_BROKER",
+            "NUMERIC_ROUNDABORT", "OFFLINE", "ONLINE", "OPTIMIZED_LOCKING", "PAGE_VERIFY",
+            "PARAMETERIZATION", "PARTNER", "QUERY_STORE", "QUOTED_IDENTIFIER",
+            "READ_COMMITTED_SNAPSHOT", "READ_ONLY", "READ_WRITE", "RECOVERY",
+            "RECURSIVE_TRIGGERS", "REMOTE_DATA_ARCHIVE", "RESTRICTED_USER", "SINGLE_USER",
+            "SUPPLEMENTAL_LOGGING", "TARGET_RECOVERY_TIME", "TEMPORAL_HISTORY_RETENTION",
+            "TORN_PAGE_DETECTION", "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY",
+            "TWO_DIGIT_YEAR_CUTOFF", "VARDECIMAL_STORAGE_FORMAT", "WITNESS",
+        }),
+        ("ALTER ENDPOINT", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT ", false, false, new string[]
+        {
+        }),
+        ("ALTER ENDPOINT {name}", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT t ", true, true, new string[]
+        {
+            "AFFINITY", "AS", "FOR", "STATE",
+        }),
+        ("ALTER EVENT", SqlKeywordPosition.StatementStart, "ALTER EVENT ", true, false, new string[]
+        {
+            "SESSION",
+        }),
+        ("ALTER EVENT SESSION", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION ", false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name}", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER EXTERNAL", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL ", true, false, new string[]
+        {
+            "DATA SOURCE", "LANGUAGE", "LIBRARY", "MODEL", "RESOURCE POOL",
+        }),
+        ("ALTER EXTERNAL DATA", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL DATA ", true, false, new string[]
+        {
+            "SOURCE",
+        }),
+        ("ALTER EXTERNAL DATA SOURCE", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL DATA SOURCE ", false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL DATA SOURCE {name}", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL DATA SOURCE t ", true, false, new string[]
+        {
+            "SET",
+        }),
+        ("ALTER EXTERNAL LANGUAGE", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE ", false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name}", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t ", true, false, new string[]
+        {
+            "ADD", "AUTHORIZATION", "REMOVE", "SET",
+        }),
+        ("ALTER EXTERNAL LIBRARY", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY ", false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL LIBRARY {name}", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t ", true, false, new string[]
+        {
+            "AUTHORIZATION", "SET",
+        }),
+        ("ALTER EXTERNAL MODEL", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL MODEL ", false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL MODEL {name}", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL MODEL t ", true, false, new string[]
+        {
+            "SET",
+        }),
+        ("ALTER EXTERNAL RESOURCE", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE ", true, false, new string[]
+        {
+            "POOL",
+        }),
+        ("ALTER EXTERNAL RESOURCE POOL", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL ", false, false, new string[]
+        {
+        }),
+        ("ALTER FEDERATION", SqlKeywordPosition.StatementStart, "ALTER FEDERATION ", false, false, new string[]
+        {
+        }),
+        ("ALTER FEDERATION {name}", SqlKeywordPosition.StatementStart, "ALTER FEDERATION t ", true, false, new string[]
+        {
+            "DROP",
+        }),
+        ("ALTER FULLTEXT", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT ", false, false, new string[]
+        {
+            "INDEX ON", "STOPLIST",
+        }),
+        ("ALTER FULLTEXT {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT t ", true, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER FULLTEXT INDEX ON", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON ", false, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ", true, false, new string[]
+        {
+            "ADD", "ALTER", "DISABLE", "DROP", "ENABLE", "PAUSE", "RESUME", "SET", "START",
+            "STOP",
+        }),
+        ("ALTER FULLTEXT STOPLIST", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT STOPLIST ", false, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT STOPLIST {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT STOPLIST t ", true, false, new string[]
+        {
+            "ADD", "DROP",
+        }),
+        ("ALTER FUNCTION", SqlKeywordPosition.StatementStart, "ALTER FUNCTION ", false, false, new string[]
+        {
+        }),
+        ("ALTER FUNCTION {name}", SqlKeywordPosition.StatementStart, "ALTER FUNCTION t ", true, false, new string[]
+        {
+        }),
+        ("ALTER INDEX", SqlKeywordPosition.StatementStart, "ALTER INDEX ", false, false, new string[]
+        {
+            "ALL ON",
+        }),
+        ("ALTER INDEX {name}", SqlKeywordPosition.StatementStart, "ALTER INDEX t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER INDEX ALL", SqlKeywordPosition.StatementStart, "ALTER INDEX ALL ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER INDEX ALL ON", SqlKeywordPosition.StatementStart, "ALTER INDEX ALL ON ", false, false, new string[]
+        {
+        }),
+        ("ALTER INDEX ALL ON {name}", SqlKeywordPosition.StatementStart, "ALTER INDEX ALL ON t ", true, false, new string[]
+        {
+            "ABORT", "DISABLE", "FOR", "PAUSE", "REBUILD", "REORGANIZE", "RESUME", "SET",
+            "WITH",
+        }),
+        ("ALTER LOGIN", SqlKeywordPosition.StatementStart, "ALTER LOGIN ", false, false, new string[]
+        {
+        }),
+        ("ALTER LOGIN {name}", SqlKeywordPosition.StatementStart, "ALTER LOGIN t ", true, false, new string[]
+        {
+            "ADD", "DISABLE", "DROP", "ENABLE", "WITH",
+        }),
+        ("ALTER MASTER", SqlKeywordPosition.StatementStart, "ALTER MASTER ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ALTER MASTER KEY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ", true, false, new string[]
+        {
+            "ADD", "DROP", "REGENERATE", "FORCE",
+        }),
+        ("ALTER MASTER KEY {name}", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER MASTER KEY ADD", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ", true, false, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("ALTER MASTER KEY ADD {name}", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD t ", true, false, new string[]
+        {
+        }),
+        ("ALTER MASTER KEY DROP", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP ", true, false, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("ALTER MASTER KEY DROP {name}", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP t ", true, false, new string[]
+        {
+        }),
+        ("ALTER MATERIALIZED", SqlKeywordPosition.StatementStart, "ALTER MATERIALIZED ", true, false, new string[]
+        {
+            "VIEW",
+        }),
+        ("ALTER MATERIALIZED VIEW", SqlKeywordPosition.StatementStart, "ALTER MATERIALIZED VIEW ", false, false, new string[]
+        {
+        }),
+        ("ALTER MATERIALIZED VIEW {name}", SqlKeywordPosition.StatementStart, "ALTER MATERIALIZED VIEW t ", true, false, new string[]
+        {
+            "DISABLE", "REBUILD",
+        }),
+        ("ALTER MESSAGE", SqlKeywordPosition.StatementStart, "ALTER MESSAGE ", true, false, new string[]
+        {
+            "TYPE",
+        }),
+        ("ALTER MESSAGE TYPE", SqlKeywordPosition.StatementStart, "ALTER MESSAGE TYPE ", false, false, new string[]
+        {
+        }),
+        ("ALTER MESSAGE TYPE {name}", SqlKeywordPosition.StatementStart, "ALTER MESSAGE TYPE t ", true, false, new string[]
+        {
+            "VALIDATION",
+        }),
+        ("ALTER PARTITION", SqlKeywordPosition.StatementStart, "ALTER PARTITION ", true, false, new string[]
+        {
+            "FUNCTION", "SCHEME",
+        }),
+        ("ALTER PARTITION FUNCTION", SqlKeywordPosition.StatementStart, "ALTER PARTITION FUNCTION ", false, false, new string[]
+        {
+        }),
+        ("ALTER PARTITION FUNCTION {name}", SqlKeywordPosition.StatementStart, "ALTER PARTITION FUNCTION t ", true, false, new string[]
+        {
+        }),
+        ("ALTER PARTITION SCHEME", SqlKeywordPosition.StatementStart, "ALTER PARTITION SCHEME ", false, false, new string[]
+        {
+        }),
+        ("ALTER PARTITION SCHEME {name}", SqlKeywordPosition.StatementStart, "ALTER PARTITION SCHEME t ", true, false, new string[]
+        {
+            "NEXT",
+        }),
+        ("ALTER PROC", SqlKeywordPosition.StatementStart, "ALTER PROC ", false, false, new string[]
+        {
+        }),
+        ("ALTER PROC {name}", SqlKeywordPosition.StatementStart, "ALTER PROC t ", true, false, new string[]
+        {
+            "AS", "FOR", "WITH",
+        }),
+        ("ALTER PROCEDURE", SqlKeywordPosition.StatementStart, "ALTER PROCEDURE ", false, false, new string[]
+        {
+        }),
+        ("ALTER PROCEDURE {name}", SqlKeywordPosition.StatementStart, "ALTER PROCEDURE t ", true, false, new string[]
+        {
+            "AS", "FOR", "WITH",
+        }),
+        ("ALTER QUEUE", SqlKeywordPosition.StatementStart, "ALTER QUEUE ", false, false, new string[]
+        {
+        }),
+        ("ALTER QUEUE {name}", SqlKeywordPosition.StatementStart, "ALTER QUEUE t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER REMOTE", SqlKeywordPosition.StatementStart, "ALTER REMOTE ", false, false, new string[]
+        {
+            "SERVICE BINDING",
+        }),
+        ("ALTER REMOTE {name}", SqlKeywordPosition.StatementStart, "ALTER REMOTE t ", true, false, new string[]
+        {
+        }),
+        ("ALTER REMOTE SERVICE", SqlKeywordPosition.StatementStart, "ALTER REMOTE SERVICE ", true, false, new string[]
+        {
+            "BINDING",
+        }),
+        ("ALTER REMOTE SERVICE BINDING", SqlKeywordPosition.StatementStart, "ALTER REMOTE SERVICE BINDING ", false, false, new string[]
+        {
+        }),
+        ("ALTER REMOTE SERVICE BINDING {name}", SqlKeywordPosition.StatementStart, "ALTER REMOTE SERVICE BINDING t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER RESOURCE", SqlKeywordPosition.StatementStart, "ALTER RESOURCE ", true, false, new string[]
+        {
+            "GOVERNOR", "POOL",
+        }),
+        ("ALTER RESOURCE GOVERNOR", SqlKeywordPosition.StatementStart, "ALTER RESOURCE GOVERNOR ", true, false, new string[]
+        {
+            "DISABLE", "RECONFIGURE", "WITH",
+        }),
+        ("ALTER RESOURCE GOVERNOR WITH", SqlKeywordPosition.StatementStart, "ALTER RESOURCE GOVERNOR WITH ", true, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL ", false, false, new string[]
+        {
+        }),
+        ("ALTER ROLE", SqlKeywordPosition.StatementStart, "ALTER ROLE ", false, false, new string[]
+        {
+        }),
+        ("ALTER ROLE {name}", SqlKeywordPosition.StatementStart, "ALTER ROLE t ", true, false, new string[]
+        {
+            "ADD", "DROP", "WITH",
+        }),
+        ("ALTER ROUTE", SqlKeywordPosition.StatementStart, "ALTER ROUTE ", false, false, new string[]
+        {
+        }),
+        ("ALTER ROUTE {name}", SqlKeywordPosition.StatementStart, "ALTER ROUTE t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER SCHEMA", SqlKeywordPosition.StatementStart, "ALTER SCHEMA ", false, false, new string[]
+        {
+        }),
+        ("ALTER SCHEMA {name}", SqlKeywordPosition.StatementStart, "ALTER SCHEMA t ", true, false, new string[]
+        {
+            "TRANSFER",
+        }),
+        ("ALTER SEARCH", SqlKeywordPosition.StatementStart, "ALTER SEARCH ", false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("ALTER SEARCH {name}", SqlKeywordPosition.StatementStart, "ALTER SEARCH t ", true, false, new string[]
+        {
+        }),
+        ("ALTER SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "ALTER SEARCH PROPERTY ", true, false, new string[]
+        {
+            "LIST",
+        }),
+        ("ALTER SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "ALTER SEARCH PROPERTY LIST ", false, false, new string[]
+        {
+        }),
+        ("ALTER SEARCH PROPERTY LIST {name}", SqlKeywordPosition.StatementStart, "ALTER SEARCH PROPERTY LIST t ", true, false, new string[]
+        {
+            "ADD", "DROP",
+        }),
+        ("ALTER SECURITY", SqlKeywordPosition.StatementStart, "ALTER SECURITY ", true, false, new string[]
+        {
+            "POLICY",
+        }),
+        ("ALTER SECURITY POLICY", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY ", false, false, new string[]
+        {
+        }),
+        ("ALTER SECURITY POLICY {name}", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ", true, false, new string[]
+        {
+            "ADD", "ALTER", "DROP", "WITH",
+        }),
+        ("ALTER SEQUENCE", SqlKeywordPosition.StatementStart, "ALTER SEQUENCE ", false, false, new string[]
+        {
+        }),
+        ("ALTER SEQUENCE {name}", SqlKeywordPosition.StatementStart, "ALTER SEQUENCE t ", true, true, new string[]
+        {
+            "CACHE", "CYCLE", "INCREMENT", "MAXVALUE", "MINVALUE", "NO", "RESTART",
+        }),
+        ("ALTER SERVER", SqlKeywordPosition.StatementStart, "ALTER SERVER ", true, false, new string[]
+        {
+            "AUDIT SPECIFICATION", "ROLE",
+        }),
+        ("ALTER SERVER AUDIT", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT ", true, false, new string[]
+        {
+            "SPECIFICATION",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION ", false, false, new string[]
+        {
+            "TO", "WHERE",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t ", true, true, new string[]
+        {
+            "FOR",
+        }),
+        ("ALTER SERVER ROLE", SqlKeywordPosition.StatementStart, "ALTER SERVER ROLE ", false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER ROLE {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER ROLE t ", true, false, new string[]
+        {
+            "ADD", "DROP", "WITH",
+        }),
+        ("ALTER SERVICE", SqlKeywordPosition.StatementStart, "ALTER SERVICE ", true, false, new string[]
+        {
+            "MASTER",
+        }),
+        ("ALTER SERVICE MASTER", SqlKeywordPosition.StatementStart, "ALTER SERVICE MASTER ", true, false, new string[]
+        {
+            "KEY", "ON QUEUE",
+        }),
+        ("ALTER SERVICE MASTER KEY", SqlKeywordPosition.StatementStart, "ALTER SERVICE MASTER KEY ", true, false, new string[]
+        {
+            "FORCE", "REGENERATE", "WITH",
+        }),
+        ("ALTER SERVICE MASTER ON", SqlKeywordPosition.StatementStart, "ALTER SERVICE MASTER ON ", true, false, new string[]
+        {
+            "QUEUE",
+        }),
+        ("ALTER SYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ALTER SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY ", false, false, new string[]
+        {
+        }),
+        ("ALTER SYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ", true, false, new string[]
+        {
+            "ADD", "DROP",
+        }),
+        ("ALTER TABLE", SqlKeywordPosition.StatementStart, "ALTER TABLE ", false, false, new string[]
+        {
+        }),
+        ("ALTER TABLE {name}", SqlKeywordPosition.StatementStart, "ALTER TABLE t ", true, false, new string[]
+        {
+            "ADD", "ALTER", "CHECK", "DISABLE", "DROP", "ENABLE", "MERGE", "NOCHECK", "REBUILD",
+            "SET", "SPLIT", "SWITCH", "WITH",
+        }),
+        ("ALTER TRIGGER", SqlKeywordPosition.StatementStart, "ALTER TRIGGER ", false, false, new string[]
+        {
+        }),
+        ("ALTER TRIGGER {name}", SqlKeywordPosition.StatementStart, "ALTER TRIGGER t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER USER", SqlKeywordPosition.StatementStart, "ALTER USER ", false, false, new string[]
+        {
+        }),
+        ("ALTER USER {name}", SqlKeywordPosition.StatementStart, "ALTER USER t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER VIEW", SqlKeywordPosition.StatementStart, "ALTER VIEW ", false, false, new string[]
+        {
+        }),
+        ("ALTER VIEW {name}", SqlKeywordPosition.StatementStart, "ALTER VIEW t ", true, false, new string[]
+        {
+            "AS", "WITH",
+        }),
+        ("DROP", SqlKeywordPosition.StatementStart, "DROP ", true, false, new string[]
+        {
+            "AGGREGATE", "APPLICATION ROLE", "ASSEMBLY", "ASYMMETRIC KEY", "BROKER PRIORITY",
+            "CERTIFICATE", "COLUMN", "CONTRACT", "COUNTER SIGNATURE FROM", "CREDENTIAL",
+            "CRYPTOGRAPHIC PROVIDER", "DATABASE", "DEFAULT", "ENDPOINT", "EVENT", "EXTERNAL",
+            "FEDERATION", "FULLTEXT", "FUNCTION", "INDEX", "LOGIN", "MASTER KEY",
+            "MESSAGE TYPE", "PARTITION", "PROC", "PROCEDURE", "QUEUE", "REMOTE",
+            "RESOURCE POOL", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEARCH", "SECURITY POLICY",
+            "SENSITIVITY", "SEQUENCE", "SERVER", "SERVICE", "SIGNATURE FROM", "STATISTICS",
+            "SYMMETRIC KEY", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "USER", "VIEW", "WORKLOAD",
+        }),
+        ("DROP AGGREGATE", SqlKeywordPosition.StatementStart, "DROP AGGREGATE ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP AGGREGATE IF", SqlKeywordPosition.StatementStart, "DROP AGGREGATE IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP AGGREGATE IF EXISTS", SqlKeywordPosition.StatementStart, "DROP AGGREGATE IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP APPLICATION", SqlKeywordPosition.StatementStart, "DROP APPLICATION ", true, false, new string[]
+        {
+            "ROLE",
+        }),
+        ("DROP APPLICATION ROLE", SqlKeywordPosition.StatementStart, "DROP APPLICATION ROLE ", false, false, new string[]
+        {
+        }),
+        ("DROP ASSEMBLY", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP ASSEMBLY IF", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP ASSEMBLY IF EXISTS", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP ASYMMETRIC", SqlKeywordPosition.StatementStart, "DROP ASYMMETRIC ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP ASYMMETRIC KEY", SqlKeywordPosition.StatementStart, "DROP ASYMMETRIC KEY ", false, false, new string[]
+        {
+        }),
+        ("DROP BROKER", SqlKeywordPosition.StatementStart, "DROP BROKER ", true, false, new string[]
+        {
+            "PRIORITY",
+        }),
+        ("DROP BROKER PRIORITY", SqlKeywordPosition.StatementStart, "DROP BROKER PRIORITY ", false, false, new string[]
+        {
+        }),
+        ("DROP CERTIFICATE", SqlKeywordPosition.StatementStart, "DROP CERTIFICATE ", false, false, new string[]
+        {
+        }),
+        ("DROP COLUMN", SqlKeywordPosition.StatementStart, "DROP COLUMN ", true, false, new string[]
+        {
+            "ENCRYPTION KEY", "MASTER KEY",
+        }),
+        ("DROP COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "DROP COLUMN ENCRYPTION ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP COLUMN ENCRYPTION KEY", SqlKeywordPosition.StatementStart, "DROP COLUMN ENCRYPTION KEY ", false, false, new string[]
+        {
+        }),
+        ("DROP COLUMN MASTER", SqlKeywordPosition.StatementStart, "DROP COLUMN MASTER ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP COLUMN MASTER KEY", SqlKeywordPosition.StatementStart, "DROP COLUMN MASTER KEY ", false, false, new string[]
+        {
+        }),
+        ("DROP CONTRACT", SqlKeywordPosition.StatementStart, "DROP CONTRACT ", false, false, new string[]
+        {
+        }),
+        ("DROP COUNTER", SqlKeywordPosition.StatementStart, "DROP COUNTER ", true, false, new string[]
+        {
+            "SIGNATURE FROM",
+        }),
+        ("DROP COUNTER SIGNATURE", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("DROP COUNTER SIGNATURE FROM", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM ", false, false, new string[]
+        {
+            "ASSEMBLY", "DATABASE", "OBJECT",
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name}", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("DROP CREDENTIAL", SqlKeywordPosition.StatementStart, "DROP CREDENTIAL ", false, false, new string[]
+        {
+        }),
+        ("DROP CRYPTOGRAPHIC", SqlKeywordPosition.StatementStart, "DROP CRYPTOGRAPHIC ", true, false, new string[]
+        {
+            "PROVIDER",
+        }),
+        ("DROP CRYPTOGRAPHIC PROVIDER", SqlKeywordPosition.StatementStart, "DROP CRYPTOGRAPHIC PROVIDER ", false, false, new string[]
+        {
+        }),
+        ("DROP DATABASE", SqlKeywordPosition.StatementStart, "DROP DATABASE ", false, false, new string[]
+        {
+            "AUDIT", "ENCRYPTION", "IF EXISTS",
+        }),
+        ("DROP DATABASE AUDIT", SqlKeywordPosition.StatementStart, "DROP DATABASE AUDIT ", true, true, new string[]
+        {
+            "SPECIFICATION",
+        }),
+        ("DROP DATABASE AUDIT SPECIFICATION", SqlKeywordPosition.StatementStart, "DROP DATABASE AUDIT SPECIFICATION ", false, false, new string[]
+        {
+        }),
+        ("DROP DATABASE ENCRYPTION", SqlKeywordPosition.StatementStart, "DROP DATABASE ENCRYPTION ", true, true, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP DATABASE IF", SqlKeywordPosition.StatementStart, "DROP DATABASE IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP DATABASE IF EXISTS", SqlKeywordPosition.StatementStart, "DROP DATABASE IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP DEFAULT", SqlKeywordPosition.StatementStart, "DROP DEFAULT ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP DEFAULT IF", SqlKeywordPosition.StatementStart, "DROP DEFAULT IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP DEFAULT IF EXISTS", SqlKeywordPosition.StatementStart, "DROP DEFAULT IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP ENDPOINT", SqlKeywordPosition.StatementStart, "DROP ENDPOINT ", false, false, new string[]
+        {
+        }),
+        ("DROP EVENT", SqlKeywordPosition.StatementStart, "DROP EVENT ", true, false, new string[]
+        {
+            "NOTIFICATION", "SESSION",
+        }),
+        ("DROP EVENT NOTIFICATION", SqlKeywordPosition.StatementStart, "DROP EVENT NOTIFICATION ", false, false, new string[]
+        {
+        }),
+        ("DROP EVENT NOTIFICATION {name}", SqlKeywordPosition.StatementStart, "DROP EVENT NOTIFICATION t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("DROP EVENT SESSION", SqlKeywordPosition.StatementStart, "DROP EVENT SESSION ", false, false, new string[]
+        {
+        }),
+        ("DROP EVENT SESSION {name}", SqlKeywordPosition.StatementStart, "DROP EVENT SESSION t ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("DROP EXTERNAL", SqlKeywordPosition.StatementStart, "DROP EXTERNAL ", true, false, new string[]
+        {
+            "DATA SOURCE", "FILE FORMAT", "LANGUAGE", "LIBRARY", "MODEL", "RESOURCE POOL",
+            "TABLE",
+        }),
+        ("DROP EXTERNAL DATA", SqlKeywordPosition.StatementStart, "DROP EXTERNAL DATA ", true, false, new string[]
+        {
+            "SOURCE",
+        }),
+        ("DROP EXTERNAL DATA SOURCE", SqlKeywordPosition.StatementStart, "DROP EXTERNAL DATA SOURCE ", false, false, new string[]
+        {
+        }),
+        ("DROP EXTERNAL FILE", SqlKeywordPosition.StatementStart, "DROP EXTERNAL FILE ", true, false, new string[]
+        {
+            "FORMAT",
+        }),
+        ("DROP EXTERNAL FILE FORMAT", SqlKeywordPosition.StatementStart, "DROP EXTERNAL FILE FORMAT ", false, false, new string[]
+        {
+        }),
+        ("DROP EXTERNAL LANGUAGE", SqlKeywordPosition.StatementStart, "DROP EXTERNAL LANGUAGE ", false, false, new string[]
+        {
+        }),
+        ("DROP EXTERNAL LANGUAGE {name}", SqlKeywordPosition.StatementStart, "DROP EXTERNAL LANGUAGE t ", true, true, new string[]
+        {
+            "AUTHORIZATION",
+        }),
+        ("DROP EXTERNAL LIBRARY", SqlKeywordPosition.StatementStart, "DROP EXTERNAL LIBRARY ", false, false, new string[]
+        {
+        }),
+        ("DROP EXTERNAL LIBRARY {name}", SqlKeywordPosition.StatementStart, "DROP EXTERNAL LIBRARY t ", true, true, new string[]
+        {
+            "AUTHORIZATION",
+        }),
+        ("DROP EXTERNAL MODEL", SqlKeywordPosition.StatementStart, "DROP EXTERNAL MODEL ", false, false, new string[]
+        {
+        }),
+        ("DROP EXTERNAL RESOURCE", SqlKeywordPosition.StatementStart, "DROP EXTERNAL RESOURCE ", true, false, new string[]
+        {
+            "POOL",
+        }),
+        ("DROP EXTERNAL RESOURCE POOL", SqlKeywordPosition.StatementStart, "DROP EXTERNAL RESOURCE POOL ", false, false, new string[]
+        {
+        }),
+        ("DROP EXTERNAL TABLE", SqlKeywordPosition.StatementStart, "DROP EXTERNAL TABLE ", false, false, new string[]
+        {
+        }),
+        ("DROP FEDERATION", SqlKeywordPosition.StatementStart, "DROP FEDERATION ", false, false, new string[]
+        {
+        }),
+        ("DROP FULLTEXT", SqlKeywordPosition.StatementStart, "DROP FULLTEXT ", true, false, new string[]
+        {
+            "CATALOG", "INDEX ON", "STOPLIST",
+        }),
+        ("DROP FULLTEXT CATALOG", SqlKeywordPosition.StatementStart, "DROP FULLTEXT CATALOG ", false, false, new string[]
+        {
+        }),
+        ("DROP FULLTEXT INDEX", SqlKeywordPosition.StatementStart, "DROP FULLTEXT INDEX ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("DROP FULLTEXT INDEX ON", SqlKeywordPosition.StatementStart, "DROP FULLTEXT INDEX ON ", false, false, new string[]
+        {
+        }),
+        ("DROP FULLTEXT STOPLIST", SqlKeywordPosition.StatementStart, "DROP FULLTEXT STOPLIST ", false, false, new string[]
+        {
+        }),
+        ("DROP FULLTEXT STOPLIST {name}", SqlKeywordPosition.StatementStart, "DROP FULLTEXT STOPLIST t ", true, false, new string[]
+        {
+            "ADD", "ALTER", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT", "CLOSE", "COMMIT",
+            "CONTINUE", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE", "DENY", "DROP",
+            "ELSE", "END", "EXEC", "EXECUTE", "FETCH", "GOTO", "GRANT", "IF", "INSERT", "KILL",
+            "LINENO", "MERGE", "OPEN", "PRINT", "RAISERROR", "READTEXT", "RECONFIGURE",
+            "RESTORE", "RETURN", "REVERT", "REVOKE", "ROLLBACK", "SAVE", "SELECT", "SET",
+            "SETUSER", "SHUTDOWN", "TRUNCATE", "UPDATE", "UPDATETEXT", "USE", "WAITFOR",
+            "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("DROP FUNCTION", SqlKeywordPosition.StatementStart, "DROP FUNCTION ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP FUNCTION IF", SqlKeywordPosition.StatementStart, "DROP FUNCTION IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP FUNCTION IF EXISTS", SqlKeywordPosition.StatementStart, "DROP FUNCTION IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP INDEX", SqlKeywordPosition.StatementStart, "DROP INDEX ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP INDEX {name}", SqlKeywordPosition.StatementStart, "DROP INDEX t ", true, false, new string[]
+        {
+            "ADD", "ALTER", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT", "CLOSE", "COMMIT",
+            "CONTINUE", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE", "DENY", "DROP",
+            "ELSE", "END", "EXEC", "EXECUTE", "FETCH", "GOTO", "GRANT", "IF", "INSERT", "KILL",
+            "LINENO", "MERGE", "ON", "OPEN", "PRINT", "RAISERROR", "READTEXT", "RECONFIGURE",
+            "RESTORE", "RETURN", "REVERT", "REVOKE", "ROLLBACK", "SAVE", "SELECT", "SET",
+            "SETUSER", "SHUTDOWN", "TRUNCATE", "UPDATE", "UPDATETEXT", "USE", "WAITFOR",
+            "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("DROP INDEX IF", SqlKeywordPosition.StatementStart, "DROP INDEX IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP INDEX IF EXISTS", SqlKeywordPosition.StatementStart, "DROP INDEX IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP INDEX IF EXISTS {name}", SqlKeywordPosition.StatementStart, "DROP INDEX IF EXISTS t ", true, false, new string[]
+        {
+            "ADD", "ALTER", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT", "CLOSE", "COMMIT",
+            "CONTINUE", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE", "DENY", "DROP",
+            "ELSE", "END", "EXEC", "EXECUTE", "FETCH", "GOTO", "GRANT", "IF", "INSERT", "KILL",
+            "LINENO", "MERGE", "ON", "OPEN", "PRINT", "RAISERROR", "READTEXT", "RECONFIGURE",
+            "RESTORE", "RETURN", "REVERT", "REVOKE", "ROLLBACK", "SAVE", "SELECT", "SET",
+            "SETUSER", "SHUTDOWN", "TRUNCATE", "UPDATE", "UPDATETEXT", "USE", "WAITFOR",
+            "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("DROP LOGIN", SqlKeywordPosition.StatementStart, "DROP LOGIN ", false, false, new string[]
+        {
+        }),
+        ("DROP MASTER", SqlKeywordPosition.StatementStart, "DROP MASTER ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP MESSAGE", SqlKeywordPosition.StatementStart, "DROP MESSAGE ", true, false, new string[]
+        {
+            "TYPE",
+        }),
+        ("DROP MESSAGE TYPE", SqlKeywordPosition.StatementStart, "DROP MESSAGE TYPE ", false, false, new string[]
+        {
+        }),
+        ("DROP PARTITION", SqlKeywordPosition.StatementStart, "DROP PARTITION ", true, false, new string[]
+        {
+            "FUNCTION", "SCHEME",
+        }),
+        ("DROP PARTITION FUNCTION", SqlKeywordPosition.StatementStart, "DROP PARTITION FUNCTION ", false, false, new string[]
+        {
+        }),
+        ("DROP PARTITION SCHEME", SqlKeywordPosition.StatementStart, "DROP PARTITION SCHEME ", false, false, new string[]
+        {
+        }),
+        ("DROP PROC", SqlKeywordPosition.StatementStart, "DROP PROC ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP PROC IF", SqlKeywordPosition.StatementStart, "DROP PROC IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP PROC IF EXISTS", SqlKeywordPosition.StatementStart, "DROP PROC IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP PROCEDURE", SqlKeywordPosition.StatementStart, "DROP PROCEDURE ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP PROCEDURE IF", SqlKeywordPosition.StatementStart, "DROP PROCEDURE IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP PROCEDURE IF EXISTS", SqlKeywordPosition.StatementStart, "DROP PROCEDURE IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP QUEUE", SqlKeywordPosition.StatementStart, "DROP QUEUE ", false, false, new string[]
+        {
+        }),
+        ("DROP REMOTE", SqlKeywordPosition.StatementStart, "DROP REMOTE ", false, false, new string[]
+        {
+            "SERVICE BINDING",
+        }),
+        ("DROP REMOTE {name}", SqlKeywordPosition.StatementStart, "DROP REMOTE t ", true, false, new string[]
+        {
+        }),
+        ("DROP REMOTE SERVICE", SqlKeywordPosition.StatementStart, "DROP REMOTE SERVICE ", true, false, new string[]
+        {
+            "BINDING",
+        }),
+        ("DROP REMOTE SERVICE BINDING", SqlKeywordPosition.StatementStart, "DROP REMOTE SERVICE BINDING ", false, false, new string[]
+        {
+        }),
+        ("DROP RESOURCE", SqlKeywordPosition.StatementStart, "DROP RESOURCE ", true, false, new string[]
+        {
+            "POOL",
+        }),
+        ("DROP RESOURCE POOL", SqlKeywordPosition.StatementStart, "DROP RESOURCE POOL ", false, false, new string[]
+        {
+        }),
+        ("DROP ROLE", SqlKeywordPosition.StatementStart, "DROP ROLE ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP ROLE IF", SqlKeywordPosition.StatementStart, "DROP ROLE IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP ROLE IF EXISTS", SqlKeywordPosition.StatementStart, "DROP ROLE IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP ROUTE", SqlKeywordPosition.StatementStart, "DROP ROUTE ", false, false, new string[]
+        {
+        }),
+        ("DROP RULE", SqlKeywordPosition.StatementStart, "DROP RULE ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP RULE IF", SqlKeywordPosition.StatementStart, "DROP RULE IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP RULE IF EXISTS", SqlKeywordPosition.StatementStart, "DROP RULE IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP SCHEMA", SqlKeywordPosition.StatementStart, "DROP SCHEMA ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP SCHEMA {name}", SqlKeywordPosition.StatementStart, "DROP SCHEMA t ", true, true, new string[]
+        {
+            "CASCADE", "RESTRICT",
+        }),
+        ("DROP SCHEMA IF", SqlKeywordPosition.StatementStart, "DROP SCHEMA IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP SCHEMA IF EXISTS", SqlKeywordPosition.StatementStart, "DROP SCHEMA IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP SCHEMA IF EXISTS {name}", SqlKeywordPosition.StatementStart, "DROP SCHEMA IF EXISTS t ", true, true, new string[]
+        {
+            "CASCADE", "RESTRICT",
+        }),
+        ("DROP SEARCH", SqlKeywordPosition.StatementStart, "DROP SEARCH ", false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("DROP SEARCH {name}", SqlKeywordPosition.StatementStart, "DROP SEARCH t ", true, false, new string[]
+        {
+        }),
+        ("DROP SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "DROP SEARCH PROPERTY ", true, false, new string[]
+        {
+            "LIST",
+        }),
+        ("DROP SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "DROP SEARCH PROPERTY LIST ", false, false, new string[]
+        {
+        }),
+        ("DROP SEARCH PROPERTY LIST {name}", SqlKeywordPosition.StatementStart, "DROP SEARCH PROPERTY LIST t ", true, false, new string[]
+        {
+            "ADD", "ALTER", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT", "CLOSE", "COMMIT",
+            "CONTINUE", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE", "DENY", "DROP",
+            "ELSE", "END", "EXEC", "EXECUTE", "FETCH", "GOTO", "GRANT", "IF", "INSERT", "KILL",
+            "LINENO", "MERGE", "OPEN", "PRINT", "RAISERROR", "READTEXT", "RECONFIGURE",
+            "RESTORE", "RETURN", "REVERT", "REVOKE", "ROLLBACK", "SAVE", "SELECT", "SET",
+            "SETUSER", "SHUTDOWN", "TRUNCATE", "UPDATE", "UPDATETEXT", "USE", "WAITFOR",
+            "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("DROP SECURITY", SqlKeywordPosition.StatementStart, "DROP SECURITY ", true, false, new string[]
+        {
+            "POLICY",
+        }),
+        ("DROP SECURITY POLICY", SqlKeywordPosition.StatementStart, "DROP SECURITY POLICY ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP SECURITY POLICY IF", SqlKeywordPosition.StatementStart, "DROP SECURITY POLICY IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP SENSITIVITY", SqlKeywordPosition.StatementStart, "DROP SENSITIVITY ", false, false, new string[]
+        {
+            "CLASSIFICATION FROM",
+        }),
+        ("DROP SENSITIVITY {name}", SqlKeywordPosition.StatementStart, "DROP SENSITIVITY t ", true, false, new string[]
+        {
+        }),
+        ("DROP SENSITIVITY CLASSIFICATION", SqlKeywordPosition.StatementStart, "DROP SENSITIVITY CLASSIFICATION ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("DROP SENSITIVITY CLASSIFICATION FROM", SqlKeywordPosition.StatementStart, "DROP SENSITIVITY CLASSIFICATION FROM ", false, false, new string[]
+        {
+        }),
+        ("DROP SENSITIVITY CLASSIFICATION FROM {name}", SqlKeywordPosition.StatementStart, "DROP SENSITIVITY CLASSIFICATION FROM t ", true, false, new string[]
+        {
+            "ADD", "ALTER", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT", "CLOSE", "COMMIT",
+            "CONTINUE", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE", "DENY", "DROP",
+            "ELSE", "END", "EXEC", "EXECUTE", "FETCH", "GOTO", "GRANT", "IF", "INSERT", "KILL",
+            "LINENO", "MERGE", "ON", "OPEN", "OPTION", "PRINT", "RAISERROR", "READTEXT",
+            "RECONFIGURE", "RESTORE", "RETURN", "REVERT", "REVOKE", "ROLLBACK", "SAVE",
+            "SELECT", "SET", "SETUSER", "SHUTDOWN", "TRUNCATE", "UPDATE", "UPDATETEXT", "USE",
+            "WAITFOR", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("DROP SEQUENCE", SqlKeywordPosition.StatementStart, "DROP SEQUENCE ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP SEQUENCE IF", SqlKeywordPosition.StatementStart, "DROP SEQUENCE IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP SEQUENCE IF EXISTS", SqlKeywordPosition.StatementStart, "DROP SEQUENCE IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP SERVER", SqlKeywordPosition.StatementStart, "DROP SERVER ", true, false, new string[]
+        {
+            "AUDIT", "ROLE",
+        }),
+        ("DROP SERVER AUDIT", SqlKeywordPosition.StatementStart, "DROP SERVER AUDIT ", false, false, new string[]
+        {
+            "SPECIFICATION",
+        }),
+        ("DROP SERVER ROLE", SqlKeywordPosition.StatementStart, "DROP SERVER ROLE ", false, false, new string[]
+        {
+        }),
+        ("DROP SERVICE", SqlKeywordPosition.StatementStart, "DROP SERVICE ", false, false, new string[]
+        {
+        }),
+        ("DROP SIGNATURE", SqlKeywordPosition.StatementStart, "DROP SIGNATURE ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("DROP SIGNATURE FROM", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM ", false, false, new string[]
+        {
+            "ASSEMBLY BY", "DATABASE", "OBJECT BY",
+        }),
+        ("DROP SIGNATURE FROM {name}", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("DROP SIGNATURE FROM ASSEMBLY", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM ASSEMBLY ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("DROP SIGNATURE FROM DATABASE", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM DATABASE ", true, false, new string[]
+        {
+        }),
+        ("DROP SIGNATURE FROM OBJECT", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM OBJECT ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("DROP STATISTICS", SqlKeywordPosition.StatementStart, "DROP STATISTICS ", false, false, new string[]
+        {
+        }),
+        ("DROP STATISTICS {name}", SqlKeywordPosition.StatementStart, "DROP STATISTICS t ", true, false, new string[]
+        {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("DROP SYMMETRIC", SqlKeywordPosition.StatementStart, "DROP SYMMETRIC ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "DROP SYMMETRIC KEY ", false, false, new string[]
+        {
+        }),
+        ("DROP SYNONYM", SqlKeywordPosition.StatementStart, "DROP SYNONYM ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP SYNONYM IF", SqlKeywordPosition.StatementStart, "DROP SYNONYM IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP SYNONYM IF EXISTS", SqlKeywordPosition.StatementStart, "DROP SYNONYM IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP TABLE", SqlKeywordPosition.StatementStart, "DROP TABLE ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP TABLE IF", SqlKeywordPosition.StatementStart, "DROP TABLE IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP TABLE IF EXISTS", SqlKeywordPosition.StatementStart, "DROP TABLE IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP TRIGGER", SqlKeywordPosition.StatementStart, "DROP TRIGGER ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP TRIGGER {name}", SqlKeywordPosition.StatementStart, "DROP TRIGGER t ", true, true, new string[]
+        {
+            "ON",
+        }),
+        ("DROP TRIGGER IF", SqlKeywordPosition.StatementStart, "DROP TRIGGER IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP TRIGGER IF EXISTS", SqlKeywordPosition.StatementStart, "DROP TRIGGER IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP TRIGGER IF EXISTS {name}", SqlKeywordPosition.StatementStart, "DROP TRIGGER IF EXISTS t ", true, true, new string[]
+        {
+            "ON",
+        }),
+        ("DROP TYPE", SqlKeywordPosition.StatementStart, "DROP TYPE ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP TYPE IF", SqlKeywordPosition.StatementStart, "DROP TYPE IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP TYPE IF EXISTS", SqlKeywordPosition.StatementStart, "DROP TYPE IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP USER", SqlKeywordPosition.StatementStart, "DROP USER ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP USER IF", SqlKeywordPosition.StatementStart, "DROP USER IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP USER IF EXISTS", SqlKeywordPosition.StatementStart, "DROP USER IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP VIEW", SqlKeywordPosition.StatementStart, "DROP VIEW ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP VIEW IF", SqlKeywordPosition.StatementStart, "DROP VIEW IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP VIEW IF EXISTS", SqlKeywordPosition.StatementStart, "DROP VIEW IF EXISTS ", false, false, new string[]
+        {
+        }),
+        ("DROP WORKLOAD", SqlKeywordPosition.StatementStart, "DROP WORKLOAD ", true, false, new string[]
+        {
+            "CLASSIFIER", "GROUP",
+        }),
+        ("DROP WORKLOAD CLASSIFIER", SqlKeywordPosition.StatementStart, "DROP WORKLOAD CLASSIFIER ", false, false, new string[]
+        {
+        }),
+        ("DROP WORKLOAD GROUP", SqlKeywordPosition.StatementStart, "DROP WORKLOAD GROUP ", false, false, new string[]
+        {
+        }),
+        ("UPDATE", SqlKeywordPosition.StatementStart, "UPDATE ", false, false, new string[]
+        {
+            "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "STATISTICS", "TOP",
+        }),
+        ("DELETE", SqlKeywordPosition.StatementStart, "DELETE ", false, false, new string[]
+        {
+            "FROM", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "TOP",
+        }),
+        ("MERGE", SqlKeywordPosition.StatementStart, "MERGE ", false, false, new string[]
+        {
+            "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "TOP",
+        }),
+        ("DROP", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP ", false, false, new string[]
+        {
+            "COLUMN", "CONSTRAINT", "INDEX", "PERIOD",
+        }),
+        ("DROP COLUMN", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP COLUMN ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP COLUMN IF", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP COLUMN IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP CONSTRAINT", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP CONSTRAINT ", false, false, new string[]
+        {
+            "IF EXISTS",
+        }),
+        ("DROP CONSTRAINT IF", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP CONSTRAINT IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP INDEX", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP INDEX ", false, false, new string[]
+        {
+        }),
+        ("DROP PERIOD", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP PERIOD ", true, true, new string[]
+        {
+            "FOR SYSTEM_TIME",
+        }),
+        ("DROP PERIOD FOR", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP PERIOD FOR ", true, false, new string[]
+        {
+            "SYSTEM_TIME",
+        }),
+        ("ALTER DATABASE {name} SET", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ", true, false, new string[]
+        {
+            "ACCELERATED_DATABASE_RECOVERY", "ALLOW_SNAPSHOT_ISOLATION", "ANSI_NULL_DEFAULT",
+            "ANSI_NULLS", "ANSI_PADDING", "ANSI_WARNINGS", "ARITHABORT", "AUTO_CLOSE",
+            "AUTO_CREATE_STATISTICS", "AUTO_SHRINK", "AUTO_UPDATE_STATISTICS",
+            "AUTO_UPDATE_STATISTICS_ASYNC", "AUTOMATIC_TUNING", "CHANGE_TRACKING",
+            "COMPATIBILITY_LEVEL", "CONCAT_NULL_YIELDS_NULL", "CONTAINMENT",
+            "CURSOR_CLOSE_ON_COMMIT", "CURSOR_DEFAULT", "DATA_RETENTION",
+            "DATE_CORRELATION_OPTIMIZATION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
+            "DEFAULT_LANGUAGE", "DELAYED_DURABILITY", "DISABLE_BROKER", "EMERGENCY",
+            "ENABLE_BROKER", "ENCRYPTION", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM", "HADR",
+            "HONOR_BROKER_PRIORITY", "MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT",
+            "MIXED_PAGE_ALLOCATION", "MULTI_USER", "NESTED_TRIGGERS", "NEW_BROKER",
+            "NUMERIC_ROUNDABORT", "OFFLINE", "ONLINE", "OPTIMIZED_LOCKING", "PAGE_VERIFY",
+            "PARAMETERIZATION", "PARTNER", "QUERY_STORE CLEAR", "QUOTED_IDENTIFIER",
+            "READ_COMMITTED_SNAPSHOT", "READ_ONLY", "READ_WRITE", "RECOVERY",
+            "RECURSIVE_TRIGGERS", "REMOTE_DATA_ARCHIVE", "RESTRICTED_USER", "SINGLE_USER",
+            "SUPPLEMENTAL_LOGGING", "TARGET_RECOVERY_TIME", "TEMPORAL_HISTORY_RETENTION",
+            "TORN_PAGE_DETECTION", "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY",
+            "TWO_DIGIT_YEAR_CUTOFF", "VARDECIMAL_STORAGE_FORMAT", "WITNESS OFF",
         }),
         ("ALTER DATABASE {name} SET ACCELERATED_DATABASE_RECOVERY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY ", true, false, new string[]
         {
@@ -1009,6 +2725,10 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} SET AUTOMATIC_TUNING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTOMATIC_TUNING ", true, false, new string[]
         {
         }),
+        ("ALTER DATABASE {name} SET AUTOMATIC_TUNING =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTOMATIC_TUNING = ", true, false, new string[]
+        {
+            "AUTO", "CUSTOM", "INHERIT",
+        }),
         ("ALTER DATABASE {name} SET CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING ", true, false, new string[]
         {
         }),
@@ -1021,6 +2741,10 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER DATABASE {name} SET CONTAINMENT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CONTAINMENT ", true, false, new string[]
         {
+        }),
+        ("ALTER DATABASE {name} SET CONTAINMENT =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CONTAINMENT = ", true, false, new string[]
+        {
+            "NONE", "PARTIAL",
         }),
         ("ALTER DATABASE {name} SET CURSOR_CLOSE_ON_COMMIT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CURSOR_CLOSE_ON_COMMIT ", true, false, new string[]
         {
@@ -1051,6 +2775,10 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} SET DELAYED_DURABILITY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DELAYED_DURABILITY ", true, false, new string[]
         {
         }),
+        ("ALTER DATABASE {name} SET DELAYED_DURABILITY =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DELAYED_DURABILITY = ", true, false, new string[]
+        {
+            "ALLOWED", "DISABLED", "FORCED",
+        }),
         ("ALTER DATABASE {name} SET ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ENCRYPTION ", true, false, new string[]
         {
             "OFF", "ON",
@@ -1069,12 +2797,20 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT ", true, false, new string[]
         {
         }),
+        ("ALTER DATABASE {name} SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT = ", true, false, new string[]
+        {
+            "OFF", "ON",
+        }),
         ("ALTER DATABASE {name} SET MIXED_PAGE_ALLOCATION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET MIXED_PAGE_ALLOCATION ", true, false, new string[]
         {
             "OFF", "ON",
         }),
         ("ALTER DATABASE {name} SET NESTED_TRIGGERS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET NESTED_TRIGGERS ", true, false, new string[]
         {
+        }),
+        ("ALTER DATABASE {name} SET NESTED_TRIGGERS =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET NESTED_TRIGGERS = ", true, false, new string[]
+        {
+            "OFF", "ON",
         }),
         ("ALTER DATABASE {name} SET NUMERIC_ROUNDABORT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET NUMERIC_ROUNDABORT ", true, false, new string[]
         {
@@ -1137,6 +2873,10 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} SET TRANSFORM_NOISE_WORDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TRANSFORM_NOISE_WORDS ", true, false, new string[]
         {
         }),
+        ("ALTER DATABASE {name} SET TRANSFORM_NOISE_WORDS =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TRANSFORM_NOISE_WORDS = ", true, false, new string[]
+        {
+            "OFF", "ON",
+        }),
         ("ALTER DATABASE {name} SET TRUSTWORTHY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TRUSTWORTHY ", true, false, new string[]
         {
             "OFF", "ON",
@@ -1158,102 +2898,22 @@ internal static class SqlKeywordCatalogData
         }),
         ("BACKUP CERTIFICATE", SqlKeywordPosition.StatementStart, "BACKUP CERTIFICATE ", true, false, new string[]
         {
-            "KEY",
+            "KEY TO",
+        }),
+        ("BACKUP CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "BACKUP CERTIFICATE t ", true, false, new string[]
+        {
+            "TO FILE",
+        }),
+        ("BACKUP CERTIFICATE {name} TO", SqlKeywordPosition.StatementStart, "BACKUP CERTIFICATE t TO ", true, false, new string[]
+        {
+            "FILE",
+        }),
+        ("BACKUP CERTIFICATE KEY", SqlKeywordPosition.StatementStart, "BACKUP CERTIFICATE KEY ", true, false, new string[]
+        {
+            "TO",
         }),
         ("BACKUP DATABASE", SqlKeywordPosition.StatementStart, "BACKUP DATABASE ", false, false, new string[]
         {
-        }),
-        ("BACKUP LOG", SqlKeywordPosition.StatementStart, "BACKUP LOG ", false, false, new string[]
-        {
-            "KEY",
-        }),
-        ("BACKUP SERVICE", SqlKeywordPosition.StatementStart, "BACKUP SERVICE ", true, false, new string[]
-        {
-            "KEY",
-        }),
-        ("RESTORE", SqlKeywordPosition.StatementStart, "RESTORE ", true, false, new string[]
-        {
-            "DATABASE", "FILELISTONLY", "HEADERONLY", "LABELONLY", "LOG", "REWINDONLY",
-            "SERVICE", "VERIFYONLY",
-        }),
-        ("RESTORE DATABASE", SqlKeywordPosition.StatementStart, "RESTORE DATABASE ", false, false, new string[]
-        {
-        }),
-        ("RESTORE FILELISTONLY", SqlKeywordPosition.StatementStart, "RESTORE FILELISTONLY ", true, false, new string[]
-        {
-            "FROM", "KEY",
-        }),
-        ("RESTORE FILELISTONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE FILELISTONLY FROM ", false, false, new string[]
-        {
-            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
-        }),
-        ("RESTORE FILELISTONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE FILELISTONLY KEY ", true, false, new string[]
-        {
-            "FROM",
-        }),
-        ("RESTORE HEADERONLY", SqlKeywordPosition.StatementStart, "RESTORE HEADERONLY ", true, false, new string[]
-        {
-            "FROM", "KEY",
-        }),
-        ("RESTORE HEADERONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE HEADERONLY FROM ", false, false, new string[]
-        {
-            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
-        }),
-        ("RESTORE HEADERONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE HEADERONLY KEY ", true, false, new string[]
-        {
-            "FROM",
-        }),
-        ("RESTORE LABELONLY", SqlKeywordPosition.StatementStart, "RESTORE LABELONLY ", true, false, new string[]
-        {
-            "FROM", "KEY",
-        }),
-        ("RESTORE LABELONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE LABELONLY FROM ", false, false, new string[]
-        {
-            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
-        }),
-        ("RESTORE LABELONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE LABELONLY KEY ", true, false, new string[]
-        {
-            "FROM",
-        }),
-        ("RESTORE LOG", SqlKeywordPosition.StatementStart, "RESTORE LOG ", false, false, new string[]
-        {
-            "KEY",
-        }),
-        ("RESTORE LOG KEY", SqlKeywordPosition.StatementStart, "RESTORE LOG KEY ", true, false, new string[]
-        {
-            "FROM",
-        }),
-        ("RESTORE REWINDONLY", SqlKeywordPosition.StatementStart, "RESTORE REWINDONLY ", true, false, new string[]
-        {
-            "FROM", "KEY",
-        }),
-        ("RESTORE REWINDONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE REWINDONLY FROM ", false, false, new string[]
-        {
-            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
-        }),
-        ("RESTORE REWINDONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE REWINDONLY KEY ", true, false, new string[]
-        {
-            "FROM",
-        }),
-        ("RESTORE SERVICE", SqlKeywordPosition.StatementStart, "RESTORE SERVICE ", true, false, new string[]
-        {
-            "KEY",
-        }),
-        ("RESTORE SERVICE KEY", SqlKeywordPosition.StatementStart, "RESTORE SERVICE KEY ", true, false, new string[]
-        {
-            "FROM",
-        }),
-        ("RESTORE VERIFYONLY", SqlKeywordPosition.StatementStart, "RESTORE VERIFYONLY ", true, false, new string[]
-        {
-            "FROM", "KEY",
-        }),
-        ("RESTORE VERIFYONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE VERIFYONLY FROM ", false, false, new string[]
-        {
-            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
-        }),
-        ("RESTORE VERIFYONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE VERIFYONLY KEY ", true, false, new string[]
-        {
-            "FROM",
         }),
         ("BACKUP DATABASE {name}", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t ", true, true, new string[]
         {
@@ -1268,9 +2928,17 @@ internal static class SqlKeywordCatalogData
         ("BACKUP DATABASE {name} PAGE", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t PAGE ", true, false, new string[]
         {
         }),
+        ("BACKUP DATABASE {name} READ_WRITE_FILEGROUPS", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t READ_WRITE_FILEGROUPS ", true, true, new string[]
+        {
+            "TO",
+        }),
         ("BACKUP DATABASE {name} TO", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t TO ", false, false, new string[]
         {
             "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("BACKUP LOG", SqlKeywordPosition.StatementStart, "BACKUP LOG ", false, false, new string[]
+        {
+            "KEY TO",
         }),
         ("BACKUP LOG {name}", SqlKeywordPosition.StatementStart, "BACKUP LOG t ", true, true, new string[]
         {
@@ -1279,6 +2947,34 @@ internal static class SqlKeywordCatalogData
         ("BACKUP LOG {name} TO", SqlKeywordPosition.StatementStart, "BACKUP LOG t TO ", false, false, new string[]
         {
             "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("BACKUP LOG KEY", SqlKeywordPosition.StatementStart, "BACKUP LOG KEY ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("BACKUP SERVICE", SqlKeywordPosition.StatementStart, "BACKUP SERVICE ", true, false, new string[]
+        {
+            "KEY TO",
+        }),
+        ("BACKUP SERVICE {name}", SqlKeywordPosition.StatementStart, "BACKUP SERVICE t ", true, false, new string[]
+        {
+            "KEY TO",
+        }),
+        ("BACKUP SERVICE {name} KEY", SqlKeywordPosition.StatementStart, "BACKUP SERVICE t KEY ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("BACKUP SERVICE KEY", SqlKeywordPosition.StatementStart, "BACKUP SERVICE KEY ", true, false, new string[]
+        {
+            "TO",
+        }),
+        ("RESTORE", SqlKeywordPosition.StatementStart, "RESTORE ", true, false, new string[]
+        {
+            "DATABASE", "FILELISTONLY", "HEADERONLY", "LABELONLY", "LOG", "REWINDONLY",
+            "SERVICE", "VERIFYONLY",
+        }),
+        ("RESTORE DATABASE", SqlKeywordPosition.StatementStart, "RESTORE DATABASE ", false, false, new string[]
+        {
         }),
         ("RESTORE DATABASE {name}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t ", true, true, new string[]
         {
@@ -1297,6 +2993,50 @@ internal static class SqlKeywordCatalogData
         ("RESTORE DATABASE {name} PAGE", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t PAGE ", true, false, new string[]
         {
         }),
+        ("RESTORE DATABASE {name} READ_WRITE_FILEGROUPS", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t READ_WRITE_FILEGROUPS ", true, true, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE FILELISTONLY", SqlKeywordPosition.StatementStart, "RESTORE FILELISTONLY ", true, false, new string[]
+        {
+            "FROM", "KEY FROM",
+        }),
+        ("RESTORE FILELISTONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE FILELISTONLY FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE FILELISTONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE FILELISTONLY KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE HEADERONLY", SqlKeywordPosition.StatementStart, "RESTORE HEADERONLY ", true, false, new string[]
+        {
+            "FROM", "KEY FROM",
+        }),
+        ("RESTORE HEADERONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE HEADERONLY FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE HEADERONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE HEADERONLY KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE LABELONLY", SqlKeywordPosition.StatementStart, "RESTORE LABELONLY ", true, false, new string[]
+        {
+            "FROM", "KEY FROM",
+        }),
+        ("RESTORE LABELONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE LABELONLY FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE LABELONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE LABELONLY KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE LOG", SqlKeywordPosition.StatementStart, "RESTORE LOG ", false, false, new string[]
+        {
+            "KEY FROM",
+        }),
         ("RESTORE LOG {name}", SqlKeywordPosition.StatementStart, "RESTORE LOG t ", true, true, new string[]
         {
             "FILE", "FILEGROUP", "FROM", "PAGE", "READ_WRITE_FILEGROUPS",
@@ -1314,6 +3054,54 @@ internal static class SqlKeywordCatalogData
         ("RESTORE LOG {name} PAGE", SqlKeywordPosition.StatementStart, "RESTORE LOG t PAGE ", true, false, new string[]
         {
         }),
+        ("RESTORE LOG {name} READ_WRITE_FILEGROUPS", SqlKeywordPosition.StatementStart, "RESTORE LOG t READ_WRITE_FILEGROUPS ", true, true, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE LOG KEY", SqlKeywordPosition.StatementStart, "RESTORE LOG KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE REWINDONLY", SqlKeywordPosition.StatementStart, "RESTORE REWINDONLY ", true, false, new string[]
+        {
+            "FROM", "KEY FROM",
+        }),
+        ("RESTORE REWINDONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE REWINDONLY FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE REWINDONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE REWINDONLY KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE SERVICE", SqlKeywordPosition.StatementStart, "RESTORE SERVICE ", true, false, new string[]
+        {
+            "KEY FROM",
+        }),
+        ("RESTORE SERVICE {name}", SqlKeywordPosition.StatementStart, "RESTORE SERVICE t ", true, false, new string[]
+        {
+            "KEY FROM",
+        }),
+        ("RESTORE SERVICE {name} KEY", SqlKeywordPosition.StatementStart, "RESTORE SERVICE t KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE SERVICE KEY", SqlKeywordPosition.StatementStart, "RESTORE SERVICE KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE VERIFYONLY", SqlKeywordPosition.StatementStart, "RESTORE VERIFYONLY ", true, false, new string[]
+        {
+            "FROM", "KEY FROM",
+        }),
+        ("RESTORE VERIFYONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE VERIFYONLY FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE VERIFYONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE VERIFYONLY KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
         ("ALTER INDEX {name} ON {name}", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t ", true, false, new string[]
         {
             "ABORT", "DISABLE", "FOR", "PAUSE", "REBUILD", "REORGANIZE", "RESUME", "SET",
@@ -1323,7 +3111,7 @@ internal static class SqlKeywordCatalogData
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
-        ("INCLUDE ()", SqlKeywordPosition.Any, "CREATE INDEX i ON t (a) INCLUDE (a) ", true, true, new string[]
+        ("INCLUDE ()", SqlKeywordPosition.Any, "CREATE INDEX t ON t (a) INCLUDE (a) ", true, true, new string[]
         {
             "FILESTREAM_ON", "ON", "WHERE", "WITH",
         }),
@@ -1338,7 +3126,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t ", true, false, new string[]
         {
-            "AFTER", "FOR", "INSTEAD", "WITH",
+            "AFTER", "FOR", "INSTEAD OF", "WITH",
         }),
         ("FOR", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t FOR ", true, false, new string[]
         {
@@ -1447,20 +3235,817 @@ internal static class SqlKeywordCatalogData
         }),
         ("TRIGGER {name} ON", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ", false, false, new string[]
         {
-            "ALL", "DATABASE",
+            "ALL SERVER", "DATABASE",
         }),
         ("TRIGGER {name} ON ALL", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ALL ", true, false, new string[]
         {
             "SERVER",
         }),
+        ("TRIGGER {name} ON DATABASE FOR", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON DATABASE FOR ", true, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "BIND_DEFAULT", "BIND_RULE",
+            "CREATE_APPLICATION_ROLE", "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY",
+            "CREATE_AUDIT", "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY",
+            "CREATE_CERTIFICATE", "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY",
+            "CREATE_CONTRACT", "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER",
+            "CREATE_DATABASE", "CREATE_DATABASE_AUDIT_SPECIFICATION",
+            "CREATE_DATABASE_ENCRYPTION_KEY", "CREATE_DEFAULT", "CREATE_ENDPOINT",
+            "CREATE_EVENT_NOTIFICATION", "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE",
+            "CREATE_EXTENDED_PROPERTY", "CREATE_EXTERNAL_RESOURCE_POOL",
+            "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX", "CREATE_FULLTEXT_STOPLIST",
+            "CREATE_FUNCTION", "CREATE_INDEX", "CREATE_LINKED_SERVER",
+            "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN", "CREATE_MASTER_KEY", "CREATE_MESSAGE",
+            "CREATE_MESSAGE_TYPE", "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME",
+            "CREATE_PLAN_GUIDE", "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DDL_APPLICATION_ROLE_EVENTS",
+            "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DELETE", "DENY_DATABASE",
+            "DENY_SERVER", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY", "DROP_ASYMMETRIC_KEY",
+            "DROP_AUDIT", "DROP_AVAILABILITY_GROUP", "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE",
+            "DROP_COLUMN_ENCRYPTION_KEY", "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT",
+            "DROP_CREDENTIAL", "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE",
+            "DROP_DATABASE_AUDIT_SPECIFICATION", "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT",
+            "DROP_ENDPOINT", "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION",
+            "DROP_EXTENDED_PROCEDURE", "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL",
+            "DROP_FULLTEXT_CATALOG", "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST",
+            "DROP_FUNCTION", "DROP_INDEX", "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN",
+            "DROP_LOGIN", "DROP_MASTER_KEY", "DROP_MESSAGE", "DROP_MESSAGE_TYPE",
+            "DROP_PARTITION_FUNCTION", "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE",
+            "DROP_PROCEDURE", "DROP_QUEUE", "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING",
+            "DROP_RESOURCE_POOL", "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE",
+            "DROP_SCHEMA", "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "GRANT_DATABASE",
+            "GRANT_SERVER", "INSERT", "LOGON", "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER",
+            "UNBIND_DEFAULT", "UNBIND_RULE", "UPDATE", "UPDATE_STATISTICS",
+        }),
+        ("TRIGGER {name} ON DATABASE FOR ,*", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON DATABASE FOR ADD_ROLE_MEMBER, ", true, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "BIND_DEFAULT", "BIND_RULE",
+            "CREATE_APPLICATION_ROLE", "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY",
+            "CREATE_AUDIT", "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY",
+            "CREATE_CERTIFICATE", "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY",
+            "CREATE_CONTRACT", "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER",
+            "CREATE_DATABASE", "CREATE_DATABASE_AUDIT_SPECIFICATION",
+            "CREATE_DATABASE_ENCRYPTION_KEY", "CREATE_DEFAULT", "CREATE_ENDPOINT",
+            "CREATE_EVENT_NOTIFICATION", "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE",
+            "CREATE_EXTENDED_PROPERTY", "CREATE_EXTERNAL_RESOURCE_POOL",
+            "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX", "CREATE_FULLTEXT_STOPLIST",
+            "CREATE_FUNCTION", "CREATE_INDEX", "CREATE_LINKED_SERVER",
+            "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN", "CREATE_MASTER_KEY", "CREATE_MESSAGE",
+            "CREATE_MESSAGE_TYPE", "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME",
+            "CREATE_PLAN_GUIDE", "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DDL_APPLICATION_ROLE_EVENTS",
+            "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DENY_DATABASE",
+            "DENY_SERVER", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY", "DROP_ASYMMETRIC_KEY",
+            "DROP_AUDIT", "DROP_AVAILABILITY_GROUP", "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE",
+            "DROP_COLUMN_ENCRYPTION_KEY", "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT",
+            "DROP_CREDENTIAL", "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE",
+            "DROP_DATABASE_AUDIT_SPECIFICATION", "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT",
+            "DROP_ENDPOINT", "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION",
+            "DROP_EXTENDED_PROCEDURE", "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL",
+            "DROP_FULLTEXT_CATALOG", "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST",
+            "DROP_FUNCTION", "DROP_INDEX", "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN",
+            "DROP_LOGIN", "DROP_MASTER_KEY", "DROP_MESSAGE", "DROP_MESSAGE_TYPE",
+            "DROP_PARTITION_FUNCTION", "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE",
+            "DROP_PROCEDURE", "DROP_QUEUE", "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING",
+            "DROP_RESOURCE_POOL", "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE",
+            "DROP_SCHEMA", "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "GRANT_DATABASE",
+            "GRANT_SERVER", "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER", "UNBIND_DEFAULT",
+            "UNBIND_RULE", "UPDATE_STATISTICS", "DELETE", "INSERT", "UPDATE", "ADD", "ALL",
+            "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP", "BEGIN", "BETWEEN",
+            "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK", "CHECKPOINT", "CLOSE",
+            "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT", "COMPUTE", "CONSTRAINT",
+            "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT", "CREATE", "CROSS", "CURRENT",
+            "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "CURSOR",
+            "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT", "DENY", "DESC", "DISTINCT",
+            "DISTRIBUTED", "DOUBLE", "DROP", "ELSE", "END", "ERRLVL", "ESCAPE", "EXCEPT",
+            "EXEC", "EXECUTE", "EXISTS", "EXIT", "EXTERNAL", "FETCH", "FILE", "FILLFACTOR",
+            "FOR", "FOREIGN", "FREETEXT", "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO",
+            "GRANT", "GROUP", "HAVING", "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN",
+            "INDEX", "INNER", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE",
+            "LINENO", "MERGE", "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF",
+            "OF", "OFF", "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+            "OPENXML", "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN",
+            "PRIMARY", "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATETEXT", "USE", "USER", "VALUES", "VARYING",
+            "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("TRIGGER {name} ON DATABASE AFTER", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON DATABASE AFTER ", true, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "BIND_DEFAULT", "BIND_RULE",
+            "CREATE_APPLICATION_ROLE", "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY",
+            "CREATE_AUDIT", "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY",
+            "CREATE_CERTIFICATE", "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY",
+            "CREATE_CONTRACT", "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER",
+            "CREATE_DATABASE", "CREATE_DATABASE_AUDIT_SPECIFICATION",
+            "CREATE_DATABASE_ENCRYPTION_KEY", "CREATE_DEFAULT", "CREATE_ENDPOINT",
+            "CREATE_EVENT_NOTIFICATION", "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE",
+            "CREATE_EXTENDED_PROPERTY", "CREATE_EXTERNAL_RESOURCE_POOL",
+            "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX", "CREATE_FULLTEXT_STOPLIST",
+            "CREATE_FUNCTION", "CREATE_INDEX", "CREATE_LINKED_SERVER",
+            "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN", "CREATE_MASTER_KEY", "CREATE_MESSAGE",
+            "CREATE_MESSAGE_TYPE", "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME",
+            "CREATE_PLAN_GUIDE", "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DDL_APPLICATION_ROLE_EVENTS",
+            "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DELETE", "DENY_DATABASE",
+            "DENY_SERVER", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY", "DROP_ASYMMETRIC_KEY",
+            "DROP_AUDIT", "DROP_AVAILABILITY_GROUP", "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE",
+            "DROP_COLUMN_ENCRYPTION_KEY", "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT",
+            "DROP_CREDENTIAL", "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE",
+            "DROP_DATABASE_AUDIT_SPECIFICATION", "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT",
+            "DROP_ENDPOINT", "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION",
+            "DROP_EXTENDED_PROCEDURE", "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL",
+            "DROP_FULLTEXT_CATALOG", "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST",
+            "DROP_FUNCTION", "DROP_INDEX", "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN",
+            "DROP_LOGIN", "DROP_MASTER_KEY", "DROP_MESSAGE", "DROP_MESSAGE_TYPE",
+            "DROP_PARTITION_FUNCTION", "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE",
+            "DROP_PROCEDURE", "DROP_QUEUE", "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING",
+            "DROP_RESOURCE_POOL", "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE",
+            "DROP_SCHEMA", "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "GRANT_DATABASE",
+            "GRANT_SERVER", "INSERT", "LOGON", "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER",
+            "UNBIND_DEFAULT", "UNBIND_RULE", "UPDATE", "UPDATE_STATISTICS",
+        }),
+        ("TRIGGER {name} ON DATABASE AFTER ,*", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON DATABASE AFTER ADD_ROLE_MEMBER, ", true, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "BIND_DEFAULT", "BIND_RULE",
+            "CREATE_APPLICATION_ROLE", "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY",
+            "CREATE_AUDIT", "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY",
+            "CREATE_CERTIFICATE", "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY",
+            "CREATE_CONTRACT", "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER",
+            "CREATE_DATABASE", "CREATE_DATABASE_AUDIT_SPECIFICATION",
+            "CREATE_DATABASE_ENCRYPTION_KEY", "CREATE_DEFAULT", "CREATE_ENDPOINT",
+            "CREATE_EVENT_NOTIFICATION", "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE",
+            "CREATE_EXTENDED_PROPERTY", "CREATE_EXTERNAL_RESOURCE_POOL",
+            "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX", "CREATE_FULLTEXT_STOPLIST",
+            "CREATE_FUNCTION", "CREATE_INDEX", "CREATE_LINKED_SERVER",
+            "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN", "CREATE_MASTER_KEY", "CREATE_MESSAGE",
+            "CREATE_MESSAGE_TYPE", "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME",
+            "CREATE_PLAN_GUIDE", "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DDL_APPLICATION_ROLE_EVENTS",
+            "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DENY_DATABASE",
+            "DENY_SERVER", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY", "DROP_ASYMMETRIC_KEY",
+            "DROP_AUDIT", "DROP_AVAILABILITY_GROUP", "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE",
+            "DROP_COLUMN_ENCRYPTION_KEY", "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT",
+            "DROP_CREDENTIAL", "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE",
+            "DROP_DATABASE_AUDIT_SPECIFICATION", "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT",
+            "DROP_ENDPOINT", "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION",
+            "DROP_EXTENDED_PROCEDURE", "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL",
+            "DROP_FULLTEXT_CATALOG", "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST",
+            "DROP_FUNCTION", "DROP_INDEX", "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN",
+            "DROP_LOGIN", "DROP_MASTER_KEY", "DROP_MESSAGE", "DROP_MESSAGE_TYPE",
+            "DROP_PARTITION_FUNCTION", "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE",
+            "DROP_PROCEDURE", "DROP_QUEUE", "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING",
+            "DROP_RESOURCE_POOL", "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE",
+            "DROP_SCHEMA", "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "GRANT_DATABASE",
+            "GRANT_SERVER", "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER", "UNBIND_DEFAULT",
+            "UNBIND_RULE", "UPDATE_STATISTICS", "DELETE", "INSERT", "UPDATE", "ADD", "ALL",
+            "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP", "BEGIN", "BETWEEN",
+            "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK", "CHECKPOINT", "CLOSE",
+            "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT", "COMPUTE", "CONSTRAINT",
+            "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT", "CREATE", "CROSS", "CURRENT",
+            "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "CURSOR",
+            "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT", "DENY", "DESC", "DISTINCT",
+            "DISTRIBUTED", "DOUBLE", "DROP", "ELSE", "END", "ERRLVL", "ESCAPE", "EXCEPT",
+            "EXEC", "EXECUTE", "EXISTS", "EXIT", "EXTERNAL", "FETCH", "FILE", "FILLFACTOR",
+            "FOR", "FOREIGN", "FREETEXT", "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO",
+            "GRANT", "GROUP", "HAVING", "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN",
+            "INDEX", "INNER", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE",
+            "LINENO", "MERGE", "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF",
+            "OF", "OFF", "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+            "OPENXML", "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN",
+            "PRIMARY", "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATETEXT", "USE", "USER", "VALUES", "VARYING",
+            "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("TRIGGER {name} ON ALL SERVER FOR", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ALL SERVER FOR ", true, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "BIND_DEFAULT", "BIND_RULE",
+            "CREATE_APPLICATION_ROLE", "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY",
+            "CREATE_AUDIT", "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY",
+            "CREATE_CERTIFICATE", "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY",
+            "CREATE_CONTRACT", "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER",
+            "CREATE_DATABASE", "CREATE_DATABASE_AUDIT_SPECIFICATION",
+            "CREATE_DATABASE_ENCRYPTION_KEY", "CREATE_DEFAULT", "CREATE_ENDPOINT",
+            "CREATE_EVENT_NOTIFICATION", "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE",
+            "CREATE_EXTENDED_PROPERTY", "CREATE_EXTERNAL_RESOURCE_POOL",
+            "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX", "CREATE_FULLTEXT_STOPLIST",
+            "CREATE_FUNCTION", "CREATE_INDEX", "CREATE_LINKED_SERVER",
+            "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN", "CREATE_MASTER_KEY", "CREATE_MESSAGE",
+            "CREATE_MESSAGE_TYPE", "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME",
+            "CREATE_PLAN_GUIDE", "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DDL_APPLICATION_ROLE_EVENTS",
+            "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DELETE", "DENY_DATABASE",
+            "DENY_SERVER", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY", "DROP_ASYMMETRIC_KEY",
+            "DROP_AUDIT", "DROP_AVAILABILITY_GROUP", "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE",
+            "DROP_COLUMN_ENCRYPTION_KEY", "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT",
+            "DROP_CREDENTIAL", "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE",
+            "DROP_DATABASE_AUDIT_SPECIFICATION", "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT",
+            "DROP_ENDPOINT", "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION",
+            "DROP_EXTENDED_PROCEDURE", "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL",
+            "DROP_FULLTEXT_CATALOG", "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST",
+            "DROP_FUNCTION", "DROP_INDEX", "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN",
+            "DROP_LOGIN", "DROP_MASTER_KEY", "DROP_MESSAGE", "DROP_MESSAGE_TYPE",
+            "DROP_PARTITION_FUNCTION", "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE",
+            "DROP_PROCEDURE", "DROP_QUEUE", "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING",
+            "DROP_RESOURCE_POOL", "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE",
+            "DROP_SCHEMA", "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "GRANT_DATABASE",
+            "GRANT_SERVER", "INSERT", "LOGON", "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER",
+            "UNBIND_DEFAULT", "UNBIND_RULE", "UPDATE", "UPDATE_STATISTICS",
+        }),
+        ("TRIGGER {name} ON ALL SERVER FOR ,*", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ALL SERVER FOR ADD_ROLE_MEMBER, ", false, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "BIND_DEFAULT", "BIND_RULE",
+            "CREATE_APPLICATION_ROLE", "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY",
+            "CREATE_AUDIT", "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY",
+            "CREATE_CERTIFICATE", "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY",
+            "CREATE_CONTRACT", "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER",
+            "CREATE_DATABASE", "CREATE_DATABASE_AUDIT_SPECIFICATION",
+            "CREATE_DATABASE_ENCRYPTION_KEY", "CREATE_DEFAULT", "CREATE_ENDPOINT",
+            "CREATE_EVENT_NOTIFICATION", "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE",
+            "CREATE_EXTENDED_PROPERTY", "CREATE_EXTERNAL_RESOURCE_POOL",
+            "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX", "CREATE_FULLTEXT_STOPLIST",
+            "CREATE_FUNCTION", "CREATE_INDEX", "CREATE_LINKED_SERVER",
+            "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN", "CREATE_MASTER_KEY", "CREATE_MESSAGE",
+            "CREATE_MESSAGE_TYPE", "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME",
+            "CREATE_PLAN_GUIDE", "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DDL_APPLICATION_ROLE_EVENTS",
+            "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DENY_DATABASE",
+            "DENY_SERVER", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY", "DROP_ASYMMETRIC_KEY",
+            "DROP_AUDIT", "DROP_AVAILABILITY_GROUP", "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE",
+            "DROP_COLUMN_ENCRYPTION_KEY", "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT",
+            "DROP_CREDENTIAL", "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE",
+            "DROP_DATABASE_AUDIT_SPECIFICATION", "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT",
+            "DROP_ENDPOINT", "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION",
+            "DROP_EXTENDED_PROCEDURE", "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL",
+            "DROP_FULLTEXT_CATALOG", "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST",
+            "DROP_FUNCTION", "DROP_INDEX", "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN",
+            "DROP_LOGIN", "DROP_MASTER_KEY", "DROP_MESSAGE", "DROP_MESSAGE_TYPE",
+            "DROP_PARTITION_FUNCTION", "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE",
+            "DROP_PROCEDURE", "DROP_QUEUE", "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING",
+            "DROP_RESOURCE_POOL", "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE",
+            "DROP_SCHEMA", "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "GRANT_DATABASE",
+            "GRANT_SERVER", "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER", "UNBIND_DEFAULT",
+            "UNBIND_RULE", "UPDATE_STATISTICS", "DELETE", "INSERT", "UPDATE", "CASE",
+            "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "IDENTITY", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER",
+            "SYSTEM_USER", "TRY_CONVERT", "USER",
+        }),
+        ("TRIGGER {name} ON ALL SERVER AFTER", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ALL SERVER AFTER ", true, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "BIND_DEFAULT", "BIND_RULE",
+            "CREATE_APPLICATION_ROLE", "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY",
+            "CREATE_AUDIT", "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY",
+            "CREATE_CERTIFICATE", "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY",
+            "CREATE_CONTRACT", "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER",
+            "CREATE_DATABASE", "CREATE_DATABASE_AUDIT_SPECIFICATION",
+            "CREATE_DATABASE_ENCRYPTION_KEY", "CREATE_DEFAULT", "CREATE_ENDPOINT",
+            "CREATE_EVENT_NOTIFICATION", "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE",
+            "CREATE_EXTENDED_PROPERTY", "CREATE_EXTERNAL_RESOURCE_POOL",
+            "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX", "CREATE_FULLTEXT_STOPLIST",
+            "CREATE_FUNCTION", "CREATE_INDEX", "CREATE_LINKED_SERVER",
+            "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN", "CREATE_MASTER_KEY", "CREATE_MESSAGE",
+            "CREATE_MESSAGE_TYPE", "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME",
+            "CREATE_PLAN_GUIDE", "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DDL_APPLICATION_ROLE_EVENTS",
+            "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DELETE", "DENY_DATABASE",
+            "DENY_SERVER", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY", "DROP_ASYMMETRIC_KEY",
+            "DROP_AUDIT", "DROP_AVAILABILITY_GROUP", "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE",
+            "DROP_COLUMN_ENCRYPTION_KEY", "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT",
+            "DROP_CREDENTIAL", "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE",
+            "DROP_DATABASE_AUDIT_SPECIFICATION", "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT",
+            "DROP_ENDPOINT", "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION",
+            "DROP_EXTENDED_PROCEDURE", "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL",
+            "DROP_FULLTEXT_CATALOG", "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST",
+            "DROP_FUNCTION", "DROP_INDEX", "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN",
+            "DROP_LOGIN", "DROP_MASTER_KEY", "DROP_MESSAGE", "DROP_MESSAGE_TYPE",
+            "DROP_PARTITION_FUNCTION", "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE",
+            "DROP_PROCEDURE", "DROP_QUEUE", "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING",
+            "DROP_RESOURCE_POOL", "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE",
+            "DROP_SCHEMA", "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "GRANT_DATABASE",
+            "GRANT_SERVER", "INSERT", "LOGON", "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER",
+            "UNBIND_DEFAULT", "UNBIND_RULE", "UPDATE", "UPDATE_STATISTICS",
+        }),
+        ("TRIGGER {name} ON ALL SERVER AFTER ,*", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ALL SERVER AFTER ADD_ROLE_MEMBER, ", false, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "BIND_DEFAULT", "BIND_RULE",
+            "CREATE_APPLICATION_ROLE", "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY",
+            "CREATE_AUDIT", "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY",
+            "CREATE_CERTIFICATE", "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY",
+            "CREATE_CONTRACT", "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER",
+            "CREATE_DATABASE", "CREATE_DATABASE_AUDIT_SPECIFICATION",
+            "CREATE_DATABASE_ENCRYPTION_KEY", "CREATE_DEFAULT", "CREATE_ENDPOINT",
+            "CREATE_EVENT_NOTIFICATION", "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE",
+            "CREATE_EXTENDED_PROPERTY", "CREATE_EXTERNAL_RESOURCE_POOL",
+            "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX", "CREATE_FULLTEXT_STOPLIST",
+            "CREATE_FUNCTION", "CREATE_INDEX", "CREATE_LINKED_SERVER",
+            "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN", "CREATE_MASTER_KEY", "CREATE_MESSAGE",
+            "CREATE_MESSAGE_TYPE", "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME",
+            "CREATE_PLAN_GUIDE", "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DDL_APPLICATION_ROLE_EVENTS",
+            "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DENY_DATABASE",
+            "DENY_SERVER", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY", "DROP_ASYMMETRIC_KEY",
+            "DROP_AUDIT", "DROP_AVAILABILITY_GROUP", "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE",
+            "DROP_COLUMN_ENCRYPTION_KEY", "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT",
+            "DROP_CREDENTIAL", "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE",
+            "DROP_DATABASE_AUDIT_SPECIFICATION", "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT",
+            "DROP_ENDPOINT", "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION",
+            "DROP_EXTENDED_PROCEDURE", "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL",
+            "DROP_FULLTEXT_CATALOG", "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST",
+            "DROP_FUNCTION", "DROP_INDEX", "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN",
+            "DROP_LOGIN", "DROP_MASTER_KEY", "DROP_MESSAGE", "DROP_MESSAGE_TYPE",
+            "DROP_PARTITION_FUNCTION", "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE",
+            "DROP_PROCEDURE", "DROP_QUEUE", "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING",
+            "DROP_RESOURCE_POOL", "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE",
+            "DROP_SCHEMA", "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "GRANT_DATABASE",
+            "GRANT_SERVER", "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER", "UNBIND_DEFAULT",
+            "UNBIND_RULE", "UPDATE_STATISTICS", "DELETE", "INSERT", "UPDATE", "CASE",
+            "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "IDENTITY", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER",
+            "SYSTEM_USER", "TRY_CONVERT", "USER",
+        }),
         ("", SqlKeywordPosition.ProcedureOption, "CREATE PROCEDURE p WITH ", true, false, new string[]
         {
-            "ENCRYPTION", "EXEC", "EXECUTE", "NATIVE_COMPILATION", "RECOMPILE", "SCHEMABINDING",
+            "ENCRYPTION", "EXEC AS", "EXECUTE AS", "NATIVE_COMPILATION", "RECOMPILE",
+            "SCHEMABINDING",
         }),
         ("", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH ", true, false, new string[]
         {
-            "ENCRYPTION", "EXEC", "EXECUTE", "INLINE", "NATIVE_COMPILATION", "SCHEMABINDING",
-            "RETURNS", "CALLED",
+            "ENCRYPTION", "EXEC AS", "EXECUTE AS", "INLINE", "NATIVE_COMPILATION",
+            "SCHEMABINDING", "RETURNS", "CALLED",
         }),
         ("", SqlKeywordPosition.ViewOption, "CREATE VIEW v WITH ", true, false, new string[]
         {
@@ -1468,7 +4053,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("", SqlKeywordPosition.TriggerOption, "CREATE TRIGGER tr ON t WITH ", true, false, new string[]
         {
-            "ENCRYPTION", "EXEC", "EXECUTE", "NATIVE_COMPILATION", "SCHEMABINDING",
+            "ENCRYPTION", "EXEC AS", "EXECUTE AS", "NATIVE_COMPILATION", "SCHEMABINDING",
         }),
         ("EXECUTE AS", SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption, "CREATE PROCEDURE p WITH EXECUTE AS ", true, false, new string[]
         {
@@ -1488,7 +4073,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN ", true, false, new string[]
         {
-            "MATCHED", "NOT",
+            "MATCHED", "NOT MATCHED",
         }),
         ("MATCHED", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN MATCHED ", true, false, new string[]
         {
@@ -1540,7 +4125,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ON DELETE", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE ", true, false, new string[]
         {
-            "CASCADE", "NO", "SET",
+            "CASCADE", "NO ACTION", "SET",
         }),
         ("ON DELETE CASCADE", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE CASCADE ", true, false, new string[]
         {
@@ -1557,7 +4142,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ON UPDATE", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE ", true, false, new string[]
         {
-            "CASCADE", "NO", "SET",
+            "CASCADE", "NO ACTION", "SET",
         }),
         ("ON UPDATE CASCADE", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE CASCADE ", true, false, new string[]
         {
@@ -1576,6 +4161,76 @@ internal static class SqlKeywordCatalogData
         {
             "REPLICATION",
         }),
+        ("GENERATED ALWAYS AS ROW START HIDDEN", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ROW START HIDDEN ", true, false, new string[]
+        {
+            "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
+            "PRIMARY", "REFERENCES", "UNIQUE",
+        }),
+        ("GENERATED ALWAYS AS ROW END HIDDEN", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ROW END HIDDEN ", true, false, new string[]
+        {
+            "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
+            "PRIMARY", "REFERENCES", "UNIQUE",
+        }),
+        ("PERIOD FOR SYSTEM_TIME ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (PERIOD FOR SYSTEM_TIME (a, b) ", true, false, new string[]
+        {
+        }),
+        ("PERIOD FOR SYSTEM_TIME ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD PERIOD FOR SYSTEM_TIME (a, b) ", true, true, new string[]
+        {
+        }),
+        ("CREATE TABLE {name} () WITH (*", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (", true, false, new string[]
+        {
+            "CLUSTERED", "DATA_COMPRESSION", "DATA_DELETION", "DISTRIBUTION", "DURABILITY",
+            "FILETABLE_COLLATE_FILENAME", "FILETABLE_DIRECTORY",
+            "FILETABLE_FULLPATH_UNIQUE_CONSTRAINT_NAME",
+            "FILETABLE_PRIMARY_KEY_CONSTRAINT_NAME",
+            "FILETABLE_STREAMID_UNIQUE_CONSTRAINT_NAME", "HEAP", "LEDGER", "LOCATION",
+            "MEMORY_OPTIMIZED", "PARTITION", "REMOTE_DATA_ARCHIVE", "SYSTEM_VERSIONING",
+            "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} SET (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t SET (", true, false, new string[]
+        {
+            "DATA_DELETION", "FILESTREAM_ON", "FILETABLE_DIRECTORY", "LOCK_ESCALATION",
+            "REMOTE_DATA_ARCHIVE", "SYSTEM_VERSIONING",
+        }),
+        ("SYSTEM_VERSIONING = ON (*", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (SYSTEM_VERSIONING = ON (", true, false, new string[]
+        {
+            "DATA_CONSISTENCY_CHECK", "HISTORY_RETENTION_PERIOD", "HISTORY_TABLE",
+        }),
+        ("BULK INSERT {name} FROM {value} WITH (*", SqlKeywordPosition.StatementStart, "BULK INSERT t FROM 1 WITH (", true, false, new string[]
+        {
+            "BATCHSIZE", "CHECK_CONSTRAINTS", "CODEPAGE", "DATA_COMPRESSION", "DATA_SOURCE",
+            "DATAFILETYPE", "ERRORFILE", "ERRORFILE_DATA_SOURCE", "ESCAPECHAR", "FIELDQUOTE",
+            "FIELDTERMINATOR", "FIRE_TRIGGERS", "FIRSTROW", "FORMAT", "FORMATFILE",
+            "FORMATFILE_DATA_SOURCE", "HEADER_ROW", "INCLUDE_HIDDEN", "KEEPIDENTITY",
+            "KEEPNULLS", "KILOBYTES_PER_BATCH", "LASTROW", "MAXERRORS", "NO_TRIGGERS", "ORDER",
+            "PARSER_VERSION", "ROWS_PER_BATCH", "ROWSET_OPTIONS", "ROWTERMINATOR", "TABLOCK",
+        }),
+        ("", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t ", true, true, new string[]
+        {
+            "AS", "CACHE", "CYCLE", "INCREMENT BY", "MAXVALUE", "MINVALUE", "NO", "START WITH",
+        }),
+        ("AS", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t AS ", false, false, new string[]
+        {
+            "DOUBLE", "NATIONAL", "XML",
+        }),
+        ("INCREMENT", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t INCREMENT ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("MAXVALUE", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t MAXVALUE ", true, false, new string[]
+        {
+        }),
+        ("MINVALUE", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t MINVALUE ", true, false, new string[]
+        {
+        }),
+        ("NO", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t NO ", true, false, new string[]
+        {
+            "CACHE", "CYCLE", "MAXVALUE", "MINVALUE",
+        }),
+        ("START WITH {value}", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t START WITH 1 ", true, true, new string[]
+        {
+            "AS", "CACHE", "CYCLE", "INCREMENT", "MAXVALUE", "MINVALUE", "NO",
+        }),
         ("WAITFOR", SqlKeywordPosition.StatementStart, "WAITFOR ", true, false, new string[]
         {
             "DELAY", "TIME",
@@ -1586,15 +4241,15 @@ internal static class SqlKeywordCatalogData
         }),
         ("OPEN MASTER", SqlKeywordPosition.StatementStart, "OPEN MASTER ", true, true, new string[]
         {
-            "KEY",
+            "KEY DECRYPTION BY PASSWORD",
         }),
         ("OPEN MASTER KEY", SqlKeywordPosition.StatementStart, "OPEN MASTER KEY ", true, false, new string[]
         {
-            "DECRYPTION",
+            "DECRYPTION BY PASSWORD",
         }),
         ("OPEN MASTER KEY DECRYPTION", SqlKeywordPosition.StatementStart, "OPEN MASTER KEY DECRYPTION ", true, false, new string[]
         {
-            "BY",
+            "BY PASSWORD",
         }),
         ("OPEN MASTER KEY DECRYPTION BY", SqlKeywordPosition.StatementStart, "OPEN MASTER KEY DECRYPTION BY ", true, false, new string[]
         {
@@ -1609,7 +4264,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("OPEN SYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t ", true, false, new string[]
         {
-            "DECRYPTION",
+            "DECRYPTION BY",
         }),
         ("OPEN SYMMETRIC KEY {name} DECRYPTION", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION ", true, false, new string[]
         {
@@ -1617,11 +4272,14 @@ internal static class SqlKeywordCatalogData
         }),
         ("OPEN SYMMETRIC KEY {name} DECRYPTION BY", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY ", true, false, new string[]
         {
-            "ASYMMETRIC", "CERTIFICATE", "PASSWORD", "SYMMETRIC",
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
         }),
         ("OPEN SYMMETRIC KEY {name} DECRYPTION BY ASYMMETRIC", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY ASYMMETRIC ", true, false, new string[]
         {
             "KEY",
+        }),
+        ("OPEN SYMMETRIC KEY {name} DECRYPTION BY ASYMMETRIC KEY", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY ASYMMETRIC KEY ", false, false, new string[]
+        {
         }),
         ("OPEN SYMMETRIC KEY {name} DECRYPTION BY CERTIFICATE", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY CERTIFICATE ", false, false, new string[]
         {
@@ -1633,13 +4291,16 @@ internal static class SqlKeywordCatalogData
         {
             "KEY",
         }),
+        ("OPEN SYMMETRIC KEY {name} DECRYPTION BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY SYMMETRIC KEY ", false, false, new string[]
+        {
+        }),
         ("CLOSE", SqlKeywordPosition.StatementStart, "CLOSE ", false, false, new string[]
         {
-            "ALL", "GLOBAL", "MASTER", "SYMMETRIC",
+            "ALL SYMMETRIC KEYS", "GLOBAL", "MASTER", "SYMMETRIC",
         }),
         ("CLOSE ALL", SqlKeywordPosition.StatementStart, "CLOSE ALL ", true, false, new string[]
         {
-            "SYMMETRIC",
+            "SYMMETRIC KEYS",
         }),
         ("CLOSE ALL SYMMETRIC", SqlKeywordPosition.StatementStart, "CLOSE ALL SYMMETRIC ", true, false, new string[]
         {
@@ -1656,6 +4317,377 @@ internal static class SqlKeywordCatalogData
         ("CLOSE SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "CLOSE SYMMETRIC KEY ", false, false, new string[]
         {
         }),
+        ("CREATE MASTER KEY ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE MASTER KEY ENCRYPTION BY ", true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("CREATE MASTER KEY ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "CREATE MASTER KEY ENCRYPTION BY PASSWORD ", true, false, new string[]
+        {
+        }),
+        ("ALTER MASTER KEY {name} WITH", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY t WITH ", true, false, new string[]
+        {
+        }),
+        ("ALTER MASTER KEY {name} WITH {name}", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY t WITH t ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("ALTER MASTER KEY {name} WITH {name} BY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY t WITH t BY ", true, false, new string[]
+        {
+        }),
+        ("ALTER MASTER KEY ADD ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ENCRYPTION ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("ALTER MASTER KEY ADD ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ENCRYPTION BY ", true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("ALTER MASTER KEY ADD ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ENCRYPTION BY PASSWORD ", true, false, new string[]
+        {
+        }),
+        ("ALTER MASTER KEY DROP ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP ENCRYPTION ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("ALTER MASTER KEY DROP ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP ENCRYPTION BY ", true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("ALTER MASTER KEY DROP ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP ENCRYPTION BY PASSWORD ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t ", true, false, new string[]
+        {
+            "FROM", "WITH",
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM ", true, false, new string[]
+        {
+            "ASSEMBLY", "EXECUTABLE FILE", "FILE",
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM ASSEMBLY", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM ASSEMBLY ", false, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM EXECUTABLE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM EXECUTABLE ", true, false, new string[]
+        {
+            "FILE",
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM EXECUTABLE FILE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM EXECUTABLE FILE ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM FILE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM FILE ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} WITH", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t WITH ", true, false, new string[]
+        {
+            "EXPIRY_DATE", "START_DATE", "SUBJECT",
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} WITH EXPIRY_DATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t WITH EXPIRY_DATE ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} WITH START_DATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t WITH START_DATE ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} WITH SUBJECT", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t WITH SUBJECT ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} FROM", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM ", true, false, new string[]
+        {
+            "ASSEMBLY", "EXECUTABLE FILE", "FILE",
+        }),
+        ("CREATE CERTIFICATE {name} FROM ASSEMBLY", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM ASSEMBLY ", false, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} FROM EXECUTABLE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM EXECUTABLE ", true, false, new string[]
+        {
+            "FILE",
+        }),
+        ("CREATE CERTIFICATE {name} FROM EXECUTABLE FILE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM EXECUTABLE FILE ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} FROM FILE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM FILE ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH ", true, false, new string[]
+        {
+            "EXPIRY_DATE", "START_DATE", "SUBJECT",
+        }),
+        ("CREATE CERTIFICATE {name} WITH EXPIRY_DATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH EXPIRY_DATE ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} WITH START_DATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH START_DATE ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} WITH SUBJECT", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH SUBJECT ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t ", true, false, new string[]
+        {
+            "FROM", "WITH",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM ", true, false, new string[]
+        {
+            "ASSEMBLY", "EXECUTABLE FILE", "FILE", "PROVIDER",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM ASSEMBLY", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM ASSEMBLY ", false, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM EXECUTABLE", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM EXECUTABLE ", true, false, new string[]
+        {
+            "FILE",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM EXECUTABLE FILE", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM EXECUTABLE FILE ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM FILE", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM FILE ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ", true, false, new string[]
+        {
+            "ALGORITHM", "CREATION_DISPOSITION", "PROVIDER_KEY_NAME",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ALGORITHM ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ALGORITHM = ", true, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH CREATION_DISPOSITION", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH CREATION_DISPOSITION ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH CREATION_DISPOSITION =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH CREATION_DISPOSITION = ", true, false, new string[]
+        {
+            "CREATE_NEW", "OPEN_EXISTING",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH PROVIDER_KEY_NAME", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH PROVIDER_KEY_NAME ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t WITH ", true, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} WITH ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t WITH ALGORITHM ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t WITH ALGORITHM = ", true, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM ", true, false, new string[]
+        {
+            "ASSEMBLY", "EXECUTABLE FILE", "FILE", "PROVIDER",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM ASSEMBLY", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM ASSEMBLY ", false, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM EXECUTABLE", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM EXECUTABLE ", true, false, new string[]
+        {
+            "FILE",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM EXECUTABLE FILE", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM EXECUTABLE FILE ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM FILE", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM FILE ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ", true, false, new string[]
+        {
+            "ALGORITHM", "CREATION_DISPOSITION", "PROVIDER_KEY_NAME",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = ", true, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH CREATION_DISPOSITION", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH CREATION_DISPOSITION ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH CREATION_DISPOSITION =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH CREATION_DISPOSITION = ", true, false, new string[]
+        {
+            "CREATE_NEW", "OPEN_EXISTING",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH PROVIDER_KEY_NAME", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH PROVIDER_KEY_NAME ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t WITH ", true, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} WITH ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t WITH ALGORITHM ", true, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t WITH ALGORITHM = ", true, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION ", true, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t ", true, false, new string[]
+        {
+            "FROM PROVIDER", "WITH",
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} FROM", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t FROM ", true, false, new string[]
+        {
+            "PROVIDER",
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER ", false, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} WITH", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t WITH ", true, false, new string[]
+        {
+            "ALGORITHM", "IDENTITY_VALUE", "KEY_SOURCE",
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} WITH ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t WITH ALGORITHM ", true, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t WITH ALGORITHM = ", true, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} WITH IDENTITY_VALUE", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t WITH IDENTITY_VALUE ", true, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} WITH KEY_SOURCE", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t WITH KEY_SOURCE ", true, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} FROM", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t FROM ", true, false, new string[]
+        {
+            "PROVIDER",
+        }),
+        ("CREATE SYMMETRIC KEY {name} FROM PROVIDER", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t FROM PROVIDER ", false, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ", true, false, new string[]
+        {
+            "ALGORITHM", "IDENTITY_VALUE", "KEY_SOURCE",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM ", true, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = ", true, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH IDENTITY_VALUE", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH IDENTITY_VALUE ", true, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH KEY_SOURCE", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE ", true, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ", true, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ASYMMETRIC ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ASYMMETRIC KEY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ASYMMETRIC KEY ", false, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY CERTIFICATE", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY CERTIFICATE ", false, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY PASSWORD ", true, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY SYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY SYMMETRIC ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY SYMMETRIC KEY ", false, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ", true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY PASSWORD ", true, false, new string[]
+        {
+        }),
+        ("ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = 'x' ", true, true, new string[]
+        {
+        }),
+        ("ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY PASSWORD = 'x' ", true, true, new string[]
+        {
+        }),
+        ("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = ", true, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER CERTIFICATE t ", true, true, new string[]
+        {
+        }),
+        ("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC KEY t ", true, true, new string[]
+        {
+        }),
+        ("OPEN SYMMETRIC KEY {name} DECRYPTION BY ASYMMETRIC KEY {name} WITH PASSWORD", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY ASYMMETRIC KEY t WITH PASSWORD ", true, false, new string[]
+        {
+        }),
+        ("OPEN SYMMETRIC KEY {name} DECRYPTION BY CERTIFICATE {name} WITH PASSWORD", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY CERTIFICATE t WITH PASSWORD ", true, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH EXPIRY_DATE = 'x', ", true, false, new string[]
+        {
+            "START_DATE", "SUBJECT", "EXPIRY_DATE",
+        }),
+        ("CREATE CERTIFICATE {name} ENCRYPTION BY PASSWORD = {value} WITH", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t ENCRYPTION BY PASSWORD = 'x' WITH ", true, false, new string[]
+        {
+            "EXPIRY_DATE", "START_DATE", "SUBJECT",
+        }),
+        ("CREATE CERTIFICATE {name} ENCRYPTION BY PASSWORD = {value} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t ENCRYPTION BY PASSWORD = 'x' WITH EXPIRY_DATE = 'x', ", true, false, new string[]
+        {
+            "START_DATE", "SUBJECT", "EXPIRY_DATE",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH IDENTITY_VALUE = 'x', ", true, false, new string[]
+        {
+            "ALGORITHM", "KEY_SOURCE", "IDENTITY_VALUE",
+        }),
+        ("CREATE CREDENTIAL {name} WITH", SqlKeywordPosition.StatementStart, "CREATE CREDENTIAL t WITH ", true, false, new string[]
+        {
+            "IDENTITY",
+        }),
+        ("CREATE CREDENTIAL {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE CREDENTIAL t WITH IDENTITY = 'x', ", true, false, new string[]
+        {
+            "SECRET",
+        }),
+        ("CREATE DATABASE SCOPED CREDENTIAL {name} WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE SCOPED CREDENTIAL t WITH ", true, false, new string[]
+        {
+            "IDENTITY",
+        }),
+        ("CREATE DATABASE SCOPED CREDENTIAL {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE DATABASE SCOPED CREDENTIAL t WITH IDENTITY = 'x', ", true, false, new string[]
+        {
+            "SECRET",
+        }),
         ("DEALLOCATE", SqlKeywordPosition.StatementStart, "DEALLOCATE ", false, false, new string[]
         {
             "GLOBAL",
@@ -1663,6 +4695,13 @@ internal static class SqlKeywordCatalogData
         ("FETCH", SqlKeywordPosition.StatementStart, "FETCH ", false, false, new string[]
         {
             "ABSOLUTE", "FIRST", "FROM", "GLOBAL", "LAST", "NEXT", "PRIOR", "RELATIVE",
+        }),
+        ("FETCH {name}", SqlKeywordPosition.StatementStart, "FETCH t ", true, true, new string[]
+        {
+            "INTO",
+        }),
+        ("FETCH {name} INTO", SqlKeywordPosition.StatementStart, "FETCH t INTO ", true, false, new string[]
+        {
         }),
         ("FETCH ABSOLUTE {value}", SqlKeywordPosition.StatementStart, "FETCH ABSOLUTE 1 ", true, false, new string[]
         {
@@ -1683,6 +4722,20 @@ internal static class SqlKeywordCatalogData
         ("FETCH FROM", SqlKeywordPosition.StatementStart, "FETCH FROM ", false, false, new string[]
         {
             "GLOBAL",
+        }),
+        ("FETCH FROM {name}", SqlKeywordPosition.StatementStart, "FETCH FROM t ", true, true, new string[]
+        {
+            "INTO",
+        }),
+        ("FETCH FROM {name} INTO", SqlKeywordPosition.StatementStart, "FETCH FROM t INTO ", true, false, new string[]
+        {
+        }),
+        ("FETCH GLOBAL {name}", SqlKeywordPosition.StatementStart, "FETCH GLOBAL t ", true, true, new string[]
+        {
+            "INTO",
+        }),
+        ("FETCH GLOBAL {name} INTO", SqlKeywordPosition.StatementStart, "FETCH GLOBAL t INTO ", true, false, new string[]
+        {
         }),
         ("FETCH LAST", SqlKeywordPosition.StatementStart, "FETCH LAST ", true, true, new string[]
         {
@@ -1771,7 +4824,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("FOR", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR ", true, false, new string[]
         {
-            "BROWSE", "JSON", "READ", "UPDATE", "XML",
+            "BROWSE", "JSON", "READ ONLY", "UPDATE", "XML",
         }),
         ("FOR JSON", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR JSON ", true, false, new string[]
         {
@@ -1787,11 +4840,11 @@ internal static class SqlKeywordCatalogData
         }),
         ("FOR", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR ", true, false, new string[]
         {
-            "BROWSE", "JSON", "PATH", "READ", "SYSTEM_TIME", "UPDATE", "XML",
+            "BROWSE", "JSON", "PATH", "READ ONLY", "SYSTEM_TIME", "UPDATE", "XML",
         }),
         ("FOR SYSTEM_TIME", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME ", true, false, new string[]
         {
-            "ALL", "AS", "BETWEEN", "CONTAINED", "FROM",
+            "ALL", "AS OF", "BETWEEN", "CONTAINED IN", "FROM",
         }),
         ("FOR UPDATE", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR UPDATE ", true, true, new string[]
         {
@@ -1853,7 +4906,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("IS", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm, "SELECT * FROM t WHERE a IS ", true, false, new string[]
         {
-            "DISTINCT", "NOT", "NULL",
+            "DISTINCT FROM", "NOT", "NULL",
         }),
         ("IS DISTINCT", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm, "SELECT * FROM t WHERE a IS DISTINCT ", true, false, new string[]
         {
@@ -1867,7 +4920,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("IS NOT", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm, "SELECT * FROM t WHERE a IS NOT ", true, false, new string[]
         {
-            "DISTINCT", "NULL",
+            "DISTINCT FROM", "NULL",
         }),
         ("IS NOT DISTINCT", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm, "SELECT * FROM t WHERE a IS NOT DISTINCT ", true, false, new string[]
         {
@@ -1946,7 +4999,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("AS", SqlKeywordPosition.ResultSetList, "EXEC p WITH RESULT SETS (AS ", true, false, new string[]
         {
-            "FOR", "OBJECT", "TYPE",
+            "FOR XML", "OBJECT", "TYPE",
         }),
         ("AS FOR", SqlKeywordPosition.ResultSetList, "EXEC p WITH RESULT SETS (AS FOR ", true, false, new string[]
         {
@@ -1971,10 +5024,6 @@ internal static class SqlKeywordCatalogData
             "ASSEMBLY", "CERTIFICATE", "CONTRACT", "DATABASE", "ENDPOINT", "LOGIN", "OBJECT",
             "ROLE", "ROUTE", "SCHEMA", "SERVER", "SERVICE", "TYPE", "USER",
         }),
-        ("CREATE USER {name}", SqlKeywordPosition.StatementStart, "CREATE USER t ", true, true, new string[]
-        {
-            "FOR", "FROM", "WITHOUT", "WITH",
-        }),
         ("CREATE USER {name} FOR", SqlKeywordPosition.StatementStart, "CREATE USER t FOR ", true, false, new string[]
         {
             "ASYMMETRIC", "CERTIFICATE", "EXTERNAL", "LOGIN",
@@ -1986,10 +5035,6 @@ internal static class SqlKeywordCatalogData
         ("CREATE USER {name} WITHOUT", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT ", true, false, new string[]
         {
             "LOGIN",
-        }),
-        ("CREATE LOGIN {name}", SqlKeywordPosition.StatementStart, "CREATE LOGIN t ", true, false, new string[]
-        {
-            "FROM", "WITH",
         }),
         ("CREATE LOGIN {name} FROM", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM ", true, false, new string[]
         {
@@ -2034,24 +5079,96 @@ internal static class SqlKeywordCatalogData
         {
             "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
         }),
-        ("CREATE USER {name} FOR LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE USER t FOR LOGIN t WITH DEFAULT_SCHEMA = x, ", true, false, new string[]
+        ("CREATE USER {name} FOR LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE USER t FOR LOGIN t WITH DEFAULT_LANGUAGE = 1, ", true, false, new string[]
         {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
             "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
         }),
         ("CREATE USER {name} FROM LOGIN {name} WITH", SqlKeywordPosition.StatementStart, "CREATE USER t FROM LOGIN t WITH ", true, false, new string[]
         {
             "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
         }),
-        ("CREATE USER {name} FROM LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE USER t FROM LOGIN t WITH DEFAULT_SCHEMA = x, ", true, false, new string[]
+        ("CREATE USER {name} FROM LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE USER t FROM LOGIN t WITH DEFAULT_LANGUAGE = 1, ", true, false, new string[]
         {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
             "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
         }),
         ("CREATE USER {name} WITHOUT LOGIN WITH", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT LOGIN WITH ", true, false, new string[]
         {
             "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
         }),
-        ("CREATE USER {name} WITHOUT LOGIN WITH ,*", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT LOGIN WITH DEFAULT_SCHEMA = x, ", true, false, new string[]
+        ("CREATE USER {name} WITHOUT LOGIN WITH ,*", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT LOGIN WITH DEFAULT_LANGUAGE = 1, ", true, false, new string[]
         {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
             "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
         }),
         ("ALTER USER {name} WITH", SqlKeywordPosition.StatementStart, "ALTER USER t WITH ", true, false, new string[]
@@ -2106,11 +5223,11 @@ internal static class SqlKeywordCatalogData
         }),
         ("FETCH NEXT {value}", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ", true, false, new string[]
         {
-            "COLLATE", "ROW", "ROWS",
+            "COLLATE", "ROW ONLY", "ROWS ONLY",
         }),
         ("FETCH FIRST {value}", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ", true, false, new string[]
         {
-            "COLLATE", "ROW", "ROWS",
+            "COLLATE", "ROW ONLY", "ROWS ONLY",
         }),
         ("FETCH NEXT {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROWS ", true, false, new string[]
         {
@@ -2176,6 +5293,14 @@ internal static class SqlKeywordCatalogData
         {
             "ALTER",
         }),
+        ("TRIGGER {name} ON DATABASE", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON DATABASE ", true, false, new string[]
+        {
+            "AFTER", "FOR", "INSTEAD", "WITH",
+        }),
+        ("TRIGGER {name} ON ALL SERVER", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ALL SERVER ", true, false, new string[]
+        {
+            "AFTER", "FOR", "INSTEAD", "WITH",
+        }),
         ("EXECUTE", SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption, "CREATE PROCEDURE p WITH EXECUTE ", true, false, new string[]
         {
             "AS",
@@ -2186,15 +5311,15 @@ internal static class SqlKeywordCatalogData
         }),
         ("RETURNS", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS ", true, false, new string[]
         {
-            "NULL", "ON",
+            "NULL ON NULL INPUT", "ON",
         }),
         ("RETURNS NULL", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS NULL ", true, false, new string[]
         {
-            "ON",
+            "ON NULL INPUT",
         }),
         ("RETURNS NULL ON", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS NULL ON ", true, false, new string[]
         {
-            "NULL",
+            "NULL INPUT",
         }),
         ("RETURNS NULL ON NULL", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS NULL ON NULL ", true, false, new string[]
         {
@@ -2202,11 +5327,11 @@ internal static class SqlKeywordCatalogData
         }),
         ("CALLED", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ", true, false, new string[]
         {
-            "NULL", "ON",
+            "NULL", "ON NULL INPUT",
         }),
         ("CALLED ON", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ON ", true, false, new string[]
         {
-            "NULL",
+            "NULL INPUT",
         }),
         ("CALLED ON NULL", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ON NULL ", true, false, new string[]
         {
@@ -2236,7 +5361,173 @@ internal static class SqlKeywordCatalogData
         {
             "DELETE", "UPDATE",
         }),
-        ("NEXT VALUE", SqlKeywordPosition.Any | SqlKeywordPosition.SelectList, "SELECT NEXT VALUE ", true, false, new string[]
+        ("GENERATED", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ", false, false, new string[]
+        {
+            "ALWAYS AS",
+        }),
+        ("GENERATED ALWAYS", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS ", true, false, new string[]
+        {
+            "AS",
+        }),
+        ("GENERATED ALWAYS AS", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ", true, false, new string[]
+        {
+            "ROW",
+        }),
+        ("GENERATED ALWAYS AS ROW", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ROW ", true, false, new string[]
+        {
+            "END", "START",
+        }),
+        ("GENERATED ALWAYS AS ROW START", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ROW START ", true, false, new string[]
+        {
+            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FILESTREAM", "FOREIGN", "HIDDEN",
+            "IDENTITY", "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+        }),
+        ("GENERATED ALWAYS AS ROW END", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ROW END ", true, false, new string[]
+        {
+            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FILESTREAM", "FOREIGN", "HIDDEN",
+            "IDENTITY", "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+        }),
+        ("PERIOD", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (PERIOD ", false, false, new string[]
+        {
+            "AS", "DOUBLE", "FOR SYSTEM_TIME", "NATIONAL", "XML",
+        }),
+        ("PERIOD FOR", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (PERIOD FOR ", true, false, new string[]
+        {
+            "SYSTEM_TIME",
+        }),
+        ("SYSTEM_VERSIONING =", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (SYSTEM_VERSIONING = ", true, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("BULK", SqlKeywordPosition.StatementStart, "BULK ", true, false, new string[]
+        {
+            "INSERT",
+        }),
+        ("BULK INSERT {name}", SqlKeywordPosition.StatementStart, "BULK INSERT t ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("START", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t START ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name}", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ", true, false, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} WITH ALGORITHM = {name}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t WITH ALGORITHM = AES_128 ", true, true, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("ALTER MASTER KEY REGENERATE", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY REGENERATE ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER MASTER KEY REGENERATE WITH", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY REGENERATE WITH ", true, false, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("ALTER MASTER KEY REGENERATE WITH ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY REGENERATE WITH ENCRYPTION ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY ", true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("ALTER MASTER KEY FORCE", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY FORCE ", true, false, new string[]
+        {
+            "WITH", "REGENERATE WITH",
+        }),
+        ("ALTER MASTER KEY FORCE REGENERATE", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY FORCE REGENERATE ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER MASTER KEY FORCE REGENERATE WITH", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY FORCE REGENERATE WITH ", true, false, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY ", true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("CREATE DATABASE ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION ", true, true, new string[]
+        {
+            "AS", "COLLATE", "CONTAINMENT", "FOR", "KEY WITH", "LOG", "ON",
+        }),
+        ("CREATE DATABASE ENCRYPTION KEY", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY ", true, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE DATABASE ENCRYPTION KEY WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY WITH ", true, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ", true, false, new string[]
+        {
+            "ENCRYPTION BY SERVER",
+        }),
+        ("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION ", true, false, new string[]
+        {
+            "BY SERVER",
+        }),
+        ("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY ", true, false, new string[]
+        {
+            "SERVER",
+        }),
+        ("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ", true, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE",
+        }),
+        ("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("OPEN SYMMETRIC KEY {name} DECRYPTION BY ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY ASYMMETRIC KEY t ", true, true, new string[]
+        {
+            "WITH",
+        }),
+        ("OPEN SYMMETRIC KEY {name} DECRYPTION BY ASYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY ASYMMETRIC KEY t WITH ", true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("OPEN SYMMETRIC KEY {name} DECRYPTION BY CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY CERTIFICATE t ", true, true, new string[]
+        {
+            "WITH",
+        }),
+        ("OPEN SYMMETRIC KEY {name} DECRYPTION BY CERTIFICATE {name} WITH", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY CERTIFICATE t WITH ", true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("CREATE CERTIFICATE {name} ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t ENCRYPTION ", true, false, new string[]
+        {
+            "BY",
+        }),
+        ("CREATE CERTIFICATE {name} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t ENCRYPTION BY ", true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("CREATE DATABASE SCOPED", SqlKeywordPosition.StatementStart, "CREATE DATABASE SCOPED ", true, true, new string[]
+        {
+            "AS", "COLLATE", "CONTAINMENT", "CREDENTIAL", "FOR", "KEY", "LOG", "ON",
+        }),
+        ("CREATE DATABASE SCOPED CREDENTIAL {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE SCOPED CREDENTIAL t ", true, false, new string[]
+        {
+            "WITH IDENTITY",
+        }),
+        ("NEXT VALUE", SqlKeywordPosition.Any, "SELECT NEXT VALUE ", true, false, new string[]
         {
             "FOR",
         }),
@@ -2245,10 +5536,10 @@ internal static class SqlKeywordCatalogData
             "AS", "COLLATE", "EXCEPT", "FOR", "FROM", "GROUP", "HAVING", "INTERSECT", "INTO",
             "OPTION", "ORDER", "UNION", "VALUE", "WHERE",
         }),
-        ("AT", SqlKeywordPosition.SelectListTail, "SELECT a AT ", true, true, new string[]
+        ("AT", SqlKeywordPosition.Any, "SELECT a AT ", false, true, new string[]
         {
             "EXCEPT", "FOR", "FROM", "GROUP", "HAVING", "INTERSECT", "INTO", "OPTION", "ORDER",
-            "TIME", "UNION", "WHERE", "WINDOW",
+            "TIME ZONE", "UNION", "WHERE", "WINDOW",
         }),
         ("WITHIN", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN ", true, false, new string[]
         {
@@ -2266,17 +5557,17 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
-        ("CREATE USER {name} WITHOUT LOGIN", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT LOGIN ", true, true, new string[]
+        ("CREATE USER {name} FOR LOGIN {name}", SqlKeywordPosition.StatementStart, "CREATE USER t FOR LOGIN t ", true, true, new string[]
         {
             "WITH",
         }),
-        ("CREATE APPLICATION", SqlKeywordPosition.StatementStart, "CREATE APPLICATION ", true, false, new string[]
+        ("CREATE USER {name} FROM LOGIN {name}", SqlKeywordPosition.StatementStart, "CREATE USER t FROM LOGIN t ", true, true, new string[]
         {
-            "ROLE",
+            "WITH",
         }),
-        ("ALTER APPLICATION", SqlKeywordPosition.StatementStart, "ALTER APPLICATION ", true, false, new string[]
+        ("CREATE USER {name} WITHOUT LOGIN", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT LOGIN ", true, true, new string[]
         {
-            "ROLE",
+            "WITH",
         }),
         ("ROWS", SqlKeywordPosition.WindowOrderTail, "SELECT SUM(a) OVER (ORDER BY a ROWS ", true, false, new string[]
         {
@@ -2288,7 +5579,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ROWS BETWEEN UNBOUNDED", SqlKeywordPosition.WindowOrderTail, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED ", true, false, new string[]
         {
-            "FOLLOWING", "PRECEDING",
+            "FOLLOWING", "PRECEDING AND",
         }),
         ("RANGE", SqlKeywordPosition.WindowOrderTail, "SELECT SUM(a) OVER (ORDER BY a RANGE ", true, false, new string[]
         {
@@ -2300,7 +5591,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("RANGE BETWEEN UNBOUNDED", SqlKeywordPosition.WindowOrderTail, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN UNBOUNDED ", true, false, new string[]
         {
-            "FOLLOWING", "PRECEDING",
+            "FOLLOWING", "PRECEDING AND",
         }),
         ("DBCC CHECKDB (*", SqlKeywordPosition.StatementStart, "DBCC CHECKDB (", false, false, new string[]
         {
@@ -2343,7 +5634,91 @@ internal static class SqlKeywordCatalogData
     internal static readonly (SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
         (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE" }),
+        (SqlKeywordPosition.None, "CREATE TABLE t (a datetime2 ", new string[] { "GENERATED", "AT" }),
+        (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD" }),
+        (SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD" }),
         (SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),
         (SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN" }),
+    };
+
+    /// <summary>
+    /// CREATE 之後寫到這幾個字，下一格是物件的名稱；值是那一格除了名稱還接不接得上片語的字
+    /// （CREATE DATABASE 之後還有 SCOPED）。
+    /// </summary>
+    internal static readonly KeyValuePair<string, bool>[] CreatedKinds =
+    {
+        new("AGGREGATE", false),
+        new("APPLICATION ROLE", false),
+        new("ASSEMBLY", false),
+        new("ASYMMETRIC KEY", false),
+        new("BROKER PRIORITY", false),
+        new("CERTIFICATE", false),
+        new("CLUSTERED INDEX", false),
+        new("COLUMN ENCRYPTION KEY", false),
+        new("COLUMN MASTER KEY", false),
+        new("CONTRACT", false),
+        new("CREDENTIAL", false),
+        new("CRYPTOGRAPHIC PROVIDER", false),
+        new("DATABASE", true),
+        new("DEFAULT", false),
+        new("ENDPOINT", false),
+        new("EVENT NOTIFICATION", false),
+        new("EVENT SESSION", false),
+        new("EXTERNAL DATA SOURCE", false),
+        new("EXTERNAL FILE FORMAT", false),
+        new("EXTERNAL LANGUAGE", false),
+        new("EXTERNAL LIBRARY", false),
+        new("EXTERNAL MODEL", false),
+        new("EXTERNAL RESOURCE POOL", false),
+        new("EXTERNAL STREAM", false),
+        new("EXTERNAL TABLE", false),
+        new("FEDERATION", false),
+        new("FULLTEXT CATALOG", false),
+        new("FULLTEXT STOPLIST", false),
+        new("FUNCTION", false),
+        new("INDEX", false),
+        new("LOGIN", false),
+        new("MATERIALIZED VIEW", false),
+        new("MESSAGE TYPE", false),
+        new("NONCLUSTERED INDEX", false),
+        new("PARTITION FUNCTION", false),
+        new("PARTITION SCHEME", false),
+        new("PRIMARY XML INDEX", false),
+        new("PROC", false),
+        new("PROCEDURE", false),
+        new("QUEUE", false),
+        new("REMOTE", true),
+        new("REMOTE SERVICE BINDING", false),
+        new("RESOURCE POOL", false),
+        new("ROLE", false),
+        new("ROUTE", false),
+        new("RULE", false),
+        new("SCHEMA", true),
+        new("SEARCH", true),
+        new("SEARCH PROPERTY LIST", false),
+        new("SECURITY POLICY", false),
+        new("SELECTIVE XML INDEX", false),
+        new("SEQUENCE", false),
+        new("SERVER AUDIT SPECIFICATION", true),
+        new("SERVER ROLE", false),
+        new("SERVICE", false),
+        new("STATISTICS", false),
+        new("SYMMETRIC KEY", false),
+        new("SYNONYM", false),
+        new("TABLE", false),
+        new("TRIGGER", false),
+        new("TYPE", false),
+        new("UNIQUE CLUSTERED INDEX", false),
+        new("UNIQUE INDEX", false),
+        new("UNIQUE NONCLUSTERED INDEX", false),
+        new("USER", false),
+        new("VIEW", false),
+        new("WORKLOAD CLASSIFIER", false),
+        new("WORKLOAD GROUP", false),
+        new("OR ALTER FUNCTION", false),
+        new("OR ALTER PROC", false),
+        new("OR ALTER PROCEDURE", false),
+        new("OR ALTER TRIGGER", false),
+        new("OR ALTER VIEW", false),
     };
 }

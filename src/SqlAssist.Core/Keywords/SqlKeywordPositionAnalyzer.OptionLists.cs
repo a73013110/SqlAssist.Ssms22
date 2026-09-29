@@ -47,18 +47,28 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 : null,
             separatedByCommas: false),
 
+        // CREATE|ALTER SEQUENCE s [AS int] START WITH 1 INCREMENT BY -1 NO CYCLE：與游標選項同一種格子，
+        // 只是一項可以帶值、負號與型別的括號。START WITH、RESTART WITH 的 WITH 不是 CTE 的開頭。
+        new(
+            isAnchor: (analyzer, index) => analyzer.NamesSequence(index),
+            isPart: (analyzer, index) => !analyzer.StartsClauseOfItsOwn(index) ||
+                (index >= 1 && analyzer.tokens[index].IsKeyword("WITH") &&
+                 (analyzer.tokens[index - 1].IsKeyword("START") || analyzer.tokens[index - 1].IsKeyword("RESTART"))),
+            endsItem: (_, _) => true,
+            header: (_, _) => new OptionSlots(SqlKeywordPosition.SequenceOption, SqlKeywordPosition.SequenceOption),
+            separatedByCommas: false,
+            skipsGroups: true),
+
         // 觸發程序標頭之後的 AFTER|FOR|INSTEAD OF INSERT, UPDATE：DDL 事件（CREATE_TABLE、LOGON）是一般識別字。
         // 排在標頭的 WITH 清單前面：AFTER 是非保留字，WITH 清單會把它當成選項名稱。
+        // DDL 觸發程序（ON DATABASE、ON ALL SERVER）的事件依標頭而不同，一項的開頭交給清單片語（OptionItem）。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("AFTER") ||
                 analyzer.tokens[index].IsKeyword("FOR") ||
                 (analyzer.tokens[index].IsKeyword("OF") && index >= 1 && analyzer.tokens[index - 1].IsKeyword("INSTEAD")),
             isPart: (analyzer, index) => analyzer.IsPlainWord(index) || analyzer.IsDmlEvent(index),
             endsItem: (_, _) => true,
-            header: (analyzer, anchor) =>
-                analyzer.EndsTriggerHeader(analyzer.tokens[anchor].IsKeyword("OF") ? anchor - 2 : anchor - 1)
-                    ? new OptionSlots(SqlKeywordPosition.TriggerEvent, SqlKeywordPosition.TriggerEventEnd)
-                    : null),
+            header: (analyzer, anchor) => analyzer.FindTriggerEventSlots(anchor)),
 
         // CREATE|ALTER TRIGGER tr ON t WITH ENCRYPTION, EXECUTE AS 'u'：選項寫完之後是標頭的尾端。
         new(
@@ -337,21 +347,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// </remarks>
     private bool CreatesIndex(int with)
     {
-        var index = FindStatementStart(with - 1);
+        var start = FindStatementStart(with - 1);
 
-        if (index >= with || !tokens[index].IsKeyword("CREATE"))
-        {
-            return false;
-        }
-
-        index++;
-
-        while (index < with && IndexModifiers.Contains(tokens[index].Value) && !tokens[index].IsQuoted)
-        {
-            index++;
-        }
-
-        return index < with && tokens[index].IsKeyword("INDEX");
+        return start < with &&
+            FindCreatedKind(start, endsAt: false) is { } kind &&
+            start + kind.Words.Length < with &&
+            string.Equals(kind.Words[kind.Words.Length - 1], "INDEX", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -419,6 +420,50 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <summary><paramref name="last"/> 寫完觸發程序的標頭：目標，或目標之後的 WITH 選項。</summary>
     private bool EndsTriggerHeader(int last) =>
         last >= 0 && FindStatementSlot(last) == SqlKeywordPosition.TriggerHeader;
+
+    /// <summary><paramref name="anchor"/> 的 AFTER、FOR、INSTEAD OF 接在觸發程序的標頭之後時，事件清單的兩種位置。</summary>
+    private OptionSlots? FindTriggerEventSlots(int anchor)
+    {
+        var header = tokens[anchor].IsKeyword("OF") ? anchor - 2 : anchor - 1;
+
+        if (!EndsTriggerHeader(header))
+        {
+            return null;
+        }
+
+        return new OptionSlots(
+            FiresOnDdlEvents(header) ? SqlKeywordPosition.OptionItem : SqlKeywordPosition.TriggerEvent,
+            SqlKeywordPosition.TriggerEventEnd);
+    }
+
+    /// <summary><paramref name="headerEnd"/> 所在的觸發程序寫在 <c>ON DATABASE</c> 或 <c>ON ALL SERVER</c> 上，事件是 DDL 與登入事件。</summary>
+    private bool FiresOnDdlEvents(int headerEnd)
+    {
+        for (var index = FindStatementStart(headerEnd); index < headerEnd; index++)
+        {
+            if (tokens[index].IsKeyword("ON"))
+            {
+                return tokens[index + 1].IsKeyword("DATABASE") || tokens[index + 1].IsKeyword("ALL");
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary><paramref name="index"/> 是 <c>CREATE|ALTER SEQUENCE</c> 之後序列名稱的最後一個詞元。</summary>
+    private bool NamesSequence(int index)
+    {
+        if (!IsPlainWord(index))
+        {
+            return false;
+        }
+
+        var name = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, index);
+
+        return name >= 2 &&
+            tokens[name - 1].IsKeyword("SEQUENCE") &&
+            (tokens[name - 2].IsKeyword("CREATE") || tokens[name - 2].IsKeyword("ALTER"));
+    }
 
     /// <summary>觸發程序的 INSERT、UPDATE、DELETE 事件。</summary>
     private bool IsDmlEvent(int index) =>

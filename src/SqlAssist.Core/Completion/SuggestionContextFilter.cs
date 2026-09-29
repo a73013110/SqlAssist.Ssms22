@@ -56,7 +56,7 @@ public static class SuggestionContextFilter
         var phraseSnippet = StartsWithPhraseWord(suggestion, context);
 
         return (!context.Bracketed || IsBracketable(suggestion.Kind)) &&
-               (IsPhraseWord(suggestion) || phraseSnippet || IsAllowedForTarget(suggestion.Kind, context.Target)) &&
+               (IsProvenPhraseWord(suggestion) || phraseSnippet || IsAllowedForTarget(suggestion.Kind, context.Target)) &&
                (phraseSnippet || IsAllowedForPosition(suggestion, context)) &&
                IsAllowedForSchema(suggestion, context) &&
                IsAllowedSystemSchema(suggestion, context);
@@ -95,10 +95,16 @@ public static class SuggestionContextFilter
         };
     }
 
-    /// <summary>片語的字；它屬不屬於這一格由 <see cref="IsAllowedForPosition"/> 比對片語決定。</summary>
-    private static bool IsPhraseWord(SqlSuggestion suggestion)
+    /// <summary>
+    /// 比對證明過接得上這一格的片語字；它屬不屬於這一格由 <see cref="IsAllowedForPosition"/> 比對片語決定。
+    /// </summary>
+    /// <remarks>
+    /// 附加片語只補目錄給不了的字，比對永遠只是「可能」，所以與目錄的關鍵字一樣照目標過濾：
+    /// 判不出位置時才出現的 GENERATED 不該列在資料指標名稱那一格。
+    /// </remarks>
+    private static bool IsProvenPhraseWord(SqlSuggestion suggestion)
     {
-        return suggestion.Kind == SuggestionKind.Keyword && suggestion.Tag is SqlClausePhrase;
+        return suggestion.Kind == SuggestionKind.Keyword && suggestion.Tag is SqlClausePhrase { IsAdditive: false };
     }
 
     /// <summary>

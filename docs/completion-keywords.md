@@ -5,10 +5,10 @@
 
 ## 產生與維護
 
-清單裡的 191 個 T-SQL 關鍵字不是手寫的，由 `tools/Generate-Keywords.ps1` 反射
+T-SQL 關鍵字不是手寫的，由 `tools/Generate-Keywords.ps1` 反射
 SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCatalog.Generated.cs`。
-換 SSMS 版本重跑一次就更新。剖析結果快取在 `artifacts/cache/`：沒有快取時約半小時，之後
-只剖析新出現的文字，改片語、續尾或判定規則重跑約一兩分鐘。快取只存剖析器的回答（拒收落在
+換 SSMS 版本重跑一次就更新。剖析結果快取在 `artifacts/cache/`，之後只剖析新出現的文字。
+快取只存剖析器的回答（拒收落在
 哪一段、整段完不完整），解讀每次重算；ScriptDom 版本、拒收錯誤碼或探測器 `<cache-facts>`
 區段一變就整份作廢，懷疑不一致時加 `-NoCache` 重建。每個階段都自我驗證，不猜任何一個字：
 
@@ -31,7 +31,7 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
 由 Core 測試逐條回驗。只有產生器分得出的位置是自欺——型別寫完之後（`CREATE TABLE t (a int |`）因此沒有樣板，是 `Any`。
 
 非保留字是唯一的例外：`THROW`、`APPLY`、`NOLOCK` 不在 token 列舉裡，由產生器的
-`$NonReservedSupplement` 手寫（11 個字），位置一樣自動分類。
+`$NonReservedSupplement` 手寫，位置一樣自動分類。
 
 ### 召回稽核
 
@@ -44,16 +44,14 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
 
 ```text
 （語句開頭）          → SELECT、USE、BACKUP、RESTORE、CREATE…
-SELECT * FROM t ORDER BY    → CASE、CONVERT、COALESCE…
 SELECT * FROM t ORDER BY a  → ASC、DESC
 SELECT * FROM t GROUP BY a  → HAVING、ORDER（GroupByTail）
 SELECT TOP 10         → PERCENT、WITH，以及選取清單起點的字（TopClauseTail）
-CREATE                → TABLE、VIEW、PROCEDURE…
-SELECT * FROM t WHERE → EXISTS、NOT、CASE…
 SET NOCOUNT           → ON、OFF（SetOptionValue）
 BEGIN … END           → 下一句的字，加上 ELSE、TRY、CATCH（BlockEnd）
 IF @a = 1 SELECT 1    → 選取清單尾端，加上 ELSE（IfBodyEnd）
 DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給）
+CREATE SEQUENCE s AS int → START、NO（SequenceOption；選項由片語給）
 ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
 ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CHECK、INDEX…
 CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFAULT（ColumnDefinition）
@@ -121,4 +119,4 @@ PIVOT (SUM(x) FOR y   → IN（PivotClause）
 
 判斷比的是「位置裡還有沒有別的位元」而不是位元交集：判不出位置時回傳的 `Any`
 含著上表每一個旗標，用交集的話 fail-open 會變成 fail-closed，**每一個**位置的資料庫
-物件都會消失。兩個方向都釘在 `SqlKeywordPositionTests.位置過濾也管資料庫物件`。
+物件都會消失。

@@ -568,19 +568,17 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         }
 
         // 內建型別是一份封閉的清單，但使用者自訂的資料表型別在資料庫裡，
-        // DECLARE @t dbo.XType 要的正是後者。
+        // DECLARE @t dbo.XType 要的正是後者。片語的字照接上來：資料行定義的 PERIOD 之後還有 FOR。
         if (context.Target == CompletionTarget.DataType)
         {
-            if (!settings.IncludeDatabaseObjects)
-            {
-                return SqlDataTypeCatalog.All;
-            }
+            var types = settings.IncludeDatabaseObjects
+                ? await _metadataService.GetSuggestionsAsync(context.QualifierPath, token).ConfigureAwait(false)
+                : Array.Empty<SqlSuggestion>();
 
-            var types = await _metadataService
-                .GetSuggestionsAsync(context.QualifierPath, token)
-                .ConfigureAwait(false);
-
-            return SqlDataTypeCatalog.All.Concat(types).ToArray();
+            return SqlDataTypeCatalog.All
+                .Concat(types)
+                .Concat(context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>())
+                .ToArray();
         }
 
         if (context.Target == CompletionTarget.Column)

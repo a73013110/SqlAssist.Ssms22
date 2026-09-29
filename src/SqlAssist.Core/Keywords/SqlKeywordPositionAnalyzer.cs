@@ -181,30 +181,22 @@ public sealed partial class SqlKeywordPositionAnalyzer
             "FROM", "JOIN", "APPLY", "USING"
         };
 
-    /// <summary><c>CREATE</c> 之後接這些種類時，下一格是使用者正要取的新名字。</summary>
+    /// <summary>
+    /// <c>CREATE</c> 之後寫完這幾個字，下一格是物件的名稱；字數多的在前，每一種帶著那一格是哪一種名字。
+    /// </summary>
     /// <remarks>
-    /// 只收「種類後面直接就是名稱」的：<c>CREATE DEFAULT</c>、<c>CREATE RULE</c> 這種
-    /// 已淘汰的寫法不收，少收的代價只是那一格照舊有清單。
+    /// 不手寫：產生器從 <c>CREATE</c> 一路展開到名稱為止（<c>SYMMETRIC KEY</c>、<c>UNIQUE CLUSTERED INDEX</c>、
+    /// <c>OR ALTER PROCEDURE</c>）。手寫的名單只收得到常用的十幾種，其餘種類的名稱格整份目錄全部進場。
+    /// 名稱那一格還接得上別的字（<c>CREATE DATABASE SCOPED</c>）或可能是既有物件（<c>CREATE OR ALTER</c>）時
+    /// 是「可能是名字」，其餘是新名字。
     /// </remarks>
-    private static readonly HashSet<string> CreatedObjectKinds =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "PROCEDURE", "PROC", "FUNCTION", "VIEW", "TABLE", "TRIGGER", "TYPE", "SCHEMA",
-            "INDEX", "SEQUENCE", "SYNONYM", "DATABASE", "STATISTICS", "ROLE", "USER", "LOGIN"
-        };
+    private static readonly (string[] Words, SqlCompletionSlot Slot)[] CreatedKinds = BuildCreatedKinds();
 
     /// <summary>標頭以 <c>AS</c> 結束、後面接主體的物件種類。</summary>
     private static readonly HashSet<string> ModuleKinds =
         new(StringComparer.OrdinalIgnoreCase)
         {
             "PROCEDURE", "PROC", "FUNCTION", "TRIGGER", "VIEW"
-        };
-
-    /// <summary><c>CREATE</c> 與 <c>INDEX</c> 之間可以夾的字。</summary>
-    private static readonly HashSet<string> IndexModifiers =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "UNIQUE", "CLUSTERED", "NONCLUSTERED", "COLUMNSTORE", "XML", "SPATIAL", "PRIMARY"
         };
 
     /// <summary>語句可以從這些位置開始：語句開頭、區塊開頭與區塊的 END 之後。</summary>
@@ -1279,7 +1271,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 return -1;
             }
 
-            if (token.IsKeyword("END"))
+            if (SqlTokenNavigator.ClosesBlock(tokens, index))
             {
                 depth++;
             }
@@ -1319,7 +1311,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return FindUnclosedCase(last - 1) < 0 ? SqlKeywordPosition.StatementStart : null;
         }
 
-        return token.IsKeyword("END")
+        return SqlTokenNavigator.ClosesBlock(tokens, last)
             ? SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart
             : null;
     }
@@ -1331,7 +1323,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 四種都是「前面的字已經說完這裡要一個還不存在的名稱」：
     ///
     /// <list type="bullet">
-    /// <item><c>CREATE PROCEDURE </c>、<c>CREATE UNIQUE INDEX </c> 這類建立敘述的物件名稱。
+    /// <item><c>CREATE PROCEDURE </c>、<c>CREATE UNIQUE INDEX </c>、<c>CREATE SYMMETRIC KEY </c> 這類建立敘述的物件名稱（<see cref="CreatedKinds"/>）。
     /// <c>CREATE OR ALTER</c> 例外：那一格也常是既有物件，所以是「可能是名字」。
     /// <c>ALTER PROCEDURE </c> 要的是既有物件，不在這裡。</item>
     /// <item><c>SELECT … INTO </c> 的目標。<c>INSERT INTO </c>、<c>MERGE INTO </c> 要的是
@@ -1369,10 +1361,9 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         if (token.Kind == SqlTokenKind.Identifier &&
             !token.IsQuoted &&
-            CreatedObjectKinds.Contains(token.Value) &&
-            ClassifyCreatedName(last) is { } slot)
+            FindCreatedKind(last, endsAt: true) is { } kind)
         {
-            caret = new SqlCaretPosition(SqlKeywordPosition.Any, slot);
+            caret = new SqlCaretPosition(SqlKeywordPosition.Any, kind.Slot);
             return true;
         }
 
@@ -1380,38 +1371,54 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return false;
     }
 
-    /// <summary><paramref name="kind"/> 是建立敘述的物件種類時，那個物件名稱是哪一種名字。</summary>
-    private SqlCompletionSlot? ClassifyCreatedName(int kind)
+    /// <summary>
+    /// 建立敘述的物件種類：<paramref name="endsAt"/> 為真時是以 <paramref name="index"/> 結尾、前面緊接 CREATE 的那一種，
+    /// 否則是 <paramref name="index"/> 的 CREATE 之後寫的那一種；都不是回 null。
+    /// </summary>
+    private (string[] Words, SqlCompletionSlot Slot)? FindCreatedKind(int index, bool endsAt)
     {
-        var index = kind - 1;
-
-        if (tokens[kind].IsKeyword("INDEX"))
+        foreach (var kind in CreatedKinds)
         {
-            while (index >= 0 &&
-                   tokens[index].Kind == SqlTokenKind.Identifier &&
-                   !tokens[index].IsQuoted &&
-                   IndexModifiers.Contains(tokens[index].Value))
+            var create = endsAt ? index - kind.Words.Length : index;
+
+            if (create >= 0 &&
+                create + kind.Words.Length < tokens.Count &&
+                tokens[create].IsKeyword("CREATE") &&
+                WritesWords(create + 1, kind.Words))
             {
-                index--;
+                return kind;
             }
         }
 
-        if (index < 0)
+        return null;
+    }
+
+    /// <summary>從 <paramref name="start"/> 起的詞元正好寫著 <paramref name="words"/>。</summary>
+    private bool WritesWords(int start, string[] words)
+    {
+        for (var offset = 0; offset < words.Length; offset++)
         {
-            return null;
+            if (!tokens[start + offset].IsKeyword(words[offset]))
+            {
+                return false;
+            }
         }
 
-        if (tokens[index].IsKeyword("CREATE"))
+        return true;
+    }
+
+    private static (string[] Words, SqlCompletionSlot Slot)[] BuildCreatedKinds()
+    {
+        var kinds = new List<(string[] Words, SqlCompletionSlot Slot)>();
+
+        foreach (var pair in SqlKeywordCatalogData.CreatedKinds)
         {
-            return SqlCompletionSlot.Name;
+            var mayExist = pair.Value || pair.Key.StartsWith("OR ALTER ", StringComparison.OrdinalIgnoreCase);
+            kinds.Add((pair.Key.Split(' '), mayExist ? SqlCompletionSlot.MaybeName : SqlCompletionSlot.Name));
         }
 
-        return index >= 2 &&
-            tokens[index].IsKeyword("ALTER") &&
-            tokens[index - 1].IsKeyword("OR") &&
-            tokens[index - 2].IsKeyword("CREATE")
-                ? SqlCompletionSlot.MaybeName
-                : null;
+        kinds.Sort((left, right) => right.Words.Length.CompareTo(left.Words.Length));
+        return kinds.ToArray();
     }
 
     /// <summary><paramref name="into"/> 是 <c>SELECT … INTO</c> 的 INTO。</summary>

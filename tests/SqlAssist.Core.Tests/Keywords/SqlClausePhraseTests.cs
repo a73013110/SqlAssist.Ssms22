@@ -545,7 +545,8 @@ public sealed class SqlClausePhraseTests
 
             for (var index = isLead ? 1 : 0; index < items.Length; index++)
             {
-                if (!IsLiteral(items[index]) || (index > 0 && !IsLiteral(items[index - 1])) || (isLead && index < 2))
+                if (!IsLiteral(items[index]) || (index > 0 && !IsLiteral(items[index - 1])) ||
+                    (isLead && (index < 1 || (index < 2 && SqlKeywordCatalog.IsKeyword(items[0])))))
                 {
                     continue;
                 }
@@ -580,7 +581,7 @@ public sealed class SqlClausePhraseTests
     /// <remarks>
     /// 以前寫得出 <c>CREATE OR ALTER</c>，<c>CREATE </c> 之後卻沒有 <c>OR</c>、<c>CREATE OR </c> 之後也沒有
     /// <c>ALTER</c>：剖析器要看到整段才收，逐字探測問不出來。產生器改由整條片語補前面那段，
-    /// 範圍與這裡相同——前面那段以字面字結尾，Lead 片語至少兩項，理由見產生器；帶 After 的片語
+    /// 範圍與這裡相同——前面那段以字面字結尾，Lead 片語至少兩項（單獨一個不是關鍵字的也算），理由見產生器；帶 After 的片語
     /// 第一個字前面那段就是位置，由那個位置的片語或關鍵字目錄給。
     /// </remarks>
     [Theory]
@@ -620,7 +621,10 @@ public sealed class SqlClausePhraseTests
         return char.IsLetter(item[0]) || item[0] == '_';
     }
 
-    /// <summary>走產品的過濾路徑：候選清單加上片語的字，再做上下文過濾。</summary>
+    /// <summary>
+    /// 走產品的過濾路徑：候選清單加上片語的字，再做上下文過濾。唯一接續併成的一項（<c>INSTEAD OF</c>）
+    /// 也算它的第一個字：打那個字就選得到它。
+    /// </summary>
     private static string[] Offered(string textBeforeToken)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeToken);
@@ -629,7 +633,8 @@ public sealed class SqlClausePhraseTests
 
         return SuggestionContextFilter.Filter(candidates, context)
             .Where(suggestion => suggestion.Kind == SuggestionKind.Keyword)
-            .Select(suggestion => suggestion.DisplayText)
+            .SelectMany(suggestion => new[] { suggestion.DisplayText, suggestion.DisplayText.Split(' ')[0] })
+            .Distinct()
             .ToArray();
     }
 }

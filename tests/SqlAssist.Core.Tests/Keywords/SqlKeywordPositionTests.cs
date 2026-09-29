@@ -494,7 +494,8 @@ public sealed class SqlKeywordPositionTests
     /// 使用者正要取新名字的那一格：建立敘述、CTE 與 SELECT … INTO。
     /// </summary>
     /// <remarks>
-    /// <c>CREATE OR ALTER</c> 也常是既有物件，所以只是「可能是名字」；
+    /// <c>CREATE OR ALTER</c> 也常是既有物件，所以只是「可能是名字」；那個位置也接得上字的
+    /// （<c>CREATE SCHEMA AUTHORIZATION</c>、<c>CREATE DATABASE ENCRYPTION KEY</c>）同樣只是可能。
     /// <c>ALTER</c>、<c>INSERT INTO</c> 要的是既有物件，照常。
     /// WITH 只認敘述開頭的那一個：資料表提示與模組選項的 WITH 不是 CTE。
     /// </remarks>
@@ -503,7 +504,10 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE PROC dbo.", SqlCompletionSlot.Name)]
     [InlineData("CREATE TABLE ", SqlCompletionSlot.Name)]
     [InlineData("CREATE UNIQUE CLUSTERED INDEX ", SqlCompletionSlot.Name)]
-    [InlineData("CREATE SCHEMA ", SqlCompletionSlot.Name)]
+    [InlineData("CREATE CERTIFICATE ", SqlCompletionSlot.Name)]
+    [InlineData("CREATE SYMMETRIC KEY ", SqlCompletionSlot.Name)]
+    [InlineData("CREATE SCHEMA ", SqlCompletionSlot.MaybeName)]
+    [InlineData("CREATE DATABASE ", SqlCompletionSlot.MaybeName)]
     [InlineData("CREATE OR ALTER FUNCTION ", SqlCompletionSlot.MaybeName)]
     [InlineData("CREATE OR ALTER VIEW dbo.", SqlCompletionSlot.MaybeName)]
     [InlineData("ALTER PROCEDURE ", SqlCompletionSlot.Grammar)]

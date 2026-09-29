@@ -122,6 +122,10 @@ public enum SqlKeywordPosition : long
     /// <summary>DECLARE c CURSOR 與它的選項之後——FOR；選項本身由子句片語給。</summary>
     CursorOption = 1 << 25,
 
+    /// <summary>CREATE|ALTER SEQUENCE s 與它的每一個選項之後——AS、NO；START WITH 這些選項由子句片語給。</summary>
+    /// <remarks>選項不以逗號分隔、順序不限，與 <see cref="CursorOption"/> 同一種格子。</remarks>
+    SequenceOption = 1 << 29,
+
     /// <summary>觸發程序標頭的目標與 WITH 選項之後——FOR、WITH；AFTER、INSTEAD 由子句片語給。</summary>
     /// <remarks>
     /// 不借用資料來源尾端：<c>ON t WITH ENCRYPTION FOR</c> 的 FOR 接 INSERT，不接 XML。
@@ -316,7 +320,7 @@ public enum SqlKeywordPosition : long
     Any = StatementStart | SelectList | SelectListTail | DataSource
         | TableSourceTail | Predicate | ExpressionTail | OrderByTail | GroupByTail
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
-        | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | TriggerHeader
+        | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | SequenceOption | TriggerHeader
         | MergeWhen | MergeAction | MergeClause
         | PermissionList | PermissionTarget | PermissionOn | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
         | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption

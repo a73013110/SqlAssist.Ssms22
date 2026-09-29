@@ -44,7 +44,7 @@ public static class SqlKeywordPositionExtensions
     /// 動作、條件約束關鍵字，或新資料行名稱。</item>
     /// <item><c>SET NOCOUNT |</c> 之後是選項值；要資料表的 <c>SET IDENTITY_INSERT |</c>
     /// 不是這個位置。</item>
-    /// <item><c>DECLARE c CURSOR LOCAL |</c> 之後是選項或 <c>FOR</c>；觸發程序的 <c>ON t |</c> 之後是
+    /// <item><c>DECLARE c CURSOR LOCAL |</c> 之後是選項或 <c>FOR</c>，<c>CREATE SEQUENCE s START WITH 1 |</c> 之後是下一個選項；觸發程序的 <c>ON t |</c> 之後是
     /// <c>FOR</c>、<c>AFTER</c> 這些字，事件清單裡是 <c>INSERT</c> 這些事件與 <c>AS</c>；BACKUP／RESTORE 的 <c>WITH |</c> 之後是選項；MERGE 的
     /// <c>WHEN |</c> 之後是 <c>MATCHED</c>、<c>NOT</c>，<c>THEN |</c> 之後是動作；<c>GRANT SELECT |</c> 之後是
     /// <c>ON</c>、<c>TO</c>；索引鍵清單的 <c>(a |</c> 之後是 <c>ASC</c>、<c>DESC</c>；外部索引鍵的
@@ -72,6 +72,7 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.BlockEnd |
         SqlKeywordPosition.IfBodyEnd |
         SqlKeywordPosition.CursorOption |
+        SqlKeywordPosition.SequenceOption |
         SqlKeywordPosition.TriggerHeader |
         SqlKeywordPosition.MergeWhen |
         SqlKeywordPosition.ProcedureOption |
@@ -139,6 +140,7 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.TriggerHeader |
         SqlKeywordPosition.TriggerEvent |
         SqlKeywordPosition.CursorOption |
+        SqlKeywordPosition.SequenceOption |
         SqlKeywordPosition.IndexOption |
         SqlKeywordPosition.ProcedureOption |
         SqlKeywordPosition.FunctionOption |

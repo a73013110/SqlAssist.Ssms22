@@ -15,7 +15,7 @@
 
 ## 主題
 
-一列有多份時，**第一份是入口**，其餘碰到那一塊才讀。
+一列有多份時，第一份是入口，其餘碰到才讀。
 
 | 關鍵字／症狀 | 文件 |
 |---|---|
@@ -44,7 +44,7 @@
 | INSERT 欄位、EXEC 參數、預留值 | [展開內容](statement-values.md) |
 | 自訂函式括號、引數預留值 | [函式呼叫](function-call-insertion.md) |
 | 關鍵字產生器、位置旗標、物件過濾 | [關鍵字](completion-keywords.md) |
-| SET 選項、子句片語、ClauseKeyword | [子句片語](completion-phrases.md) |
+| SET 選項、子句片語、ClauseKeyword | [片語](completion-phrases.md)／[產生器](phrase-generator.md) |
 | 子句回溯、換行邊界、不開清單 | [子句邊界](completion-boundaries.md) |
 | 內建函式、資料型別目錄 | [函式與型別](completion-builtins.md) |
 | 用途、範例、style、datepart、名稱辨識、系統程序說明、語句說明 | [內建說明](builtin-help.md) |
@@ -53,7 +53,7 @@
 | 內容與接續建議 | [片段](snippets.md) |
 | Tab Stop、Tab／Enter、欄位建議 | [片段導航](snippet-navigation.md) |
 | 包住選取範圍、`$surround$` | [片段包夾](snippet-surround.md)／[按鍵](popup-keys.md) |
-| Popup 裡按 Backspace／方向鍵改到 SQL、`ShellKeyCapture` | [按鍵交還](popup-keys.md) |
+| Popup 按鍵改到 SQL、`ShellKeyCapture` | [按鍵交還](popup-keys.md) |
 | 使用者 override、合併、存檔 | [片段存放](snippet-storage.md) |
 | SELECT *、Wildcards、Tab 展開 | [星號展開](wildcard-expansion.md) |
 | Pairing、括號、引號 | [自動配對](auto-pairing.md) |

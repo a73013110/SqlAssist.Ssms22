@@ -331,7 +331,8 @@ $ContextTemplates = [ordered]@{
         "RAISERROR ('x', 16, 1) WITH ", "RAISERROR ('x', 16, 1) WITH NOWAIT, ",
         'DBCC CHECKDB WITH ', 'DBCC CHECKDB WITH NO_INFOMSGS, ',
         "BACKUP DATABASE d TO DISK = 'x' WITH ", "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, ",
-        "RESTORE DATABASE d FROM DISK = 'x' WITH ", "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, ")
+        "RESTORE DATABASE d FROM DISK = 'x' WITH ", "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, ",
+        'CREATE TRIGGER tr ON DATABASE FOR ', 'CREATE TRIGGER tr ON DATABASE FOR CREATE_TABLE, ')
 
     # GROUP BY 的欄位之後：HAVING、ORDER 與 WITH ROLLUP，不接 ASC、DESC。
     GroupByTail      = @('SELECT * FROM t GROUP BY a ')
@@ -373,6 +374,9 @@ $ContextTemplates = [ordered]@{
 
     # 游標的選項不是關鍵字（LOCAL、FAST_FORWARD 是識別字），由子句片語給；這裡只撈得到 FOR。
     CursorOption     = @('DECLARE c CURSOR ', 'DECLARE c CURSOR LOCAL FAST_FORWARD ')
+
+    # 序列的選項（START WITH、INCREMENT BY、NO CYCLE）同樣不是關鍵字，也不以逗號分隔；這裡撈得到 AS、NO。
+    SequenceOption   = @('CREATE SEQUENCE t ', 'CREATE SEQUENCE t START WITH 1 ')
 
     # 下面兩個同一個道理：AFTER、INSTEAD、MATCHED 都不是關鍵字，由子句片語給。
     TriggerHeader    = @('CREATE TRIGGER tr ON t ', 'CREATE TRIGGER tr ON t WITH ENCRYPTION ')
@@ -1138,38 +1142,35 @@ $ClausePhrases = @(
     @{ Pattern = 'SET DATEFORMAT'; Values = @('mdy', 'dmy', 'ymd', 'ydm', 'myd', 'dym'); Closed = $true }
     @{ Pattern = 'SET DEADLOCK_PRIORITY'; Values = @('LOW', 'NORMAL', 'HIGH'); Closed = $true }
 
+    # CREATE、ALTER、DROP 之後是物件種類（Kinds）：展開到名稱為止，名稱之後只列一層（CREATE TABLE t 之後的 AS），
+    # 更深的標頭由下面各敘述自己宣告。CREATE 的名稱是新名字，那一格封閉，種類輸出給執行期判新名字；
+    # CREATE OR 探不出 ALTER（剖析器要看到整段才收），CREATE OR ALTER 那一條是證據。三層寫得到 UNIQUE CLUSTERED INDEX、XML SCHEMA COLLECTION。
     # DROP、UPDATE、DELETE、MERGE 之後是名稱的位置，目標過濾把關鍵字全擋掉；
     # IF EXISTS、TOP、INTO 這些字只能由片語給。名稱後面要再寫一段才完整的（UPDATE t SET、
     # MERGE t USING、DROP INDEX i ON t、DROP STATISTICS t.s）探測判成封閉，由人宣告不封閉。
-    @{ Pattern = 'CREATE' }
-    @{ Pattern = 'ALTER' }
-    @{ Pattern = 'DROP'; Expand = 1 }
+    @{ Pattern = 'CREATE'; Expand = 3; Kinds = 'New' }
+    @{ Pattern = 'CREATE OR ALTER'; Expand = 1; Kinds = 'New' }
+    @{ Pattern = 'ALTER'; Expand = 3; Kinds = 'Existing' }
+    @{ Pattern = 'DROP'; Expand = 3; Kinds = 'Existing' }
     @{ Pattern = 'DROP INDEX'; Closed = $false }
     @{ Pattern = 'DROP STATISTICS'; Closed = $false }
     @{ Pattern = 'UPDATE'; Closed = $false }
     @{ Pattern = 'DELETE' }
     @{ Pattern = 'MERGE'; Closed = $false }
-    @{ Pattern = 'CREATE OR ALTER' }
-    @{ Pattern = 'ALTER TABLE {name}' }
     @{ Pattern = 'DROP'; After = @('AlterTableAction'); Expand = 2 }
     @{ Pattern = 'ALTER DATABASE {name}' }
     @{ Pattern = 'ALTER DATABASE {name} SET'; Expand = 1 }
     # BACKUP／RESTORE 的標頭：名稱之後是 TO／FROM 與檔案、檔案群組，TO／FROM 之後是裝置種類
-    # （DISK、URL、TAPE）。RESTORE 往下兩層，HEADERONLY 這一族也走到 FROM 之後；
-    # DATABASE、LOG 之後是名稱，普通名稱過得了，探測不會把它判成封閉。
-    @{ Pattern = 'BACKUP'; Expand = 1 }
+    # （DISK、URL、TAPE）。HEADERONLY 這一族也走到 FROM 之後；DATABASE、LOG 之後的名稱是展開的一步。
+    @{ Pattern = 'BACKUP'; Expand = 2 }
     @{ Pattern = 'RESTORE'; Expand = 2 }
-    @{ Pattern = 'BACKUP DATABASE {name}'; Expand = 1 }
-    @{ Pattern = 'BACKUP LOG {name}'; Expand = 1 }
-    @{ Pattern = 'RESTORE DATABASE {name}'; Expand = 1 }
-    @{ Pattern = 'RESTORE LOG {name}'; Expand = 1 }
 
     # CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了，手寫補回來。
     # WITH ( 之後的選項由位置給（IndexOption），INCLUDE、篩選的 WHERE 夾在中間也一樣。
     # INDEX 前面可以夾 UNIQUE、CLUSTERED 這些字，那一格判不出位置；尾巴本身只出現在 CREATE INDEX。
     @{ Pattern = 'ALTER INDEX {name} ON {name}' }
     @{ Pattern = 'INDEX {name} ON {name} ()'; Lead = 'CREATE '; Values = @('WITH') }
-    @{ Pattern = 'INCLUDE ()'; Lead = 'CREATE INDEX i ON t (a) '; Values = @('WITH') }
+    @{ Pattern = 'INCLUDE ()'; Lead = 'CREATE INDEX t ON t (a) '; Values = @('WITH') }
     @{ Pattern = ''; After = @('IndexOption') }
 
     # 只認位置的格子。觸發程序標頭之後是 AFTER、FOR、INSTEAD、WITH，再下一層是 OF 與 EXECUTE；
@@ -1184,9 +1185,14 @@ $ClausePhrases = @(
     @{ Pattern = 'RESTORE LOG ... WITH ,*'; Gap = "d FROM DISK = 'x'" }
 
     # DDL 與登入觸發程序：ON 之後是資料表、DATABASE 或 ALL SERVER。資料表之後還要寫事件才完整，
-    # 探測判成封閉會把資料表名稱藏起來，由人宣告不封閉。
+    # 探測判成封閉會把資料表名稱藏起來，由人宣告不封閉。DDL 事件（CREATE_TABLE、LOGON）依標頭而不同，
+    # 寫成清單片語；資料表的 INSERT、UPDATE、DELETE 是位置 TriggerEvent。
     @{ Pattern = 'TRIGGER {name} ON'; After = @('DdlObject'); Closed = $false }
     @{ Pattern = 'TRIGGER {name} ON ALL'; After = @('DdlObject') }
+    @{ Pattern = 'TRIGGER {name} ON DATABASE FOR ,*'; After = @('DdlObject') }
+    @{ Pattern = 'TRIGGER {name} ON DATABASE AFTER ,*'; After = @('DdlObject') }
+    @{ Pattern = 'TRIGGER {name} ON ALL SERVER FOR ,*'; After = @('DdlObject') }
+    @{ Pattern = 'TRIGGER {name} ON ALL SERVER AFTER ,*'; After = @('DdlObject') }
 
     # 模組的 WITH 選項：四種模組的選項不同，EXECUTE AS 之後的 CALLER、SELF、OWNER 除了檢視都共用；
     # 函式的兩個多字選項寫全，中間每一格由它們補出來。
@@ -1216,16 +1222,56 @@ $ClausePhrases = @(
     @{ Pattern = 'ON UPDATE'; After = @('ReferencesTail'); Expand = 1 }
     @{ Pattern = 'NOT FOR'; Lead = 'CREATE TABLE t (a int IDENTITY ' }
 
+    # 時態表：期間資料行（GENERATED ALWAYS AS ROW START）寫在型別之後，同樣判不出位置；PERIOD FOR SYSTEM_TIME
+    # 是資料表層級的一項。資料表選項 WITH (…)、ALTER TABLE SET (…) 與 SYSTEM_VERSIONING = ON (…) 是括號清單。
+    @{ Pattern = 'GENERATED ALWAYS AS ROW START HIDDEN'; Lead = 'CREATE TABLE t (a datetime2 ' }
+    @{ Pattern = 'GENERATED ALWAYS AS ROW END HIDDEN'; Lead = 'CREATE TABLE t (a datetime2 ' }
+    @{ Pattern = 'PERIOD FOR SYSTEM_TIME ()'; After = @('ColumnDefinition', 'AlterTableAdd'); Group = '(a, b)' }
+    @{ Pattern = 'CREATE TABLE {name} () WITH (*'; Group = '(a int)' }
+    @{ Pattern = 'ALTER TABLE {name} SET (*' }
+    @{ Pattern = 'SYSTEM_VERSIONING = ON (*'; Lead = 'CREATE TABLE t (a int) WITH (' }
+    @{ Pattern = 'BULK INSERT {name} FROM {value} WITH (*' }
+
+    # 序列的選項不以逗號分隔、順序不限，會重複的格子寫成位置；NO 之後的 CYCLE 往下一層。
+    # START 後面非接 WITH 值不可，逐字探測接不上續尾，整段是證據。
+    @{ Pattern = ''; After = @('SequenceOption'); Expand = 1 }
+    @{ Pattern = 'START WITH {value}'; After = @('SequenceOption') }
+
     @{ Pattern = 'WAITFOR' }
 
     # 資料指標語句：名稱前可以夾 GLOBAL，FETCH 的方向之後是 FROM。OPEN、CLOSE 另接對稱金鑰與
-    # 資料庫主要金鑰，金鑰名稱之後的 DECRYPTION BY 接憑證、密碼或另一把金鑰；展開寫不出名稱，
-    # 名稱之後那段另起一條。OPEN SYMMETRIC KEY 的名稱後面還要寫 DECRYPTION 才完整，
-    # 探測判成封閉會把名稱藏起來，由人宣告不封閉。
+    # 資料庫主要金鑰，金鑰名稱之後的 DECRYPTION BY 接憑證、密碼或另一把金鑰，金鑰之後還可以 WITH PASSWORD。
+    # OPEN SYMMETRIC KEY 的名稱後面還要寫 DECRYPTION 才完整，探測判成封閉會把名稱藏起來，由人宣告不封閉。
     @{ Pattern = 'OPEN'; Expand = 4 }
     @{ Pattern = 'OPEN SYMMETRIC KEY'; Closed = $false }
-    @{ Pattern = 'OPEN SYMMETRIC KEY {name}'; Expand = 3 }
+    @{ Pattern = 'OPEN SYMMETRIC KEY {name}'; Expand = 6 }
     @{ Pattern = 'CLOSE'; Expand = 2 }
+
+    # 金鑰與憑證的標頭：種類與名稱由 CREATE、ALTER 的展開給，這裡往下寫加密方式（ENCRYPTION BY 憑證、密碼或
+    # 另一把金鑰）與 WITH 之後的演算法、主旨。等號之後的值（AES_256、RSA_2048）也由展開列，逗號之後由清單片語。
+    @{ Pattern = 'CREATE MASTER KEY'; Expand = 3 }
+    @{ Pattern = 'ALTER MASTER KEY'; Expand = 5 }
+    @{ Pattern = 'CREATE CERTIFICATE {name}'; Expand = 4 }
+    @{ Pattern = 'CREATE ASYMMETRIC KEY {name}'; Expand = 5 }
+    @{ Pattern = 'CREATE SYMMETRIC KEY {name}'; Expand = 6 }
+    # ALGORITHM = 之後的值寫完，剖析器把下一個字當名稱讀（ENCRYPTION BY 在它眼中是「名稱 BY」），探不出
+    # ENCRYPTION；整段剖析得過就是證據，由片語裡的每一個字補進前面那段。金鑰、憑證之後的 WITH 也是 CTE 的開頭，被扣掉了。
+    @{ Pattern = 'CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY'; Expand = 2 }
+    @{ Pattern = 'CREATE ASYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY'; Expand = 1 }
+    # REGENERATE、FORCE 剖析器也當名稱讀，同樣只有整段是證據。
+    @{ Pattern = 'ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = {value}' }
+    @{ Pattern = 'ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY PASSWORD = {value}' }
+    # 資料庫加密金鑰的 WITH 選項、演算法與 SERVER 之後的種類，剖析器一律當名稱收：演算法手寫，其餘整段是證據。
+    @{ Pattern = 'CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM ='; Values = @('AES_128', 'AES_192', 'AES_256', 'TRIPLE_DES_3KEY'); Closed = $true }
+    @{ Pattern = 'CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER CERTIFICATE {name}' }
+    @{ Pattern = 'CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER ASYMMETRIC KEY {name}' }
+    @{ Pattern = 'OPEN SYMMETRIC KEY {name} DECRYPTION BY ASYMMETRIC KEY {name} WITH PASSWORD' }
+    @{ Pattern = 'OPEN SYMMETRIC KEY {name} DECRYPTION BY CERTIFICATE {name} WITH PASSWORD' }
+    @{ Pattern = 'CREATE CERTIFICATE {name} WITH ,*' }
+    @{ Pattern = 'CREATE CERTIFICATE {name} ENCRYPTION BY PASSWORD = {value} WITH ,*' }
+    @{ Pattern = 'CREATE SYMMETRIC KEY {name} WITH ,*' }
+    @{ Pattern = 'CREATE CREDENTIAL {name} WITH ,*' }
+    @{ Pattern = 'CREATE DATABASE SCOPED CREDENTIAL {name} WITH ,*' }
     @{ Pattern = 'DEALLOCATE' }
     @{ Pattern = 'FETCH'; Expand = 2 }
 
@@ -1369,11 +1415,44 @@ function Get-PhraseProbe {
     }
 
     # 清單片語的探測另外組（Add-ListPhrase）；這裡給的是標頭。
-    $Pattern = $Pattern -replace ' ,\*$', ''
-    $text = $Pattern.Replace('{name}', 't').Replace('{value}', '1').Replace('()', $Group ? $Group : '(a)')
-    $text = $Lead + $text.Replace('(*', '(').Replace('...', $Gap)
+    # 值與名稱的代表寫法由剖析器挑：FETCH ABSOLUTE 之後要數字，PASSWORD = 之後要字串；收不了普通名稱的格子
+    # 代入那一格列得出的第一個字。等號之後一律代入列得出的值（剖析器列的或手寫的）：資料庫加密金鑰的
+    # ALGORITHM = 什麼名稱都先收，整句寫完才驗，普通名稱探得過一半、整段卻剖析不過。
+    $text = $Lead
 
-    return $text.EndsWith('(') ? $text : $text + ' '
+    foreach ($item in @(($Pattern -replace ' ,\*$', '') -split ' ' | Where-Object { $_ })) {
+        $text += switch ($item) {
+            '{name}' { (Select-PhraseName -Probe $text) + ' ' }
+            '{value}' { ((Select-PhraseValue -Probe $text) ?? '1') + ' ' }
+            '()' { ($Group ? $Group : '(a)') + ' ' }
+            '(*' { '(' }
+            '...' { "$Gap " }
+            default { "$item " }
+        }
+    }
+
+    return $text
+}
+
+# 名稱的代表寫法，理由見 Get-PhraseProbe。
+function Select-PhraseName {
+    param([string]$Probe)
+
+    if (-not $Probe.EndsWith('= ') -and (Test-TakesName -Probe $Probe)) {
+        return 't'
+    }
+
+    $listed = @(Get-PhraseWords -Probe $Probe) + @($script:phrases.Values | Where-Object { $_.Probe -eq $Probe } | ForEach-Object { $_.Words })
+
+    return $listed[0] ?? 't'
+}
+
+# 值的代表寫法：數值或字串，取剖析器在那一格收的第一種；兩種都不收的回傳 null。
+function Select-PhraseValue {
+    param([string]$Probe)
+
+    return @('1', "'x'") | Where-Object { [SqlAssistPhraseProber]::FirstRejection("$Probe$_") -gt $Probe.Length } |
+        Select-Object -First 1
 }
 
 $poolArray = [string[]]@($phrasePool)
@@ -1398,10 +1477,35 @@ $phrases = [ordered]@{}
 $positionPhraseProbes = @($ClausePhrases | Where-Object { -not $_['Pattern'] } |
     ForEach-Object { $_['After'] } | ForEach-Object { @($ContextTemplates[$_])[0] })
 
+# 物件種類之後的新名字：CREATE 之後寫到哪幾個字，下一格就是新物件的名稱。執行期拿它判斷新名字的格子。
+$createdKinds = [System.Collections.Generic.List[string]]::new()
+
+# 每個片語展開過幾層。展開到已探過的一格時，只在這次的層數比較多才再往下：OPEN 的展開先走到
+# OPEN SYMMETRIC KEY {name}，之後宣告的那一條要走得更深。
+$phraseBudgets = @{}
+
+function Test-Explored {
+    param([string]$Key, [int]$Expand)
+
+    return $script:phraseBudgets.Contains($Key) -and $script:phraseBudgets[$Key] -ge $Expand
+}
+
+# 這一格接得了名稱：普通名稱之後再接一個字，剖析器也不在名稱本身報錯。整句寫不寫得完不論——金鑰名稱之後
+# 還要寫一長段才完整，照「寫得完」判的話 CREATE SYMMETRIC KEY 之後就不是名稱。名稱寫到檔案結尾也不夠：
+# CREATE SECURITY 之後要 POLICY，剖析器要看到下一個字才在名稱報錯。
+function Test-TakesName {
+    param([string]$Probe)
+
+    return [SqlAssistPhraseProber]::FirstRejection("$Probe$PlainName x") -gt $Probe.Length
+}
+
 function Add-ClausePhrase {
-    param([string]$Pattern, [string]$Probe, [string]$After, [int]$Expand, [object[]]$Values, [object]$Closed, [string[]]$Borrowed)
+    param(
+        [string]$Pattern, [string]$Probe, [string]$After, [int]$Expand, [object[]]$Values, [object]$Closed,
+        [string[]]$Borrowed, [switch]$Child, [switch]$Step, [string]$Kinds)
 
     Write-Progress -Activity '探測子句片語' -Status "$Pattern（$After）"
+    $script:phraseBudgets["$After`t$Pattern"] = [Math]::Max($Expand, $script:phraseBudgets["$After`t$Pattern"] ?? -1)
     $endsStatement = [SqlAssistPhraseProber]::IsComplete($Probe.TrimEnd())
     $found = @(Get-PhraseWords -Probe $Probe)
 
@@ -1410,14 +1514,16 @@ function Add-ClausePhrase {
     }
 
     # Borrowed 是前一格寫成名稱時接得上的字：FETCH NEXT 之後的 INTO 屬於名叫 NEXT 的資料指標，
-    # 不是 NEXT 帶出來的。扣完不剩字、寫到這裡又已完整的，這一格沒有片語可說，但展開照走：
-    # FETCH ABSOLUTE 本身是名叫 ABSOLUTE 的資料指標，FETCH ABSOLUTE 1 FROM 卻是另一個讀法。
+    # 不是 NEXT 帶出來的。
     if ($null -ne $Borrowed) {
         $found = @($found | Where-Object { $Borrowed -notcontains $_ })
     }
 
-    $silent = $null -ne $Borrowed -and $endsStatement -and $found.Count -eq 0
-    $words = [System.Collections.Generic.List[string]]::new([string[]]$found)
+    # 展開到的一格寫到這裡已經完整、扣掉下一句的開頭又不剩字的，這一格沒有片語可說，但展開照走：
+    # FETCH ABSOLUTE 本身是名叫 ABSOLUTE 的資料指標，FETCH ABSOLUTE 1 FROM 卻是另一個讀法。
+    # 值、名稱與等號那一步也一樣：之後列不出字（PASSWORD = 'x' 之後），立了只是多一條空的片語。
+    $silent = ($Child -and $endsStatement -or $Step) -and $found.Count -eq 0
+    $words =[System.Collections.Generic.List[string]]::new([string[]]$found)
 
     # 手寫值還可以開一組清單（索引鍵之後的 WITH 只接 `(`）：清單項本身由那一格的位置片語列。
     foreach ($value in @($Values | Where-Object { $_ })) {
@@ -1434,58 +1540,101 @@ function Add-ClausePhrase {
         }
     }
 
+    # 名稱格：接得了名稱、接不了值。接得了值的是運算式（IS NOT DISTINCT FROM 之後），名稱只是欄位的一種寫法。
+    $value = Select-PhraseValue -Probe $Probe
+    $takesName = $null -eq $value -and (Test-TakesName -Probe $Probe)
+
+    # 建立的物件種類寫完了，下一格是物件的名稱。ON、AUTHORIZATION 之後是既有的物件（CREATE FULLTEXT INDEX ON t、
+    # CREATE SCHEMA AUTHORIZATION u），不是這一句建立的名字。
+    if ($Kinds -eq 'New' -and $takesName -and $Pattern -notmatch ' (ON|AUTHORIZATION)$') {
+        $script:createdKinds.Add($Pattern.Substring('CREATE '.Length))
+    }
+
     if (-not $silent) {
         $script:phrases["$After`t$Pattern"] = @{
             Pattern       = $Pattern
             After         = $After
             Probe         = $Probe
-            Closed        = $null -ne $Closed ? [bool]$Closed : -not [SqlAssistPhraseProber]::AcceptsName($Probe, $PlainName, $continuationArray)
+            # 物件種類之後的名稱要再寫一長段標頭才完整（CREATE SYMMETRIC KEY k WITH …），照寫不寫得完判的話
+            # 名稱那一格被判成封閉；種類的片語改問名稱在那裡收不收。
+            Closed        = $null -ne $Closed ? [bool]$Closed :
+                $Kinds ? -not $takesName : -not [SqlAssistPhraseProber]::AcceptsName($Probe, $PlainName, $continuationArray)
             EndsStatement = $endsStatement
             Words         = @($words)
+            TakesOperand  = $takesName -or $null -ne $value
         }
+    }
+
+    # 物件種類的名稱之後只列一層（CREATE TABLE t 之後的 AS、ALTER INDEX i 之後的 ON）：
+    # 一路展開的話 CREATE PROCEDURE p AS 之後就是整份語句開頭。更深的標頭由各敘述自己宣告。
+    # 名稱之後那一格已由只認位置的片語說了（CREATE SEQUENCE t 之後是 SequenceOption）就不立，理由同下面的展開。
+    if ($Kinds -and $takesName -and $positionPhraseProbes -notcontains "${Probe}t " -and
+        -not (Test-Explored -Key "$After`t$Pattern {name}" -Expand 0)) {
+        Add-ClausePhrase -Pattern "$Pattern {name}" -Probe "${Probe}t " -After $After -Child
     }
 
     if ($Expand -le 0) {
         return
     }
 
-    # 這一格接得了值、值之後還沒寫完（FETCH ABSOLUTE 1 還要 FROM）時，值也是展開的一步：字列不出值，
-    # 值之後的字卻只有從這條路探得到。值寫完就完整的（SET ROWCOUNT 1）之後是下一句，不展開。
-    # 值不是字、不算一層，但不連著展開兩個值。
-    if ($Pattern -and $Pattern -notmatch '\{value\}$' -and
-        [SqlAssistPhraseProber]::AcceptsName($Probe, '1', $continuationArray) -and
-        -not [SqlAssistPhraseProber]::IsComplete("${Probe}1") -and
-        -not $script:phrases.Contains("$After`t$Pattern {value}")) {
-        Add-ClausePhrase -Pattern "$Pattern {value}" -Probe "${Probe}1 " -After $After -Expand $Expand
+    # 值與名稱也是展開的一步：字列不出它們，它們之後的字卻只有從這條路探得到
+    # （FETCH ABSOLUTE 1 之後的 FROM、DECRYPTION BY ASYMMETRIC KEY k 之後的 WITH）。
+    # 不算一層，也不連著展開兩個；物件種類的名稱上面已經處理過。
+    if (-not $Kinds -and $Pattern -and $Pattern -notmatch '(\{value\}|\{name\}|=)$') {
+        if ($null -ne $value -and -not (Test-Explored -Key "$After`t$Pattern {value}" -Expand $Expand)) {
+            Add-ClausePhrase -Pattern "$Pattern {value}" -Probe "$Probe$value " -After $After -Expand $Expand -Child -Step
+        }
+
+        if ($takesName -and -not (Test-Explored -Key "$After`t$Pattern {name}" -Expand $Expand)) {
+            Add-ClausePhrase -Pattern "$Pattern {name}" -Probe "${Probe}t " -After $After -Expand $Expand -Child -Step
+        }
     }
 
     # 這一格寫普通名稱就完整的話（OPEN c），名稱之後接得上的字（FETCH c INTO）另探一次，展開時扣掉。
     $nameReading = [SqlAssistPhraseProber]::IsComplete("$Probe$PlainName") ?
         [string[]]@(Get-PhraseWords -Probe "$Probe$PlainName ") : $null
 
-    foreach ($word in $found) {
-        $child = $Pattern ? "$Pattern $word" : $word
+    # 等號之後列得出的字是值（AES_128、RSA_2048），值之後接的與是哪一個值無關：不逐一展開，
+    # 以名稱代表往下，探測代入第一個字。
+    if ($Pattern -match ' =$') {
+        if ($words.Count -gt 0 -and -not (Test-Explored -Key "$After`t$Pattern {name}" -Expand ($Expand - 1))) {
+            Add-ClausePhrase -Pattern "$Pattern {name}" -Probe "$Probe$($words[0]) " -After $After -Expand ($Expand - 1) -Child -Step
+        }
+
+        return
+    }
+
+    # 手寫的值也往下：剖析器把它們當名稱看，之後的字同樣只有從這條路探得到。
+    foreach ($word in $words) {
+        $childPattern = $Pattern ? "$Pattern $word" : $word
         $childProbe = "$Probe$word "
 
-        # 展開到的那一格已由只認位置的片語說了（觸發程序標頭的 WITH 之後是 TriggerOption）就不再立：
-        # 同一件事說兩次。
-        if ($script:phrases.Contains("$After`t$child") -or $positionPhraseProbes -contains $childProbe) {
+        # 已經探到這麼深的不再探；展開到的那一格已由只認位置的片語說了（觸發程序標頭的 WITH 之後是
+        # TriggerOption）也不再立：同一件事說兩次。
+        if ((Test-Explored -Key "$After`t$childPattern" -Expand ($Expand - 1)) -or $positionPhraseProbes -contains $childProbe) {
             continue
         }
 
-        # 這個字寫完了語句（SET NOCOUNT ON）就不再往下：後面接的是下一句。普通名稱放在同一格也完整時，
-        # 完整的可能只是名稱那種讀法——OPEN SYMMETRIC 也是名叫 SYMMETRIC 的資料指標，後面照樣接 KEY——
-        # 往下探，但扣掉名稱讀法接得上的字。
-        if ([SqlAssistPhraseProber]::IsComplete($childProbe.TrimEnd())) {
-            if ($null -eq $nameReading) {
-                continue
-            }
+        # 語句的標頭寫完了也照樣往下探：扣掉下一句的開頭還剩字的（CREATE MASTER KEY 之後的 ENCRYPTION）
+        # 是這一句的下一段。子句裡的不探：WHERE a IS NOT NULL 寫完之後接什麼由位置分析說，片語只看一個樣板，
+        # 立了反而藏掉那個位置其餘的字（索引篩選之後的 WITH）。普通名稱放在同一格也完整時，完整的可能只是
+        # 名稱那種讀法——OPEN SYMMETRIC 也是名叫 SYMMETRIC 的資料指標，後面照樣接 KEY——扣掉名稱讀法接得上的字。
+        $completes = [SqlAssistPhraseProber]::IsComplete($childProbe.TrimEnd())
 
-            Add-ClausePhrase -Pattern $child -Probe $childProbe -After $After -Expand ($Expand - 1) -Borrowed $nameReading
+        if ($completes -and $After -ne 'StatementStart' -and $null -eq $nameReading) {
             continue
         }
 
-        Add-ClausePhrase -Pattern $child -Probe $childProbe -After $After -Expand ($Expand - 1)
+        $childBorrowed = $completes ? $nameReading : $null
+        Add-ClausePhrase -Pattern $childPattern -Probe $childProbe -After $After -Expand ($Expand - 1) -Borrowed $childBorrowed -Child -Kinds $Kinds
+
+        # 選項名稱之後的等號與字算同一層：ALGORITHM = 之後的 AES_256、RSA_2048 由剖析器列。
+        # 接得了值的格子是運算式，那裡的等號是比較（WHERE CURRENT = 1），不是選項。
+        if (-not $Kinds -and $null -eq $value -and
+            [SqlAssistPhraseProber]::FirstRejection("$childProbe=") -gt $childProbe.Length -and
+            -not (Test-Explored -Key "$After`t$childPattern =" -Expand ($Expand - 1))) {
+            Add-ClausePhrase -Pattern "$childPattern =" -Probe "$childProbe= " -After $After -Expand ($Expand - 1) -Child -Step
+        }
     }
 }
 
@@ -1506,7 +1655,10 @@ function Add-ListPhrase {
     $closed = $true
 
     foreach ($first in @($script:phrases[$headKey].Words)) {
-        $ending = $PhraseContinuations | Where-Object { [SqlAssistPhraseProber]::IsComplete("$Head$first$_") } | Select-Object -First 1
+        # 第一項寫完、接得了逗號就好，整句寫不寫得完不論：對稱金鑰的 WITH 清單之後還要寫 ENCRYPTION BY。
+        $ending = $PhraseContinuations | Where-Object {
+            [SqlAssistPhraseProber]::FirstRejection("$Head$first$_, ") -gt "$Head$first$_".Length
+        } | Select-Object -First 1
 
         # 寫不完的第一項（NO 之後要 CREDENTIAL）探不出逗號之後，由別的第一項補。
         if ($null -eq $ending) {
@@ -1543,7 +1695,7 @@ function Add-ListPhrase {
 # （FROM t JOIN y 還缺 ON），拿來探片語只會長出那條旁支才有的字，還要多花幾倍的時間。
 foreach ($entry in $ClausePhrases) {
     $pattern = $entry['Pattern']
-    $common = @{ Pattern = $pattern; Expand = [int]$entry['Expand']; Values = $entry['Values']; Closed = $entry['Closed'] }
+    $common = @{ Pattern = $pattern; Expand = [int]$entry['Expand']; Values = $entry['Values']; Closed = $entry['Closed']; Kinds = $entry['Kinds'] }
 
     # ... 的寫法由執行期的 SqlClausePhrase 驗；探測只要有一段代入的文字。
     if (($pattern -match '\.\.\.') -ne [bool]$entry['Gap']) {
@@ -1595,9 +1747,12 @@ foreach ($entry in $ClausePhrases) {
 # CREATE OR 之後就要有 ALTER。逐字探測問不出這種字——剖析器要看到整段才收，CREATE OR
 # 接任何續尾都在 CREATE 就報錯——但整條片語剖析得過本身就是證據。
 #
-# 前面那段已經是片語就把字補進去。還不是的另立一個，條件是那段尾巴認得出來：以字面字結尾
-# （以名稱或值結尾的一段，前一個字之後什麼都可能接，立了會封閉掉不相干的清單），而且
-# Lead 片語至少兩項——執行期不看 Lead 的前一格，單獨一個 ON、NEXT 到處都比對得上。
+# 前面那段已經是片語就把字補進去。還不是的另立一個，條件是那段尾巴認得出來：Lead 片語以字面字或等號結尾
+# （以名稱或值結尾的一段，前一個字之後什麼都可能接，立了會封閉掉不相干的清單），而且至少兩項——
+# 執行期不看 Lead 的前一格，單獨一個 ON、NEXT 到處都比對得上。單獨一個不是關鍵字的（GENERATED）立得起來但不封閉：
+# 它也可能是名稱，比對到只把字加進那一格的目錄。帶位置的片語從那個位置寫起，已經釘住了，
+# 以名稱結尾的一段也立得起來：ALGORITHM = AES_128 之後的 ENCRYPTION 剖析器當名稱讀，只有整段是證據。
+# 以 ...、括號或清單結尾的一段不立：那些元素要夾在字中間才比對得了。
 # 帶 After 的片語，第一個字前面那段是位置本身：那個位置有只認位置的片語就補進去
 # （函式 WITH 之後的 RETURNS、CALLED），沒有的由關鍵字目錄給。目錄也不給的（AT、ENABLE 不是
 # 關鍵字）收進那個位置的附加片語：只加字、比對永遠是「可能」，那一格其餘的字照樣由目錄給——
@@ -1630,10 +1785,29 @@ foreach ($entry in $ClausePhrases) {
             throw "片語「$($entry['Pattern'])」整段剖析不過，拿它補前面那段的字沒有根據。"
         }
 
-        for ($index = ($null -ne $lead ? 1 : 0); $index -lt $items.Count; $index++) {
+        for ($index = 0; $index -lt $items.Count; $index++) {
             $word = $items[$index]
 
             if ($word -notmatch '^[A-Za-z_]') {
+                continue
+            }
+
+            # Lead 片語的第一個字前面那一格判不出位置。關鍵字在那裡本來就全部進場，其餘的字（GENERATED）收進
+            # 只在判不出位置時出現的附加片語：與產生器判不出位置的關鍵字（None）同一條規則。
+            # Lead 那一段已經有片語列得出的（索引鍵之後的 INCLUDE）不必。
+            if ($null -ne $lead -and $index -eq 0) {
+                $listed = $phrases.Values | Where-Object { $_.Probe -eq $leadText -and $_.Words -contains $word }
+
+                if ($keywords -notcontains $word -and -not $listed) {
+                    if (-not $additivePhrases.Contains('None')) {
+                        $additivePhrases['None'] = @{ Probe = $leadText; Words = [System.Collections.Generic.List[string]]::new() }
+                    }
+
+                    if (-not $additivePhrases['None'].Words.Contains($word)) {
+                        $additivePhrases['None'].Words.Add($word)
+                    }
+                }
+
                 continue
             }
 
@@ -1663,12 +1837,22 @@ foreach ($entry in $ClausePhrases) {
                 continue
             }
 
+            # 探測文字相同就是同一格：DdlObject 的 TRIGGER {name} 與 CREATE TRIGGER {name} 都是 CREATE TRIGGER t，
+            # 字補進已經有的那一個，不另立一個互相搶比對。
             if (-not $phrases.Contains($key)) {
-                if ($items[$index - 1] -notmatch '^[A-Za-z_]' -or ($null -ne $lead -and $index -lt 2)) {
+                $key = @($phrases.Keys | Where-Object { $phrases[$_].Probe -eq $prefixProbe })[0] ?? $key
+            }
+
+            if (-not $phrases.Contains($key)) {
+                $ending = $null -ne $lead ? '^([A-Za-z_]|=$)' : '^([A-Za-z_]|=$|\{name\}$)'
+
+                $single = $null -ne $lead -and $index -lt 2
+
+                if ($items[$index - 1] -notmatch $ending -or ($single -and $keywords -contains $prefix)) {
                     continue
                 }
 
-                Add-ClausePhrase -Pattern $prefix -Probe $prefixProbe -After $position
+                Add-ClausePhrase -Pattern $prefix -Probe $prefixProbe -After $position -Closed ($single ? $false : $null)
             }
 
             if ($phrases[$key].Words -notcontains $word) {
@@ -1770,6 +1954,38 @@ foreach ($command in $dbccArguments.Keys) {
 }
 
 Write-Progress -Activity '探測子句片語' -Completed
+
+# 唯一接得下去的字併成一項：ASYMMETRIC 之後只有 KEY、ENCRYPTION 之後只有 BY，清單列的就是
+# ASYMMETRIC KEY、ENCRYPTION BY PASSWORD，選一次寫完。條件是那個字寫到這裡還沒完整、封閉、接不了名稱或值，
+# 而它之後正好一個字；那個字照同一條規則再往下併。中間每一段的片語照舊：一個字一個字打的人看到的是同一條路。
+function Get-PhraseChain {
+    param([string]$After, [string]$Pattern, [string]$Word)
+
+    $key = "$After`t$($Pattern ? "$Pattern $Word" : $Word)"
+
+    if (-not $phrases.Contains($key)) {
+        return $Word
+    }
+
+    $next = $phrases[$key]
+
+    if ($next.EndsStatement -or -not $next.Closed -or $next.TakesOperand -or @($next.Words).Count -ne 1) {
+        return $Word
+    }
+
+    return "$Word $(Get-PhraseChain -After $After -Pattern $next.Pattern -Word @($next.Words)[0])"
+}
+
+$chained = [ordered]@{}
+
+foreach ($key in $phrases.Keys) {
+    $phrase = $phrases[$key]
+    $chained[$key] = @($phrase.Words | ForEach-Object { Get-PhraseChain -After $phrase.After -Pattern $phrase.Pattern -Word $_ })
+}
+
+foreach ($key in $chained.Keys) {
+    $phrases[$key].Words = $chained[$key]
+}
 
 # 同一條尾巴在幾個位置上探到一模一樣的結果時併成一個片語，位置取聯集；結果不同的
 # （資料表之後的 FOR 多一個 SYSTEM_TIME）各自一個，執行期由前一格的位置分開。
@@ -2040,6 +2256,22 @@ foreach ($position in $additivePhrases.Keys) {
     $probeLiteral = $additive.Probe.Replace('\', '\\').Replace('"', '\"')
     $wordsLiteral = ($additive.Words | ForEach-Object { "`"$_`"" }) -join ', '
     $null = $builder.AppendLine("        (SqlKeywordPosition.$position, `"$probeLiteral`", new string[] { $wordsLiteral }),")
+}
+
+$null = $builder.AppendLine('    };')
+$null = $builder.AppendLine('')
+$null = $builder.AppendLine('    /// <summary>')
+$null = $builder.AppendLine('    /// CREATE 之後寫到這幾個字，下一格是物件的名稱；值是那一格除了名稱還接不接得上片語的字')
+$null = $builder.AppendLine('    /// （CREATE DATABASE 之後還有 SCOPED）。')
+$null = $builder.AppendLine('    /// </summary>')
+$null = $builder.AppendLine('    internal static readonly KeyValuePair<string, bool>[] CreatedKinds =')
+$null = $builder.AppendLine('    {')
+
+# 那一格除了名稱還接不接得上別的字，要等片語全部補完才知道：CREATE DATABASE 之後的 ENCRYPTION 是
+# CREATE DATABASE ENCRYPTION KEY 那一條補的。
+foreach ($kind in $createdKinds) {
+    $alsoWords = @($phrases.Values | Where-Object { $_.Pattern -eq "CREATE $kind" -and $_.After -contains 'StatementStart' -and @($_.Words).Count -gt 0 }).Count -gt 0
+    $null = $builder.AppendLine("        new(`"$kind`", $($alsoWords ? 'true' : 'false')),")
 }
 
 $null = $builder.AppendLine('    };')

@@ -38,7 +38,7 @@ public static class SqlClausePhraseCatalog
 
     /// <summary>任一個片語接得上的字；語句開頭的判準先問它，絕大多數的字不必比對。</summary>
     private static readonly HashSet<string> AllWords =
-        new(Phrases.SelectMany(phrase => phrase.Words), StringComparer.OrdinalIgnoreCase);
+        new(Phrases.SelectMany(phrase => phrase.Words).Select(SqlClausePhrase.FirstWord), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>全部片語。</summary>
     public static IReadOnlyList<SqlClausePhrase> All => Phrases;
@@ -127,10 +127,11 @@ public static class SqlClausePhraseCatalog
         if (count > 0)
         {
             var last = tokens[count - 1];
+            var lastWord = last.Kind == SqlTokenKind.Identifier && !last.IsQuoted ? last.Value
+                : last.Kind == SqlTokenKind.Operator && last.Value == "=" ? last.Value
+                : null;
 
-            if (last.Kind == SqlTokenKind.Identifier &&
-                !last.IsQuoted &&
-                ByLastWord.TryGetValue(last.Value, out var candidates))
+            if (lastWord is not null && ByLastWord.TryGetValue(lastWord, out var candidates))
             {
                 best = FirstMatch(candidates, tokens, count, onNewLine, caret, analyzer, minimumLength: 0);
             }
@@ -138,9 +139,15 @@ public static class SqlClausePhraseCatalog
             best = FirstMatch(EndingWithPlaceholder, tokens, count, onNewLine, caret, analyzer, best?.Phrase.Length + 1 ?? 0) ?? best;
         }
 
-        if (best is { IsCertain: true } || caret == SqlKeywordPosition.Any)
+        if (best is { IsCertain: true })
         {
             return best;
+        }
+
+        // 判不出位置時整份目錄進場，附加片語的字也一樣：產生器判不出位置的字（GENERATED）只在這裡出現。
+        if (caret == SqlKeywordPosition.Any)
+        {
+            return best ?? MatchAdditive(caret);
         }
 
         // 錨點之後緊接的第一格由標頭本身那個片語說（CREATE LOGIN 的第一項只能是 PASSWORD），上面已比對過。
@@ -155,6 +162,9 @@ public static class SqlClausePhraseCatalog
 
     /// <summary>游標處的位置接得上的附加片語；對上幾個就取它們的字的聯集。</summary>
     /// <remarks>
+    /// 位置的比對與關鍵字同一條規則（<see cref="SqlKeywordPositionExtensions.Allows"/>）：<c>None</c> 的附加片語
+    /// 只在判不出位置時出現，判不出位置時每一個附加片語都算。
+    ///
     /// 位置是旗標，一格可以同時是幾個位置：<c>SELECT SUM(a) </c> 是選取清單尾端（<c>AT</c>），也是函式呼叫之後
     /// （<c>WITHIN</c>）。附加片語只加字，同時成立的全部都算；只取第一個的話另一個的字就不見了。
     /// </remarks>
@@ -164,7 +174,7 @@ public static class SqlClausePhraseCatalog
 
         for (var index = 0; index < Additive.Length; index++)
         {
-            if ((Additive[index].After & caret) != SqlKeywordPosition.None)
+            if (Additive[index].After.Allows(caret))
             {
                 mask |= 1L << index;
             }

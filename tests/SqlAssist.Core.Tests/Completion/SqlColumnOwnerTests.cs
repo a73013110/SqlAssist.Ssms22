@@ -75,7 +75,7 @@ public sealed class SqlColumnOwnerTests
     [Theory]
     [InlineData("UPDATE dbo.Loan\nSET |", "NOCOUNT", false)]
     [InlineData("UPDATE dbo.Loan SET |", "ROWCOUNT", false)]
-    [InlineData("ALTER TABLE dbo.Loan DROP COLUMN |", "IF", true)]
+    [InlineData("ALTER TABLE dbo.Loan DROP COLUMN |", "IF EXISTS", true)]
     public void 資料行位置的關鍵字(string sqlWithCaret, string keyword, bool listed)
     {
         var context = Analyze(sqlWithCaret);
