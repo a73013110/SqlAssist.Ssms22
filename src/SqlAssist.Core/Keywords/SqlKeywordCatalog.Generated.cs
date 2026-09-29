@@ -250,10 +250,6 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.PivotClause, "SELECT * FROM t PIVOT (COUNT(a) FOR b "),
         new(SqlKeywordPosition.PivotClause, "SELECT * FROM t UNPIVOT (a "),
         new(SqlKeywordPosition.PivotClause, "SELECT * FROM t UNPIVOT (a FOR b "),
-        new(SqlKeywordPosition.ForXmlOption, "SELECT a FROM t FOR XML "),
-        new(SqlKeywordPosition.ForXmlOption, "SELECT a FROM t FOR XML RAW, "),
-        new(SqlKeywordPosition.ForJsonOption, "SELECT a FROM t FOR JSON "),
-        new(SqlKeywordPosition.ForJsonOption, "SELECT a FROM t FOR JSON AUTO, "),
         new(SqlKeywordPosition.Predicate, "SELECT * FROM t WHERE "),
         new(SqlKeywordPosition.Predicate, "DELETE FROM t WHERE "),
         new(SqlKeywordPosition.ExpressionTail, "SELECT * FROM t WHERE a = 1 "),
@@ -276,10 +272,6 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.ResultSetColumn, "EXEC p WITH RESULT SETS ((a int, "),
         new(SqlKeywordPosition.ResultSetColumnTail, "EXEC p WITH RESULT SETS ((a int "),
         new(SqlKeywordPosition.ResultSetColumnTail, "EXEC p WITH RESULT SETS ((a varchar(10) COLLATE Latin1_General_CI_AS "),
-        new(SqlKeywordPosition.RaiserrorOption, "RAISERROR ('x', 16, 1) WITH "),
-        new(SqlKeywordPosition.RaiserrorOption, "RAISERROR ('x', 16, 1) WITH NOWAIT, "),
-        new(SqlKeywordPosition.DbccOption, "DBCC CHECKDB WITH "),
-        new(SqlKeywordPosition.DbccOption, "DBCC CHECKDB WITH NO_INFOMSGS, "),
         new(SqlKeywordPosition.OptionItem, "ALTER USER u WITH "),
         new(SqlKeywordPosition.OptionItem, "ALTER USER u WITH NAME = n, "),
         new(SqlKeywordPosition.GroupByTail, "SELECT * FROM t GROUP BY a "),
@@ -1655,6 +1647,42 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
+        ("DBCC {name} WITH", SqlKeywordPosition.StatementStart, "DBCC t WITH ", true, false, new string[]
+        {
+            "ALL_CONSTRAINTS", "ALL_ERRORMSGS", "ALL_INDEXES", "ALL_LEVELS", "COUNT_ROWS",
+            "DATA_PURITY", "DENSITY_VECTOR", "ESTIMATEONLY", "EXTENDED_LOGICAL_CHECKS", "FAST",
+            "HISTOGRAM", "HISTOGRAM_STEPS", "MARK_IN_USE_FOR_REMOVAL", "NO_INFOMSGS",
+            "PHYSICAL_ONLY", "STAT_HEADER", "STATS_STREAM", "TABLERESULTS", "TABLOCK",
+        }),
+        ("DBCC {name} WITH ,*", SqlKeywordPosition.StatementStart, "DBCC t WITH ALL_CONSTRAINTS, ", true, false, new string[]
+        {
+            "ALL_CONSTRAINTS", "ALL_ERRORMSGS", "ALL_INDEXES", "ALL_LEVELS", "COUNT_ROWS",
+            "DATA_PURITY", "DENSITY_VECTOR", "ESTIMATEONLY", "EXTENDED_LOGICAL_CHECKS", "FAST",
+            "HISTOGRAM", "HISTOGRAM_STEPS", "MARK_IN_USE_FOR_REMOVAL", "NO_INFOMSGS",
+            "PHYSICAL_ONLY", "STAT_HEADER", "STATS_STREAM", "TABLERESULTS", "TABLOCK",
+        }),
+        ("DBCC {name} () WITH", SqlKeywordPosition.StatementStart, "DBCC t (a) WITH ", true, false, new string[]
+        {
+            "ALL_CONSTRAINTS", "ALL_ERRORMSGS", "ALL_INDEXES", "ALL_LEVELS", "COUNT_ROWS",
+            "DATA_PURITY", "DENSITY_VECTOR", "ESTIMATEONLY", "EXTENDED_LOGICAL_CHECKS", "FAST",
+            "HISTOGRAM", "HISTOGRAM_STEPS", "MARK_IN_USE_FOR_REMOVAL", "NO_INFOMSGS",
+            "PHYSICAL_ONLY", "STAT_HEADER", "STATS_STREAM", "TABLERESULTS", "TABLOCK",
+        }),
+        ("DBCC {name} () WITH ,*", SqlKeywordPosition.StatementStart, "DBCC t (a) WITH ALL_CONSTRAINTS, ", true, false, new string[]
+        {
+            "ALL_CONSTRAINTS", "ALL_ERRORMSGS", "ALL_INDEXES", "ALL_LEVELS", "COUNT_ROWS",
+            "DATA_PURITY", "DENSITY_VECTOR", "ESTIMATEONLY", "EXTENDED_LOGICAL_CHECKS", "FAST",
+            "HISTOGRAM", "HISTOGRAM_STEPS", "MARK_IN_USE_FOR_REMOVAL", "NO_INFOMSGS",
+            "PHYSICAL_ONLY", "STAT_HEADER", "STATS_STREAM", "TABLERESULTS", "TABLOCK",
+        }),
+        ("RAISERROR () WITH", SqlKeywordPosition.StatementStart, "RAISERROR ('x', 16, 1) WITH ", true, false, new string[]
+        {
+            "LOG", "NOWAIT", "SETERROR",
+        }),
+        ("RAISERROR () WITH ,*", SqlKeywordPosition.StatementStart, "RAISERROR ('x', 16, 1) WITH LOG, ", true, false, new string[]
+        {
+            "LOG", "NOWAIT", "SETERROR",
+        }),
         ("FOR", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR ", true, false, new string[]
         {
             "BROWSE", "JSON", "READ", "UPDATE", "XML",
@@ -1703,6 +1731,14 @@ internal static class SqlKeywordCatalogData
         }),
         ("SYNONYM {name} FOR", SqlKeywordPosition.DdlObject, "CREATE SYNONYM t FOR ", false, false, new string[]
         {
+        }),
+        ("FOR XML ,*", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR XML AUTO, ", true, false, new string[]
+        {
+            "BINARY", "ELEMENTS", "ROOT", "TYPE", "XMLDATA", "XMLSCHEMA",
+        }),
+        ("FOR JSON ,*", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR JSON AUTO, ", true, false, new string[]
+        {
+            "INCLUDE_NULL_VALUES", "ROOT", "WITHOUT_ARRAY_WRAPPER",
         }),
         ("NEXT VALUE FOR", SqlKeywordPosition.Any | SqlKeywordPosition.SelectList, "SELECT NEXT VALUE FOR ", false, false, new string[]
         {
@@ -1813,28 +1849,9 @@ internal static class SqlKeywordCatalogData
         {
             "NULL",
         }),
-        ("", SqlKeywordPosition.RaiserrorOption, "RAISERROR ('x', 16, 1) WITH ", true, false, new string[]
-        {
-            "LOG", "NOWAIT", "SETERROR",
-        }),
-        ("", SqlKeywordPosition.DbccOption, "DBCC CHECKDB WITH ", true, false, new string[]
-        {
-            "ALL_CONSTRAINTS", "ALL_ERRORMSGS", "ALL_INDEXES", "ALL_LEVELS", "COUNT_ROWS",
-            "DATA_PURITY", "DENSITY_VECTOR", "ESTIMATEONLY", "EXTENDED_LOGICAL_CHECKS", "FAST",
-            "HISTOGRAM", "HISTOGRAM_STEPS", "MARK_IN_USE_FOR_REMOVAL", "NO_INFOMSGS",
-            "PHYSICAL_ONLY", "STAT_HEADER", "STATS_STREAM", "TABLERESULTS", "TABLOCK",
-        }),
         ("", SqlKeywordPosition.TableSampleTail, "SELECT * FROM t TABLESAMPLE (10 ", true, false, new string[]
         {
             "COLLATE", "PERCENT", "ROWS",
-        }),
-        ("", SqlKeywordPosition.ForXmlOption, "SELECT a FROM t FOR XML RAW, ", true, false, new string[]
-        {
-            "BINARY", "ELEMENTS", "ROOT", "TYPE", "XMLDATA", "XMLSCHEMA",
-        }),
-        ("", SqlKeywordPosition.ForJsonOption, "SELECT a FROM t FOR JSON AUTO, ", true, false, new string[]
-        {
-            "INCLUDE_NULL_VALUES", "ROOT", "WITHOUT_ARRAY_WRAPPER",
         }),
         ("", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON ", false, false, new string[]
         {
@@ -1933,6 +1950,22 @@ internal static class SqlKeywordCatalogData
         {
             "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "LOGIN", "NAME", "OBJECT_ID", "PASSWORD",
             "SID", "TYPE",
+        }),
+        ("CREATE APPLICATION ROLE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE APPLICATION ROLE t WITH ", true, false, new string[]
+        {
+            "DEFAULT_SCHEMA", "PASSWORD",
+        }),
+        ("CREATE APPLICATION ROLE {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE APPLICATION ROLE t WITH DEFAULT_SCHEMA = x, ", true, false, new string[]
+        {
+            "DEFAULT_SCHEMA", "PASSWORD",
+        }),
+        ("ALTER APPLICATION ROLE {name} WITH", SqlKeywordPosition.StatementStart, "ALTER APPLICATION ROLE t WITH ", true, false, new string[]
+        {
+            "DEFAULT_SCHEMA", "LOGIN", "NAME", "PASSWORD",
+        }),
+        ("ALTER APPLICATION ROLE {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER APPLICATION ROLE t WITH DEFAULT_SCHEMA = x, ", true, false, new string[]
+        {
+            "DEFAULT_SCHEMA", "LOGIN", "NAME", "PASSWORD",
         }),
         ("CONSTRAINT {name}", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (CONSTRAINT t ", true, false, new string[]
         {
@@ -2119,6 +2152,14 @@ internal static class SqlKeywordCatalogData
         ("CREATE USER {name} WITHOUT LOGIN", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT LOGIN ", true, true, new string[]
         {
             "WITH",
+        }),
+        ("CREATE APPLICATION", SqlKeywordPosition.StatementStart, "CREATE APPLICATION ", true, false, new string[]
+        {
+            "ROLE",
+        }),
+        ("ALTER APPLICATION", SqlKeywordPosition.StatementStart, "ALTER APPLICATION ", true, false, new string[]
+        {
+            "ROLE",
         }),
         ("ROWS", SqlKeywordPosition.WindowOrderTail, "SELECT SUM(a) OVER (ORDER BY a ROWS ", true, false, new string[]
         {

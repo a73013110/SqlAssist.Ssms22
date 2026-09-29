@@ -97,14 +97,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
             endsItem: (analyzer, index) => analyzer.EndsModuleOption(index),
             header: (analyzer, with) => analyzer.FindModuleOptionHeader(with)),
 
-        // EXEC p … WITH RECOMPILE, RESULT SETS (…)、RAISERROR (…) WITH NOWAIT, LOG、
-        // DBCC CHECKDB (…) WITH NO_INFOMSGS, TABLOCK：WITH 與逗號之後是下一個選項。
-        // 選項寫完之後接的是下一句，不歸清單管。
+        // EXEC p … WITH RECOMPILE, RESULT SETS (…)：WITH 與逗號之後是下一個選項，選項寫完之後接的是下一句。
+        // 程序與 WITH 之間夾著參數清單，標頭寫不成清單片語。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
             isPart: (analyzer, index) => analyzer.tokens[index].Kind == SqlTokenKind.Identifier,
             endsItem: null,
-            header: (analyzer, with) => analyzer.FindStatementOptionHeader(with),
+            header: (analyzer, with) => analyzer.CallsProcedure(with)
+                ? new OptionSlots(SqlKeywordPosition.ExecuteOption, null)
+                : null,
             skipsGroups: true),
 
         // 外部索引鍵 REFERENCES dbo.Copy (CopyNo) ON DELETE CASCADE：參考與每個動作寫完之後是 ON、NOT 與其他條件約束。
@@ -120,6 +121,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             skipsGroups: true),
 
         // BACKUP|RESTORE DATABASE|LOG … WITH：選項清單不在括號裡，括號裡的逗號走不出那組括號。
+        // WITH 之前是長度不定的裝置清單，標頭寫不成清單片語。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
             isPart: (analyzer, index) => !analyzer.StartsClauseOfItsOwn(index),
@@ -136,17 +138,6 @@ public sealed partial class SqlKeywordPositionAnalyzer
             header: (analyzer, open) => analyzer.CreatesIndex(open - 1)
                 ? new OptionSlots(SqlKeywordPosition.IndexOption, null)
                 : null,
-            skipsGroups: true),
-
-        // SELECT … FOR XML RAW, ELEMENTS、FOR JSON PATH, ROOT('x')：模式是清單的第一項，逗號之後是指示詞。
-        new(
-            isAnchor: (analyzer, index) => (analyzer.tokens[index].IsKeyword("XML") || analyzer.tokens[index].IsKeyword("JSON")) &&
-                index >= 1 && analyzer.tokens[index - 1].IsKeyword("FOR"),
-            isPart: (analyzer, index) => analyzer.tokens[index].Kind == SqlTokenKind.Identifier,
-            endsItem: null,
-            header: (analyzer, anchor) => new OptionSlots(
-                analyzer.tokens[anchor].IsKeyword("XML") ? SqlKeywordPosition.ForXmlOption : SqlKeywordPosition.ForJsonOption,
-                null),
             skipsGroups: true),
 
         PhraseList
@@ -833,41 +824,19 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return new OptionSlots(start, SqlKeywordPosition.ModuleHeader);
     }
 
-    /// <summary><paramref name="with"/> 的 WITH 屬於 <c>EXEC</c> 程序呼叫、<c>RAISERROR</c> 或 <c>DBCC</c>。</summary>
+    /// <summary><paramref name="with"/> 的 WITH 屬於 <c>EXEC</c> 程序呼叫。</summary>
     /// <remarks>
     /// <c>EXECUTE AS USER = 'u' WITH NO REVERT</c> 是另一種敘述，<c>GRANT EXECUTE ON … WITH</c> 的 EXECUTE
-    /// 是權限，都不算：EXEC 要是這一句的開頭。RAISERROR 連同它的引數是一個單位，
-    /// 動詞往回找會越過它，所以直接看 WITH 前面那組括號。
+    /// 是權限，都不算：EXEC 要是這一句的開頭。
     /// </remarks>
-    private OptionSlots? FindStatementOptionHeader(int with)
+    private bool CallsProcedure(int with)
     {
-        if (with >= 1 && tokens[with - 1].IsPunctuation(")") &&
-            SqlTokenNavigator.FindOpeningParenthesis(tokens, with - 1) is var open and >= 1 &&
-            tokens[open - 1].IsKeyword("RAISERROR"))
-        {
-            return new OptionSlots(SqlKeywordPosition.RaiserrorOption, null);
-        }
-
         var verb = FindVerb(with - 1);
 
-        if (verb < 0 || verb + 1 >= with)
-        {
-            return null;
-        }
-
-        if (!IsStatementHead(verb))
-        {
-            return null;
-        }
-
-        if (tokens[verb].IsKeyword("DBCC"))
-        {
-            return new OptionSlots(SqlKeywordPosition.DbccOption, null);
-        }
-
-        return (tokens[verb].IsKeyword("EXEC") || tokens[verb].IsKeyword("EXECUTE")) && !tokens[verb + 1].IsKeyword("AS")
-            ? new OptionSlots(SqlKeywordPosition.ExecuteOption, null)
-            : null;
+        return verb >= 0 && verb + 1 < with &&
+            IsStatementHead(verb) &&
+            (tokens[verb].IsKeyword("EXEC") || tokens[verb].IsKeyword("EXECUTE")) &&
+            !tokens[verb + 1].IsKeyword("AS");
     }
 
     /// <summary>

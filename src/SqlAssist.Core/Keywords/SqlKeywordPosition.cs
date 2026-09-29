@@ -182,6 +182,7 @@ public enum SqlKeywordPosition : long
     UpdateSetTail = 1L << 43,
 
     /// <summary>BACKUP DATABASE／LOG 的 WITH 與選項清單的逗號之後；選項由子句片語給。</summary>
+    /// <remarks>不寫成清單片語：WITH 之前是長度不定的裝置清單（<c>TO DISK = 'x', URL = 'y'</c>），標頭寫不成尾巴。</remarks>
     BackupOption = 1 << 29,
 
     /// <summary>RESTORE DATABASE／LOG 的 WITH 與選項清單的逗號之後；選項由子句片語給。</summary>
@@ -248,17 +249,6 @@ public enum SqlKeywordPosition : long
     /// </remarks>
     PivotClause = 1L << 55,
 
-    /// <summary>查詢的 <c>FOR XML</c> 之後與逗號之後——模式（RAW、PATH）與指示詞（TYPE、ROOT）。</summary>
-    /// <remarks>
-    /// 模式是清單的第一項，所以同一個位置；<c>FOR XML </c> 由片語 <c>FOR XML</c> 只列模式，
-    /// 逗號之後由以位置為鍵的片語列指示詞。字幾乎都不是關鍵字。
-    /// </remarks>
-    ForXmlOption = 1L << 52,
-
-    /// <summary>查詢的 <c>FOR JSON</c> 之後與逗號之後——模式與 ROOT、INCLUDE_NULL_VALUES。</summary>
-    /// <remarks>不併進 <see cref="ForXmlOption"/>：兩者的指示詞不同。</remarks>
-    ForJsonOption = 1L << 53,
-
     /// <summary>模組的 WITH 選項清單寫完之後——AS；程序另外接 FOR REPLICATION。</summary>
     /// <remarks>
     /// 清單裡是 <see cref="ProcedureOption"/>、<see cref="FunctionOption"/>、<see cref="ViewOption"/>；
@@ -270,6 +260,10 @@ public enum SqlKeywordPosition : long
     FunctionReturns = 1L << 49,
 
     /// <summary><c>EXEC p … WITH</c> 與選項的逗號之後——RECOMPILE；RESULT SETS 由子句片語給。</summary>
+    /// <remarks>
+    /// 不寫成清單片語（<see cref="OptionItem"/>）：程序與 WITH 之間夾著長度不定的參數清單，標頭寫不成尾巴；
+    /// <c>WITH RESULT SETS (…)</c> 的兩層清單也以這一格認 EXEC。
+    /// </remarks>
     ExecuteOption = 1L << 50,
 
     /// <summary><c>WITH RESULT SETS (</c> 與結果集之間的逗號之後——AS；OBJECT、TYPE、FOR XML 由子句片語給。</summary>
@@ -286,20 +280,17 @@ public enum SqlKeywordPosition : long
     /// <summary>結果集資料行的型別與定序寫完之後——COLLATE、NULL、NOT。</summary>
     ResultSetColumnTail = 1L << 60,
 
-    /// <summary><c>RAISERROR (…) WITH</c> 與選項的逗號之後；LOG、NOWAIT、SETERROR 都不是關鍵字，由子句片語給。</summary>
-    RaiserrorOption = 1L << 51,
-
-    /// <summary><c>DBCC CHECKDB … WITH</c> 與選項的逗號之後——NO_INFOMSGS、TABLOCK；都不是關鍵字，由子句片語給。</summary>
-    DbccOption = 1L << 61,
-
     /// <summary>
-    /// 清單片語宣告的選項清單：標頭（<c>ALTER LOGIN l WITH</c>）與逗號之後；選項由那個片語給。
+    /// 清單片語宣告的選項清單：標頭（<c>ALTER LOGIN l WITH</c>、<c>RAISERROR (…) WITH</c>、<c>FOR XML</c>）
+    /// 與逗號之後；選項由那個片語給。
     /// </summary>
     /// <remarks>
     /// 所有這種清單共用一個位元。位置只說「這裡是某一句的選項清單」，是哪一句、接哪些字由片語的尾巴
-    /// 說：<c>CREATE LOGIN</c>、<c>ALTER LOGIN</c>、<c>CREATE USER</c>、<c>ALTER USER</c> 的選項各不相同，
-    /// 每種各佔一個位元的話，敘述數一多位元就不夠。哪些敘述有這種清單也只由片語說一次，
-    /// 見 <c>tools/Generate-Keywords.ps1</c> 的 <c>,*</c>。
+    /// 說：LOGIN、USER、DBCC、RAISERROR 的選項各不相同，每種各佔一個位元的話，敘述數一多位元就不夠。
+    /// 哪些敘述有這種清單也只由片語說一次，見 <c>tools/Generate-Keywords.ps1</c> 的 <c>,*</c>。
+    /// 仍各佔一格的清單寫不成標頭：中間夾著長度不定的一段（<see cref="ExecuteOption"/>、<see cref="BackupOption"/>、
+    /// <see cref="IndexOption"/>），選項寫完之後還有位置要回報（<see cref="ProcedureOption"/>、<see cref="TriggerOption"/>），
+    /// 或不以逗號分隔（<see cref="CursorOption"/>）。
     /// </remarks>
     OptionItem = 1L << 62,
 
@@ -344,7 +335,7 @@ public enum SqlKeywordPosition : long
         | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
         | ReferencesTail | FunctionCallTail | WindowOrderTail | OffsetTail | ModuleHeader | FunctionReturns
-        | ExecuteOption | ResultSetList | ResultSetColumn | ResultSetColumnTail | RaiserrorOption | DbccOption | OptionItem | TableSampleTail | PivotClause | ForXmlOption | ForJsonOption
+        | ExecuteOption | ResultSetList | ResultSetColumn | ResultSetColumnTail | OptionItem | TableSampleTail | PivotClause
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

@@ -50,8 +50,8 @@ public static class SqlKeywordPositionExtensions
     /// <c>ON</c>、<c>TO</c>；索引鍵清單的 <c>(a |</c> 之後是 <c>ASC</c>、<c>DESC</c>；外部索引鍵的
     /// <c>REFERENCES u (a) |</c> 之後是 <c>ON</c>、<c>NOT</c>；視窗的 <c>ORDER BY a |</c> 之後是框架；
     /// <c>OFFSET 10 |</c> 之後是 <c>ROWS</c>；函式呼叫的 <c>SUM(a) |</c> 之後是 <c>OVER</c>，它總是加在會接別名的子句尾端上；模組的 <c>WITH SCHEMABINDING |</c> 之後是 <c>AS</c>，
-    /// 函式參數清單的 <c>f (@a int) |</c> 之後是 <c>RETURNS</c>；<c>EXEC p WITH |</c>、
-    /// <c>RAISERROR (…) WITH |</c>、CREATE INDEX 的 <c>WITH (|</c> 與 <c>FOR XML |</c>、<c>FOR JSON |</c> 之後是選項；
+    /// 函式參數清單的 <c>f (@a int) |</c> 之後是 <c>RETURNS</c>；<c>EXEC p WITH |</c>、CREATE INDEX 的 <c>WITH (|</c>
+    /// 與清單片語的標頭（<c>RAISERROR (…) WITH |</c>、<c>FOR XML |</c>、<c>ALTER USER u WITH |</c>）之後是選項；
     /// <c>WITH RESULT SETS (|</c> 之後是 <c>AS</c> 或一組資料行定義，那一組的 <c>(|</c> 之後是新資料行名稱，
     /// 型別寫完之後是 <c>COLLATE</c>、<c>NULL</c>、<c>NOT NULL</c>；
     /// <c>TABLESAMPLE (10 |</c> 之後是 <c>PERCENT</c>；PIVOT 的 <c>(SUM(x) |</c> 之後是 <c>FOR</c>，<c>FOR y |</c> 之後是 <c>IN</c>。</item>
@@ -100,12 +100,8 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.ResultSetList |
         SqlKeywordPosition.ResultSetColumn |
         SqlKeywordPosition.ResultSetColumnTail |
-        SqlKeywordPosition.RaiserrorOption |
-        SqlKeywordPosition.DbccOption |
         SqlKeywordPosition.OptionItem |
         SqlKeywordPosition.IndexOption |
-        SqlKeywordPosition.ForXmlOption |
-        SqlKeywordPosition.ForJsonOption |
         SqlKeywordPosition.TableSampleTail |
         SqlKeywordPosition.PivotClause |
         SqlKeywordPosition.ByAnchor |
@@ -154,11 +150,7 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.ViewOption |
         SqlKeywordPosition.TriggerOption |
         SqlKeywordPosition.ExecuteOption |
-        SqlKeywordPosition.RaiserrorOption |
-        SqlKeywordPosition.DbccOption |
-        SqlKeywordPosition.OptionItem |
-        SqlKeywordPosition.ForXmlOption |
-        SqlKeywordPosition.ForJsonOption;
+        SqlKeywordPosition.OptionItem;
 
     /// <summary>
     /// 分析器回報的 <paramref name="caret"/> 裡每一個位置都封閉，見 <see cref="ClosedPositions"/>。

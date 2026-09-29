@@ -282,10 +282,6 @@ $ContextTemplates = [ordered]@{
         'SELECT * FROM t PIVOT (COUNT(a) ', 'SELECT * FROM t PIVOT (COUNT(a) FOR b ',
         'SELECT * FROM t UNPIVOT (a ', 'SELECT * FROM t UNPIVOT (a FOR b ')
 
-    # FOR XML、FOR JSON 之後與逗號之後：模式是清單的第一項，之後是指示詞，字幾乎都不是關鍵字，由子句片語給。
-    ForXmlOption     = @('SELECT a FROM t FOR XML ', 'SELECT a FROM t FOR XML RAW, ')
-    ForJsonOption    = @('SELECT a FROM t FOR JSON ', 'SELECT a FROM t FOR JSON AUTO, ')
-
     # WHERE CURRENT OF 只有 UPDATE 與 DELETE 寫得出來。
     Predicate        = @('SELECT * FROM t WHERE ', 'DELETE FROM t WHERE ')
 
@@ -312,7 +308,7 @@ $ContextTemplates = [ordered]@{
     ModuleHeader     = @('CREATE VIEW v WITH SCHEMABINDING ', 'CREATE PROCEDURE p WITH RECOMPILE ', 'CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING ')
     FunctionReturns  = @('CREATE FUNCTION f () ')
 
-    # EXEC、RAISERROR、DBCC 的 WITH 選項多半不是關鍵字，由子句片語給。
+    # EXEC 的 WITH 選項不是關鍵字，由子句片語給。程序與 WITH 之間夾著參數清單，標頭寫不成清單片語。
     ExecuteOption    = @('EXEC p WITH ', 'EXEC p WITH RECOMPILE, ')
 
     # WITH RESULT SETS 的兩層括號：外層每一項是一組資料行定義或 AS OBJECT／TYPE／FOR XML，
@@ -320,8 +316,6 @@ $ContextTemplates = [ordered]@{
     ResultSetList    = @('EXEC p WITH RESULT SETS (', 'EXEC p WITH RESULT SETS ((a int), ')
     ResultSetColumn  = @('EXEC p WITH RESULT SETS ((', 'EXEC p WITH RESULT SETS ((a int, ')
     ResultSetColumnTail = @('EXEC p WITH RESULT SETS ((a int ', 'EXEC p WITH RESULT SETS ((a varchar(10) COLLATE Latin1_General_CI_AS ')
-    RaiserrorOption  = @("RAISERROR ('x', 16, 1) WITH ", "RAISERROR ('x', 16, 1) WITH NOWAIT, ")
-    DbccOption       = @('DBCC CHECKDB WITH ', 'DBCC CHECKDB WITH NO_INFOMSGS, ')
 
     # 清單片語（,*）宣告的選項清單：所有敘述共用這一格，選項由片語的標頭分。樣板要有對應的清單片語才判得出來。
     OptionItem       = @('ALTER USER u WITH ', 'ALTER USER u WITH NAME = n, ')
@@ -374,10 +368,13 @@ $ContextTemplates = [ordered]@{
     # MERGE 的 THEN 之後是動作；ON 條件或一個動作寫完之後是下一個 WHEN、OUTPUT、OPTION。
     MergeAction      = @('MERGE t USING s ON 1 = 1 WHEN MATCHED THEN ', 'MERGE t USING s ON 1 = 1 WHEN NOT MATCHED THEN ')
     MergeClause      = @('MERGE t USING s ON 1 = 1 WHEN MATCHED THEN DELETE ')
-    BackupOption     = @("BACKUP DATABASE d TO DISK = 'x' WITH ", "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, ")
+
+    # WITH 之前是長度不定的裝置清單（TO DISK = 'x', URL = 'y'），標頭寫不成清單片語。
+    BackupOption    = @("BACKUP DATABASE d TO DISK = 'x' WITH ", "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, ")
     RestoreOption    = @("RESTORE DATABASE d FROM DISK = 'x' WITH ", "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, ")
 
     # 模組的 WITH 選項（ENCRYPTION、SCHEMABINDING、RECOMPILE）同樣不是關鍵字，四種模組各自一格。
+    # 不寫成清單片語：選項寫完之後要回報標頭的尾端（AS、FOR），EXECUTE AS 這種多字選項也以位置為鍵。
     ProcedureOption  = @('CREATE PROCEDURE p WITH ', 'CREATE PROCEDURE p WITH ENCRYPTION, ')
     FunctionOption   = @('CREATE FUNCTION f () RETURNS int WITH ', 'CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING, ')
     ViewOption       = @('CREATE VIEW v WITH ', 'CREATE VIEW v WITH SCHEMABINDING, ')
@@ -573,11 +570,12 @@ Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 # 片語的尾巴。執行期由 SqlClausePhrase 以同一份文字比對游標前的詞元：
 #   {name}   一個名稱單位，可以含點號與方括號；保留字（ALTER INDEX ALL、ALTER DATABASE CURRENT）與變數也算
 #   {value}  一個數值、字串、變數，或一整組括號
-#   ()       一整組括號
+#   ()       一整組括號；探測代入 (a)，剖析器對括號裡的內容有要求時（RAISERROR 要訊息、嚴重性、狀態）由 Group 指定
 #   (*       還沒關上的左括號清單，游標在左括號或逗號之後；只能是最後一項
 #   ,*       標頭開的逗號清單，游標在逗號之後；只能是最後一項，前面那段是標頭，以字面字結尾。
 #            標頭本身也立成片語，給第一項的字；逗號之後的字以「第一項的每一種寫法接逗號」探測取聯集。
-#            清單由位置分析走訪（OptionItem），哪些敘述有這種清單只在這裡說
+#            清單由位置分析走訪（OptionItem），哪些敘述有這種清單只在這裡說。標頭夾著長度不定的一段
+#            （EXEC 的參數、BACKUP 的裝置清單）或選項寫完之後還有位置要回報（模組標頭的 AS）的，仍以位置為鍵
 # 尾巴可以是空的：只認位置，「這個位置接得了這些字」。游標選項這種會重複的格子尾巴寫不出來。
 #
 # 片語前面那一格由 After 與 Lead 二選一交代：
@@ -691,10 +689,14 @@ $ClausePhrases = @(
 
     # DBCC 之後的命令剖析器什麼名稱都收（未公開的命令、DBCC dllname (FREE)），探不出字；
     # 字來自語句說明登錄的命令（見探測之後那一段），由人宣告封閉：那一格不是任何物件的名稱。
-    # 命令寫完已經是完整的一句，WITH 同時是 CTE 的開頭被扣掉了，手寫補回；選項由位置給（DbccOption）。
+    # 命令寫完已經是完整的一句，WITH 同時是 CTE 的開頭被扣掉了，由下面的清單片語補回。
+    # 選項不分命令：剖析器對任何命令都收同一份，命令名稱探測時是 t。
     @{ Pattern = 'DBCC'; Closed = $true }
-    @{ Pattern = 'DBCC {name}'; Values = @('WITH') }
-    @{ Pattern = 'DBCC {name} ()'; Values = @('WITH') }
+    @{ Pattern = 'DBCC {name}' }
+    @{ Pattern = 'DBCC {name} ()' }
+    @{ Pattern = 'DBCC {name} WITH ,*' }
+    @{ Pattern = 'DBCC {name} () WITH ,*' }
+    @{ Pattern = 'RAISERROR () WITH ,*'; Group = "('x', 16, 1)" }
 
     # FOR 有好幾種意思，由前一格的位置分開：查詢寫完之後是 XML、JSON、BROWSE、UPDATE、READ，
     # 資料表之後多一個 SYSTEM_TIME，游標選項之後是查詢，觸發程序標頭之後是 INSERT 這些事件。
@@ -704,6 +706,10 @@ $ClausePhrases = @(
     @{ Pattern = 'FOR SYSTEM_TIME'; After = @('TableSourceTail'); Expand = 1 }
     @{ Pattern = 'FOR'; After = @('CursorOption') }
     @{ Pattern = 'SYNONYM {name} FOR'; After = @('DdlObject') }
+
+    # FOR XML、FOR JSON 的模式是清單的第一項，由上面 FOR 往下展開的片語給；逗號之後是指示詞。
+    @{ Pattern = 'FOR XML ,*'; After = $QueryTails }
+    @{ Pattern = 'FOR JSON ,*'; After = $QueryTails }
 
     # 運算式寫在哪裡都行，函式引數裡判不出位置；CONSTRAINT df 之後也判不出來。
     # 選取清單裡判得出來，另立帶位置的一條：NEXT、AT 這種第一個字也要列得出下一個字。
@@ -733,12 +739,7 @@ $ClausePhrases = @(
     @{ Pattern = 'RESULT SETS'; After = @('ExecuteOption') }
     @{ Pattern = 'AS'; After = @('ResultSetList'); Expand = 1 }
     @{ Pattern = 'NOT'; After = @('ResultSetColumnTail') }
-    @{ Pattern = ''; After = @('RaiserrorOption', 'DbccOption') }
     @{ Pattern = ''; After = @('TableSampleTail') }
-
-    # FOR XML、FOR JSON 的逗號之後是指示詞；模式由上面 FOR 往下展開的片語給，那裡比對到的是更長的尾巴。
-    @{ Pattern = ''; After = @('ForXmlOption'); Template = 1 }
-    @{ Pattern = ''; After = @('ForJsonOption'); Template = 1 }
 
     # 權限 ON 之後的類別多半不是關鍵字（OBJECT、TYPE）；那一格也可以直接寫目標名稱，由人宣告不封閉。
     @{ Pattern = ''; After = @('PermissionOn'); Closed = $false }
@@ -749,7 +750,7 @@ $ClausePhrases = @(
     @{ Pattern = 'CREATE LOGIN {name}'; Expand = 1 }
 
     # 登入與使用者的 WITH 選項清單：四種敘述接的選項各不相同（CREATE LOGIN 第一項只能是 PASSWORD、
-    # ALTER LOGIN 另有 NAME、NO CREDENTIAL，USER 才有 DEFAULT_SCHEMA），由標頭分開。
+    # ALTER LOGIN 另有 NAME、NO CREDENTIAL，USER 才有 DEFAULT_SCHEMA），由標頭分開；應用程式角色同理。
     @{ Pattern = 'CREATE LOGIN {name} WITH ,*' }
     @{ Pattern = 'CREATE LOGIN {name} FROM WINDOWS WITH ,*' }
     @{ Pattern = 'ALTER LOGIN {name} WITH ,*' }
@@ -758,6 +759,8 @@ $ClausePhrases = @(
     @{ Pattern = 'CREATE USER {name} FROM LOGIN {name} WITH ,*' }
     @{ Pattern = 'CREATE USER {name} WITHOUT LOGIN WITH ,*' }
     @{ Pattern = 'ALTER USER {name} WITH ,*' }
+    @{ Pattern = 'CREATE APPLICATION ROLE {name} WITH ,*' }
+    @{ Pattern = 'ALTER APPLICATION ROLE {name} WITH ,*' }
 
     # 資料表層級的條件約束：CONSTRAINT 名稱之後是 PRIMARY KEY、UNIQUE、CHECK、FOREIGN KEY。
     @{ Pattern = 'CONSTRAINT {name}'; After = @('ColumnDefinition', 'AlterTableAdd') }
@@ -1053,7 +1056,7 @@ public static class SqlAssistPhraseProber
 [SqlAssistPhraseProber]::Initialize($parserType, [int[]]$RejectingErrorNumbers)
 
 function Get-PhraseProbe {
-    param([string]$Lead, [string]$Pattern)
+    param([string]$Lead, [string]$Pattern, [string]$Group)
 
     # 只認位置的片語：樣板本身就是探測文字。
     if (-not $Pattern) {
@@ -1062,7 +1065,7 @@ function Get-PhraseProbe {
 
     # 清單片語的探測另外組（Add-ListPhrase）；這裡給的是標頭。
     $Pattern = $Pattern -replace ' ,\*$', ''
-    $text = $Pattern.Replace('{name}', 't').Replace('{value}', '1').Replace('()', '(a)')
+    $text = $Pattern.Replace('{name}', 't').Replace('{value}', '1').Replace('()', $Group ? $Group : '(a)')
     $text = $Lead + $text.Replace('(*', '(')
 
     return $text.EndsWith('(') ? $text : $text + ' '
@@ -1240,7 +1243,7 @@ foreach ($entry in $ClausePhrases) {
             throw "清單片語「$pattern」要以 After 交代位置：位置分析拿標頭認清單，得判得出標頭前一格。"
         }
 
-        Add-ClausePhrase @common -Probe (Get-PhraseProbe -Lead $entry['Lead'] -Pattern $pattern) -After 'Any'
+        Add-ClausePhrase @common -Probe (Get-PhraseProbe -Lead $entry['Lead'] -Pattern $pattern -Group $entry['Group']) -After 'Any'
         continue
     }
 
@@ -1249,7 +1252,7 @@ foreach ($entry in $ClausePhrases) {
             throw "片語「$pattern」的 After 寫了不存在的位置 $position。"
         }
 
-        $probe = Get-PhraseProbe -Lead @($ContextTemplates[$position])[[int]$entry['Template']] -Pattern $pattern
+        $probe = Get-PhraseProbe -Lead @($ContextTemplates[$position])[[int]$entry['Template']] -Pattern $pattern -Group $entry['Group']
 
         if ($pattern -match ' ,\*$') {
             if ($entry['Expand'] -or $entry['Values'] -or $null -ne $entry['Closed']) {
@@ -1299,7 +1302,7 @@ foreach ($entry in $ClausePhrases) {
     foreach ($position in ($null -ne $lead ? @('Any') : @($entry['After'] ?? 'StatementStart'))) {
         $leadText = $lead ?? @($ContextTemplates[$position])[[int]$entry['Template']]
 
-        if (-not (Test-PatternAccepted -Probe (Get-PhraseProbe -Lead $leadText -Pattern $entry['Pattern']))) {
+        if (-not (Test-PatternAccepted -Probe (Get-PhraseProbe -Lead $leadText -Pattern $entry['Pattern'] -Group $entry['Group']))) {
             throw "片語「$($entry['Pattern'])」整段剖析不過，拿它補前面那段的字沒有根據。"
         }
 
@@ -1312,7 +1315,7 @@ foreach ($entry in $ClausePhrases) {
 
             $prefix = $index -eq 0 ? '' : $items[0..($index - 1)] -join ' '
             $key = "$position`t$prefix"
-            $prefixProbe = Get-PhraseProbe -Lead $leadText -Pattern $prefix
+            $prefixProbe = Get-PhraseProbe -Lead $leadText -Pattern $prefix -Group $entry['Group']
 
             # Lead 片語的鍵不含 Lead：視窗框架的 ROWS 與 OFFSET 之後的 ROWS 同一個鍵，墊的文字不同就是別的片語。
             if ($phrases.Contains($key) -and $phrases[$key].Probe -ne $prefixProbe) {

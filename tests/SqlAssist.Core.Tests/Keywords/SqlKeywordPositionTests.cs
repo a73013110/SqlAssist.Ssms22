@@ -105,7 +105,8 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
-    /// 模組的選項清單寫完之後是本體；函式的參數清單之後是 RETURNS；EXEC、RAISERROR、DBCC 的 WITH 之後是它們自己的選項。
+    /// 模組的選項清單寫完之後是本體；函式的參數清單之後是 RETURNS；EXEC 的 WITH 之後是它自己的選項，
+    /// 標頭寫得成尾巴的清單（RAISERROR、DBCC、LOGIN、USER、應用程式角色）共用 OptionItem。
     /// </summary>
     [Theory]
     [InlineData("CREATE VIEW dbo.v WITH SCHEMABINDING ", SqlKeywordPosition.ModuleHeader)]
@@ -116,11 +117,14 @@ public sealed class SqlKeywordPositionTests
     [InlineData("ALTER FUNCTION dbo.fn_Fee (@CopyNo int, @Days int = 1) ", SqlKeywordPosition.FunctionReturns)]
     [InlineData("EXEC dbo.usp_Renew @CopyNo = 1, @Due = @d OUTPUT WITH ", SqlKeywordPosition.ExecuteOption)]
     [InlineData("EXEC dbo.usp_Renew WITH RECOMPILE, ", SqlKeywordPosition.ExecuteOption)]
-    [InlineData("RAISERROR ('x', 16, 1) WITH ", SqlKeywordPosition.RaiserrorOption)]
-    [InlineData("RAISERROR (@msg, 16, 1, @CopyNo) WITH NOWAIT, ", SqlKeywordPosition.RaiserrorOption)]
-    [InlineData("DBCC CHECKDB WITH ", SqlKeywordPosition.DbccOption)]
-    [InlineData("DBCC CHECKDB (N'LibArchive') WITH NO_INFOMSGS, ", SqlKeywordPosition.DbccOption)]
-    [InlineData("DBCC CHECKIDENT ('dbo.Lib_Tag', RESEED, 100) WITH ", SqlKeywordPosition.DbccOption)]
+    [InlineData("RAISERROR ('x', 16, 1) WITH ", SqlKeywordPosition.OptionItem)]
+    [InlineData("RAISERROR (@msg, 16, 1, @CopyNo) WITH NOWAIT, ", SqlKeywordPosition.OptionItem)]
+    [InlineData("SELECT a FROM t WHERE b = 1\nRAISERROR ('x', 16, 1) WITH ", SqlKeywordPosition.OptionItem)]
+    [InlineData("DBCC CHECKDB WITH ", SqlKeywordPosition.OptionItem)]
+    [InlineData("DBCC CHECKDB (N'LibArchive') WITH NO_INFOMSGS, ", SqlKeywordPosition.OptionItem)]
+    [InlineData("DBCC CHECKIDENT ('dbo.Lib_Tag', RESEED, 100) WITH ", SqlKeywordPosition.OptionItem)]
+    [InlineData("CREATE APPLICATION ROLE LibAppRole WITH ", SqlKeywordPosition.OptionItem)]
+    [InlineData("ALTER APPLICATION ROLE LibAppRole WITH NAME = LibAppRole2, ", SqlKeywordPosition.OptionItem)]
     [InlineData("CREATE LOGIN LibLogin WITH ", SqlKeywordPosition.OptionItem)]
     [InlineData("CREATE LOGIN LibLogin WITH PASSWORD = 'x' MUST_CHANGE, CHECK_EXPIRATION = ON, ", SqlKeywordPosition.OptionItem)]
     [InlineData("ALTER LOGIN LibLogin WITH NAME = LibLogin2, ", SqlKeywordPosition.OptionItem)]
@@ -178,12 +182,13 @@ public sealed class SqlKeywordPositionTests
     [InlineData("ALTER ROLE LibRole WITH ")]
     [InlineData("SELECT a, ")]
     [InlineData("ALTER USER LibUser WITH NAME = LibUser2; SELECT a, ")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS (AS FOR XML ")]
+    [InlineData("SELECT a FROM dbo.Loan WITH ")]
     public void 模組本體與別的敘述的WITH不是模組選項(string textBeforeToken)
     {
         const SqlKeywordPosition options = SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption |
             SqlKeywordPosition.ViewOption | SqlKeywordPosition.TriggerOption |
-            SqlKeywordPosition.ExecuteOption | SqlKeywordPosition.RaiserrorOption | SqlKeywordPosition.DbccOption |
-            SqlKeywordPosition.OptionItem;
+            SqlKeywordPosition.ExecuteOption | SqlKeywordPosition.OptionItem;
         var position = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords;
 
         // 判不出位置（Any）也含這幾個位元，那不是判成選項。
@@ -1485,9 +1490,10 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR y ", SqlKeywordPosition.PivotClause)]
     [InlineData("SELECT * FROM t UNPIVOT (v ", SqlKeywordPosition.PivotClause)]
     [InlineData("SELECT * FROM t UNPIVOT (v FOR [y] ", SqlKeywordPosition.PivotClause)]
-    [InlineData("SELECT a FROM t FOR XML ", SqlKeywordPosition.ForXmlOption)]
-    [InlineData("SELECT a FROM t FOR XML PATH('x'), ROOT('y'), ", SqlKeywordPosition.ForXmlOption)]
-    [InlineData("SELECT a FROM t FOR JSON PATH, ", SqlKeywordPosition.ForJsonOption)]
+    [InlineData("SELECT a FROM t FOR XML ", SqlKeywordPosition.OptionItem)]
+    [InlineData("SELECT a FROM t FOR XML PATH('x'), ROOT('y'), ", SqlKeywordPosition.OptionItem)]
+    [InlineData("SELECT a FROM t FOR JSON PATH, ", SqlKeywordPosition.OptionItem)]
+    [InlineData("SELECT a FROM t WHERE b = 1 ORDER BY a FOR JSON AUTO, ", SqlKeywordPosition.OptionItem)]
     [InlineData("ALTER TABLE t ADD a int NOT NULL DEFAULT (0), ", SqlKeywordPosition.AlterTableAdd)]
     public void 敘述自己的格子(string textBeforeToken, SqlKeywordPosition expected)
     {

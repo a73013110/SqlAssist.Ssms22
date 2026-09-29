@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Snippets;
 using Xunit;
 
@@ -238,6 +239,13 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE USER LibUser FOR LOGIN LibLogin WITH ", "DEFAULT_SCHEMA")]
     [InlineData("CREATE USER LibUser WITHOUT LOGIN WITH ", "DEFAULT_SCHEMA")]
     [InlineData("ALTER USER LibUser WITH NAME = LibUser2, ", "DEFAULT_SCHEMA", "LOGIN")]
+    [InlineData("CREATE APPLICATION ROLE LibAppRole WITH ", "PASSWORD", "DEFAULT_SCHEMA")]
+    [InlineData("CREATE APPLICATION ROLE LibAppRole WITH PASSWORD = 'x', ", "DEFAULT_SCHEMA")]
+    [InlineData("ALTER APPLICATION ROLE LibAppRole WITH ", "NAME", "PASSWORD", "DEFAULT_SCHEMA")]
+    [InlineData("ALTER APPLICATION ROLE LibAppRole WITH NAME = LibAppRole2, ", "PASSWORD", "DEFAULT_SCHEMA")]
+    [InlineData("RAISERROR ('x', 16, 1) WITH ", "LOG", "NOWAIT", "SETERROR")]
+    [InlineData("RAISERROR (@msg, 16, 1, @CopyNo) WITH NOWAIT, ", "LOG", "SETERROR")]
+    [InlineData("SELECT a FROM t FOR XML AUTO, ", "TYPE", "ROOT", "ELEMENTS")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -287,6 +295,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("DBCC CHECKDB WITH NO_INFOMSGS, ", "RECOMPILE")]
     [InlineData("CREATE LOGIN LibLogin WITH PASSWORD = 'x', ", "SELECT")]
     [InlineData("ALTER USER LibUser WITH NAME = LibUser2, ", "SELECT")]
+    [InlineData("RAISERROR ('x', 16, 1) WITH ", "SELECT")]
+    [InlineData("RAISERROR ('x', 16, 1) WITH NOWAIT, ", "SELECT")]
+    [InlineData("CREATE APPLICATION ROLE LibAppRole WITH PASSWORD = 'x', ", "SELECT")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
@@ -315,6 +326,11 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER LOGIN LibLogin WITH ", "DEFAULT_SCHEMA")]
     [InlineData("CREATE USER LibUser WITH PASSWORD = 'x', ", "CHECK_POLICY")]
     [InlineData("CREATE USER LibUser WITH ", "NAME")]
+    [InlineData("CREATE APPLICATION ROLE LibAppRole WITH ", "NAME")]
+    [InlineData("CREATE APPLICATION ROLE LibAppRole WITH PASSWORD = 'x', ", "CHECK_POLICY")]
+    [InlineData("RAISERROR ('x', 16, 1) WITH NOWAIT, ", "RECOMPILE")]
+    [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE, ", "NOWAIT")]
+    [InlineData("SELECT a FROM t FOR JSON PATH, ", "NOWAIT")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));
@@ -350,6 +366,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("CLOSE SYMMETRIC KEY ", false)]
     [InlineData("DBCC ", true)]
     [InlineData("DBCC CHECKDB WITH ", true)]
+    [InlineData("DBCC CHECKDB WITH NO_INFOMSGS, ", true)]
+    [InlineData("RAISERROR ('x', 16, 1) WITH NOWAIT, ", true)]
+    [InlineData("SELECT a FROM t FOR JSON PATH, ", true)]
     public void 封閉的片語換掉整份清單(string textBeforeCaret, bool closed)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -421,13 +440,11 @@ public sealed class SqlClausePhraseTests
     {
         var data = new TheoryData<string, string, string>();
 
-        foreach (var phrase in SqlClausePhraseCatalog.All)
+        // 清單片語的標頭另有一條片語，逐字由那一條檢查；清單片語的探測文字多了寫完的第一項。
+        foreach (var phrase in SqlClausePhraseCatalog.All.Where(phrase => !phrase.IsList))
         {
-            // 清單片語的探測文字是標頭加上寫完的第一項，每一個字在標頭裡。
             var items = phrase.Pattern.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            items = phrase.IsList ? items.Take(items.Length - 1).ToArray() : items;
-            var full = string.Join(" ", items.Select(RenderItem));
-            var lead = phrase.Probe.Substring(0, phrase.Probe.LastIndexOf(full, StringComparison.Ordinal));
+            var tokens = SqlTokenizer.Tokenize(phrase.Probe);
             var isLead = phrase.After == SqlKeywordPosition.Any;
 
             for (var index = isLead ? 1 : 0; index < items.Length; index++)
@@ -437,8 +454,12 @@ public sealed class SqlClausePhraseTests
                     continue;
                 }
 
-                var before = lead + string.Concat(items.Take(index).Select(item => RenderItem(item) + " "));
-                data.Add(phrase.Pattern, before, items[index]);
+                // 前面那段直接取自探測文字：從尾端比對到這個字為止，名稱與括號的代入就與產生器相同。
+                var rest = new SqlClausePhrase(
+                    string.Join(" ", items.Skip(index)), SqlKeywordPosition.Any, string.Empty,
+                    isClosed: false, endsStatement: false, Array.Empty<string>());
+                var start = rest.MatchTail(tokens, tokens.Count);
+                data.Add(phrase.Pattern, phrase.Probe.Substring(0, tokens[start].Start), items[index]);
             }
         }
 
@@ -464,19 +485,6 @@ public sealed class SqlClausePhraseTests
     private static bool IsLiteral(string item)
     {
         return char.IsLetter(item[0]) || item[0] == '_';
-    }
-
-    /// <summary>與產生器的 <c>Get-PhraseProbe</c> 同一套代換。</summary>
-    private static string RenderItem(string item)
-    {
-        return item switch
-        {
-            "{name}" => "t",
-            "{value}" => "1",
-            "()" => "(a)",
-            "(*" => "(",
-            _ => item,
-        };
     }
 
     /// <summary>走產品的過濾路徑：候選清單加上片語的字，再做上下文過濾。</summary>

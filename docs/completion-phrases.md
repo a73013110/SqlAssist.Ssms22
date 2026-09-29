@@ -40,8 +40,7 @@
 
 - `Expand`：每個接得上的字接在後面成為新片語，直到那個字寫完語句。普通名稱放在同一格也完整時，完整的
   可能只是名稱讀法（`OPEN SYMMETRIC` 也是名叫 `SYMMETRIC` 的資料指標）：照樣往下，但扣掉普通名稱之後
-  接得上的字（`FETCH NEXT ` 之後不列 `INTO`），扣完沒有字就不立。`SET` 往下四層，
-  所以 `SET TRANSACTION ISOLATION LEVEL READ ` 有自己的 `COMMITTED`／`UNCOMMITTED`。
+  接得上的字（`FETCH NEXT ` 之後不列 `INTO`），扣完沒有字就不立。
   展開出來的片語字可以是零個：`SET ROWCOUNT ` 之後要數字，清單就該是空的。
 - `Values`：剖析器把值當名稱看、分不出來時才手寫（`SET DATEFORMAT` 的 `dmy`）。
   每個值仍要剖析得過（接得上一組續尾，或開得了一組清單：索引鍵之後的 `WITH` 只接 `(`），
@@ -77,27 +76,28 @@
 - `Lead`：前一格判不出位置、而尾巴本身就認得出意思（`WITH EXECUTE AS`、`NEXT VALUE FOR`）時，
   探測要墊的文字；執行期不看前一格。判得出來的一律寫 `After`，同一件事只由位置分析說一次。
 
-會重複的格子尾巴寫不出來（`CURSOR LOCAL FAST_FORWARD `、`WITH COMPRESSION, `），位置寫得出來：
-沒有尾巴的片語帶 `After`，探測文字就是那個位置的樣板。游標選項、觸發程序標頭、MERGE 的 `WHEN`、
-各種 `WITH` 選項清單、`WITH RESULT SETS (…)` 的兩層括號清單、`OFFSET 10 ` 之後的 `ROWS`、
-視窗框架都是這樣；`AS OBJECT` 這種下一個字由掛在位置上的片語給。位置見[關鍵字](completion-keywords.md)。
+會重複的格子（`CURSOR LOCAL FAST_FORWARD `、MERGE 的 `WHEN`、視窗框架、`WITH RESULT SETS (…)` 的兩層清單）
+尾巴寫不出來，位置寫得出來：沒有尾巴的片語帶 `After`，探測文字就是那個位置的樣板；
+`AS OBJECT` 這種下一個字由掛在位置上的片語給。位置見[關鍵字](completion-keywords.md)。
+
+`FOR` 還分游標選項、觸發程序標頭與 `SYNONYM` 的物件種類。`CREATE USER {name}` 從語句開頭寫起，不掛在物件種類上：
+`ALTER USER` 接別的字，確定的比對會藏掉它們。前一格判不出位置的（選取清單以外的 `NEXT VALUE`、
+預設值條件約束、`NOT FOR REPLICATION`）才寫更長的 `Lead` 尾巴，由比對取項數多的分開。
 
 ### 清單片語
 
-只看標頭的逗號選項清單寫成 `ALTER USER {name} WITH ,*`，共用位置 `OptionItem`（各敘述選項不同，各佔位元不足）。
-分析器走訪清單、交出錨點，敘述只由片語列；比對看錨點前的標頭。標頭本身的片語給第一項；
-逗號之後以每種第一項接逗號探測取聯集：用過的選項剖析器不收第二次。
+標頭開的逗號選項清單寫成 `ALTER USER {name} WITH ,*`，共用位置 `OptionItem`（各敘述選項不同，各佔位元不足）：
+LOGIN、USER、應用程式角色、DBCC、RAISERROR、`FOR XML`／`FOR JSON`。分析器走訪清單、交出錨點，比對看錨點前的標頭。
+標頭本身的片語給第一項；逗號之後以每種第一項接逗號探測取聯集：用過的選項剖析器不收第二次。
+`()` 探測代入 `(a)`，對括號內容有要求的（RAISERROR）由 `Group` 指定。
 
-中間可以夾別的子句時也寫位置，不寫尾巴：CREATE INDEX 的 `WITH (` 前面可能是索引鍵、`INCLUDE (…)`
-或篩選的 `WHERE`，每一種組合寫一條尾巴永遠寫不齊，位置分析認的是這一句（`IndexOption`）。
-`FOR XML RAW, ` 的逗號之後、`GRANT … ON ` 之後同理。
+標頭寫不成尾巴的仍各佔一個位置：
 
-只用第一個樣板：它是完整的代表寫法，「已經完整」才判得準；其餘是撈關鍵字的旁支。
-
-`FOR` 的意思也由前一格分開：查詢尾端、資料表、游標選項（`CursorOption`）、觸發程序標頭
-（`TriggerHeader`）、`SYNONYM` 的物件種類。`CREATE USER {name}` 從語句開頭寫起，不掛在物件種類上：
-`ALTER USER` 接別的字，確定的比對會藏掉它們。前一格判不出位置的（選取清單以外的 `NEXT VALUE`、
-預設值條件約束、`NOT FOR REPLICATION`）才寫更長的 `Lead` 尾巴，由比對取項數多的分開。
+- 夾著長度不定的一段：EXEC 的參數（`WITH RESULT SETS (` 也靠 `ExecuteOption` 認 EXEC）、BACKUP／RESTORE
+  的裝置清單、CREATE INDEX 的 `INCLUDE (…)` 與篩選 `WHERE`。「到語句開頭為止的任意詞元」這種標頭元素不採用：
+  尾巴比對得問分析器語句開頭，每個 `WITH` 都付這份代價；探測也得每句另給代入文字（BACKUP 少了 `TO` 剖析不過）。
+- 選項寫完還要回報位置（模組的 `AS`、觸發程序的 `FOR`）；`EXECUTE AS` 這類多字選項以位置為鍵，掛到共用位置會漏進每一份清單。
+- 不以逗號分隔：游標選項。
 
 ## 執行期
 
@@ -126,8 +126,7 @@
 照目標過濾的話 `EXEC AS` 的 `AS` 永遠列不出來；`OPEN ` 的目標是資料指標，`SYMMETRIC`、`MASTER` 也是這樣並列。
 
 「可能」出現得越少，清單越準；它的來源是位置分析的 `Any`，該補的是分析器。模組標頭的
-`AS` 之後（`CREATE PROCEDURE p AS⏎SET NOCOUNT `）、IF 條件、`DESC` 之後因此都判得出來；
-游標選項之後的 `FOR` 對上的是游標那一條，列的是 `SELECT`。
+`AS` 之後（`CREATE PROCEDURE p AS⏎SET NOCOUNT `）、IF 條件、`DESC` 之後因此都判得出來。
 
 ## 刻意沒收的
 

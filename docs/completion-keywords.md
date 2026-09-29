@@ -58,7 +58,7 @@ CREATE TRIGGER tr ON t AFTER → INSERT、UPDATE、DELETE（TriggerEvent）
 OVER (ORDER BY a      → ASC、DESC、ROWS、RANGE（WindowOrderTail）
 GRANT EXECUTE ON      → SCHEMA、OBJECT…與名稱（PermissionOn）
 CREATE INDEX … WITH ( → ONLINE、FILLFACTOR…（IndexOption）
-FOR XML RAW,          → TYPE、ROOT、ELEMENTS（ForXmlOption）
+FOR XML RAW,          → TYPE、ROOT、ELEMENTS（OptionItem）
 TABLESAMPLE (10       → PERCENT、ROWS（TableSampleTail）
 PIVOT (SUM(x) FOR y   → IN（PivotClause）
 ```
