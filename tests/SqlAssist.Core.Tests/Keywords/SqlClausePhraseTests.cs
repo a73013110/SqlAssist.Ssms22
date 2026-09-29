@@ -225,6 +225,19 @@ public sealed class SqlClausePhraseTests
     [InlineData("DBCC CHECKDB WITH ", "NO_INFOMSGS", "ALL_ERRORMSGS", "TABLOCK", "PHYSICAL_ONLY")]
     [InlineData("DBCC CHECKDB (N'LibArchive') WITH NO_INFOMSGS, ", "ALL_ERRORMSGS", "DATA_PURITY")]
     [InlineData("DBCC SHOW_STATISTICS ('dbo.Loan', st_CopyNo) WITH ", "STAT_HEADER", "DENSITY_VECTOR", "HISTOGRAM")]
+    [InlineData("CREATE LOGIN LibLogin WITH ", "PASSWORD")]
+    [InlineData("CREATE LOGIN LibLogin WITH PASSWORD = 'x', ", "SID", "DEFAULT_DATABASE", "DEFAULT_LANGUAGE", "CHECK_POLICY", "CHECK_EXPIRATION")]
+    [InlineData("CREATE LOGIN LibLogin WITH PASSWORD = 'x' MUST_CHANGE, CHECK_EXPIRATION = ON, ", "CHECK_POLICY", "DEFAULT_LANGUAGE")]
+    [InlineData("CREATE LOGIN LibLogin FROM WINDOWS WITH ", "DEFAULT_DATABASE", "DEFAULT_LANGUAGE")]
+    [InlineData("ALTER LOGIN LibLogin WITH ", "PASSWORD", "NAME", "DEFAULT_LANGUAGE", "CHECK_POLICY")]
+    [InlineData("ALTER LOGIN LibLogin WITH NAME = LibLogin2, ", "DEFAULT_DATABASE", "DEFAULT_LANGUAGE")]
+    [InlineData("CREATE USER LibUser ", "WITH", "FOR", "WITHOUT")]
+    [InlineData("CREATE USER LibUser WITH ", "PASSWORD", "DEFAULT_SCHEMA", "DEFAULT_LANGUAGE")]
+    [InlineData("CREATE USER LibUser WITH PASSWORD = 'x', ", "DEFAULT_SCHEMA", "DEFAULT_LANGUAGE")]
+    [InlineData("CREATE USER LibUser\n    WITH PASSWORD = 'x',\n        ", "DEFAULT_SCHEMA")]
+    [InlineData("CREATE USER LibUser FOR LOGIN LibLogin WITH ", "DEFAULT_SCHEMA")]
+    [InlineData("CREATE USER LibUser WITHOUT LOGIN WITH ", "DEFAULT_SCHEMA")]
+    [InlineData("ALTER USER LibUser WITH NAME = LibUser2, ", "DEFAULT_SCHEMA", "LOGIN")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -272,6 +285,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("DBCC CHECKDB ", "SELECT")]
     [InlineData("DBCC CHECKDB WITH ", "SELECT")]
     [InlineData("DBCC CHECKDB WITH NO_INFOMSGS, ", "RECOMPILE")]
+    [InlineData("CREATE LOGIN LibLogin WITH PASSWORD = 'x', ", "SELECT")]
+    [InlineData("ALTER USER LibUser WITH NAME = LibUser2, ", "SELECT")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
@@ -294,6 +309,12 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT a FROM t WITH ", "TIES")]
     [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR ", "XML")]
     [InlineData("SELECT * FROM t UNPIVOT (v FOR ", "JSON")]
+    [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE, ", "DEFAULT_LANGUAGE")]
+    [InlineData("SELECT a, ", "CHECK_POLICY")]
+    [InlineData("CREATE LOGIN LibLogin WITH PASSWORD = 'x', ", "DEFAULT_SCHEMA")]
+    [InlineData("ALTER LOGIN LibLogin WITH ", "DEFAULT_SCHEMA")]
+    [InlineData("CREATE USER LibUser WITH PASSWORD = 'x', ", "CHECK_POLICY")]
+    [InlineData("CREATE USER LibUser WITH ", "NAME")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));
@@ -402,7 +423,9 @@ public sealed class SqlClausePhraseTests
 
         foreach (var phrase in SqlClausePhraseCatalog.All)
         {
+            // 清單片語的探測文字是標頭加上寫完的第一項，每一個字在標頭裡。
             var items = phrase.Pattern.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            items = phrase.IsList ? items.Take(items.Length - 1).ToArray() : items;
             var full = string.Join(" ", items.Select(RenderItem));
             var lead = phrase.Probe.Substring(0, phrase.Probe.LastIndexOf(full, StringComparison.Ordinal));
             var isLead = phrase.After == SqlKeywordPosition.Any;

@@ -121,6 +121,11 @@ public sealed class SqlKeywordPositionTests
     [InlineData("DBCC CHECKDB WITH ", SqlKeywordPosition.DbccOption)]
     [InlineData("DBCC CHECKDB (N'LibArchive') WITH NO_INFOMSGS, ", SqlKeywordPosition.DbccOption)]
     [InlineData("DBCC CHECKIDENT ('dbo.Lib_Tag', RESEED, 100) WITH ", SqlKeywordPosition.DbccOption)]
+    [InlineData("CREATE LOGIN LibLogin WITH ", SqlKeywordPosition.OptionItem)]
+    [InlineData("CREATE LOGIN LibLogin WITH PASSWORD = 'x' MUST_CHANGE, CHECK_EXPIRATION = ON, ", SqlKeywordPosition.OptionItem)]
+    [InlineData("ALTER LOGIN LibLogin WITH NAME = LibLogin2, ", SqlKeywordPosition.OptionItem)]
+    [InlineData("CREATE USER LibUser FOR LOGIN LibLogin WITH DEFAULT_SCHEMA = dbo, ", SqlKeywordPosition.OptionItem)]
+    [InlineData("BEGIN\n    ALTER USER LibUser WITH NAME = LibUser2,\n        ", SqlKeywordPosition.OptionItem)]
     public void 模組標頭與敘述選項的位置(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
@@ -169,11 +174,16 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE VIEW v AS WITH c AS (SELECT 1 AS a), ")]
     [InlineData("CREATE INDEX i ON t (a) WITH ")]
     [InlineData("ALTER TABLE t WITH ")]
+    [InlineData("EXECUTE AS LOGIN = 'LibLogin' WITH ")]
+    [InlineData("ALTER ROLE LibRole WITH ")]
+    [InlineData("SELECT a, ")]
+    [InlineData("ALTER USER LibUser WITH NAME = LibUser2; SELECT a, ")]
     public void 模組本體與別的敘述的WITH不是模組選項(string textBeforeToken)
     {
         const SqlKeywordPosition options = SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption |
             SqlKeywordPosition.ViewOption | SqlKeywordPosition.TriggerOption |
-            SqlKeywordPosition.ExecuteOption | SqlKeywordPosition.RaiserrorOption | SqlKeywordPosition.DbccOption;
+            SqlKeywordPosition.ExecuteOption | SqlKeywordPosition.RaiserrorOption | SqlKeywordPosition.DbccOption |
+            SqlKeywordPosition.OptionItem;
         var position = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords;
 
         // 判不出位置（Any）也含這幾個位元，那不是判成選項。

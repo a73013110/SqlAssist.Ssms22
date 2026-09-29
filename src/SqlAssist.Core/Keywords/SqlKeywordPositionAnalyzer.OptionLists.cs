@@ -6,12 +6,31 @@ namespace SqlAssist.Core.Keywords;
 public sealed partial class SqlKeywordPositionAnalyzer
 {
     /// <summary>
+    /// 清單片語宣告的選項清單（<c>CREATE LOGIN l WITH PASSWORD = 'x', CHECK_POLICY = OFF</c>）：
+    /// 錨點是某個清單片語的標頭，選項由那個片語給。
+    /// </summary>
+    /// <remarks>
+    /// 哪些敘述有這種清單只由片語說一次，這裡不列敘述；位置也只有一個，是哪一句由片語的標頭分。
+    /// 選項裡寫得出的東西與 BACKUP 的清單相同：開始另一句的字、分號與沒關上的左括號之外都是。
+    /// 選項寫完之後接的是逗號或下一句，不歸清單管。
+    ///
+    /// 排在 <see cref="OptionLists"/> 之前：靜態欄位依宣告順序初始化，那份陣列要放它。
+    /// </remarks>
+    private static readonly OptionList PhraseList = new(
+        isAnchor: (analyzer, index) => SqlClausePhraseCatalog.OpensList(analyzer.tokens, index, analyzer.PositionBefore),
+        isPart: (analyzer, index) => !analyzer.StartsClauseOfItsOwn(index),
+        endsItem: null,
+        header: (_, _) => new OptionSlots(SqlKeywordPosition.OptionItem, null),
+        skipsGroups: true);
+
+    /// <summary>
     /// 敘述自己的選項清單；每一種一筆，形狀相同：往回走過清單、找到錨點、驗證錨點前的標頭。
     /// </summary>
     /// <remarks>
     /// 這幾格接的多半是非關鍵字的選項（<c>LOCAL</c>、<c>ENCRYPTION</c>、<c>COMPRESSION</c>），
     /// 由以位置為鍵的子句片語給；位置判不出來的話片語無從比對，整份目錄全部進場。
     /// 新增一種敘述的選項清單只要加一筆；新的位置照樣要有產生器的樣板與片語。
+    /// 標頭之後直接是逗號清單、選項只看標頭的敘述不必加在這裡：寫成清單片語，走 <see cref="PhraseList"/>。
     /// </remarks>
     private static readonly OptionList[] OptionLists =
     {
@@ -128,8 +147,19 @@ public sealed partial class SqlKeywordPositionAnalyzer
             header: (analyzer, anchor) => new OptionSlots(
                 analyzer.tokens[anchor].IsKeyword("XML") ? SqlKeywordPosition.ForXmlOption : SqlKeywordPosition.ForJsonOption,
                 null),
-            skipsGroups: true)
+            skipsGroups: true),
+
+        PhraseList
     };
+
+    /// <summary>
+    /// <paramref name="last"/> 之後是清單片語的一項開頭時，那份清單的錨點；不是就回 -1。
+    /// </summary>
+    /// <remarks>子句片語拿它比對是哪一句的清單，走訪與 <see cref="SqlKeywordPosition.OptionItem"/> 是同一條規則。</remarks>
+    private int FindPhraseListAnchor(int last)
+    {
+        return PhraseList.FindAnchor(this, last, out _);
+    }
 
     /// <summary>
     /// <paramref name="last"/> 之後是某一種敘述自己的格子時，那個位置；不是就回 null。
@@ -931,54 +961,67 @@ public sealed partial class SqlKeywordPositionAnalyzer
         /// </remarks>
         public SqlKeywordPosition? Resolve(SqlKeywordPositionAnalyzer analyzer, int last)
         {
-            var tokens = analyzer.tokens;
-            var atStart = true;
-            var index = last;
+            var anchor = FindAnchor(analyzer, last, out var atStart);
 
-            if (!isAnchor(analyzer, last))
-            {
-                if (tokens[last].IsPunctuation(","))
-                {
-                    if (!separatedByCommas)
-                    {
-                        return null;
-                    }
-                }
-                else if (endsItem is not null && (isPart(analyzer, last) || (skipsGroups && tokens[last].IsPunctuation(")"))))
-                {
-                    atStart = !endsItem(analyzer, last);
-                }
-                else
-                {
-                    return null;
-                }
-
-                while (!isAnchor(analyzer, index))
-                {
-                    var token = tokens[index];
-
-                    if (skipsGroups && token.IsPunctuation(")"))
-                    {
-                        index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
-                    }
-                    else if (!(isPart(analyzer, index) || (separatedByCommas && token.IsPunctuation(","))))
-                    {
-                        return null;
-                    }
-
-                    if (--index < 0)
-                    {
-                        return null;
-                    }
-                }
-            }
-
-            if (header(analyzer, index) is not { } slots)
+            if (anchor < 0 || header(analyzer, anchor) is not { } slots)
             {
                 return null;
             }
 
             return atStart ? slots.Start : slots.End;
+        }
+
+        /// <summary>
+        /// 從 <paramref name="last"/> 往回走過清單，回傳錨點；<paramref name="last"/> 不在這份清單裡時回 -1。
+        /// </summary>
+        /// <param name="atStart"><paramref name="last"/> 之後是一項的開頭，而不是寫完一項之後。</param>
+        public int FindAnchor(SqlKeywordPositionAnalyzer analyzer, int last, out bool atStart)
+        {
+            var tokens = analyzer.tokens;
+            var index = last;
+            atStart = true;
+
+            if (isAnchor(analyzer, last))
+            {
+                return last;
+            }
+
+            if (tokens[last].IsPunctuation(","))
+            {
+                if (!separatedByCommas)
+                {
+                    return -1;
+                }
+            }
+            else if (endsItem is not null && (isPart(analyzer, last) || (skipsGroups && tokens[last].IsPunctuation(")"))))
+            {
+                atStart = !endsItem(analyzer, last);
+            }
+            else
+            {
+                return -1;
+            }
+
+            while (!isAnchor(analyzer, index))
+            {
+                var token = tokens[index];
+
+                if (skipsGroups && token.IsPunctuation(")"))
+                {
+                    index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
+                }
+                else if (!(isPart(analyzer, index) || (separatedByCommas && token.IsPunctuation(","))))
+                {
+                    return -1;
+                }
+
+                if (--index < 0)
+                {
+                    return -1;
+                }
+            }
+
+            return index;
         }
     }
 }

@@ -290,7 +290,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         var analyzer = new SqlKeywordPositionAnalyzer(tokens, textBeforeToken);
         var caret = analyzer.AnalyzeClause();
-        var phrase = SqlClausePhraseCatalog.Match(tokens, textBeforeToken, caret.Keywords);
+        var listAnchor = caret.Keywords != SqlKeywordPosition.Any &&
+            (caret.Keywords & SqlKeywordPosition.OptionItem) != SqlKeywordPosition.None
+                ? analyzer.FindPhraseListAnchor(tokens.Count - 1)
+                : -1;
+        var phrase = SqlClausePhraseCatalog.Match(tokens, textBeforeToken, caret.Keywords, listAnchor);
 
         return new SqlCaretPosition(caret.Keywords, caret.Slot, phrase, analyzer.StartsBatch());
     }

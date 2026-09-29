@@ -106,6 +106,15 @@ public sealed class SqlClausePhrase
     /// <summary>前一格判不出位置時的比對結果。</summary>
     internal SqlClausePhraseMatch Tentative { get; }
 
+    /// <summary>
+    /// 清單片語：最後一項是 <c>,*</c>，游標在標頭開的選項清單裡、逗號之後。
+    /// </summary>
+    /// <remarks>
+    /// 尾巴從游標往回比對不到：中間夾著幾項已寫完的選項。清單由位置分析走訪（<see cref="SqlKeywordPosition.OptionItem"/>），
+    /// 它交出錨點，這裡只比對錨點之前的標頭，見 <see cref="MatchHead"/>。
+    /// </remarks>
+    internal bool IsList => _elements.Length > 0 && _elements[_elements.Length - 1].Kind == ElementKind.List;
+
     /// <summary>片語最後一項是字面值時的那個字；比對前先用它分桶。</summary>
     internal string? LastWord =>
         _elements.Length > 0 && _elements[_elements.Length - 1] is { Kind: ElementKind.Word } last ? last.Word : null;
@@ -129,6 +138,31 @@ public sealed class SqlClausePhrase
         var index = count - 1;
 
         for (var element = _elements.Length - 1; element >= 0; element--)
+        {
+            if (index < 0)
+            {
+                return -1;
+            }
+
+            index = _elements[element].MatchBackward(tokens, index);
+
+            if (index == Element.Mismatch)
+            {
+                return -1;
+            }
+        }
+
+        return index + 1;
+    }
+
+    /// <summary>
+    /// 清單片語的標頭是不是以 <paramref name="anchor"/> 結尾；是的話回傳片語第一個詞元的索引，否則 -1。
+    /// </summary>
+    internal int MatchHead(IReadOnlyList<SqlToken> tokens, int anchor)
+    {
+        var index = anchor;
+
+        for (var element = _elements.Length - 2; element >= 0; element--)
         {
             if (index < 0)
             {
@@ -176,7 +210,9 @@ public sealed class SqlClausePhrase
                 "()" => new Element(ElementKind.Group),
                 "(*" when index == parts.Length - 1 => new Element(ElementKind.OpenList),
                 "(*" => throw new FormatException($"Phrase '{pattern}': (* must be the last element."),
-                _ when parts[index].IndexOfAny(new[] { '{', '(', ')' }) >= 0 =>
+                ",*" when index == parts.Length - 1 && index > 0 => new Element(ElementKind.List),
+                ",*" => throw new FormatException($"Phrase '{pattern}': ,* must follow a head and be the last element."),
+                _ when parts[index].IndexOfAny(new[] { '{', '(', ')', ',' }) >= 0 =>
                     throw new FormatException($"Phrase '{pattern}': unknown element {parts[index]}."),
                 _ => new Element(ElementKind.Word, parts[index])
             };
@@ -191,7 +227,8 @@ public sealed class SqlClausePhrase
         Name,
         Value,
         Group,
-        OpenList
+        OpenList,
+        List
     }
 
     private readonly struct Element
@@ -251,6 +288,10 @@ public sealed class SqlClausePhrase
 
                 case ElementKind.Group:
                     return MatchGroup(tokens, last);
+
+                // 清單項從游標往回比對不到，由 MatchHead 從錨點比對標頭。
+                case ElementKind.List:
+                    return Mismatch;
 
                 default:
                     if (!token.IsPunctuation("(") && !token.IsPunctuation(","))

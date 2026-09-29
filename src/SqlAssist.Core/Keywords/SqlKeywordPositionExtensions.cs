@@ -102,6 +102,7 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.ResultSetColumnTail |
         SqlKeywordPosition.RaiserrorOption |
         SqlKeywordPosition.DbccOption |
+        SqlKeywordPosition.OptionItem |
         SqlKeywordPosition.IndexOption |
         SqlKeywordPosition.ForXmlOption |
         SqlKeywordPosition.ForJsonOption |
@@ -155,6 +156,7 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.ExecuteOption |
         SqlKeywordPosition.RaiserrorOption |
         SqlKeywordPosition.DbccOption |
+        SqlKeywordPosition.OptionItem |
         SqlKeywordPosition.ForXmlOption |
         SqlKeywordPosition.ForJsonOption;
 

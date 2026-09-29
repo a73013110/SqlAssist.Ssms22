@@ -22,6 +22,9 @@ public static class SqlClausePhraseCatalog
     /// <summary>最後一項是名稱、值或括號的片語；項數多的排前面。</summary>
     private static readonly SqlClausePhrase[] EndingWithPlaceholder = FindEndingWithPlaceholder();
 
+    /// <summary>清單片語，依標頭最後一個字分桶；桶內項數多的排前面。</summary>
+    private static readonly Dictionary<string, SqlClausePhrase[]> ListsByAnchor = IndexListsByAnchor();
+
     /// <summary>沒有尾巴、只認游標處位置的片語。</summary>
     private static readonly SqlClausePhrase[] AtPosition = Phrases.Where(phrase => phrase.Length == 0).ToArray();
 
@@ -38,6 +41,9 @@ public static class SqlClausePhraseCatalog
     /// <param name="tokens">游標<b>之前</b>、不含正在輸入的那個詞元的詞法單元。</param>
     /// <param name="textBeforeToken">同一段原文；前一格的位置要看換行。</param>
     /// <param name="caret">位置分析對游標處的回報；沒有尾巴的片語拿它當前一格。</param>
+    /// <param name="listAnchor">
+    /// 游標在清單片語開的選項清單裡時，位置分析走訪到的錨點（標頭最後一個詞元）；不在清單裡是 -1。
+    /// </param>
     /// <remarks>
     /// 語句到片語為止已經完整、游標又換了行時不算，見 <see cref="SqlClausePhrase.EndsStatement"/>。
     /// 片語前一格的位置過不了 <see cref="SqlClausePhrase.After"/> 時也不算。
@@ -49,8 +55,13 @@ public static class SqlClausePhraseCatalog
     ///
     /// 沒有尾巴的片語項數是零，只在尾巴都比對不到、或只比對到<b>可能</b>時才輪到：它的前一格
     /// 就是游標處，判得出來就是確定的。游標處判不出位置時它什麼也沒認到，不算。
+    /// 清單片語排在它們之前：位置分析交出錨點時，游標在哪一句的清單裡是確定的。
     /// </remarks>
-    internal static SqlClausePhraseMatch? Match(IReadOnlyList<SqlToken> tokens, string textBeforeToken, SqlKeywordPosition caret)
+    internal static SqlClausePhraseMatch? Match(
+        IReadOnlyList<SqlToken> tokens,
+        string textBeforeToken,
+        SqlKeywordPosition caret,
+        int listAnchor = -1)
     {
         var onNewLine = tokens.Count > 0 &&
             SqlKeywordPositionAnalyzer.StartsOnNewLine(tokens[tokens.Count - 1].End, textBeforeToken.Length, textBeforeToken);
@@ -60,7 +71,21 @@ public static class SqlClausePhraseCatalog
             tokens.Count,
             onNewLine,
             caret,
+            listAnchor,
             start => SqlKeywordPositionAnalyzer.PositionBefore(tokens, start, textBeforeToken));
+    }
+
+    /// <summary>
+    /// <paramref name="anchor"/> 是某個清單片語標頭的最後一個詞元，而且標頭前一格確定對得上。
+    /// </summary>
+    /// <param name="positionBefore">標頭第一個詞元前面那一格的位置；由呼叫端的分析器回答。</param>
+    /// <remarks>
+    /// 位置分析拿它認清單的錨點：哪些敘述有這種清單只由片語說一次，分析器不另列一份。
+    /// 前一格判不出位置時不算：那一句可能根本不是這個意思，當成清單會封閉掉別的字。
+    /// </remarks>
+    internal static bool OpensList(IReadOnlyList<SqlToken> tokens, int anchor, Func<int, SqlKeywordPosition> positionBefore)
+    {
+        return MatchList(tokens, anchor, positionBefore) is { IsCertain: true };
     }
 
     /// <summary>
@@ -81,7 +106,7 @@ public static class SqlClausePhraseCatalog
         string keyword)
     {
         return AllWords.Contains(keyword) &&
-            Match(tokens, count, onNewLine: false, before, positionBefore) is { IsCertain: true } match &&
+            Match(tokens, count, onNewLine: false, before, listAnchor: -1, positionBefore) is { IsCertain: true } match &&
             match.Phrase.Offers(keyword);
     }
 
@@ -90,6 +115,7 @@ public static class SqlClausePhraseCatalog
         int count,
         bool onNewLine,
         SqlKeywordPosition caret,
+        int listAnchor,
         Func<int, SqlKeywordPosition> positionBefore)
     {
         SqlClausePhraseMatch? best = null;
@@ -113,9 +139,40 @@ public static class SqlClausePhraseCatalog
             return best;
         }
 
+        // 錨點之後緊接的第一格由標頭本身那個片語說（CREATE LOGIN 的第一項只能是 PASSWORD），上面已比對過。
+        if (listAnchor >= 0 && listAnchor < count - 1 && MatchList(tokens, listAnchor, positionBefore) is { } listed)
+        {
+            return listed;
+        }
+
         // 附加片語排在最後，只在什麼都沒比對到時才輪到：它只加字，不該擠掉一個可能的尾巴。
         var atPosition = FirstMatch(AtPosition, tokens, count, onNewLine, caret, positionBefore, minimumLength: 0);
         return atPosition is { Phrase.IsAdditive: true } && best is not null ? best : atPosition ?? best;
+    }
+
+    private static SqlClausePhraseMatch? MatchList(
+        IReadOnlyList<SqlToken> tokens,
+        int anchor,
+        Func<int, SqlKeywordPosition> positionBefore)
+    {
+        var token = tokens[anchor];
+
+        if (token.Kind != SqlTokenKind.Identifier || token.IsQuoted || !ListsByAnchor.TryGetValue(token.Value, out var candidates))
+        {
+            return null;
+        }
+
+        foreach (var phrase in candidates)
+        {
+            var start = phrase.MatchHead(tokens, anchor);
+
+            if (start >= 0 && Qualify(phrase, positionBefore(start)) is { } match)
+            {
+                return match;
+            }
+        }
+
+        return null;
     }
 
     private static SqlClausePhraseMatch? FirstMatch(
@@ -242,13 +299,52 @@ public static class SqlClausePhraseCatalog
 
         foreach (var phrase in Phrases)
         {
-            if (phrase.LastWord is null && phrase.Length > 0)
+            if (phrase.LastWord is null && phrase.Length > 0 && !phrase.IsList)
             {
                 phrases.Add(phrase);
             }
         }
 
         return LongestFirst(phrases);
+    }
+
+    private static Dictionary<string, SqlClausePhrase[]> IndexListsByAnchor()
+    {
+        var buckets = new Dictionary<string, List<SqlClausePhrase>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var phrase in Phrases)
+        {
+            if (!phrase.IsList)
+            {
+                continue;
+            }
+
+            // 錨點要是字面字：執行期拿游標前那個詞元的文字找桶。
+            var items = phrase.Pattern.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var anchor = items[items.Length - 2];
+
+            if (!(char.IsLetter(anchor[0]) || anchor[0] == '_'))
+            {
+                throw new FormatException($"Phrase '{phrase.Pattern}': a list head must end with a word.");
+            }
+
+            if (!buckets.TryGetValue(anchor, out var bucket))
+            {
+                bucket = new List<SqlClausePhrase>();
+                buckets[anchor] = bucket;
+            }
+
+            bucket.Add(phrase);
+        }
+
+        var index = new Dictionary<string, SqlClausePhrase[]>(buckets.Count, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var pair in buckets)
+        {
+            index[pair.Key] = LongestFirst(pair.Value);
+        }
+
+        return index;
     }
 
     /// <remarks>

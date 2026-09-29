@@ -280,6 +280,8 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.RaiserrorOption, "RAISERROR ('x', 16, 1) WITH NOWAIT, "),
         new(SqlKeywordPosition.DbccOption, "DBCC CHECKDB WITH "),
         new(SqlKeywordPosition.DbccOption, "DBCC CHECKDB WITH NO_INFOMSGS, "),
+        new(SqlKeywordPosition.OptionItem, "ALTER USER u WITH "),
+        new(SqlKeywordPosition.OptionItem, "ALTER USER u WITH NAME = n, "),
         new(SqlKeywordPosition.GroupByTail, "SELECT * FROM t GROUP BY a "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t ORDER BY "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t GROUP BY "),
@@ -1841,7 +1843,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE USER {name}", SqlKeywordPosition.StatementStart, "CREATE USER t ", true, true, new string[]
         {
-            "FOR", "FROM", "WITHOUT",
+            "FOR", "FROM", "WITHOUT", "WITH",
         }),
         ("CREATE USER {name} FOR", SqlKeywordPosition.StatementStart, "CREATE USER t FOR ", true, false, new string[]
         {
@@ -1866,6 +1868,71 @@ internal static class SqlKeywordCatalogData
         ("CREATE LOGIN {name} WITH", SqlKeywordPosition.StatementStart, "CREATE LOGIN t WITH ", true, false, new string[]
         {
             "PASSWORD",
+        }),
+        ("CREATE LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE LOGIN t WITH PASSWORD = 'x', ", true, false, new string[]
+        {
+            "CHECK_EXPIRATION", "CHECK_POLICY", "CREDENTIAL", "DEFAULT_DATABASE",
+            "DEFAULT_LANGUAGE", "SID",
+        }),
+        ("CREATE LOGIN {name} FROM WINDOWS WITH", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM WINDOWS WITH ", true, false, new string[]
+        {
+            "DEFAULT_DATABASE", "DEFAULT_LANGUAGE",
+        }),
+        ("CREATE LOGIN {name} FROM WINDOWS WITH ,*", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM WINDOWS WITH DEFAULT_DATABASE = x, ", true, false, new string[]
+        {
+            "DEFAULT_DATABASE", "DEFAULT_LANGUAGE",
+        }),
+        ("ALTER LOGIN {name} WITH", SqlKeywordPosition.StatementStart, "ALTER LOGIN t WITH ", true, false, new string[]
+        {
+            "CHECK_EXPIRATION", "CHECK_POLICY", "CREDENTIAL", "DEFAULT_DATABASE",
+            "DEFAULT_LANGUAGE", "NAME", "NO", "PASSWORD",
+        }),
+        ("ALTER LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER LOGIN t WITH CHECK_EXPIRATION = ON, ", true, false, new string[]
+        {
+            "CHECK_EXPIRATION", "CHECK_POLICY", "CREDENTIAL", "DEFAULT_DATABASE",
+            "DEFAULT_LANGUAGE", "NAME", "NO", "PASSWORD",
+        }),
+        ("CREATE USER {name} WITH", SqlKeywordPosition.StatementStart, "CREATE USER t WITH ", true, false, new string[]
+        {
+            "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
+        }),
+        ("CREATE USER {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE USER t WITH DEFAULT_LANGUAGE = 1, ", true, false, new string[]
+        {
+            "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
+        }),
+        ("CREATE USER {name} FOR LOGIN {name} WITH", SqlKeywordPosition.StatementStart, "CREATE USER t FOR LOGIN t WITH ", true, false, new string[]
+        {
+            "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
+        }),
+        ("CREATE USER {name} FOR LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE USER t FOR LOGIN t WITH DEFAULT_SCHEMA = x, ", true, false, new string[]
+        {
+            "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
+        }),
+        ("CREATE USER {name} FROM LOGIN {name} WITH", SqlKeywordPosition.StatementStart, "CREATE USER t FROM LOGIN t WITH ", true, false, new string[]
+        {
+            "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
+        }),
+        ("CREATE USER {name} FROM LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE USER t FROM LOGIN t WITH DEFAULT_SCHEMA = x, ", true, false, new string[]
+        {
+            "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
+        }),
+        ("CREATE USER {name} WITHOUT LOGIN WITH", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT LOGIN WITH ", true, false, new string[]
+        {
+            "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
+        }),
+        ("CREATE USER {name} WITHOUT LOGIN WITH ,*", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT LOGIN WITH DEFAULT_SCHEMA = x, ", true, false, new string[]
+        {
+            "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "OBJECT_ID", "PASSWORD", "SID", "TYPE",
+        }),
+        ("ALTER USER {name} WITH", SqlKeywordPosition.StatementStart, "ALTER USER t WITH ", true, false, new string[]
+        {
+            "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "LOGIN", "NAME", "OBJECT_ID", "PASSWORD",
+            "SID", "TYPE",
+        }),
+        ("ALTER USER {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER USER t WITH DEFAULT_LANGUAGE = 1, ", true, false, new string[]
+        {
+            "DEFAULT_LANGUAGE", "DEFAULT_SCHEMA", "LOGIN", "NAME", "OBJECT_ID", "PASSWORD",
+            "SID", "TYPE",
         }),
         ("CONSTRAINT {name}", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (CONSTRAINT t ", true, false, new string[]
         {
@@ -2044,6 +2111,14 @@ internal static class SqlKeywordCatalogData
         ("RESULT", SqlKeywordPosition.ExecuteOption, "EXEC p WITH RESULT ", true, false, new string[]
         {
             "SETS",
+        }),
+        ("CREATE LOGIN {name} FROM WINDOWS", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM WINDOWS ", true, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE USER {name} WITHOUT LOGIN", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT LOGIN ", true, true, new string[]
+        {
+            "WITH",
         }),
         ("ROWS", SqlKeywordPosition.WindowOrderTail, "SELECT SUM(a) OVER (ORDER BY a ROWS ", true, false, new string[]
         {

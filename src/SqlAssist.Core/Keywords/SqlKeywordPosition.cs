@@ -292,6 +292,17 @@ public enum SqlKeywordPosition : long
     /// <summary><c>DBCC CHECKDB … WITH</c> 與選項的逗號之後——NO_INFOMSGS、TABLOCK；都不是關鍵字，由子句片語給。</summary>
     DbccOption = 1L << 61,
 
+    /// <summary>
+    /// 清單片語宣告的選項清單：標頭（<c>ALTER LOGIN l WITH</c>）與逗號之後；選項由那個片語給。
+    /// </summary>
+    /// <remarks>
+    /// 所有這種清單共用一個位元。位置只說「這裡是某一句的選項清單」，是哪一句、接哪些字由片語的尾巴
+    /// 說：<c>CREATE LOGIN</c>、<c>ALTER LOGIN</c>、<c>CREATE USER</c>、<c>ALTER USER</c> 的選項各不相同，
+    /// 每種各佔一個位元的話，敘述數一多位元就不夠。哪些敘述有這種清單也只由片語說一次，
+    /// 見 <c>tools/Generate-Keywords.ps1</c> 的 <c>,*</c>。
+    /// </remarks>
+    OptionItem = 1L << 62,
+
     /// <summary>SET 之後——ROWCOUNT、TEXTSIZE、IDENTITY_INSERT、TRANSACTION。</summary>
     SetTarget = 1 << 14,
 
@@ -333,7 +344,7 @@ public enum SqlKeywordPosition : long
         | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
         | ReferencesTail | FunctionCallTail | WindowOrderTail | OffsetTail | ModuleHeader | FunctionReturns
-        | ExecuteOption | ResultSetList | ResultSetColumn | ResultSetColumnTail | RaiserrorOption | DbccOption | TableSampleTail | PivotClause | ForXmlOption | ForJsonOption
+        | ExecuteOption | ResultSetList | ResultSetColumn | ResultSetColumnTail | RaiserrorOption | DbccOption | OptionItem | TableSampleTail | PivotClause | ForXmlOption | ForJsonOption
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

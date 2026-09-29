@@ -323,6 +323,9 @@ $ContextTemplates = [ordered]@{
     RaiserrorOption  = @("RAISERROR ('x', 16, 1) WITH ", "RAISERROR ('x', 16, 1) WITH NOWAIT, ")
     DbccOption       = @('DBCC CHECKDB WITH ', 'DBCC CHECKDB WITH NO_INFOMSGS, ')
 
+    # 清單片語（,*）宣告的選項清單：所有敘述共用這一格，選項由片語的標頭分。樣板要有對應的清單片語才判得出來。
+    OptionItem       = @('ALTER USER u WITH ', 'ALTER USER u WITH NAME = n, ')
+
     # GROUP BY 的欄位之後：HAVING、ORDER 與 WITH ROLLUP，不接 ASC、DESC。
     GroupByTail      = @('SELECT * FROM t GROUP BY a ')
 
@@ -572,6 +575,9 @@ Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 #   {value}  一個數值、字串、變數，或一整組括號
 #   ()       一整組括號
 #   (*       還沒關上的左括號清單，游標在左括號或逗號之後；只能是最後一項
+#   ,*       標頭開的逗號清單，游標在逗號之後；只能是最後一項，前面那段是標頭，以字面字結尾。
+#            標頭本身也立成片語，給第一項的字；逗號之後的字以「第一項的每一種寫法接逗號」探測取聯集。
+#            清單由位置分析走訪（OptionItem），哪些敘述有這種清單只在這裡說
 # 尾巴可以是空的：只認位置，「這個位置接得了這些字」。游標選項這種會重複的格子尾巴寫不出來。
 #
 # 片語前面那一格由 After 與 Lead 二選一交代：
@@ -742,6 +748,17 @@ $ClausePhrases = @(
     @{ Pattern = 'CREATE USER {name}'; Expand = 1 }
     @{ Pattern = 'CREATE LOGIN {name}'; Expand = 1 }
 
+    # 登入與使用者的 WITH 選項清單：四種敘述接的選項各不相同（CREATE LOGIN 第一項只能是 PASSWORD、
+    # ALTER LOGIN 另有 NAME、NO CREDENTIAL，USER 才有 DEFAULT_SCHEMA），由標頭分開。
+    @{ Pattern = 'CREATE LOGIN {name} WITH ,*' }
+    @{ Pattern = 'CREATE LOGIN {name} FROM WINDOWS WITH ,*' }
+    @{ Pattern = 'ALTER LOGIN {name} WITH ,*' }
+    @{ Pattern = 'CREATE USER {name} WITH ,*' }
+    @{ Pattern = 'CREATE USER {name} FOR LOGIN {name} WITH ,*' }
+    @{ Pattern = 'CREATE USER {name} FROM LOGIN {name} WITH ,*' }
+    @{ Pattern = 'CREATE USER {name} WITHOUT LOGIN WITH ,*' }
+    @{ Pattern = 'ALTER USER {name} WITH ,*' }
+
     # 資料表層級的條件約束：CONSTRAINT 名稱之後是 PRIMARY KEY、UNIQUE、CHECK、FOREIGN KEY。
     @{ Pattern = 'CONSTRAINT {name}'; After = @('ColumnDefinition', 'AlterTableAdd') }
     @{ Pattern = 'ROWS'; After = @('OffsetTail'); Values = @('FETCH') }
@@ -777,12 +794,13 @@ $ClausePhrases = @(
 # 模組選項的名稱要看到本體才驗（寫到檔案結尾為止任何名稱都過），所以函式的兩種本體也在。
 # CREATE LOGIN 的 WITH PASSWORD 只收字串，DBCC 的 WITH 只收它自己的選項。
 # DECRYPTION BY 之後的 ASYMMETRIC、SYMMETRIC 要看到金鑰名稱才驗。
+# 登入與使用者的選項收名稱值（DEFAULT_DATABASE = x）與二進位值（SID = 0x01），而 WITH 之後寫不完時剖析器回頭在 WITH 報錯，要整句寫得完才算。
 $PhraseContinuations = @($Continuations) + @(
     ' ON', " 'x'", ' = ON', ' = ON)', ' = 1', ' ON)', ' ROWS ONLY', ' NO_INFOMSGS',
     ' PRECEDING)', " ZONE 'UTC'", ' IN (1)', ' FOR SELECT 1', ' ACTION)',
     ' (a)', ' TIES a FROM t ORDER BY a', ' FROM x', ' INSERT AS SELECT 1', ' OF INSERT AS SELECT 1',
     ' LEVEL READ COMMITTED', ' READ COMMITTED', ' COMMITTED', ' READ', ' TRIGGER ALL',
-    ' AS BEGIN RETURN 1 END', ' AS RETURN SELECT 1 AS a', " = 'x'", ' KEY x'
+    ' AS BEGIN RETURN 1 END', ' AS RETURN SELECT 1 AS a', " = 'x'", ' KEY x', ' = x', ' = 0x01'
 )
 
 # 片語要把一千九百個候選字逐一配上幾十條續尾剖析，單執行緒要半小時，所以這一段交給
@@ -1042,6 +1060,8 @@ function Get-PhraseProbe {
         return $Lead
     }
 
+    # 清單片語的探測另外組（Add-ListPhrase）；這裡給的是標頭。
+    $Pattern = $Pattern -replace ' ,\*$', ''
     $text = $Pattern.Replace('{name}', 't').Replace('{value}', '1').Replace('()', '(a)')
     $text = $Lead + $text.Replace('(*', '(')
 
@@ -1151,6 +1171,55 @@ function Add-ClausePhrase {
     }
 }
 
+# 清單片語（,*）：標頭本身那個片語給第一項的字，逗號之後的字另探。第一項的寫法不只一種，
+# 用過的選項剖析器不收第二次（ALTER LOGIN l WITH NAME = n, 之後沒有 NAME），所以每一種第一項各接一個逗號探一次，
+# 取聯集；第一項受限的（CREATE LOGIN 只能先寫 PASSWORD）也因此只探那一種，之後的字不含它。
+function Add-ListPhrase {
+    param([string]$Pattern, [string]$Head, [string]$After)
+
+    $headKey = "$After`t$($Pattern -replace ' ,\*$', '')"
+
+    if (-not $script:phrases.Contains($headKey)) {
+        Add-ClausePhrase -Pattern ($Pattern -replace ' ,\*$', '') -Probe $Head -After $After
+    }
+
+    $words = [System.Collections.Generic.List[string]]::new()
+    $probe = $null
+    $closed = $true
+
+    foreach ($first in @($script:phrases[$headKey].Words)) {
+        $ending = $PhraseContinuations | Where-Object { [SqlAssistPhraseProber]::IsComplete("$Head$first$_") } | Select-Object -First 1
+
+        # 寫不完的第一項（NO 之後要 CREDENTIAL）探不出逗號之後，由別的第一項補。
+        if ($null -eq $ending) {
+            continue
+        }
+
+        $itemProbe = "$Head$first$ending, "
+        $probe ??= $itemProbe
+        $closed = $closed -and -not [SqlAssistPhraseProber]::AcceptsName($itemProbe, $PlainName, $continuationArray)
+
+        foreach ($word in @(Get-PhraseWords -Probe $itemProbe)) {
+            if (-not $words.Contains($word)) {
+                $words.Add($word)
+            }
+        }
+    }
+
+    if ($null -eq $probe) {
+        throw "清單片語「$Pattern」的第一項沒有一種寫得完，探不出逗號之後的字（第一項：$(@($script:phrases[$headKey].Words) -join ', ')）。"
+    }
+
+    $script:phrases["$After`t$Pattern"] = @{
+        Pattern       = $Pattern
+        After         = $After
+        Probe         = $probe
+        Closed        = $closed
+        EndsStatement = $false
+        Words         = @($words)
+    }
+}
+
 # 帶 After 的片語以那個位置的第一個樣板探測（Template 另外指定的除外）：它是那個位置的代表寫法，而且是完整的語句，
 # 「寫到這裡語句已經完整」的判斷才有意義。其餘樣板是第三階段為了撈齊關鍵字而加的旁支
 # （FROM t JOIN y 還缺 ON），拿來探片語只會長出那條旁支才有的字，還要多花幾倍的時間。
@@ -1167,6 +1236,10 @@ foreach ($entry in $ClausePhrases) {
             throw '沒有尾巴的片語只能以 After 交代位置：執行期不看前一格的話，它哪裡都成立。'
         }
 
+        if ($pattern -match ',\*') {
+            throw "清單片語「$pattern」要以 After 交代位置：位置分析拿標頭認清單，得判得出標頭前一格。"
+        }
+
         Add-ClausePhrase @common -Probe (Get-PhraseProbe -Lead $entry['Lead'] -Pattern $pattern) -After 'Any'
         continue
     }
@@ -1177,6 +1250,16 @@ foreach ($entry in $ClausePhrases) {
         }
 
         $probe = Get-PhraseProbe -Lead @($ContextTemplates[$position])[[int]$entry['Template']] -Pattern $pattern
+
+        if ($pattern -match ' ,\*$') {
+            if ($entry['Expand'] -or $entry['Values'] -or $null -ne $entry['Closed']) {
+                throw "清單片語「$pattern」的字全由探測決定，不收 Expand、Values、Closed。"
+            }
+
+            Add-ListPhrase -Pattern $pattern -Head $probe -After $position
+            continue
+        }
+
         Add-ClausePhrase @common -Probe $probe -After $position
     }
 }
