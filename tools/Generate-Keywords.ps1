@@ -582,7 +582,7 @@ Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 #          判得出來的一律寫 After：同一件事只由位置分析說一次。
 # Template 是 After 位置的第幾個樣板（從 0 起），預設第一個：同一個位置的樣板接得上的字不一定相同
 # （WHEN MATCHED THEN 之後寫不出 INSERT）。
-# Expand 往下再探幾層：每個接得上的字接在片語後面成為新的片語，直到語句完整為止。
+# Expand 往下再探幾層：每個接得上的字接在片語後面成為新的片語，直到那個字寫完語句為止。
 # Values 是剖析器分不出來、只能手寫的字，一樣要剖析得過才收：SET DATEFORMAT 的值在
 # 剖析器眼中就是名稱；語句已經完整的片語扣掉了下一句的開頭，同時也是子句字的要補回來
 # （更長的片語寫得出那個字時不必：片語裡的每一個字由它前面那段列出，見探測之後的那一段）。
@@ -670,7 +670,17 @@ $ClausePhrases = @(
     @{ Pattern = 'NOT FOR'; Lead = 'CREATE TABLE t (a int IDENTITY ' }
 
     @{ Pattern = 'WAITFOR' }
-    @{ Pattern = 'FETCH' }
+
+    # 資料指標語句：名稱前可以夾 GLOBAL，FETCH 的方向之後是 FROM。OPEN、CLOSE 另接對稱金鑰與
+    # 資料庫主要金鑰，金鑰名稱之後的 DECRYPTION BY 接憑證、密碼或另一把金鑰；展開寫不出名稱，
+    # 名稱之後那段另起一條。OPEN SYMMETRIC KEY 的名稱後面還要寫 DECRYPTION 才完整，
+    # 探測判成封閉會把名稱藏起來，由人宣告不封閉。
+    @{ Pattern = 'OPEN'; Expand = 4 }
+    @{ Pattern = 'OPEN SYMMETRIC KEY'; Closed = $false }
+    @{ Pattern = 'OPEN SYMMETRIC KEY {name}'; Expand = 3 }
+    @{ Pattern = 'CLOSE'; Expand = 2 }
+    @{ Pattern = 'DEALLOCATE' }
+    @{ Pattern = 'FETCH'; Expand = 2 }
 
     # FOR 有好幾種意思，由前一格的位置分開：查詢寫完之後是 XML、JSON、BROWSE、UPDATE、READ，
     # 資料表之後多一個 SYSTEM_TIME，游標選項之後是查詢，觸發程序標頭之後是 INSERT 這些事件。
@@ -757,13 +767,13 @@ $ClausePhrases = @(
 # 片語的續尾在第三階段那一組之外多幾條：SET 選項值、選項清單的 = ON、字串與括號的結尾，
 # 以及幾個要多看一個詞元才分得出來的地方（AFTER 後面沒有 INSERT 就是語法錯誤）。
 # 模組選項的名稱要看到本體才驗（寫到檔案結尾為止任何名稱都過），所以函式的兩種本體也在。
-# CREATE LOGIN 的 WITH PASSWORD 只收字串。
+# CREATE LOGIN 的 WITH PASSWORD 只收字串。DECRYPTION BY 之後的 ASYMMETRIC、SYMMETRIC 要看到金鑰名稱才驗。
 $PhraseContinuations = @($Continuations) + @(
     ' ON', " 'x'", ' = ON', ' = ON)', ' = 1', ' ON)', ' ROWS ONLY',
     ' PRECEDING)', " ZONE 'UTC'", ' IN (1)', ' FOR SELECT 1', ' ACTION)',
     ' (a)', ' TIES a FROM t ORDER BY a', ' FROM x', ' INSERT AS SELECT 1', ' OF INSERT AS SELECT 1',
     ' LEVEL READ COMMITTED', ' READ COMMITTED', ' COMMITTED', ' READ', ' TRIGGER ALL',
-    ' AS BEGIN RETURN 1 END', ' AS RETURN SELECT 1 AS a', " = 'x'"
+    ' AS BEGIN RETURN 1 END', ' AS RETURN SELECT 1 AS a', " = 'x'", ' KEY x'
 )
 
 # 片語要把一千九百個候選字逐一配上幾十條續尾剖析，單執行緒要半小時，所以這一段交給
@@ -950,25 +960,52 @@ public static class SqlAssistPhraseProber
             var word = pool[index];
             var wordEnd = probe.Length + word.Length;
             var canBeName = !reservedSet.Contains(word);
+            var passed = false;
+            var recanted = false;
 
-            for (var c = 0; c < continuations.Length && !accepted[index]; c++)
+            for (var c = 0; c < continuations.Length; c++)
             {
                 var continuation = continuations[c];
                 var rejection = FirstRejection(probe + word + continuation);
 
+                // 剖析器有的地方先收下、讀完才回頭驗：DECRYPTION BY CERTIFICATE KEY 到檔案結尾都沒被拒，
+                // 接上金鑰名稱才在 CERTIFICATE 報錯。回頭拒收過的字，只有整句寫得完才算接得上。
+                recanted |= rejection < probe.Length;
+
+                if (passed)
+                {
+                    continue;
+                }
+
                 if (!canBeName)
                 {
                     // 保留字當不了名字，被接受就一定是以關鍵字的身分。
-                    accepted[index] = rejection > wordEnd;
+                    passed = rejection > wordEnd;
                 }
                 else
                 {
-                    accepted[index] =
+                    passed =
                         (plainRejection[c] <= plainEnd && rejection > wordEnd) ||
                         (plainRejection[c] <= plainEnd + continuation.Length &&
                             rejection > wordEnd + continuation.Length);
                 }
             }
+
+            if (passed && recanted)
+            {
+                passed = false;
+
+                foreach (var continuation in continuations)
+                {
+                    if (IsComplete(probe + word + continuation))
+                    {
+                        passed = true;
+                        break;
+                    }
+                }
+            }
+
+            accepted[index] = passed;
         });
 
         var words = new List<string>();
@@ -1025,7 +1062,7 @@ $positionPhraseProbes = @($ClausePhrases | Where-Object { -not $_['Pattern'] } |
     ForEach-Object { $_['After'] } | ForEach-Object { @($ContextTemplates[$_])[0] })
 
 function Add-ClausePhrase {
-    param([string]$Pattern, [string]$Probe, [string]$After, [int]$Expand, [object[]]$Values, [object]$Closed)
+    param([string]$Pattern, [string]$Probe, [string]$After, [int]$Expand, [object[]]$Values, [object]$Closed, [string[]]$Borrowed)
 
     Write-Progress -Activity '探測子句片語' -Status "$Pattern（$After）"
     $endsStatement = [SqlAssistPhraseProber]::IsComplete($Probe.TrimEnd())
@@ -1033,6 +1070,16 @@ function Add-ClausePhrase {
 
     if ($endsStatement) {
         $found = @($found | Where-Object { -not $statementStarters.Contains($_) })
+    }
+
+    # Borrowed 是前一格寫成名稱時接得上的字：FETCH NEXT 之後的 INTO 屬於名叫 NEXT 的資料指標，
+    # 不是 NEXT 帶出來的。扣完不剩字、寫到這裡又已完整的，這一格沒有片語可說。
+    if ($null -ne $Borrowed) {
+        $found = @($found | Where-Object { $Borrowed -notcontains $_ })
+
+        if ($endsStatement -and $found.Count -eq 0) {
+            return
+        }
     }
 
     $words = [System.Collections.Generic.List[string]]::new([string[]]$found)
@@ -1065,15 +1112,29 @@ function Add-ClausePhrase {
         return
     }
 
+    # 這一格寫普通名稱就完整的話（OPEN c），名稱之後接得上的字（FETCH c INTO）另探一次，展開時扣掉。
+    $nameReading = [SqlAssistPhraseProber]::IsComplete("$Probe$PlainName") ?
+        [string[]]@(Get-PhraseWords -Probe "$Probe$PlainName ") : $null
+
     foreach ($word in $found) {
         $child = $Pattern ? "$Pattern $word" : $word
         $childProbe = "$Probe$word "
 
-        # 語句在這裡已經完整（SET NOCOUNT ON）就不再往下：後面接的是下一句。
-        # 展開到的那一格已由只認位置的片語說了（觸發程序標頭的 WITH 之後是 TriggerOption）也不：
-        # 再立一個就是同一件事說兩次。
-        if ($script:phrases.Contains("$After`t$child") -or [SqlAssistPhraseProber]::IsComplete($childProbe.TrimEnd()) -or
-            $positionPhraseProbes -contains $childProbe) {
+        # 展開到的那一格已由只認位置的片語說了（觸發程序標頭的 WITH 之後是 TriggerOption）就不再立：
+        # 同一件事說兩次。
+        if ($script:phrases.Contains("$After`t$child") -or $positionPhraseProbes -contains $childProbe) {
+            continue
+        }
+
+        # 這個字寫完了語句（SET NOCOUNT ON）就不再往下：後面接的是下一句。普通名稱放在同一格也完整時，
+        # 完整的可能只是名稱那種讀法——OPEN SYMMETRIC 也是名叫 SYMMETRIC 的資料指標，後面照樣接 KEY——
+        # 往下探，但扣掉名稱讀法接得上的字。
+        if ([SqlAssistPhraseProber]::IsComplete($childProbe.TrimEnd())) {
+            if ($null -eq $nameReading) {
+                continue
+            }
+
+            Add-ClausePhrase -Pattern $child -Probe $childProbe -After $After -Expand ($Expand - 1) -Borrowed $nameReading
             continue
         }
 

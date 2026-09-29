@@ -76,10 +76,18 @@ public sealed class SqlCursorCompletionTests
         Assert.NotEqual(CompletionTarget.Cursor, Analyze(Declared + tail).Target);
     }
 
-    [Fact]
-    public void 游標那一格只留游標與片語的字()
+    /// <summary>
+    /// <c>OPEN</c>、<c>CLOSE</c> 之後也可以是金鑰：片語的字不看目標，與資料指標名稱並列。
+    /// </summary>
+    [Theory]
+    [InlineData("OPEN c\r\nFETCH |", "NEXT")]
+    [InlineData("OPEN |", "SYMMETRIC")]
+    [InlineData("OPEN |", "MASTER")]
+    [InlineData("CLOSE |", "ALL")]
+    [InlineData("DEALLOCATE |", "GLOBAL")]
+    public void 游標那一格只留游標與片語的字(string tail, string phraseWord)
     {
-        var context = Analyze(Declared + "OPEN c\r\nFETCH |");
+        var context = Analyze(Declared + tail);
         var candidates = new[]
         {
             new SqlSuggestion("c", "c", "", "", SuggestionKind.Cursor),
@@ -90,9 +98,24 @@ public sealed class SqlCursorCompletionTests
         var names = SuggestionContextFilter.Filter(candidates, context).Select(item => item.DisplayText).ToArray();
 
         Assert.Contains("c", names);
-        Assert.Contains("NEXT", names);
+        Assert.Contains(phraseWord, names);
         Assert.DoesNotContain("Cat_BookCopy", names);
         Assert.DoesNotContain("SELECT", names);
+    }
+
+    /// <summary>金鑰名稱與 <c>DECRYPTION BY</c> 之後的名稱不是資料指標。</summary>
+    [Theory]
+    [InlineData("OPEN SYMMETRIC KEY |")]
+    [InlineData("CLOSE SYMMETRIC KEY |")]
+    [InlineData("OPEN SYMMETRIC KEY k DECRYPTION BY CERTIFICATE |")]
+    [InlineData("CLOSE ALL SYMMETRIC KEYS |")]
+    public void 金鑰那一格不列資料指標(string tail)
+    {
+        var context = Analyze(Declared + tail);
+        var cursor = new SqlSuggestion("c", "c", "", "", SuggestionKind.Cursor);
+
+        Assert.NotEqual(CompletionTarget.Cursor, context.Target);
+        Assert.Empty(SuggestionContextFilter.Filter(new[] { cursor }, context));
     }
 
     [Fact]

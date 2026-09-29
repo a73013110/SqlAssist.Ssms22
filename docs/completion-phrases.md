@@ -28,15 +28,18 @@
 候選字是關鍵字清單加上 ScriptDom 內部 `CodeGenerationSupporter` 的全部字串常數，
 接不接得上用與第三階段相同的規則：普通名稱過不了而它過得了才算。比的除了整段，
 還有「撐過字本身」：`ROWS BETWEEN UNBOUNDED` 要再接 `PRECEDING` 才完整，只比整段的話
-它與普通名稱一起被拒。普通名稱在任何一組續尾整段都過不了的片語是**封閉**的。
+它與普通名稱一起被拒。剖析器也有讀完才回頭驗的地方（`DECRYPTION BY CERTIFICATE KEY x` 在 `CERTIFICATE` 報錯）：
+讓前面的字被拒過的字，要有續尾把整句寫完才算。
+普通名稱在任何一組續尾整段都過不了的片語是**封閉**的；名稱後面還要再寫一段的
+（`UPDATE t SET`、`OPEN SYMMETRIC KEY k DECRYPTION`）也會判成封閉，由 `Closed = $false` 宣告不封閉。
 
 探測文字本身已是完整語句時（`CREATE INDEX i ON t (a) `），接得上的字也含下一句的開頭；
 產生器扣掉在 `SELECT 1; ` 探到的那一份，被誤扣的（`WITH` 也是 CTE 的開頭）由更長的片語或 `Values` 補回。
 這種片語帶 `EndsStatement`，游標換了行就不算數——那一格更可能是下一句。
 
-一千九百個候選字乘上幾十組續尾，單執行緒要半小時，所以這一段由腳本內嵌的 C# 平行探測。
-
-- `Expand`：每個接得上的字接在後面成為新片語，直到語句完整。`SET` 往下四層，
+- `Expand`：每個接得上的字接在後面成為新片語，直到那個字寫完語句。普通名稱放在同一格也完整時，完整的
+  可能只是名稱讀法（`OPEN SYMMETRIC` 也是名叫 `SYMMETRIC` 的資料指標）：照樣往下，但扣掉普通名稱之後
+  接得上的字（`FETCH NEXT ` 之後不列 `INTO`），扣完沒有字就不立。`SET` 往下四層，
   所以 `SET TRANSACTION ISOLATION LEVEL READ ` 有自己的 `COMMITTED`／`UNCOMMITTED`。
   展開出來的片語字可以是零個：`SET ROWCOUNT ` 之後要數字，清單就該是空的。
 - `Values`：剖析器把值當名稱看、分不出來時才手寫（`SET DATEFORMAT` 的 `dmy`）。
@@ -48,17 +51,16 @@
 ### 片語裡的每一個字
 
 寫得出 `CREATE OR ALTER`，`CREATE ` 之後就要有 `OR`、`CREATE OR ` 之後就要有 `ALTER`。逐字探測問不出
-這種字：剖析器要看到整段才收，`CREATE OR` 接任何續尾都在 `CREATE` 就報錯。所以產生器反過來拿
-整條片語當證據（整段剖析得過），把每一個字補進它前面那段；那段還不是片語就另立一個，條件是
-尾巴認得出來——以字面字結尾，`Lead` 片語至少兩項。以名稱或值結尾的一段之後什麼都可能接，
-單獨一個 `ON`、`NEXT` 執行期到處比對得上，立了都會封閉掉不相干的清單。
-`SqlClausePhraseTests` 以同一個範圍逐字回驗。
+這種字：`CREATE OR` 接任何續尾都在 `CREATE` 就報錯。所以產生器拿整段剖析得過的片語當證據，
+把每一個字補進它前面那段；那段還不是片語就另立一個，條件是尾巴認得出來——以字面字結尾，
+`Lead` 片語至少兩項。以名稱或值結尾的一段之後什麼都可能接，單獨的 `ON`、`NEXT` 到處比對得上，
+立了會封閉掉不相干的清單。
 
 第一個字前面那段是位置，不是片語。那個位置有只認位置的片語就補進去；沒有、關鍵字目錄在那裡
 也給不了（`AT` 不在 `SelectListTail`，`ENABLE` 不是關鍵字）時，另立**附加片語**：只認位置，
 比對永遠是「可能」，只把字加進清單、不藏別的字。換成只認位置的普通片語不行——比對確定時這一格的
 關鍵字只來自片語，`SELECT a ` 之後就只剩 `AT`。前面那段已有片語列得出這個字（`CREATE ` 之後的
-`SYNONYM`）就不立。附加片語輸出成另一個陣列 `AdditivePhrases`，回驗改問「比對回自己而且只是可能」。
+`SYNONYM`）就不立。
 
 新增一個片語只要加一行再重跑，執行期不必改。
 
@@ -76,10 +78,8 @@
 
 會重複的格子尾巴寫不出來（`CURSOR LOCAL FAST_FORWARD `、`WITH COMPRESSION, `），位置寫得出來：
 沒有尾巴的片語帶 `After`，探測文字就是那個位置的樣板。游標選項、觸發程序標頭、MERGE 的 `WHEN`、
-BACKUP／RESTORE、模組、`EXEC` 與 `RAISERROR` 的 `WITH` 選項清單都是這樣；`WITH RESULT SETS (…)` 的
-結果集與資料行定義是兩層括號清單，也各有位置（`ResultSetList`、`ResultSetColumn`、`ResultSetColumnTail`），
-`AS OBJECT`、`NOT NULL` 的下一個字由掛在位置上的片語給；`OFFSET 10 ` 之後的
-`ROWS`、視窗 `ORDER BY a ` 之後的框架、函式參數清單之後的 `RETURNS` 也是。位置見[關鍵字](completion-keywords.md)。
+各種 `WITH` 選項清單、`WITH RESULT SETS (…)` 的兩層括號清單、`OFFSET 10 ` 之後的 `ROWS`、
+視窗框架都是這樣；`AS OBJECT` 這種下一個字由掛在位置上的片語給。位置見[關鍵字](completion-keywords.md)。
 
 中間可以夾別的子句時也寫位置，不寫尾巴：CREATE INDEX 的 `WITH (` 前面可能是索引鍵、`INCLUDE (…)`
 或篩選的 `WHERE`，每一種組合寫一條尾巴永遠寫不齊，位置分析認的是這一句（`IndexOption`）。
@@ -98,7 +98,7 @@ BACKUP／RESTORE、模組、`EXEC` 與 `RAISERROR` 的 `WITH` 選項清單都是
 
 `SqlKeywordPositionAnalyzer.Analyze` 順手比對片語，結果放在 `SqlCaretPosition.Phrase`。
 同時比對得上時取項數多的：`ROWS BETWEEN UNBOUNDED ` 是那一條（接 `PRECEDING`），而不是框架 `AND`
-之後的 `UNBOUNDED`（接 `FOLLOWING`）。比對先依最後一個字分桶，每次按鍵只試同一桶與少數以佔位項結尾的片語。
+之後的 `UNBOUNDED`（接 `FOLLOWING`）。
 
 帶 `After` 的片語再問 `SqlKeywordPositionAnalyzer.PositionBefore`：前一格判得出而且對得上
 才算，區塊開頭視同語句開頭（`BEGIN SET`），換行補上的語句開頭只給真的開頭（`UPDATE t⏎SET` 不是）。前一格判不出位置（`Any`）時比對結果是**可能**
@@ -118,7 +118,7 @@ BACKUP／RESTORE、模組、`EXEC` 與 `RAISERROR` 的 `WITH` 選項清單都是
 - 不封閉（`SET IDENTITY_INSERT ` 之後是資料表）：名稱照常，只有關鍵字換掉。
 
 片語的字不看目標：目標說的是這一格要哪一種名稱，剖析器已證明片語的字接得上。`EXEC ` 的目標是程序，
-照目標過濾的話 `EXEC AS` 的 `AS` 永遠列不出來。
+照目標過濾的話 `EXEC AS` 的 `AS` 永遠列不出來；`OPEN ` 的目標是資料指標，`SYMMETRIC`、`MASTER` 也是這樣並列。
 
 「可能」出現得越少，清單越準；它的來源是位置分析的 `Any`，該補的是分析器。模組標頭的
 `AS` 之後（`CREATE PROCEDURE p AS⏎SET NOCOUNT `）、IF 條件、`DESC` 之後因此都判得出來；

@@ -206,6 +206,18 @@ public sealed class SqlClausePhraseTests
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS (AS FOR ", "XML")]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch varchar(10) ", "COLLATE", "NULL", "NOT")]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch int NOT ", "NULL")]
+    [InlineData("OPEN ", "GLOBAL", "SYMMETRIC", "MASTER")]
+    [InlineData("OPEN SYMMETRIC ", "KEY")]
+    [InlineData("OPEN SYMMETRIC KEY k ", "DECRYPTION")]
+    [InlineData("OPEN SYMMETRIC KEY k DECRYPTION BY ", "CERTIFICATE", "PASSWORD", "SYMMETRIC", "ASYMMETRIC")]
+    [InlineData("OPEN SYMMETRIC KEY k DECRYPTION BY ASYMMETRIC ", "KEY")]
+    [InlineData("OPEN MASTER KEY ", "DECRYPTION")]
+    [InlineData("OPEN MASTER KEY DECRYPTION BY ", "PASSWORD")]
+    [InlineData("CLOSE ", "GLOBAL", "SYMMETRIC", "MASTER", "ALL")]
+    [InlineData("CLOSE ALL SYMMETRIC ", "KEYS")]
+    [InlineData("DEALLOCATE ", "GLOBAL")]
+    [InlineData("FETCH NEXT ", "FROM")]
+    [InlineData("FETCH NEXT FROM ", "GLOBAL")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -246,6 +258,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE VIEW dbo.v WITH ", "RECOMPILE")]
     [InlineData("CREATE TRIGGER tr ON dbo.Loan WITH ", "VIEW_METADATA")]
     [InlineData("CREATE PROCEDURE p WITH ", "SELECT")]
+    [InlineData("OPEN SYMMETRIC KEY k DECRYPTION BY CERTIFICATE ", "KEY")]
+    [InlineData("OPEN SYMMETRIC KEY k DECRYPTION BY PASSWORD ", "KEY")]
+    [InlineData("FETCH NEXT ", "INTO")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
@@ -294,6 +309,13 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) WHERE CopyNo > 0 WITH (", true)]
     [InlineData("SELECT a FROM t FOR XML RAW, ", true)]
     [InlineData("GRANT EXECUTE ON ", false)]
+    [InlineData("OPEN ", false)]
+    [InlineData("CLOSE ", false)]
+    [InlineData("FETCH NEXT FROM ", false)]
+    [InlineData("OPEN SYMMETRIC ", true)]
+    [InlineData("FETCH NEXT ", true)]
+    [InlineData("OPEN SYMMETRIC KEY ", false)]
+    [InlineData("CLOSE SYMMETRIC KEY ", false)]
     public void 封閉的片語換掉整份清單(string textBeforeCaret, bool closed)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
