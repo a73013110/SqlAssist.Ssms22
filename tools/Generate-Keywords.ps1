@@ -62,6 +62,13 @@
 .PARAMETER OutputPath
     產出的 .cs 檔路徑。
 
+.PARAMETER CachePath
+    剖析結果快取的路徑，預設在不進版控的 artifacts/cache/。沒有快取的第一次約半小時，
+    之後只剖析新出現的文字；ScriptDom 換版本時整份自動作廢。
+
+.PARAMETER NoCache
+    不讀舊快取、全部重新剖析，結果照樣寫回快取。懷疑快取與剖析器不一致時用。
+
 .NOTES
     產物要進版控。SqlAssist.Core 是 netstandard2.0 且刻意零相依，建置時不會、
     也不該去碰 SSMS 的組件，所以這支腳本是手動執行、結果 commit 進去。
@@ -69,7 +76,9 @@
 [CmdletBinding()]
 param(
     [string]$SsmsInstallDir,
-    [string]$OutputPath = (Join-Path $PSScriptRoot '..\src\SqlAssist.Core\Keywords\SqlKeywordCatalog.Generated.cs')
+    [string]$OutputPath = (Join-Path $PSScriptRoot '..\src\SqlAssist.Core\Keywords\SqlKeywordCatalog.Generated.cs'),
+    [string]$CachePath = (Join-Path $PSScriptRoot '..\artifacts\cache\Generate-Keywords.cache'),
+    [switch]$NoCache
 )
 
 $ErrorActionPreference = 'Stop'
@@ -439,71 +448,606 @@ $RejectingErrorNumbers = @(46005, 46010, 46014) + $optionRejections
 # 非保留字的對照名稱：不是任何關鍵字的普通識別字。
 $PlainName = 'Lib_Reader'
 
-# $Whole：整段都要過，不只到這個字為止。
-function Test-Accepted {
-    param([string]$Prefix, [string]$Word, [string]$Continuation, [bool]$Whole)
+# 剖析一律交給 C#：第三階段與片語要把上千個候選字逐一配上幾十條續尾剖析，PowerShell 單執行緒要一個多小時，
+# 平行之後片語仍要半小時，所以剖析結果另存成快取，重跑只剖析新的文字。快取只記剖析器說了什麼
+# （拒收落在哪一段、整段完不完整），怎麼解讀每次重算：改片語、續尾或判定規則都用得上舊的結果，
+# 只有 ScriptDom 版本、拒收錯誤碼或 <cache-facts> 區段變了才整份作廢。
+#
+# 片語的判定規則與第三階段相同，只多了一條：普通名稱在字本身就被拒、而候選字撐過了字本身，
+# 也算——ROWS BETWEEN UNBOUNDED 後面要接 PRECEDING 才完整，整段比對的話它與普通名稱一起被拒，
+# 永遠分不出來。
+# ScriptDom 是 .NET Framework 組件，編譯時要 mscorlib 的轉送組件。
+$proberSource = @'
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
-    $limit = $Prefix.Length + $Word.Length
+public static class SqlAssistPhraseProber
+{
+    private const string CacheFormat = "SqlAssistProbeCache/1";
 
-    if ($Whole) {
-        $limit += $Continuation.Length
+    private static ThreadLocal<TSqlParser> _parser;
+    private static HashSet<int> _rejecting;
+    private static string _cacheKey;
+    private static long _parses;
+
+    private static readonly Memo<byte[]> _classes = new Memo<byte[]>();
+    private static readonly Memo<bool> _complete = new Memo<bool>();
+    private static readonly Memo<int> _rejection = new Memo<int>();
+    private static readonly Memo<long> _accepted = new Memo<long>();
+
+    public static void Initialize(Type parserType, int[] rejecting, string cacheKey, string cachePath)
+    {
+        // 建構參數是 initialQuotedIdentifiers；只傳 true 會落到 nonPublic 那個多載。
+        _parser = new ThreadLocal<TSqlParser>(() => (TSqlParser)Activator.CreateInstance(parserType, new object[] { true }));
+        _rejecting = new HashSet<int>(rejecting);
+        _cacheKey = cacheKey;
+
+        if (cachePath != null)
+        {
+            LoadCache(cachePath);
+        }
     }
 
-    $text = $Prefix + $Word + $Continuation
-    $errors = $null
-    $null = $parser.Parse([System.IO.StringReader]::new($text), [ref]$errors)
+    // <cache-facts>
+    // 這個區段產生的是存進快取的事實，文字一變快取就整份作廢；解讀事實的規則放在區段外。
+    private const byte Recanted = 0;
+    private const byte InWord = 1;
+    private const byte InContinuation = 2;
+    private const byte Whole = 3;
 
-    # 46097 = "MERGE 陳述式必須以分號結尾"，只在 MERGE 已經完整時出現。少了分號時剖析器只報這一條，
-    # 之後的字一路跳到分號都不再檢查，動作寫完之後的格子「接受」普通名稱，非保留字的 OUTPUT 就分不出來。
-    # 補上分號再剖析一次：落在分號上的錯誤是語句沒寫完，與出現未預期的檔案結尾同義，不算；
-    # 分號補上了還報 46097，代表剖析器又跳過了一段，整段過不了。只到字為止的判定看不出跳過的是哪裡，不算。
-    if (@($errors | Where-Object Number -eq 46097).Count -gt 0) {
-        $null = $parser.Parse([System.IO.StringReader]::new("$text;"), [ref]$errors)
+    private static IList<ParseError> ParseErrors(string text)
+    {
+        IList<ParseError> errors;
+        _parser.Value.Parse(new StringReader(text), out errors);
+        Interlocked.Increment(ref _parses);
+        return errors;
+    }
 
-        if ($Whole -and @($errors | Where-Object Number -eq 46097).Count -gt 0) {
-            return $false
+    private static int ComputeRejection(string text)
+    {
+        var first = int.MaxValue;
+
+        foreach (var error in ParseErrors(text))
+        {
+            if (_rejecting.Contains(error.Number) && error.Offset < first)
+            {
+                first = error.Offset;
+            }
         }
 
-        $errors = @($errors | Where-Object Offset -lt $text.Length)
+        return first;
     }
 
-    foreach ($error in $errors) {
-        if ($RejectingErrorNumbers -contains $error.Number -and $error.Offset -le $limit) {
-            return $false
+    private static bool ComputeComplete(string text)
+    {
+        return ParseErrors(text).Count == 0;
+    }
+
+    /// <summary>每個字接上續尾之後最早的拒收落在哪一段，每字兩個位元。</summary>
+    private static byte[] ComputeClasses(string probe, string[] words, string continuation)
+    {
+        var classes = new byte[words.Length];
+
+        Parallel.For(0, words.Length, index =>
+        {
+            var word = words[index];
+            var wordEnd = probe.Length + word.Length;
+            var rejection = ComputeRejection(probe + word + continuation);
+
+            classes[index] =
+                rejection < probe.Length ? Recanted :
+                rejection <= wordEnd ? InWord :
+                rejection <= wordEnd + continuation.Length ? InContinuation :
+                Whole;
+        });
+
+        var packed = new byte[(words.Length + 3) / 4];
+
+        for (var index = 0; index < words.Length; index++)
+        {
+            packed[index / 4] |= (byte)(classes[index] << (index % 4 * 2));
+        }
+
+        return packed;
+    }
+
+    /// <summary>第三階段的事實：最早的拒收位置（低 32 位元），以及補上分號仍報 46097（第 32 位元）。</summary>
+    /// <remarks>
+    /// 46097 = "MERGE 陳述式必須以分號結尾"，只在 MERGE 已經完整時出現。少了分號時剖析器只報這一條，
+    /// 之後的字一路跳到分號都不再檢查，動作寫完之後的格子「接受」普通名稱，非保留字的 OUTPUT 就分不出來。
+    /// 補上分號再剖析一次：落在分號上的錯誤是語句沒寫完，與出現未預期的檔案結尾同義，不算；
+    /// 分號補上了還報 46097，代表剖析器又跳過了一段，整段過不了。
+    /// </remarks>
+    private static long ComputeAcceptedFacts(string text)
+    {
+        var errors = ParseErrors(text);
+        var skipped = false;
+
+        if (HasError(errors, 46097))
+        {
+            var retried = ParseErrors(text + ";");
+            skipped = HasError(retried, 46097);
+            errors = new List<ParseError>();
+
+            foreach (var error in retried)
+            {
+                if (error.Offset < text.Length)
+                {
+                    errors.Add(error);
+                }
+            }
+        }
+
+        var first = int.MaxValue;
+
+        foreach (var error in errors)
+        {
+            if (_rejecting.Contains(error.Number) && error.Offset < first)
+            {
+                first = error.Offset;
+            }
+        }
+
+        return (skipped ? 1L << 32 : 0L) | (uint)first;
+    }
+
+    private static bool HasError(IList<ParseError> errors, int number)
+    {
+        foreach (var error in errors)
+        {
+            if (error.Number == number)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    // </cache-facts>
+
+    private static byte ClassOf(byte[] packed, int index)
+    {
+        return (byte)((packed[index / 4] >> (index % 4 * 2)) & 3);
+    }
+
+    /// <summary>最早一個拒收錯誤的位置；沒有就是 int.MaxValue。</summary>
+    public static int FirstRejection(string text)
+    {
+        return _rejection.Get(text, ComputeRejection);
+    }
+
+    public static bool IsComplete(string text)
+    {
+        return _complete.Get(text, ComputeComplete);
+    }
+
+    /// <summary>第三階段：每個關鍵字在每個位置是否合法；位置的樣板任一個接得上就算。</summary>
+    public static bool[][] ClassifyPositions(string[] keywords, bool[] canBeName, string[][] templates, string[] continuations, string plain)
+    {
+        var result = new bool[keywords.Length][];
+
+        Parallel.For(0, keywords.Length, index =>
+        {
+            result[index] = new bool[templates.Length];
+
+            for (var position = 0; position < templates.Length; position++)
+            {
+                foreach (var prefix in templates[position])
+                {
+                    if (KeywordAllowed(prefix, keywords[index], canBeName[index], continuations, plain))
+                    {
+                        result[index][position] = true;
+                        break;
+                    }
+                }
+            }
+        });
+
+        return result;
+    }
+
+    // 非保留字（APPLY、NOLOCK、GO…）當名字寫也合法，所以任何接受名稱的位置都「接受」它們：
+    // CREATE TABLE t ( 之後的 NOLOCK 只是一個叫 NOLOCK 的資料行。一條規則分開兩種情形，
+    // 不分位置：同一組續尾換成普通名稱也過的話，那一次只證明它能當名字，不算數；
+    // 普通名稱過不了而它過得了，才是它以關鍵字的身分屬於這個位置（BEGIN TRY）。
+    // 這一比看的是整段而不只到字為止：SELECT Lib_Reader VALUE FOR s 在名稱之後才出錯，
+    // 只看到名稱為止的話它也「過」，NEXT VALUE FOR 就分不出來。
+    // 保留字不必比：它們當不了名字，被接受就一定是以關鍵字的身分。
+    private static bool KeywordAllowed(string prefix, string keyword, bool canBeName, string[] continuations, string plain)
+    {
+        foreach (var continuation in continuations)
+        {
+            var accepted = canBeName
+                ? Accepted(prefix, keyword, continuation, true) && !Accepted(prefix, plain, continuation, true)
+                : Accepted(prefix, keyword, continuation, false);
+
+            if (accepted)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // whole：整段都要過，不只到這個字為止。只到字為止的判定看不出 46097 跳過的是哪裡，不看它。
+    private static bool Accepted(string prefix, string word, string continuation, bool whole)
+    {
+        var facts = _accepted.Get(prefix + word + continuation, ComputeAcceptedFacts);
+
+        if (whole && (facts >> 32) != 0)
+        {
+            return false;
+        }
+
+        var limit = prefix.Length + word.Length + (whole ? continuation.Length : 0);
+        return (int)(facts & 0xFFFFFFFFL) > limit;
+    }
+
+    /// <summary>樣板接上這個字就是完整的一句，而且這個字寫完的是語句裡的一項，不是語句本身。</summary>
+    /// <remarks>
+    /// 一項是語法樹裡語句以外的片段：運算式、排序項、資料表提示。BEGIN TRAN 也完整，但以 TRAN
+    /// 結尾的只有語句本身——那種字之後往回找子句，找到的是上一句的；SELECT a COMMIT 的 COMMIT
+    /// 是下一句，批次分隔的 GO 不在任何片段裡，同樣不算。
+    /// </remarks>
+    public static bool EndsItem(string template, string word)
+    {
+        IList<ParseError> errors;
+        var text = template + word;
+        var fragment = _parser.Value.Parse(new StringReader(text), out errors);
+
+        if (errors.Count > 0 || fragment == null)
+        {
+            return false;
+        }
+
+        var finder = new ItemEndingFinder(template.Length, text.Length);
+        fragment.Accept(finder);
+        return finder.Found;
+    }
+
+    /// <summary>樣板接上這個字就是完整的一句，而且這個字寫完的是那一句本身，不是其中的一項。</summary>
+    /// <remarks>
+    /// 游標所在的是包住這個字最內層的那一句：IF 的主體、BEGIN … END 裡的一句都算自己的一句。
+    /// </remarks>
+    public static bool EndsStatement(string template, string word)
+    {
+        IList<ParseError> errors;
+        var text = template + word;
+        var fragment = _parser.Value.Parse(new StringReader(text), out errors);
+
+        if (errors.Count > 0 || fragment == null)
+        {
+            return false;
+        }
+
+        var statements = new StatementFinder(template.Length);
+        fragment.Accept(statements);
+
+        if (statements.Innermost == null ||
+            statements.Innermost.StartOffset + statements.Innermost.FragmentLength != text.Length)
+        {
+            return false;
+        }
+
+        var items = new ItemEndingFinder(template.Length, text.Length);
+        fragment.Accept(items);
+        return !items.Found;
+    }
+
+    private sealed class StatementFinder : TSqlFragmentVisitor
+    {
+        private readonly int _offset;
+
+        public StatementFinder(int offset)
+        {
+            _offset = offset;
+        }
+
+        public TSqlStatement Innermost { get; private set; }
+
+        public override void Visit(TSqlStatement node)
+        {
+            if (node.StartOffset <= _offset &&
+                node.StartOffset + node.FragmentLength > _offset &&
+                (Innermost == null || node.FragmentLength < Innermost.FragmentLength))
+            {
+                Innermost = node;
+            }
         }
     }
 
-    return $true
+    private sealed class ItemEndingFinder : TSqlFragmentVisitor
+    {
+        private readonly int _wordStart;
+        private readonly int _end;
+
+        public ItemEndingFinder(int wordStart, int end)
+        {
+            _wordStart = wordStart;
+            _end = end;
+        }
+
+        public bool Found { get; private set; }
+
+        public override void Visit(TSqlFragment node)
+        {
+            if (!(node is TSqlStatement) && !(node is TSqlBatch) && !(node is TSqlScript) &&
+                node.StartOffset >= 0 &&
+                node.StartOffset <= _wordStart &&
+                node.StartOffset + node.FragmentLength == _end)
+            {
+                Found = true;
+            }
+        }
+    }
+
+    /// <summary>普通名稱配上任何一條續尾組得成完整的語句，這一格就不封閉。</summary>
+    /// <remarks>
+    /// 要完整而不只是沒被拒：SET TRANSACTION Lib_Reader 在檔案結尾之前一個錯都沒有，
+    /// 剖析器要看到後面的 LEVEL 才說「必須是 ISOLATION」。
+    /// </remarks>
+    public static bool AcceptsName(string probe, string plain, string[] continuations)
+    {
+        foreach (var continuation in continuations)
+        {
+            if (IsComplete(probe + plain + continuation))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static string[] Probe(string probe, string[] pool, string[] reserved, string[] continuations, string plain)
+    {
+        var reservedSet = new HashSet<string>(reserved, StringComparer.OrdinalIgnoreCase);
+
+        // 普通名稱排在最後一格，與候選字一起分類。
+        var words = new string[pool.Length + 1];
+        Array.Copy(pool, words, pool.Length);
+        words[pool.Length] = plain;
+        var wordsKey = HashWords(words);
+
+        var canBeName = new bool[pool.Length];
+        var passed = new bool[pool.Length];
+        var recanted = new bool[pool.Length];
+
+        for (var index = 0; index < pool.Length; index++)
+        {
+            canBeName[index] = !reservedSet.Contains(pool[index]);
+        }
+
+        foreach (var continuation in continuations)
+        {
+            var classes = _classes.Get(wordsKey + "\u0001" + probe + "\u0001" + continuation,
+                key => ComputeClasses(probe, words, continuation));
+            var plainClass = ClassOf(classes, pool.Length);
+
+            for (var index = 0; index < pool.Length; index++)
+            {
+                var wordClass = ClassOf(classes, index);
+
+                // 剖析器有的地方先收下、讀完才回頭驗：DECRYPTION BY CERTIFICATE KEY 到檔案結尾都沒被拒，
+                // 接上金鑰名稱才在 CERTIFICATE 報錯。回頭拒收過的字，只有整句寫得完才算接得上。
+                recanted[index] |= wordClass == Recanted;
+
+                if (passed[index])
+                {
+                    continue;
+                }
+
+                // 保留字當不了名字，被接受就一定是以關鍵字的身分。
+                passed[index] = canBeName[index]
+                    ? (plainClass <= InWord && wordClass >= InContinuation) ||
+                        (plainClass <= InContinuation && wordClass == Whole)
+                    : wordClass >= InContinuation;
+            }
+        }
+
+        Parallel.For(0, pool.Length, index =>
+        {
+            if (!passed[index] || !recanted[index])
+            {
+                return;
+            }
+
+            var complete = false;
+
+            foreach (var continuation in continuations)
+            {
+                if (IsComplete(probe + pool[index] + continuation))
+                {
+                    complete = true;
+                    break;
+                }
+            }
+
+            passed[index] = complete;
+        });
+
+        var accepted = new List<string>();
+
+        for (var index = 0; index < pool.Length; index++)
+        {
+            if (passed[index])
+            {
+                accepted.Add(pool[index]);
+            }
+        }
+
+        return accepted.ToArray();
+    }
+
+    // FNV-1a 64 位元：候選字清單只隨 ScriptDom 或補充清單改變，拿來區分快取項夠了。
+    private static string HashWords(string[] words)
+    {
+        var hash = 14695981039346656037UL;
+
+        foreach (var word in words)
+        {
+            foreach (var c in word + "\n")
+            {
+                hash = (hash ^ c) * 1099511628211UL;
+            }
+        }
+
+        return hash.ToString("x16");
+    }
+
+    public static string CacheSummary()
+    {
+        return string.Format("剖析 {0} 次；快取沿用 {1} 筆、新增 {2} 筆",
+            Interlocked.Read(ref _parses),
+            _classes.Hits + _complete.Hits + _rejection.Hits + _accepted.Hits,
+            _classes.Misses + _complete.Misses + _rejection.Misses + _accepted.Misses);
+    }
+
+    private static void LoadCache(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            using (var file = File.OpenRead(path))
+            using (var zip = new GZipStream(file, CompressionMode.Decompress))
+            using (var reader = new BinaryReader(zip, Encoding.UTF8))
+            {
+                if (reader.ReadString() != CacheFormat || reader.ReadString() != _cacheKey)
+                {
+                    return;
+                }
+
+                _classes.Read(reader, r => r.ReadBytes(r.ReadInt32()));
+                _complete.Read(reader, r => r.ReadBoolean());
+                _rejection.Read(reader, r => r.ReadInt32());
+                _accepted.Read(reader, r => r.ReadInt64());
+            }
+        }
+        catch (Exception exception) when (exception is IOException || exception is InvalidDataException)
+        {
+            // 讀到一半壞掉的快取整份不用，已讀進來的也不採信。
+            _classes.Loaded.Clear();
+            _complete.Loaded.Clear();
+            _rejection.Loaded.Clear();
+            _accepted.Loaded.Clear();
+        }
+    }
+
+    /// <summary>只存這一次用到的項目：樣板或片語改掉之後，舊文字的結果不會一直留著。</summary>
+    public static void SaveCache(string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        var temporary = path + ".tmp";
+
+        using (var file = File.Create(temporary))
+        using (var zip = new GZipStream(file, CompressionLevel.Fastest))
+        using (var writer = new BinaryWriter(zip, Encoding.UTF8))
+        {
+            writer.Write(CacheFormat);
+            writer.Write(_cacheKey);
+            _classes.Write(writer, (w, value) => { w.Write(value.Length); w.Write(value); });
+            _complete.Write(writer, (w, value) => w.Write(value));
+            _rejection.Write(writer, (w, value) => w.Write(value));
+            _accepted.Write(writer, (w, value) => w.Write(value));
+        }
+
+        File.Move(temporary, path, true);
+    }
+
+    private sealed class Memo<T>
+    {
+        public readonly ConcurrentDictionary<string, T> Loaded = new ConcurrentDictionary<string, T>(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, T> _used = new ConcurrentDictionary<string, T>(StringComparer.Ordinal);
+        public int Hits;
+        public int Misses;
+
+        public T Get(string key, Func<string, T> compute)
+        {
+            T value;
+
+            if (_used.TryGetValue(key, out value))
+            {
+                return value;
+            }
+
+            if (Loaded.TryGetValue(key, out value))
+            {
+                Interlocked.Increment(ref Hits);
+            }
+            else
+            {
+                value = compute(key);
+                Interlocked.Increment(ref Misses);
+            }
+
+            _used[key] = value;
+            return value;
+        }
+
+        public void Read(BinaryReader reader, Func<BinaryReader, T> read)
+        {
+            var count = reader.ReadInt32();
+
+            for (var index = 0; index < count; index++)
+            {
+                var key = reader.ReadString();
+                Loaded[key] = read(reader);
+            }
+        }
+
+        public void Write(BinaryWriter writer, Action<BinaryWriter, T> write)
+        {
+            var entries = _used.ToArray();
+            writer.Write(entries.Length);
+
+            foreach (var entry in entries)
+            {
+                writer.Write(entry.Key);
+                write(writer, entry.Value);
+            }
+        }
+    }
+}
+'@
+
+$proberFacts = [regex]::Match($proberSource, '(?s)// <cache-facts>.*// </cache-facts>').Value
+
+if (-not $proberFacts) {
+    throw '探測器原始碼裡找不到 <cache-facts> 區段；快取的作廢條件靠它。'
 }
 
-# 非保留字（APPLY、NOLOCK、GO…）當名字寫也合法，所以任何接受名稱的位置都「接受」它們：
-# CREATE TABLE t ( 之後的 NOLOCK 只是一個叫 NOLOCK 的資料行。一條規則分開兩種情形，
-# 不分位置：同一組續尾換成普通名稱也過的話，那一次只證明它能當名字，不算數；
-# 普通名稱過不了而它過得了，才是它以關鍵字的身分屬於這個位置（BEGIN TRY）。
-# 這一比看的是整段而不只到字為止：SELECT Lib_Reader VALUE FOR s 在名稱之後才出錯，
-# 只看到名稱為止的話它也「過」，NEXT VALUE FOR 就分不出來。
-# 保留字不必比：它們當不了名字，被接受就一定是以關鍵字的身分。
-function Test-KeywordAllowed {
-    param([string]$Prefix, [string]$Keyword, [bool]$CanBeName)
+$proberFactsHash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($proberFacts)))
+$cacheKey = "$scriptDomVersion|$($parserType.Name)|$($RejectingErrorNumbers -join ',')|$proberFactsHash"
+$resolvedCachePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($CachePath)
 
-    foreach ($continuation in $Continuations) {
-        $accepted = if ($CanBeName) {
-            (Test-Accepted -Prefix $Prefix -Word $Keyword -Continuation $continuation -Whole $true) -and
-                -not (Test-Accepted -Prefix $Prefix -Word $PlainName -Continuation $continuation -Whole $true)
-        }
-        else {
-            Test-Accepted -Prefix $Prefix -Word $Keyword -Continuation $continuation -Whole $false
-        }
+Add-Type -ReferencedAssemblies @(
+    $scriptDomPath, 'mscorlib', 'netstandard', 'System.Runtime', 'System.Collections', 'System.Collections.Concurrent',
+    'System.IO.Compression', 'System.Threading', 'System.Threading.Tasks.Parallel'
+) -TypeDefinition $proberSource
 
-        if ($accepted) {
-            return $true
-        }
-    }
-
-    return $false
-}
+[SqlAssistPhraseProber]::Initialize($parserType, [int[]]$RejectingErrorNumbers, $cacheKey, ($NoCache ? $null : $resolvedCachePath))
 
 $positionNames = @($ContextTemplates.Keys)
+$templateArrays = [string[][]]::new($positionNames.Count)
+
+for ($index = 0; $index -lt $positionNames.Count; $index++) {
+    $templateArrays[$index] = [string[]]@($ContextTemplates[$positionNames[$index]])
+}
+
+$canBeNameArray = [bool[]]@($keywords | ForEach-Object { $reserved -notcontains $_ })
+$allowedMatrix = [SqlAssistPhraseProber]::ClassifyPositions([string[]]@($keywords), $canBeNameArray, $templateArrays, [string[]]@($Continuations), $PlainName)
 $positions = @{}
 $counts = [ordered]@{}
 
@@ -511,29 +1055,18 @@ foreach ($name in $positionNames) {
     $counts[$name] = 0
 }
 
-$index = 0
-
-foreach ($keyword in $keywords) {
-    $index++
-    Write-Progress -Activity '分類關鍵字位置' -Status $keyword -PercentComplete (100 * $index / $keywords.Count)
-
+for ($index = 0; $index -lt $keywords.Count; $index++) {
     $allowed = [System.Collections.Generic.List[string]]::new()
-    $canBeName = $reserved -notcontains $keyword
 
-    foreach ($name in $positionNames) {
-        foreach ($prefix in $ContextTemplates[$name]) {
-            if (Test-KeywordAllowed -Prefix $prefix -Keyword $keyword -CanBeName $canBeName) {
-                $allowed.Add($name)
-                $counts[$name]++
-                break
-            }
+    for ($position = 0; $position -lt $positionNames.Count; $position++) {
+        if ($allowedMatrix[$index][$position]) {
+            $allowed.Add($positionNames[$position])
+            $counts[$positionNames[$position]]++
         }
     }
 
-    $positions[$keyword] = $allowed
+    $positions[$keywords[$index]] = $allowed
 }
-
-Write-Progress -Activity '分類關鍵字位置' -Completed
 
 foreach ($name in $positionNames) {
     Write-Host ("  {0,-20} {1,3}" -f $name, $counts[$name])
@@ -826,255 +1359,6 @@ $PhraseContinuations = @($Continuations) + @(
     ' LEVEL READ COMMITTED', ' READ COMMITTED', ' COMMITTED', ' READ', ' TRIGGER ALL',
     ' AS BEGIN RETURN 1 END', ' AS RETURN SELECT 1 AS a', " = 'x'", ' KEY x', ' = x', ' = 0x01'
 )
-
-# 片語要把一千九百個候選字逐一配上幾十條續尾剖析，單執行緒要半小時，所以這一段交給
-# C# 平行跑，每條執行緒一個剖析器。判定規則與第三階段相同，只多了一條：普通名稱在
-# 字本身就被拒、而候選字撐過了字本身，也算——ROWS BETWEEN UNBOUNDED 後面要接
-# PRECEDING 才完整，整段比對的話它與普通名稱一起被拒，永遠分不出來。
-# ScriptDom 是 .NET Framework 組件，編譯時要 mscorlib 的轉送組件。
-Add-Type -ReferencedAssemblies @($scriptDomPath, 'mscorlib', 'netstandard', 'System.Runtime', 'System.Collections', 'System.Threading', 'System.Threading.Tasks.Parallel') -TypeDefinition @'
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.SqlServer.TransactSql.ScriptDom;
-
-public static class SqlAssistPhraseProber
-{
-    private static ThreadLocal<TSqlParser> _parser;
-    private static HashSet<int> _rejecting;
-
-    public static void Initialize(Type parserType, int[] rejecting)
-    {
-        // 建構參數是 initialQuotedIdentifiers；只傳 true 會落到 nonPublic 那個多載。
-        _parser = new ThreadLocal<TSqlParser>(() => (TSqlParser)Activator.CreateInstance(parserType, new object[] { true }));
-        _rejecting = new HashSet<int>(rejecting);
-    }
-
-    /// <summary>最早一個拒收錯誤的位置；沒有就是 int.MaxValue。</summary>
-    public static int FirstRejection(string text)
-    {
-        IList<ParseError> errors;
-        _parser.Value.Parse(new StringReader(text), out errors);
-        var first = int.MaxValue;
-
-        foreach (var error in errors)
-        {
-            if (_rejecting.Contains(error.Number) && error.Offset < first)
-            {
-                first = error.Offset;
-            }
-        }
-
-        return first;
-    }
-
-    public static bool IsComplete(string text)
-    {
-        IList<ParseError> errors;
-        _parser.Value.Parse(new StringReader(text), out errors);
-        return errors.Count == 0;
-    }
-
-    /// <summary>樣板接上這個字就是完整的一句，而且這個字寫完的是語句裡的一項，不是語句本身。</summary>
-    /// <remarks>
-    /// 一項是語法樹裡語句以外的片段：運算式、排序項、資料表提示。BEGIN TRAN 也完整，但以 TRAN
-    /// 結尾的只有語句本身——那種字之後往回找子句，找到的是上一句的；SELECT a COMMIT 的 COMMIT
-    /// 是下一句，批次分隔的 GO 不在任何片段裡，同樣不算。
-    /// </remarks>
-    public static bool EndsItem(string template, string word)
-    {
-        IList<ParseError> errors;
-        var text = template + word;
-        var fragment = _parser.Value.Parse(new StringReader(text), out errors);
-
-        if (errors.Count > 0 || fragment == null)
-        {
-            return false;
-        }
-
-        var finder = new ItemEndingFinder(template.Length, text.Length);
-        fragment.Accept(finder);
-        return finder.Found;
-    }
-
-    /// <summary>樣板接上這個字就是完整的一句，而且這個字寫完的是那一句本身，不是其中的一項。</summary>
-    /// <remarks>
-    /// 游標所在的是包住這個字最內層的那一句：IF 的主體、BEGIN … END 裡的一句都算自己的一句。
-    /// </remarks>
-    public static bool EndsStatement(string template, string word)
-    {
-        IList<ParseError> errors;
-        var text = template + word;
-        var fragment = _parser.Value.Parse(new StringReader(text), out errors);
-
-        if (errors.Count > 0 || fragment == null)
-        {
-            return false;
-        }
-
-        var statements = new StatementFinder(template.Length);
-        fragment.Accept(statements);
-
-        if (statements.Innermost == null ||
-            statements.Innermost.StartOffset + statements.Innermost.FragmentLength != text.Length)
-        {
-            return false;
-        }
-
-        var items = new ItemEndingFinder(template.Length, text.Length);
-        fragment.Accept(items);
-        return !items.Found;
-    }
-
-    private sealed class StatementFinder : TSqlFragmentVisitor
-    {
-        private readonly int _offset;
-
-        public StatementFinder(int offset)
-        {
-            _offset = offset;
-        }
-
-        public TSqlStatement Innermost { get; private set; }
-
-        public override void Visit(TSqlStatement node)
-        {
-            if (node.StartOffset <= _offset &&
-                node.StartOffset + node.FragmentLength > _offset &&
-                (Innermost == null || node.FragmentLength < Innermost.FragmentLength))
-            {
-                Innermost = node;
-            }
-        }
-    }
-
-    private sealed class ItemEndingFinder : TSqlFragmentVisitor
-    {
-        private readonly int _wordStart;
-        private readonly int _end;
-
-        public ItemEndingFinder(int wordStart, int end)
-        {
-            _wordStart = wordStart;
-            _end = end;
-        }
-
-        public bool Found { get; private set; }
-
-        public override void Visit(TSqlFragment node)
-        {
-            if (!(node is TSqlStatement) && !(node is TSqlBatch) && !(node is TSqlScript) &&
-                node.StartOffset >= 0 &&
-                node.StartOffset <= _wordStart &&
-                node.StartOffset + node.FragmentLength == _end)
-            {
-                Found = true;
-            }
-        }
-    }
-
-    /// <summary>普通名稱配上任何一條續尾組得成完整的語句，這一格就不封閉。</summary>
-    /// <remarks>
-    /// 要完整而不只是沒被拒：SET TRANSACTION Lib_Reader 在檔案結尾之前一個錯都沒有，
-    /// 剖析器要看到後面的 LEVEL 才說「必須是 ISOLATION」。
-    /// </remarks>
-    public static bool AcceptsName(string probe, string plain, string[] continuations)
-    {
-        foreach (var continuation in continuations)
-        {
-            if (IsComplete(probe + plain + continuation))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public static string[] Probe(string probe, string[] pool, string[] reserved, string[] continuations, string plain)
-    {
-        var reservedSet = new HashSet<string>(reserved, StringComparer.OrdinalIgnoreCase);
-        var plainRejection = new int[continuations.Length];
-
-        for (var index = 0; index < continuations.Length; index++)
-        {
-            plainRejection[index] = FirstRejection(probe + plain + continuations[index]);
-        }
-
-        var plainEnd = probe.Length + plain.Length;
-        var accepted = new bool[pool.Length];
-
-        Parallel.For(0, pool.Length, index =>
-        {
-            var word = pool[index];
-            var wordEnd = probe.Length + word.Length;
-            var canBeName = !reservedSet.Contains(word);
-            var passed = false;
-            var recanted = false;
-
-            for (var c = 0; c < continuations.Length; c++)
-            {
-                var continuation = continuations[c];
-                var rejection = FirstRejection(probe + word + continuation);
-
-                // 剖析器有的地方先收下、讀完才回頭驗：DECRYPTION BY CERTIFICATE KEY 到檔案結尾都沒被拒，
-                // 接上金鑰名稱才在 CERTIFICATE 報錯。回頭拒收過的字，只有整句寫得完才算接得上。
-                recanted |= rejection < probe.Length;
-
-                if (passed)
-                {
-                    continue;
-                }
-
-                if (!canBeName)
-                {
-                    // 保留字當不了名字，被接受就一定是以關鍵字的身分。
-                    passed = rejection > wordEnd;
-                }
-                else
-                {
-                    passed =
-                        (plainRejection[c] <= plainEnd && rejection > wordEnd) ||
-                        (plainRejection[c] <= plainEnd + continuation.Length &&
-                            rejection > wordEnd + continuation.Length);
-                }
-            }
-
-            if (passed && recanted)
-            {
-                passed = false;
-
-                foreach (var continuation in continuations)
-                {
-                    if (IsComplete(probe + word + continuation))
-                    {
-                        passed = true;
-                        break;
-                    }
-                }
-            }
-
-            accepted[index] = passed;
-        });
-
-        var words = new List<string>();
-
-        for (var index = 0; index < pool.Length; index++)
-        {
-            if (accepted[index])
-            {
-                words.Add(pool[index]);
-            }
-        }
-
-        return words.ToArray();
-    }
-}
-'@
-
-[SqlAssistPhraseProber]::Initialize($parserType, [int[]]$RejectingErrorNumbers)
 
 function Get-PhraseProbe {
     param([string]$Lead, [string]$Pattern, [string]$Group, [string]$Gap)
@@ -1766,3 +2050,6 @@ $output = $builder.ToString().Replace("`r`n", "`n").Replace("`r", "`n")
 [System.IO.File]::WriteAllText($resolved, $output, [System.Text.UTF8Encoding]::new($false))
 
 Write-Host "已寫出 $resolved"
+
+[SqlAssistPhraseProber]::SaveCache($resolvedCachePath)
+Write-Host "$([SqlAssistPhraseProber]::CacheSummary())，快取：$resolvedCachePath"

@@ -7,7 +7,10 @@
 
 清單裡的 191 個 T-SQL 關鍵字不是手寫的，由 `tools/Generate-Keywords.ps1` 反射
 SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCatalog.Generated.cs`。
-換 SSMS 版本重跑一次就更新。每個階段都自我驗證，不猜任何一個字：
+換 SSMS 版本重跑一次就更新。剖析結果快取在 `artifacts/cache/`：沒有快取時約半小時，之後
+只剖析新出現的文字，改片語、續尾或判定規則重跑約一兩分鐘。快取只存剖析器的回答（拒收落在
+哪一段、整段完不完整），解讀每次重算；ScriptDom 版本、拒收錯誤碼或探測器 `<cache-facts>`
+區段一變就整份作廢，懷疑不一致時加 `-NoCache` 重建。每個階段都自我驗證，不猜任何一個字：
 
 1. **取字面值**：`TSqlTokenType` 的成員名稱大寫後丟回 tokenizer，對得回原成員才採用；
    camelCase 的再試補底線的寫法（`CURRENT_TIMESTAMP`、`IDENTITY_INSERT`）。
