@@ -83,6 +83,7 @@ WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 | `EXEC`、`EXECUTE` | Procedure | 展開具名參數清單 |
 | `CREATE`／`ALTER`／`DROP INDEX`／`STATISTICS`／`TRIGGER` 之後的 `ON` | Table、View | 插入名稱 |
 | `USE` | 這台伺服器上的資料庫 | 插入名稱 |
+| `OPEN`、`CLOSE`、`DEALLOCATE`、`FETCH [… FROM]`、`WHERE CURRENT OF`，可夾 `GLOBAL` | 指令碼 `DECLARE c CURSOR` 宣告的資料指標；`FETCH ` 另列方向片語 | 插入名稱 |
 | `COLLATE` | 定序名稱與 `DATABASE_DEFAULT` | 插入名稱 |
 | `FROM a, `、`FROM a, LibArchive.` | 同 `FROM` 那一列 | 插入名稱 |
 | `UPDATE t SET `、`INSERT INTO t (`、`ON t (` 這種資料行的位置 | 那張表的資料行，見[欄位](completion-columns.md#文法指定的所屬資料表) | 插入名稱 |
@@ -96,8 +97,11 @@ WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 `USING` 與 `FROM` 收在同一列不是為了湊數：MERGE 的來源與 FROM 的來源是同一條文法，
 `SqlKeywordPositionAnalyzer` 與 `SqlScopeAnalyzer` 也早就這樣歸類。只有這一份漏掉時，
 症狀是 `USING ` 之後完全沒有清單，而使用者看不出它和 `FROM ` 之後有什麼不同。
-`FROM` 只算 SELECT、UPDATE、DELETE 的：`FETCH NEXT FROM `、`REVOKE … FROM ` 之後不列資料表，
-判準見[語句的界線](completion-boundaries.md#語句的界線)。
+`FROM` 只算 SELECT、UPDATE、DELETE 的：`FETCH NEXT FROM ` 之後是資料指標，`REVOKE … FROM ` 之後
+不列資料表，判準見[語句的界線](completion-boundaries.md#語句的界線)。資料指標那一格由位置分析的
+`IntroducesCursor` 一條認，位置與目標共用；名稱前的 `GLOBAL` 是修飾字，當成名稱就只剩 `INTO`。
+名稱只在指令碼裡，不查資料庫；宣告的認法（`Parsing/SqlCursorDeclaration`）與 `CursorOption` 共用，
+`DECLARE @c CURSOR` 是變數。
 
 逗號那一列不靠前導關鍵字：前一、兩個詞元只有一個逗號，答案來自
 `SqlKeywordPositionAnalyzer` 的位置（逗號回到清單起點），這裡不再自己回頭找 `FROM`。

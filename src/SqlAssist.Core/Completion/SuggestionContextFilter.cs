@@ -87,6 +87,7 @@ public static class SuggestionContextFilter
             SuggestionKind.UserDefinedType => true,
             SuggestionKind.LinkedServer => true,
             SuggestionKind.Alias => true,
+            SuggestionKind.Cursor => true,
             _ => false
         };
     }
@@ -162,6 +163,7 @@ public static class SuggestionContextFilter
             CompletionTarget.View => kind == SuggestionKind.View,
             CompletionTarget.Trigger => kind == SuggestionKind.Trigger,
             CompletionTarget.Sequence => kind == SuggestionKind.Sequence,
+            CompletionTarget.Cursor => kind == SuggestionKind.Cursor,
             CompletionTarget.DatePart => kind == SuggestionKind.DatePart,
             CompletionTarget.TableHint => kind == SuggestionKind.TableHint,
             CompletionTarget.QueryHint => kind == SuggestionKind.QueryHint,
@@ -191,7 +193,8 @@ public static class SuggestionContextFilter
                 or SuggestionKind.TableHint
                 or SuggestionKind.QueryHint
                 or SuggestionKind.Collation
-                or SuggestionKind.CollationInUse)
+                or SuggestionKind.CollationInUse
+                or SuggestionKind.Cursor)
         };
     }
 

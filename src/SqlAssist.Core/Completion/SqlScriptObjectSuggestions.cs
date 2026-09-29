@@ -6,7 +6,7 @@ using SqlAssist.Core.Parsing;
 namespace SqlAssist.Core.Completion;
 
 /// <summary>
-/// 指令碼自己宣告的物件：資料來源（CTE、暫存資料表、資料表變數）與暫存程序。
+/// 指令碼自己宣告的物件：資料來源（CTE、暫存資料表、資料表變數）、暫存程序與游標。
 /// </summary>
 /// <remarks>
 /// 建議清單的資料庫物件全部來自中繼資料，而中繼資料只看得到目前連線資料庫的
@@ -118,6 +118,34 @@ public static class SqlScriptObjectSuggestions
                 SqlKindText.TemporaryProcedure,
                 ScriptSuggestionText.NameWithDescription(name, SqlKindText.TemporaryProcedure),
                 SuggestionKind.Procedure));
+        }
+
+        return (IReadOnlyList<SqlSuggestion>?)suggestions ?? Array.Empty<SqlSuggestion>();
+    }
+
+    /// <summary>
+    /// 組出這份指令碼宣告的具名游標（<c>DECLARE c CURSOR</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 整份指令碼的宣告都算，與暫存資料表相同：只收寫在上面的，換來的只是回頭改上面幾行時少一個名稱。
+    /// </remarks>
+    public static IReadOnlyList<SqlSuggestion> Cursors(IReadOnlyList<SqlToken> tokens)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        List<SqlSuggestion>? suggestions = null;
+
+        foreach (var name in SqlCursorDeclaration.CollectNames(tokens))
+        {
+            (suggestions ??= new List<SqlSuggestion>()).Add(new SqlSuggestion(
+                name,
+                name,
+                SqlKindText.Cursor,
+                ScriptSuggestionText.NameWithDescription(name, SqlKindText.Cursor),
+                SuggestionKind.Cursor));
         }
 
         return (IReadOnlyList<SqlSuggestion>?)suggestions ?? Array.Empty<SqlSuggestion>();

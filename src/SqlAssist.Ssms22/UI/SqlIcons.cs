@@ -71,6 +71,11 @@ internal static partial class SqlIcons
     private static readonly Definition LinkedServer = new(KnownMonikers.LinkedServer, () => SqlKindText.LinkedServer);
 
     /// <remarks>
+    /// 影像目錄的 <c>Cursor</c> 是滑鼠指標；游標做的事是逐列走過一份結果，借迴圈那一顆。
+    /// </remarks>
+    private static readonly Definition Cursor = new(KnownMonikers.ForEachLoop, () => SqlKindText.Cursor);
+
+    /// <remarks>
     /// 影像目錄裡沒有定序這一項，借字母排序那一顆：那正是定序決定的事
     /// （比較與排序的規則），而 <c>IntellisenseKeyword</c> 已經被兩種提示佔著，
     /// 再多一類就分不出誰是誰。
@@ -200,6 +205,7 @@ internal static partial class SqlIcons
         SuggestionKind.LinkedServer => LinkedServer,
         SuggestionKind.Collation or SuggestionKind.CollationInUse => Collation,
         SuggestionKind.Alias => Alias,
+        SuggestionKind.Cursor => Cursor,
         _ => Unknown
     };
 

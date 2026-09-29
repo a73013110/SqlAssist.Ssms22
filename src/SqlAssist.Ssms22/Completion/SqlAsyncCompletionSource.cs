@@ -529,6 +529,14 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             return parameters.Concat(context.ScriptSources).ToArray();
         }
 
+        // 游標名稱同樣只寫在指令碼裡；FETCH | 還接得了 NEXT、PRIOR 這些方向，由片語給。
+        if (context.Target == CompletionTarget.Cursor)
+        {
+            return context.ClausePhrase is { } cursorPhrase
+                ? context.ScriptSources.Concat(cursorPhrase.Suggestions).ToArray()
+                : context.ScriptSources;
+        }
+
         // 引數與提示是純粹的封閉清單，一次資料庫都不必問。
         switch (context.Target)
         {
@@ -734,6 +742,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         CompletionTarget.View => SqlKindText.View,
         CompletionTarget.Trigger => SqlKindText.Trigger,
         CompletionTarget.Sequence => SqlKindText.Sequence,
+        CompletionTarget.Cursor => SqlKindText.Cursor,
         CompletionTarget.DatePart => SqlKindText.DatePart,
         CompletionTarget.TableHint => SqlKindText.TableHint,
         CompletionTarget.QueryHint => SqlKindText.QueryHint,

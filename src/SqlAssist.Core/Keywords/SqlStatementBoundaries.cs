@@ -60,6 +60,9 @@ internal sealed class SqlStatementBoundaries
     /// <summary><paramref name="from"/> 的 FROM 後面接資料來源：它所屬的動詞是 SELECT、UPDATE 或 DELETE。</summary>
     public bool IntroducesDataSource(int from) => analyzer.IntroducesDataSource(Map(from));
 
+    /// <summary><paramref name="from"/> 的 FROM 是 <c>FETCH … FROM</c>，後面是游標名稱。</summary>
+    public bool IntroducesCursor(int from) => analyzer.IntroducesCursor(Map(from));
+
     private int Map(int index) => index >= operand ? index + 1 : index;
 
     /// <summary>游標處要補運算元時，它在分析用詞元裡的索引；不補就是 <see cref="int.MaxValue"/>。</summary>

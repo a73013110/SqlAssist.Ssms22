@@ -255,11 +255,14 @@ public static class SqlCompletionContextAnalyzer
                 SqlScriptTableCollector.Collect(tokens)));
         }
 
-        // 定序只要「這份指令碼裡出現過哪些 COLLATE」，敘述有哪些資料來源與欄位
-        // 都無關，底下整趟範圍解析可以省下來。
-        if (context.Target == CompletionTarget.Collation)
+        // 定序與游標只要「這份指令碼寫過哪些」（COLLATE 之後、DECLARE c CURSOR），
+        // 敘述有哪些資料來源與欄位都無關，底下整趟範圍解析可以省下來。
+        switch (context.Target)
         {
-            return context.WithScriptSources(SqlScriptCollationSuggestions.Create(tokens));
+            case CompletionTarget.Collation:
+                return context.WithScriptSources(SqlScriptCollationSuggestions.Create(tokens));
+            case CompletionTarget.Cursor:
+                return context.WithScriptSources(SqlScriptObjectSuggestions.Cursors(tokens));
         }
 
         var scope = SqlScopeAnalyzer.Analyze(sql, tokens, caretPosition);
@@ -498,6 +501,17 @@ public static class SqlCompletionContextAnalyzer
         // 位置都沒有位移，因此底下算出來的 keywordStart 仍然指得回原文。
         text = TrimTrailingIfExists(text);
 
+        // 游標名稱那一格：OPEN、CLOSE、DEALLOCATE、FETCH [… FROM]、WHERE CURRENT OF 之後，中間可以夾 GLOBAL。
+        // 判準與位置分析同一條（SqlStatementBoundaries.IntroducesCursor）；排在 FROM 之前，
+        // FETCH NEXT FROM 才不會被那一條收成「判不出名稱種類」。
+        intent = CompletionIntent.Reference;
+        keywordStart = FindPreviousTokenStart(text, text.Length);
+
+        if (IntroducesCursor(tokens, textBeforeToken, keywordStart))
+        {
+            return CompletionTarget.Cursor;
+        }
+
         // ALTER 之後要放進完整定義，因此與 EXEC 之類的單純參考分開表示。
         intent = CompletionIntent.AlterDefinition;
 
@@ -621,7 +635,7 @@ public static class SqlCompletionContextAnalyzer
         // SqlScopeAnalyzer 早就這樣歸類，只有這一份漏掉——症狀是 USING 之後完全沒有
         // 清單，而使用者看不出它和 FROM 之後有什麼不同。
         //
-        // FROM 另問它所屬的動詞：FETCH NEXT FROM、RESTORE … FROM、REVOKE … FROM 之後不是資料表，
+        // FROM 另問它所屬的動詞：RESTORE … FROM、REVOKE … FROM 之後不是資料表，
         // 判準與位置分析、範圍分析同一條（SqlStatementBoundaries.IntroducesDataSource）。
         if (EndsWithKeyword(text, "FROM", out keywordStart))
         {
@@ -649,16 +663,32 @@ public static class SqlCompletionContextAnalyzer
     /// <summary>從 <paramref name="keywordStart"/> 開始的 FROM 後面接資料來源。</summary>
     private static bool IntroducesDataSource(IReadOnlyList<SqlToken> tokens, string textBeforeToken, int keywordStart)
     {
-        for (var index = tokens.Count - 1; index >= 0; index--)
+        var index = FindTokenAt(tokens, keywordStart);
+
+        // 文字與詞元對不起來（FROM 寫在尾端的註解裡），照舊當成資料來源。
+        return index < 0 || new SqlStatementBoundaries(textBeforeToken, tokens).IntroducesDataSource(index);
+    }
+
+    /// <summary>從 <paramref name="tokenStart"/> 開始的詞元之後是游標名稱。</summary>
+    private static bool IntroducesCursor(IReadOnlyList<SqlToken> tokens, string textBeforeToken, int tokenStart)
+    {
+        var index = FindTokenAt(tokens, tokenStart);
+
+        return index >= 0 && new SqlStatementBoundaries(textBeforeToken, tokens).IntroducesCursor(index);
+    }
+
+    /// <summary>從 <paramref name="start"/> 開始的詞元；文字與詞元對不起來時為 -1。</summary>
+    private static int FindTokenAt(IReadOnlyList<SqlToken> tokens, int start)
+    {
+        for (var index = tokens.Count - 1; index >= 0 && tokens[index].Start >= start; index--)
         {
-            if (tokens[index].Start == keywordStart)
+            if (tokens[index].Start == start)
             {
-                return new SqlStatementBoundaries(textBeforeToken, tokens).IntroducesDataSource(index);
+                return index;
             }
         }
 
-        // 文字與詞元對不起來（FROM 寫在尾端的註解裡），照舊當成資料來源。
-        return true;
+        return -1;
     }
 
     /// <summary>剝掉尾端的 <c>IF EXISTS</c>；沒有的話原樣回傳。</summary>

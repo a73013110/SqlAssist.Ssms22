@@ -42,6 +42,7 @@
   "DataType": "Data type",
   "DataSource": "Data source",
   "Alias": "Alias",
+  "Cursor": "Cursor",
   "ScriptDataSource": "Script data source",
   "Variable": "Variable",
   "LocalVariable": "Local variable",

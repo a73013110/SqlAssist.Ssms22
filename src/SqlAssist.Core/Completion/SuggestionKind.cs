@@ -159,6 +159,14 @@ public enum SuggestionKind
     /// 與 <see cref="ScriptDataSource"/> 分開：那一類接在 <c>FROM</c> 後面，
     /// 這一類只寫在運算式裡，兩者從來不會出現在同一格。
     /// </remarks>
-    Alias
+    Alias,
+
+    /// <summary>指令碼宣告的具名游標（<c>DECLARE c CURSOR</c> 的 <c>c</c>）。</summary>
+    /// <remarks>
+    /// 只接在 <c>OPEN</c>、<c>CLOSE</c>、<c>DEALLOCATE</c>、<c>FETCH</c>、<c>WHERE CURRENT OF</c> 之後，
+    /// 那幾格也只接得了它；中繼資料看不到，別的位置寫上去都是語法錯誤。
+    /// 游標變數（<c>DECLARE @c CURSOR</c>）是 <see cref="Variable"/>。
+    /// </remarks>
+    Cursor
 }
 

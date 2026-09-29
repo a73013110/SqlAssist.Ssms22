@@ -793,9 +793,38 @@ public sealed partial class SqlKeywordPositionAnalyzer
             (token.IsKeyword("SET") && !IntroducesOptions(verb));
     }
 
-    /// <summary><paramref name="from"/> 的 FROM 是 <c>FETCH … FROM</c>，後面是游標。</summary>
-    private bool IntroducesCursor(int from) =>
-        FindVerb(from - 1) is var verb and >= 0 && tokens[verb].IsKeyword("FETCH");
+    /// <summary>
+    /// <paramref name="index"/> 這個詞元之後是游標名稱：<c>OPEN</c>、<c>CLOSE</c>、<c>DEALLOCATE</c>、
+    /// 游標語句的 <c>FETCH</c>、<c>FETCH … FROM</c>、<c>WHERE CURRENT OF</c>，以及接在它們後面的 <c>GLOBAL</c>。
+    /// </summary>
+    /// <remarks>
+    /// <c>GLOBAL</c> 不是關鍵字，當成名稱的話 <c>FETCH NEXT FROM GLOBAL </c> 就是游標已經寫完、只剩 <c>INTO</c>。
+    /// 它後面再一個 <c>GLOBAL</c> 才是名稱。<c>OFFSET 0 ROWS FETCH</c> 的 FETCH 不是一句的開頭，不算。
+    ///
+    /// 位置分析（<c>FETCH NEXT FROM c </c> 的尾端）與上下文分析的目標都問這一條。
+    /// </remarks>
+    internal bool IntroducesCursor(int index)
+    {
+        // 不看關鍵字目錄：GLOBAL 不在裡面。加引號的由 IsKeyword 擋掉，點號後面的是名稱的一段。
+        if (index < 0 || (index >= 1 && tokens[index - 1].IsPunctuation(".")))
+        {
+            return false;
+        }
+
+        var token = tokens[index];
+
+        if (token.IsKeyword("GLOBAL"))
+        {
+            return index >= 1 && !tokens[index - 1].IsKeyword("GLOBAL") && IntroducesCursor(index - 1);
+        }
+
+        return token.IsKeyword("OPEN") ||
+            token.IsKeyword("CLOSE") ||
+            token.IsKeyword("DEALLOCATE") ||
+            (token.IsKeyword("FETCH") && IsStatementHead(index)) ||
+            (token.IsKeyword("OF") && index >= 1 && tokens[index - 1].IsKeyword("CURRENT")) ||
+            (token.IsKeyword("FROM") && FindVerb(index - 1) is var verb and >= 0 && tokens[verb].IsKeyword("FETCH"));
+    }
 
     /// <summary>
     /// 游標與前一個詞元之間隔著東西，而且沒有換行。
@@ -1717,8 +1746,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
         // 加引號的識別字是名稱不是關鍵字：[FROM] 之後不是資料來源位置。
         if (token.Kind == SqlTokenKind.Identifier && !token.IsQuoted)
         {
-            // 游標、備份裝置與主體前面的 FROM 不接資料來源，這裡判不出位置。
-            if (token.IsKeyword("FROM") && !IntroducesDataSource(last))
+            // 游標、備份裝置與主體前面的 FROM 不接資料來源，這裡判不出位置；游標名稱前的 GLOBAL 也是。
+            if ((token.IsKeyword("FROM") && !IntroducesDataSource(last)) || IntroducesCursor(last))
             {
                 return SqlKeywordPosition.Any;
             }

@@ -21,7 +21,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             isAnchor: (analyzer, index) => analyzer.IsBareKeyword(index) && analyzer.tokens[index].IsKeyword("CURSOR"),
             isPart: (analyzer, index) => analyzer.IsPlainWord(index),
             endsItem: (_, _) => true,
-            header: (analyzer, cursor) => analyzer.DeclaresCursor(cursor)
+            header: (analyzer, cursor) => SqlCursorDeclaration.FindName(analyzer.tokens, cursor) >= 0
                 ? new OptionSlots(SqlKeywordPosition.CursorOption, SqlKeywordPosition.CursorOption)
                 : null,
             separatedByCommas: false),
@@ -713,21 +713,6 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <summary><c>EXECUTE AS</c> 裡的關鍵字。</summary>
     private bool IsExecuteAs(int index) =>
         tokens[index].IsKeyword("EXECUTE") || tokens[index].IsKeyword("EXEC") || tokens[index].IsKeyword("AS");
-
-    /// <summary>
-    /// <paramref name="cursor"/> 的 <c>CURSOR</c> 前面是 <c>DECLARE 名稱 [ISO 選項]</c>：兩段各是一串非關鍵字的識別字。
-    /// </summary>
-    private bool DeclaresCursor(int cursor)
-    {
-        var declare = cursor - 1;
-
-        while (declare >= 0 && IsPlainWord(declare))
-        {
-            declare--;
-        }
-
-        return declare >= 0 && declare < cursor - 1 && tokens[declare].IsKeyword("DECLARE");
-    }
 
     /// <summary>
     /// 模組選項清單寫得出這個詞元：非關鍵字的名稱、字串、數值、<c>=</c>，以及 <c>EXECUTE AS</c>、

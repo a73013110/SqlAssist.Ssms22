@@ -90,6 +90,16 @@ public enum CompletionTarget
     /// <summary><c>NEXT VALUE FOR</c>、<c>ALTER</c>、<c>DROP SEQUENCE</c> 之後。</summary>
     Sequence,
 
+    /// <summary>
+    /// <c>OPEN</c>、<c>CLOSE</c>、<c>DEALLOCATE</c>、<c>FETCH</c>、<c>FETCH … FROM</c>、
+    /// <c>WHERE CURRENT OF</c> 之後，中間可以夾 <c>GLOBAL</c>；只建議這份指令碼宣告的游標。
+    /// </summary>
+    /// <remarks>
+    /// 名稱只寫在 <c>DECLARE c CURSOR</c> 裡，與變數一樣不必對資料庫送出查詢。
+    /// <c>FETCH </c> 之後的 <c>NEXT</c>、<c>PRIOR</c> 由片語給，片語的字不看目標。
+    /// </remarks>
+    Cursor,
+
     /// <summary><c>DATEADD(</c> 這一族的第一個引數。</summary>
     DatePart,
 
