@@ -181,6 +181,11 @@ public sealed class SqlSuggestionTargetTests
     [InlineData("", "EXEC", "EXEC")]
     [InlineData("", "EXECUTE", "EXECUTE")]
     [InlineData("CREATE ", "INDEX", "CREATE INDEX")]
+    [InlineData("SET ", "NOCOUNT", "SET NOCOUNT")]
+    [InlineData("BEGIN ", "TRY", "BEGIN TRY")]
+    [InlineData("ALTER ", "TABLE", "ALTER TABLE")]
+    [InlineData("CREATE OR ALTER ", "PROCEDURE", "CREATE OR ALTER PROCEDURE")]
+    [InlineData("DBCC ", "CHECKDB", "DBCC CHECKDB")]
     public void 關鍵字建議項換到語句說明(string before, string name, string expected)
     {
         var doc = SqlSuggestionTarget.Describe(
@@ -207,6 +212,20 @@ public sealed class SqlSuggestionTargetTests
         Assert.Null(SqlSuggestionTarget.FindBuiltIn(merge, new SqlStatementCandidates(before, before.Length)));
         Assert.Null(SqlSuggestionTarget.Describe(merge, new SqlStatementCandidates(before, before.Length)));
         Assert.Null(SqlSuggestionTarget.FindBuiltIn(merge, statements: null));
+    }
+
+    /// <summary>
+    /// 語句名稱裡的常見字寫在一句中間時同樣不對：<c>UPDATE Loan SET</c> 的 SET 不是 SET NOCOUNT 那一類。
+    /// </summary>
+    [Theory]
+    [InlineData("UPDATE Loan ", "SET")]
+    [InlineData("IF 1 = 1\n", "BEGIN")]
+    [InlineData("ALTER TABLE Loan ", "DROP")]
+    public void 語句中間的常見字不對到語句說明(string before, string name)
+    {
+        var suggestion = Suggestion(name, SuggestionKind.Keyword);
+
+        Assert.Null(SqlSuggestionTarget.FindBuiltIn(suggestion, new SqlStatementCandidates(before, before.Length)));
     }
 
     /// <summary>

@@ -504,6 +504,1683 @@
           ]
         }
       ]
+    },
+    {
+      "name": "ALTER TABLE",
+      "kind": "statement",
+      "summary": "修改資料表結構；新增 NOT NULL 欄位要給 DEFAULT，ALTER COLUMN 要連 NULL 一起寫。",
+      "signature": "ALTER TABLE [ schema_name . ] table_name\n{   ADD column_name data_type [ NULL | NOT NULL ] [ CONSTRAINT name DEFAULT value [ WITH VALUES ] ] [ ,...n ]\n  | ALTER COLUMN column_name data_type [ NULL | NOT NULL ]\n  | [ WITH { CHECK | NOCHECK } ] ADD CONSTRAINT constraint_name\n        { PRIMARY KEY ( column ) | UNIQUE ( column ) | FOREIGN KEY ( column ) REFERENCES ref_table ( ref_column )\n        | CHECK ( predicate ) | DEFAULT value FOR column }\n  | DROP { CONSTRAINT [ IF EXISTS ] constraint_name | COLUMN [ IF EXISTS ] column_name } [ ,...n ]\n  | { CHECK | NOCHECK } CONSTRAINT { ALL | constraint_name [ ,...n ] }\n}\n;",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "CREATE TABLE #Loan(CopyNo int);ALTER TABLE #Loan ADD DueDate date NULL;DROP TABLE #Loan;"
+        },
+        {
+          "id": "not-null-default",
+          "title": "NOT NULL 欄位要給預設值",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY);\nINSERT INTO #Loan VALUES (1), (2);\n-- ALTER TABLE #Loan ADD Branch char(3) NOT NULL;   -- 失敗：既有資料列沒有值可填\nALTER TABLE #Loan ADD Branch char(3) NOT NULL\n    CONSTRAINT DF_Loan_Branch DEFAULT 'A01';   -- 既有資料列一併填上 'A01'\nSELECT * FROM #Loan;   -- 結果：兩列的 Branch 都是 A01\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "alter-column-null-trap",
+          "title": "ALTER COLUMN 漏寫 NOT NULL",
+          "sql": "CREATE TABLE #Lib_Reader (ReaderId int PRIMARY KEY, ReaderName nvarchar(20) NOT NULL);\nALTER TABLE #Lib_Reader ALTER COLUMN ReaderName nvarchar(100);   -- 只想加長度\nSELECT is_nullable\nFROM tempdb.sys.columns\nWHERE object_id = OBJECT_ID('tempdb..#Lib_Reader') AND name = 'ReaderName';\n-- 結果：1，沒寫 NOT NULL 就變回允許 NULL\nDROP TABLE #Lib_Reader;\nGO"
+        },
+        {
+          "id": "constraints",
+          "title": "加上與移除約束、欄位",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY, CopyNo int, Qty int);\nALTER TABLE #Loan ADD CONSTRAINT CK_Loan_Qty CHECK (Qty > 0);\nINSERT INTO #Loan VALUES (1, 42, 1);\nALTER TABLE #Loan DROP CONSTRAINT CK_Loan_Qty;   -- 欄位上還有約束時不能 DROP COLUMN\nALTER TABLE #Loan DROP COLUMN Qty;\nALTER TABLE #Loan DROP COLUMN IF EXISTS Qty;     -- 已經不在：IF EXISTS 不報錯\nDROP TABLE #Loan;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/alter-table-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "ADD col type NULL",
+              "新增欄位；既有資料列填 NULL"
+            ],
+            [
+              "ADD col type NOT NULL DEFAULT v",
+              "NOT NULL 欄位一定要給預設值，既有資料列用它填"
+            ],
+            [
+              "ADD col type NULL DEFAULT v WITH VALUES",
+              "允許 NULL 的欄位也把預設值填進既有資料列"
+            ],
+            [
+              "ALTER COLUMN col type [ NOT ] NULL",
+              "改型別或長度；沒寫 NULL／NOT NULL 會變回允許 NULL"
+            ],
+            [
+              "ADD CONSTRAINT name PRIMARY KEY (col)",
+              "加主索引鍵；預設建叢集索引"
+            ],
+            [
+              "ADD CONSTRAINT name FOREIGN KEY (col) REFERENCES t (col)",
+              "加外部索引鍵"
+            ],
+            [
+              "ADD CONSTRAINT name CHECK (predicate)",
+              "加檢查條件；既有資料不符就失敗"
+            ],
+            [
+              "WITH NOCHECK ADD CONSTRAINT ...",
+              "不檢查既有資料；約束會標成不受信任（is_not_trusted = 1）"
+            ],
+            [
+              "DROP CONSTRAINT [ IF EXISTS ] name",
+              "移除約束；欄位上的預設值也是約束"
+            ],
+            [
+              "DROP COLUMN [ IF EXISTS ] col",
+              "移除欄位；上面還有約束或索引時要先移除"
+            ],
+            [
+              "NOCHECK CONSTRAINT ALL",
+              "暫停外部索引鍵與檢查條件；CHECK CONSTRAINT ALL 恢復"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BEGIN TRY",
+      "kind": "statement",
+      "aliases": ["BEGIN CATCH", "END TRY", "END CATCH"],
+      "summary": "攔截嚴重性 11–19 的錯誤；編譯錯誤與同一層的名稱解析錯誤攔不到。",
+      "signature": "BEGIN TRY\n    { sql_statement | statement_block }\nEND TRY\nBEGIN CATCH\n    [ { sql_statement | statement_block } ]\nEND CATCH\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "BEGIN TRY SELECT 1/0; END TRY BEGIN CATCH SELECT ERROR_MESSAGE() AS Msg; END CATCH;"
+        },
+        {
+          "id": "with-transaction",
+          "title": "搭配交易",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY);\nBEGIN TRY\n    BEGIN TRAN;\n    INSERT INTO #Loan VALUES (1);\n    INSERT INTO #Loan VALUES (1);   -- 重複索引鍵，跳進 CATCH\n    COMMIT;\nEND TRY\nBEGIN CATCH\n    IF @@TRANCOUNT > 0 ROLLBACK;    -- 先收掉交易再處理錯誤\n    SELECT ERROR_NUMBER() AS Num, ERROR_MESSAGE() AS Msg;   -- 結果：2627\nEND CATCH;\nSELECT COUNT(*) AS LoanCount FROM #Loan;   -- 結果：0，第一筆也一起回復\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "name-resolution-trap",
+          "title": "同一層的名稱解析錯誤攔不到",
+          "sql": "BEGIN TRY\n    SELECT * FROM #Lib_NoSuchTable;   -- 延遲名稱解析：執行到這一句才發現不存在\nEND TRY\nBEGIN CATCH\n    SELECT N'攔到了' AS Note;\nEND CATCH;\n-- 結果：錯誤 208 直接回給用戶端，CATCH 沒有執行\n-- 包進預存程序或 sp_executesql 再呼叫，錯誤就發生在下一層，攔得到\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/try-catch-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "BEGIN TRY ... END TRY BEGIN CATCH ... END CATCH",
+              "END TRY 後面緊接 BEGIN CATCH，中間不能有其他陳述式"
+            ],
+            [
+              "ERROR_NUMBER() / ERROR_MESSAGE()",
+              "錯誤代碼與訊息；只在 CATCH 裡有值"
+            ],
+            [
+              "ERROR_SEVERITY() / ERROR_STATE()",
+              "嚴重性與狀態碼"
+            ],
+            [
+              "ERROR_LINE() / ERROR_PROCEDURE()",
+              "發生錯誤的行號與模組名稱；批次裡模組名稱是 NULL"
+            ],
+            [
+              "XACT_STATE()",
+              "1 可以提交、-1 只能回復、0 沒有交易"
+            ],
+            [
+              "THROW;",
+              "把接住的錯誤原封不動往外拋"
+            ],
+            [
+              "嚴重性 10 以下",
+              "只是訊息，不進 CATCH"
+            ],
+            [
+              "嚴重性 20 以上",
+              "連線中斷時 CATCH 來不及執行"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BEGIN TRANSACTION",
+      "kind": "statement",
+      "aliases": ["BEGIN TRAN"],
+      "summary": "開始交易；巢狀的 BEGIN TRAN 只讓 @@TRANCOUNT 加一，不是獨立的子交易。",
+      "signature": "BEGIN { TRAN | TRANSACTION }\n    [ transaction_name | @tran_name_variable [ WITH MARK [ 'description' ] ] ]\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "BEGIN TRAN; SELECT @@TRANCOUNT AS Depth; ROLLBACK;   -- 結果：1"
+        },
+        {
+          "id": "nested-trap",
+          "title": "巢狀交易不是子交易",
+          "sql": "CREATE TABLE #Loan (LoanId int);\nBEGIN TRAN;                          -- @@TRANCOUNT = 1\n    INSERT INTO #Loan VALUES (1);\n    BEGIN TRAN;                      -- @@TRANCOUNT = 2，不是獨立的子交易\n        INSERT INTO #Loan VALUES (2);\n    COMMIT;                          -- 只把計數減成 1，還沒真的寫入\nROLLBACK;                            -- 回復到最外層：兩筆都不見\nSELECT COUNT(*) AS LoanCount FROM #Loan;   -- 結果：0\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "mark",
+          "title": "WITH MARK 留下還原點",
+          "sql": "BEGIN TRAN Lib_PriceUpdate WITH MARK N'調整借閱費率前';\n    SELECT @@TRANCOUNT AS Depth;   -- 結果：1\nCOMMIT;\n-- 交易有異動時標記會寫進交易記錄檔，之後可用 RESTORE LOG ... WITH STOPATMARK = 'Lib_PriceUpdate'\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/begin-transaction-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "BEGIN TRAN",
+              "開始交易；@@TRANCOUNT 從 0 變 1"
+            ],
+            [
+              "BEGIN TRAN name",
+              "替交易命名；只有最外層的名稱能給 ROLLBACK 使用"
+            ],
+            [
+              "BEGIN TRAN name WITH MARK 'desc'",
+              "在交易記錄檔留下標記，RESTORE LOG 可以還原到這一點"
+            ],
+            [
+              "@@TRANCOUNT",
+              "目前的巢狀深度；0 表示不在交易中"
+            ],
+            [
+              "SET XACT_ABORT ON",
+              "搭配使用：任何執行期錯誤都回復整個交易"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "COMMIT TRANSACTION",
+      "kind": "statement",
+      "aliases": ["COMMIT", "COMMIT TRAN", "COMMIT WORK"],
+      "summary": "提交交易；巢狀時只把 @@TRANCOUNT 減一，減到 0 才真正寫入。",
+      "signature": "COMMIT [ { TRAN | TRANSACTION } [ transaction_name | @tran_name_variable ] ]\n    [ WITH ( DELAYED_DURABILITY = { OFF | ON } ) ]\n[ ; ]\nCOMMIT [ WORK ] [ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "BEGIN TRAN; COMMIT; SELECT @@TRANCOUNT AS Depth;   -- 結果：0"
+        },
+        {
+          "id": "name-ignored",
+          "title": "COMMIT 的交易名稱會被忽略",
+          "sql": "BEGIN TRAN Outer1;\nBEGIN TRAN Inner1;\nCOMMIT TRAN Inner1;            -- 名稱只是註記，只把 @@TRANCOUNT 減一\nSELECT @@TRANCOUNT AS Depth;   -- 結果：1\nCOMMIT;\nGO"
+        },
+        {
+          "id": "no-transaction-trap",
+          "title": "沒有交易就提交",
+          "sql": "COMMIT;\n-- 結果：錯誤 3902，COMMIT 沒有對應的 BEGIN TRANSACTION\n-- 常見原因：前面的錯誤或 XACT_ABORT 已經把交易回復了\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/commit-transaction-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "COMMIT / COMMIT TRAN",
+              "提交目前交易；巢狀時只減少 @@TRANCOUNT"
+            ],
+            [
+              "COMMIT TRAN name",
+              "名稱只是註記，SQL Server 會忽略"
+            ],
+            [
+              "COMMIT WORK",
+              "ISO 寫法，等同 COMMIT"
+            ],
+            [
+              "COMMIT WITH (DELAYED_DURABILITY = ON)",
+              "不等記錄檔寫入磁碟就回傳；當機可能遺失最後幾筆"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ROLLBACK TRANSACTION",
+      "kind": "statement",
+      "aliases": ["ROLLBACK", "ROLLBACK TRAN", "ROLLBACK WORK"],
+      "summary": "回復交易；沒指定儲存點時一律回到最外層，@@TRANCOUNT 歸零。",
+      "signature": "ROLLBACK { TRAN | TRANSACTION }\n    [ transaction_name | @tran_name_variable | savepoint_name | @savepoint_variable ]\n[ ; ]\nROLLBACK [ WORK ] [ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "BEGIN TRAN; BEGIN TRAN; ROLLBACK; SELECT @@TRANCOUNT AS Depth;   -- 結果：0"
+        },
+        {
+          "id": "inner-name-trap",
+          "title": "不能回復到內層交易",
+          "sql": "BEGIN TRAN Outer1;\nBEGIN TRAN Inner1;\nROLLBACK TRAN Inner1;   -- 失敗：錯誤 6401，只接受最外層或儲存點的名稱\nSELECT @@TRANCOUNT AS Depth;   -- 結果：2，交易還開著\nROLLBACK TRAN Outer1;   -- 回復整個交易\nGO"
+        },
+        {
+          "id": "guard",
+          "title": "CATCH 裡先確認有交易",
+          "sql": "BEGIN TRY\n    SELECT 1 / 0;\nEND TRY\nBEGIN CATCH\n    IF @@TRANCOUNT > 0 ROLLBACK;   -- 沒有交易時 ROLLBACK 會報錯 3903\n    SELECT ERROR_MESSAGE() AS Msg;\nEND CATCH;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/rollback-transaction-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "ROLLBACK / ROLLBACK TRAN",
+              "回復到最外層交易，@@TRANCOUNT 歸零"
+            ],
+            [
+              "ROLLBACK TRAN outer_name",
+              "只接受最外層交易的名稱"
+            ],
+            [
+              "ROLLBACK TRAN savepoint_name",
+              "只回復儲存點之後的變更；交易仍在進行，@@TRANCOUNT 不變"
+            ],
+            [
+              "IF @@TRANCOUNT > 0 ROLLBACK",
+              "CATCH 裡的標準寫法"
+            ],
+            [
+              "觸發程序裡的 ROLLBACK",
+              "回復整個交易並中止批次"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SAVE TRANSACTION",
+      "kind": "statement",
+      "aliases": ["SAVE TRAN"],
+      "summary": "設定儲存點；回復到儲存點只取消之後的變更，交易仍要提交。",
+      "signature": "SAVE { TRAN | TRANSACTION } { savepoint_name | @savepoint_variable }\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "BEGIN TRAN; SAVE TRAN BeforeLoan; ROLLBACK TRAN BeforeLoan; COMMIT;"
+        },
+        {
+          "id": "partial-rollback",
+          "title": "只回復一部分",
+          "sql": "CREATE TABLE #Loan (LoanId int);\nBEGIN TRAN;\n    INSERT INTO #Loan VALUES (1);\n    SAVE TRAN BeforeSecond;\n    INSERT INTO #Loan VALUES (2);\n    ROLLBACK TRAN BeforeSecond;   -- 只取消第二筆\n    SELECT @@TRANCOUNT AS Depth;  -- 結果：1，交易還開著\nCOMMIT;\nSELECT LoanId FROM #Loan;   -- 結果：只有 1\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "doomed-trap",
+          "title": "注定失敗的交易回不到儲存點",
+          "sql": "SET XACT_ABORT ON;\nBEGIN TRY\n    BEGIN TRAN;\n    SAVE TRAN Sp1;\n    SELECT 1 / 0;\nEND TRY\nBEGIN CATCH\n    SELECT XACT_STATE() AS State;   -- 結果：-1，交易已注定失敗\n    ROLLBACK;                       -- 只能整筆回復；ROLLBACK TRAN Sp1 會報錯 3931\nEND CATCH;\nSET XACT_ABORT OFF;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/save-transaction-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "SAVE TRAN name",
+              "在交易中設定儲存點；同名可以重複設定，回復到最近那一個"
+            ],
+            [
+              "ROLLBACK TRAN name",
+              "取消儲存點之後的變更；已取得的鎖不會釋放"
+            ],
+            [
+              "XACT_STATE() = -1",
+              "交易已注定失敗，回不到儲存點，只能整筆 ROLLBACK"
+            ],
+            [
+              "分散式交易",
+              "不支援儲存點"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SET XACT_ABORT",
+      "kind": "statement",
+      "summary": "ON 時任何執行期錯誤都回復整個交易並中止批次；預設 OFF。",
+      "signature": "SET XACT_ABORT { ON | OFF }",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SET XACT_ABORT ON;   -- 有交易的預存程序開頭慣用寫法"
+        },
+        {
+          "id": "off-trap",
+          "title": "OFF 時交易照樣提交",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY);\nSET XACT_ABORT OFF;\nBEGIN TRAN;\n    INSERT INTO #Loan VALUES (1);\n    INSERT INTO #Loan VALUES (1);   -- 重複鍵：只有這一句失敗\n    INSERT INTO #Loan VALUES (2);\nCOMMIT;\nSELECT COUNT(*) AS LoanCount FROM #Loan;   -- 結果：2，其餘照樣提交\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "on",
+          "title": "ON 時整個交易回復",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY);\nGO\nSET XACT_ABORT ON;\nBEGIN TRAN;\n    INSERT INTO #Loan VALUES (1);\n    INSERT INTO #Loan VALUES (1);   -- 重複鍵：交易回復，批次到此中止\n    INSERT INTO #Loan VALUES (2);\nCOMMIT;\nGO\nSELECT COUNT(*) AS LoanCount FROM #Loan;   -- 結果：0\nSET XACT_ABORT OFF;\nDROP TABLE #Loan;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/set-xact-abort-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "SET XACT_ABORT ON",
+              "任何執行期錯誤都回復整個交易並中止批次"
+            ],
+            [
+              "SET XACT_ABORT OFF",
+              "預設值；多數錯誤只中止那一句，交易仍開著"
+            ],
+            [
+              "搭配 TRY...CATCH",
+              "錯誤跳進 CATCH，交易已注定失敗（XACT_STATE() = -1），只能 ROLLBACK"
+            ],
+            [
+              "連結伺服器",
+              "多數 OLE DB 提供者在交易中改資料時要求 ON"
+            ],
+            [
+              "編譯錯誤",
+              "不受影響：語法錯誤整個批次本來就不會執行"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SET NOCOUNT",
+      "kind": "statement",
+      "summary": "ON 時不回傳「n 個資料列受影響」訊息；@@ROWCOUNT 照常更新。",
+      "signature": "SET NOCOUNT { ON | OFF }",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SET NOCOUNT ON;   -- 預存程序與觸發程序開頭慣用寫法"
+        },
+        {
+          "id": "rowcount",
+          "title": "@@ROWCOUNT 不受影響",
+          "sql": "SET NOCOUNT ON;\nDECLARE @t TABLE (CopyNo int);\nINSERT INTO @t VALUES (1), (2), (3);   -- 訊息分頁不再出現「3 個資料列受影響」\nSELECT @@ROWCOUNT AS Affected;          -- 結果：3\nSET NOCOUNT OFF;\nGO"
+        },
+        {
+          "id": "module-scope",
+          "title": "程序裡的 SET 結束時還原",
+          "sql": "CREATE PROCEDURE #Lib_Quiet\nAS\n    SET NOCOUNT ON;   -- 只在這個程序裡有效\nGO\nSET NOCOUNT OFF;\nEXEC #Lib_Quiet;\nSELECT CASE WHEN @@OPTIONS & 512 = 512 THEN 'ON' ELSE 'OFF' END AS NoCount;   -- 結果：OFF\nDROP PROCEDURE #Lib_Quiet;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/set-nocount-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "SET NOCOUNT ON",
+              "不送出每句的受影響列數；陳述式多的程序可省下網路往返"
+            ],
+            [
+              "SET NOCOUNT OFF",
+              "預設值；每句都回報受影響的資料列數"
+            ],
+            [
+              "@@ROWCOUNT",
+              "不受 NOCOUNT 影響"
+            ],
+            [
+              "@@OPTIONS & 512",
+              "查目前 NOCOUNT 是否開著"
+            ],
+            [
+              "程序裡的 SET",
+              "只在該程序內有效，結束時還原成呼叫端的設定"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SET TRANSACTION ISOLATION LEVEL",
+      "kind": "statement",
+      "aliases": ["SET TRANSACTION"],
+      "summary": "設定連線的隔離等級；一直有效到改掉為止，程序內設定則在結束時還原。",
+      "signature": "SET TRANSACTION ISOLATION LEVEL\n    { READ UNCOMMITTED\n    | READ COMMITTED\n    | REPEATABLE READ\n    | SNAPSHOT\n    | SERIALIZABLE\n    }",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SET TRANSACTION ISOLATION LEVEL READ COMMITTED;   -- 預設值"
+        },
+        {
+          "id": "current-level",
+          "title": "查目前的隔離等級",
+          "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;\nSELECT transaction_isolation_level AS IsolationLevel\nFROM sys.dm_exec_sessions\nWHERE session_id = @@SPID;   -- 結果：4\n-- 1 讀取未認可、2 讀取認可、3 可重複讀取、4 可序列化、5 快照\nSET TRANSACTION ISOLATION LEVEL READ COMMITTED;   -- 改回預設\nGO"
+        },
+        {
+          "id": "read-uncommitted",
+          "title": "READ UNCOMMITTED 等同 NOLOCK",
+          "sql": "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;   -- 之後每張表都像加了 WITH (NOLOCK)\nSELECT COUNT(*) AS ObjectCount FROM sys.objects;     -- 可能讀到未提交、之後被回復的資料\nSET TRANSACTION ISOLATION LEVEL READ COMMITTED;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/set-transaction-isolation-level-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "READ UNCOMMITTED",
+              "讀得到未提交的資料（髒讀），讀取不加共用鎖"
+            ],
+            [
+              "READ COMMITTED",
+              "預設值；資料庫開了 READ_COMMITTED_SNAPSHOT 時改讀資料列版本"
+            ],
+            [
+              "REPEATABLE READ",
+              "讀過的資料列鎖到交易結束，但別人仍可插入新列"
+            ],
+            [
+              "SNAPSHOT",
+              "讀交易開始時的版本；資料庫要先開 ALLOW_SNAPSHOT_ISOLATION"
+            ],
+            [
+              "SERIALIZABLE",
+              "連範圍一起鎖，不會出現幻影列；並行度最低"
+            ]
+          ]
+        },
+        {
+          "title": "會發生的現象",
+          "columns": [
+            "隔離等級",
+            "髒讀",
+            "不可重複讀取",
+            "幻影讀取"
+          ],
+          "rows": [
+            [
+              "READ UNCOMMITTED",
+              "會",
+              "會",
+              "會"
+            ],
+            [
+              "READ COMMITTED",
+              "不會",
+              "會",
+              "會"
+            ],
+            [
+              "REPEATABLE READ",
+              "不會",
+              "不會",
+              "會"
+            ],
+            [
+              "SNAPSHOT",
+              "不會",
+              "不會",
+              "不會"
+            ],
+            [
+              "SERIALIZABLE",
+              "不會",
+              "不會",
+              "不會"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CREATE TABLE",
+      "kind": "statement",
+      "summary": "建立資料表；欄位沒寫 NULL／NOT NULL 時由連線設定決定，最好明寫。",
+      "signature": "CREATE TABLE [ database_name . [ schema_name ] . | schema_name . ] table_name\n(\n    column_name data_type [ NULL | NOT NULL ]\n        [ IDENTITY [ ( seed , increment ) ] ]\n        [ CONSTRAINT constraint_name ] [ DEFAULT value ]\n        [ PRIMARY KEY | UNIQUE | CHECK ( predicate ) | REFERENCES ref_table ( ref_column ) ]\n    [ , column_name AS computed_expression [ PERSISTED ] ]\n    [ , [ CONSTRAINT constraint_name ] { PRIMARY KEY | UNIQUE } [ CLUSTERED | NONCLUSTERED ] ( column [ ,...n ] ) ]\n    [ , [ CONSTRAINT constraint_name ] CHECK ( predicate ) ]\n    [ ,...n ]\n)\n[ ON { filegroup | partition_scheme ( column ) } ]\n;",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "CREATE TABLE #Loan(LoanId int IDENTITY PRIMARY KEY, CopyNo int NOT NULL);DROP TABLE #Loan;"
+        },
+        {
+          "id": "defaults-check",
+          "title": "預設值與檢查條件",
+          "sql": "CREATE TABLE #Loan (\n    LoanId   int IDENTITY(1, 1) PRIMARY KEY,\n    CopyNo   int NOT NULL,\n    Branch   char(3) NOT NULL DEFAULT 'A01',\n    LoanDate date NOT NULL DEFAULT CAST(GETDATE() AS date),\n    DueDate  date NOT NULL,\n    CHECK (DueDate >= LoanDate)   -- 表格層級的檢查條件可以引用多個欄位\n);\nINSERT INTO #Loan (CopyNo, DueDate) VALUES (42, DATEADD(day, 14, GETDATE()));\nSELECT * FROM #Loan;   -- 結果：Branch 與 LoanDate 自動填入預設值\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "computed",
+          "title": "計算欄位",
+          "sql": "CREATE TABLE #LoanDetail (\n    LoanId int NOT NULL,\n    Qty    int NOT NULL,\n    Fee    decimal(9, 2) NOT NULL,\n    Amount AS Qty * Fee PERSISTED   -- PERSISTED 存下實際值，可以建索引\n);\nINSERT INTO #LoanDetail (LoanId, Qty, Fee) VALUES (1, 3, 25.5);\nSELECT Amount FROM #LoanDetail;   -- 結果：76.50\nDROP TABLE #LoanDetail;\nGO"
+        },
+        {
+          "id": "identity-gap-trap",
+          "title": "IDENTITY 會跳號",
+          "sql": "CREATE TABLE #Lib_Tag (TagId int IDENTITY(1, 1), TagName nvarchar(20));\nBEGIN TRAN;\n    INSERT INTO #Lib_Tag (TagName) VALUES (N'小說');\nROLLBACK;\nINSERT INTO #Lib_Tag (TagName) VALUES (N'歷史');\nSELECT TagId FROM #Lib_Tag;   -- 結果：2，回復掉的 1 號不會再用\nDROP TABLE #Lib_Tag;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/create-table-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "col type NOT NULL",
+              "不允許 NULL；沒寫時依 ANSI_NULL_DFLT_ON 決定，SSMS 預設允許"
+            ],
+            [
+              "IDENTITY(seed, increment)",
+              "自動編號；失敗或回復用掉的號碼不會回收"
+            ],
+            [
+              "DEFAULT value",
+              "INSERT 沒給值時填入；明確給 NULL 不會套用"
+            ],
+            [
+              "PRIMARY KEY",
+              "主索引鍵；預設建叢集索引"
+            ],
+            [
+              "UNIQUE",
+              "唯一條件；預設建非叢集索引，只允許一個 NULL"
+            ],
+            [
+              "CHECK (predicate)",
+              "檢查條件；結果是 UNKNOWN（有 NULL）時視為通過"
+            ],
+            [
+              "REFERENCES t (col)",
+              "外部索引鍵；ON DELETE CASCADE 讓刪除連動"
+            ],
+            [
+              "col AS expression [ PERSISTED ]",
+              "計算欄位；PERSISTED 才存實際值"
+            ],
+            [
+              "#t / ##t",
+              "區域與全域暫存表，放在 tempdb"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CREATE PROCEDURE",
+      "kind": "statement",
+      "aliases": ["CREATE PROC", "ALTER PROCEDURE", "ALTER PROC", "CREATE OR ALTER PROCEDURE", "CREATE OR ALTER PROC"],
+      "summary": "建立或修改預存程序；必須是批次第一句，AS 之後到批次結束都是程序本體。",
+      "signature": "{ CREATE [ OR ALTER ] | ALTER } { PROC | PROCEDURE } [ schema_name . ] procedure_name\n    [ @parameter data_type [ = default ] [ OUT | OUTPUT ] [ READONLY ] ] [ ,...n ]\n[ WITH { RECOMPILE | ENCRYPTION | EXECUTE AS { CALLER | SELF | OWNER | 'user_name' } } [ ,...n ] ]\nAS\n{ [ BEGIN ] sql_statement [ ; ] [ ...n ] [ END ] }\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "CREATE PROCEDURE #Lib_Ping AS SELECT 1 AS Pong;   -- 暫存程序，連線結束自動刪除"
+        },
+        {
+          "id": "parameters",
+          "title": "參數、預設值與 OUTPUT",
+          "sql": "CREATE PROCEDURE #Lib_CountLoans\n    @Branch char(3),\n    @Days   int = 14,        -- 有預設值的參數可以省略\n    @Total  int OUTPUT\nAS\n    SET NOCOUNT ON;\n    SELECT @Total = COUNT(*)\n    FROM (VALUES ('A01', 3), ('B02', 20)) AS v(Branch, LoanDays)\n    WHERE v.Branch = @Branch AND v.LoanDays <= @Days;\nGO\nDECLARE @n int;\nEXEC #Lib_CountLoans @Branch = 'A01', @Total = @n OUTPUT;\nSELECT @n AS Total;   -- 結果：1\nDROP PROCEDURE #Lib_CountLoans;\nGO"
+        },
+        {
+          "id": "create-or-alter",
+          "title": "CREATE OR ALTER 保留權限",
+          "sql": "CREATE OR ALTER PROCEDURE dbo.Lib_Demo AS SELECT 1 AS Version;\nGO\nCREATE OR ALTER PROCEDURE dbo.Lib_Demo AS SELECT 2 AS Version;   -- 已存在就改寫，授權不會丟\nGO\nEXEC dbo.Lib_Demo;   -- 結果：2\nDROP PROCEDURE IF EXISTS dbo.Lib_Demo;\nGO"
+        },
+        {
+          "id": "batch-trap",
+          "title": "少了 GO，下一句也進了程序",
+          "sql": "CREATE PROCEDURE #Lib_First\nAS\n    SELECT 1 AS One;\nSELECT 2 AS Two;   -- 沒有 GO：這一句也被收進程序本體\nGO\nEXEC #Lib_First;   -- 結果：兩個結果集\nDROP PROCEDURE #Lib_First;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/create-procedure-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "CREATE OR ALTER PROCEDURE",
+              "不存在就建立、存在就修改；授權與相依性保留"
+            ],
+            [
+              "ALTER PROCEDURE",
+              "修改既有程序；DROP 再 CREATE 會丟掉授權"
+            ],
+            [
+              "@p type = default",
+              "有預設值的參數呼叫時可以省略"
+            ],
+            [
+              "@p type OUTPUT",
+              "輸出參數；呼叫端也要寫 OUTPUT"
+            ],
+            [
+              "@p table_type READONLY",
+              "資料表值參數，只能唯讀"
+            ],
+            [
+              "WITH RECOMPILE",
+              "每次執行都重新編譯，不快取計畫"
+            ],
+            [
+              "WITH EXECUTE AS OWNER",
+              "以擁有者的身分執行"
+            ],
+            [
+              "RETURN n",
+              "傳回整數狀態碼，呼叫端用 EXEC @ret = proc 取得"
+            ],
+            [
+              "#proc / ##proc",
+              "暫存程序，連線結束時刪除"
+            ],
+            [
+              "批次",
+              "CREATE PROCEDURE 必須是批次第一句，程序本體一直到 GO"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CREATE FUNCTION",
+      "kind": "statement",
+      "aliases": ["ALTER FUNCTION", "CREATE OR ALTER FUNCTION"],
+      "summary": "建立純量或資料表值函式；函式裡不能改資料，也不能用 TRY…CATCH 與動態 SQL。",
+      "signature": "{ CREATE [ OR ALTER ] | ALTER } FUNCTION [ schema_name . ] function_name\n    ( [ @parameter data_type [ = default ] [ READONLY ] ] [ ,...n ] )\nRETURNS { scalar_type | TABLE | @table_variable TABLE ( column_definition [ ,...n ] ) }\n[ WITH { SCHEMABINDING | RETURNS NULL ON NULL INPUT | INLINE = { ON | OFF } } [ ,...n ] ]\n[ AS ]\n{ BEGIN function_body RETURN scalar_expression END   -- scalar\n| RETURN [ ( ] select_stmt [ ) ]                       -- inline table-valued\n| BEGIN function_body RETURN END }                     -- multi-statement table-valued",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "列出目前資料庫的函式",
+          "sql": "SELECT name, type_desc FROM sys.objects WHERE type IN ('FN', 'IF', 'TF');"
+        },
+        {
+          "id": "scalar",
+          "title": "純量函式",
+          "sql": "CREATE OR ALTER FUNCTION dbo.Lib_Double (@n int)\nRETURNS int\nAS\nBEGIN\n    RETURN @n * 2;\nEND\nGO\nSELECT dbo.Lib_Double(21) AS Result;   -- 結果：42；純量函式呼叫時一定要寫結構描述\nDROP FUNCTION IF EXISTS dbo.Lib_Double;\nGO"
+        },
+        {
+          "id": "inline-table",
+          "title": "內嵌資料表值函式",
+          "sql": "CREATE OR ALTER FUNCTION dbo.Lib_LoansWithin (@Days int)\nRETURNS TABLE\nAS\nRETURN\n    SELECT v.CopyNo, v.LoanDays\n    FROM (VALUES (1, 3), (2, 20)) AS v(CopyNo, LoanDays)\n    WHERE v.LoanDays <= @Days;   -- 像有參數的檢視，最佳化器直接展開\nGO\nSELECT * FROM dbo.Lib_LoansWithin(7);   -- 結果：CopyNo = 1\nDROP FUNCTION IF EXISTS dbo.Lib_LoansWithin;\nGO"
+        },
+        {
+          "id": "multi-statement",
+          "title": "多陳述式資料表值函式",
+          "sql": "CREATE OR ALTER FUNCTION dbo.Lib_Numbers (@Max int)\nRETURNS @Result TABLE (n int PRIMARY KEY)\nAS\nBEGIN\n    DECLARE @i int = 1;\n    WHILE @i <= @Max\n    BEGIN\n        INSERT INTO @Result VALUES (@i);   -- 只能改函式自己的資料表變數\n        SET @i += 1;\n    END\n    RETURN;\nEND\nGO\nSELECT COUNT(*) AS Total FROM dbo.Lib_Numbers(5);   -- 結果：5\nDROP FUNCTION IF EXISTS dbo.Lib_Numbers;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/create-function-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "RETURNS scalar_type",
+              "純量函式；呼叫時一定要寫結構描述（dbo.f()）"
+            ],
+            [
+              "RETURNS TABLE AS RETURN (SELECT ...)",
+              "內嵌資料表值函式；效能接近檢視"
+            ],
+            [
+              "RETURNS @t TABLE (...)",
+              "多陳述式資料表值函式；最佳化器估不準列數"
+            ],
+            [
+              "WITH SCHEMABINDING",
+              "綁定引用的物件，被引用的資料表不能改結構"
+            ],
+            [
+              "WITH RETURNS NULL ON NULL INPUT",
+              "任何參數是 NULL 就直接傳回 NULL，不執行本體"
+            ],
+            [
+              "CREATE OR ALTER FUNCTION",
+              "存在就改寫；純量與資料表值之間不能互換"
+            ],
+            [
+              "函式本體的限制",
+              "不能修改資料表，不能用 TRY...CATCH、RAISERROR、動態 SQL 與暫存表"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CREATE VIEW",
+      "kind": "statement",
+      "aliases": ["ALTER VIEW", "CREATE OR ALTER VIEW"],
+      "summary": "建立檢視；SELECT * 的欄位在建立時就固定，基底表改了要重新整理。",
+      "signature": "{ CREATE [ OR ALTER ] | ALTER } VIEW [ schema_name . ] view_name [ ( column [ ,...n ] ) ]\n[ WITH { SCHEMABINDING | ENCRYPTION | VIEW_METADATA } [ ,...n ] ]\nAS select_statement\n[ WITH CHECK OPTION ]\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "列出目前資料庫的檢視",
+          "sql": "SELECT name, OBJECTPROPERTY(object_id, 'IsSchemaBound') AS SchemaBound FROM sys.views;"
+        },
+        {
+          "id": "create-or-alter",
+          "title": "建立、改寫與刪除",
+          "sql": "CREATE OR ALTER VIEW dbo.Lib_BranchView\nAS\nSELECT v.Branch FROM (VALUES ('A01'), ('B02')) AS v(Branch);   -- 已存在就改寫，授權保留\nGO\nSELECT * FROM dbo.Lib_BranchView;   -- 結果：A01、B02\nDROP VIEW IF EXISTS dbo.Lib_BranchView;\nGO"
+        },
+        {
+          "id": "select-star-trap",
+          "title": "SELECT * 看不到新欄位",
+          "sql": "CREATE TABLE dbo.Lib_TagDemo (TagId int, TagName nvarchar(20));\nGO\nCREATE VIEW dbo.Lib_TagView AS SELECT * FROM dbo.Lib_TagDemo;\nGO\nALTER TABLE dbo.Lib_TagDemo ADD Color varchar(10);\nSELECT * FROM dbo.Lib_TagView;   -- 結果：只有 TagId、TagName\nEXEC sys.sp_refreshview N'dbo.Lib_TagView';   -- 重新整理檢視的中繼資料\nSELECT * FROM dbo.Lib_TagView;   -- 結果：三個欄位\nDROP VIEW dbo.Lib_TagView;\nDROP TABLE dbo.Lib_TagDemo;\nGO"
+        },
+        {
+          "id": "check-option",
+          "title": "WITH CHECK OPTION",
+          "sql": "CREATE TABLE dbo.Lib_CopyDemo (CopyNo int, Branch char(3));\nGO\nCREATE VIEW dbo.Lib_CopyA01 AS\nSELECT CopyNo, Branch FROM dbo.Lib_CopyDemo WHERE Branch = 'A01'\nWITH CHECK OPTION;\nGO\nINSERT INTO dbo.Lib_CopyA01 VALUES (1, 'B02');   -- 失敗：寫進去之後會從檢視裡消失\nDROP VIEW dbo.Lib_CopyA01;\nDROP TABLE dbo.Lib_CopyDemo;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/create-view-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "CREATE OR ALTER VIEW",
+              "存在就改寫，授權保留"
+            ],
+            [
+              "WITH SCHEMABINDING",
+              "基底表不能改結構或刪除；要用兩段式名稱且不能 SELECT *，是索引檢視的前提"
+            ],
+            [
+              "WITH CHECK OPTION",
+              "透過檢視寫入的資料必須仍符合 WHERE"
+            ],
+            [
+              "SELECT *",
+              "欄位在建立時固定；基底表改了要 sp_refreshview"
+            ],
+            [
+              "ORDER BY",
+              "沒有 TOP 不能寫；有 TOP 也不保證外層順序，排序寫在外層查詢"
+            ],
+            [
+              "暫存表",
+              "檢視不能引用暫存表"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CREATE TRIGGER",
+      "kind": "statement",
+      "aliases": ["ALTER TRIGGER", "CREATE OR ALTER TRIGGER"],
+      "summary": "建立觸發程序；每句觸發一次而不是每列一次，inserted／deleted 可能有多列。",
+      "signature": "{ CREATE [ OR ALTER ] | ALTER } TRIGGER [ schema_name . ] trigger_name\nON { table | view }\n[ WITH EXECUTE AS { CALLER | SELF | OWNER | 'user_name' } ]\n{ FOR | AFTER | INSTEAD OF } { [ INSERT ] [ , ] [ UPDATE ] [ , ] [ DELETE ] }\nAS\n{ sql_statement [ ; ] [ ...n ] }\n-- DDL: CREATE TRIGGER trigger_name ON { DATABASE | ALL SERVER } { FOR | AFTER } event_type [ ,...n ] AS ...",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "列出目前資料庫的觸發程序",
+          "sql": "SELECT OBJECT_NAME(parent_id) AS TableName, name, is_disabled FROM sys.triggers;"
+        },
+        {
+          "id": "after-insert",
+          "title": "以集合處理 inserted",
+          "sql": "CREATE TABLE dbo.Lib_TagDemo (TagId int, TagName nvarchar(20));\nCREATE TABLE dbo.Lib_TagLog (TagId int, LoggedAt datetime2 DEFAULT SYSDATETIME());\nGO\nCREATE TRIGGER dbo.Lib_TagDemo_Insert ON dbo.Lib_TagDemo AFTER INSERT\nAS\n    SET NOCOUNT ON;\n    INSERT INTO dbo.Lib_TagLog (TagId) SELECT TagId FROM inserted;   -- 不假設只有一列\nGO\nINSERT INTO dbo.Lib_TagDemo VALUES (1, 'A'), (2, 'B');   -- 一句兩列，只觸發一次\nSELECT COUNT(*) AS Logged FROM dbo.Lib_TagLog;   -- 結果：2\nDROP TABLE dbo.Lib_TagDemo;   -- 觸發程序跟著資料表一起刪除\nDROP TABLE dbo.Lib_TagLog;\nGO"
+        },
+        {
+          "id": "single-row-trap",
+          "title": "假設只有一列會出錯",
+          "sql": "CREATE TABLE dbo.Lib_TagDemo (TagId int);\nGO\nCREATE TRIGGER dbo.Lib_TagDemo_Bad ON dbo.Lib_TagDemo AFTER INSERT\nAS\n    DECLARE @id int = (SELECT TagId FROM inserted);   -- 假設只有一列\nGO\nINSERT INTO dbo.Lib_TagDemo VALUES (1), (2);   -- 結果：錯誤 512，子查詢傳回多個值\nGO\nSELECT COUNT(*) AS TagCount FROM dbo.Lib_TagDemo;   -- 結果：0，整句 INSERT 一起回復\nDROP TABLE dbo.Lib_TagDemo;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/create-trigger-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "AFTER INSERT, UPDATE, DELETE",
+              "資料異動成功之後觸發；只能建在資料表上"
+            ],
+            [
+              "INSTEAD OF",
+              "取代原本的動作；可以建在檢視上"
+            ],
+            [
+              "inserted / deleted",
+              "這一句的新值與舊值；可能很多列，也可能零列"
+            ],
+            [
+              "IF UPDATE(col)",
+              "UPDATE 有沒有寫到這個欄位，不管值有沒有變"
+            ],
+            [
+              "SET NOCOUNT ON",
+              "避免多送受影響列數干擾用戶端"
+            ],
+            [
+              "ON DATABASE FOR DROP_TABLE",
+              "DDL 觸發程序，攔截結構描述變更"
+            ],
+            [
+              "觸發程序裡的錯誤",
+              "整個交易回復、批次中止"
+            ],
+            [
+              "DISABLE TRIGGER name ON t",
+              "暫停觸發程序；ENABLE TRIGGER 恢復"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "DROP TABLE",
+      "kind": "statement",
+      "aliases": ["DROP VIEW", "DROP PROCEDURE", "DROP PROC", "DROP FUNCTION", "DROP TRIGGER", "DROP INDEX"],
+      "summary": "刪除物件；加 IF EXISTS 時物件不存在也不報錯（SQL Server 2016 起）。",
+      "signature": "DROP { TABLE | VIEW | PROCEDURE | FUNCTION | TRIGGER | SEQUENCE | SYNONYM | TYPE } [ IF EXISTS ]\n    [ schema_name . ] object_name [ ,...n ]\nDROP INDEX [ IF EXISTS ] index_name ON table_name [ ,...n ]\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DROP TABLE IF EXISTS #Loan;   -- 不存在也不報錯"
+        },
+        {
+          "id": "multiple",
+          "title": "一次刪多個",
+          "sql": "CREATE TABLE #Loan (LoanId int);\nCREATE TABLE #LoanDetail (LoanId int);\nDROP TABLE IF EXISTS #Loan, #LoanDetail, #Lib_NoSuchTable;   -- 不存在的略過\nGO"
+        },
+        {
+          "id": "before-2016",
+          "title": "2016 以前的寫法",
+          "sql": "IF OBJECT_ID(N'tempdb..#Loan', N'U') IS NOT NULL\n    DROP TABLE #Loan;   -- 暫存表要到 tempdb 查\nCREATE TABLE #Loan (LoanId int);\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "foreign-key-trap",
+          "title": "被外部索引鍵引用時刪不掉",
+          "sql": "CREATE TABLE dbo.Lib_BranchDemo (Branch char(3) PRIMARY KEY);\nCREATE TABLE dbo.Lib_CopyDemo (CopyNo int, Branch char(3) REFERENCES dbo.Lib_BranchDemo (Branch));\nDROP TABLE dbo.Lib_BranchDemo;   -- 失敗：錯誤 3726，還有外部索引鍵引用它\nDROP TABLE dbo.Lib_CopyDemo, dbo.Lib_BranchDemo;   -- 依列出的順序刪：先刪引用端\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/drop-table-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "DROP TABLE IF EXISTS t",
+              "不存在就略過；舊版本用 IF OBJECT_ID(...) IS NOT NULL"
+            ],
+            [
+              "DROP TABLE t1, t2",
+              "一次刪多張，依列出的順序"
+            ],
+            [
+              "DROP INDEX ix ON t",
+              "刪除索引；主索引鍵與唯一條件的索引要用 ALTER TABLE ... DROP CONSTRAINT"
+            ],
+            [
+              "DROP PROCEDURE / VIEW / FUNCTION",
+              "授權一起消失；想保留就改用 ALTER 或 CREATE OR ALTER"
+            ],
+            [
+              "外部索引鍵",
+              "被引用的資料表要先刪引用端，或先拿掉外部索引鍵"
+            ],
+            [
+              "#t",
+              "暫存表在連線結束時刪除；同一連線重跑指令碼要先刪"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "TRUNCATE TABLE",
+      "kind": "statement",
+      "summary": "清空資料表；比 DELETE 快且 IDENTITY 重設，但被外部索引鍵引用時不能用。",
+      "signature": "TRUNCATE TABLE [ database_name . [ schema_name ] . | schema_name . ] table_name\n    [ WITH ( PARTITIONS ( { partition_number | partition_number TO partition_number } [ ,...n ] ) ) ]\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "CREATE TABLE #Loan(LoanId int);TRUNCATE TABLE #Loan;DROP TABLE #Loan;"
+        },
+        {
+          "id": "identity-reset",
+          "title": "IDENTITY 從頭開始",
+          "sql": "CREATE TABLE #Lib_Tag (TagId int IDENTITY(1, 1), TagName varchar(20));\nINSERT INTO #Lib_Tag (TagName) VALUES ('A'), ('B');\nDELETE FROM #Lib_Tag;\nINSERT INTO #Lib_Tag (TagName) VALUES ('C');\nSELECT TagId FROM #Lib_Tag;   -- 結果：3，DELETE 不重設 IDENTITY\nTRUNCATE TABLE #Lib_Tag;\nINSERT INTO #Lib_Tag (TagName) VALUES ('D');\nSELECT TagId FROM #Lib_Tag;   -- 結果：1，TRUNCATE 從種子重新開始\nDROP TABLE #Lib_Tag;\nGO"
+        },
+        {
+          "id": "rollback",
+          "title": "TRUNCATE 可以回復",
+          "sql": "CREATE TABLE #Loan (LoanId int);\nINSERT INTO #Loan VALUES (1), (2);\nBEGIN TRAN;\n    TRUNCATE TABLE #Loan;\nROLLBACK;   -- 釋放資料頁一樣記錄在交易裡\nSELECT COUNT(*) AS LoanCount FROM #Loan;   -- 結果：2\nDROP TABLE #Loan;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/truncate-table-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "TRUNCATE TABLE t",
+              "釋放資料頁而不是逐列刪除；不觸發 DELETE 觸發程序"
+            ],
+            [
+              "IDENTITY",
+              "重設回種子值；DELETE 不會"
+            ],
+            [
+              "外部索引鍵",
+              "被其他資料表引用時不能用，即使引用端是空的"
+            ],
+            [
+              "權限",
+              "需要 ALTER 權限，只有 DELETE 權限不夠"
+            ],
+            [
+              "交易",
+              "可以回復"
+            ],
+            [
+              "WITH (PARTITIONS (2, 4 TO 6))",
+              "只清空指定的分割區"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "DECLARE",
+      "kind": "statement",
+      "summary": "宣告變數、資料表變數或資料指標；沒給初值就是 NULL，範圍到批次結束。",
+      "signature": "DECLARE @local_variable [ AS ] data_type [ = value ] [ ,...n ]\nDECLARE @table_variable TABLE ( column_definition [ ,...n ] )\nDECLARE cursor_name CURSOR\n    [ LOCAL | GLOBAL ] [ FORWARD_ONLY | SCROLL ]\n    [ STATIC | KEYSET | DYNAMIC | FAST_FORWARD ] [ READ_ONLY | SCROLL_LOCKS | OPTIMISTIC ]\n    FOR select_statement\n    [ FOR UPDATE [ OF column_name [ ,...n ] ] ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE @CopyNo int = 42, @Branch char(3) = 'A01';"
+        },
+        {
+          "id": "null-init-trap",
+          "title": "沒給初值就是 NULL",
+          "sql": "DECLARE @Total int;              -- 沒給初值就是 NULL\nSET @Total = @Total + 1;\nSELECT @Total AS Total;          -- 結果：NULL，不是 1\nGO"
+        },
+        {
+          "id": "select-assign-trap",
+          "title": "SELECT 指定查無資料時保留原值",
+          "sql": "DECLARE @Branch char(3) = 'X';\nSELECT @Branch = v.Branch FROM (VALUES ('A01')) AS v(Branch) WHERE 1 = 0;\nSELECT @Branch AS Branch;   -- 結果：X，查無資料時變數不變\nSET @Branch = (SELECT v.Branch FROM (VALUES ('A01')) AS v(Branch) WHERE 1 = 0);\nSELECT @Branch AS Branch;   -- 結果：NULL，SET 加子查詢會清成 NULL\nGO"
+        },
+        {
+          "id": "cursor",
+          "title": "資料指標的完整流程",
+          "sql": "DECLARE @CopyNo int;\nDECLARE copy_cursor CURSOR LOCAL FAST_FORWARD FOR\n    SELECT v.CopyNo FROM (VALUES (1), (2), (3)) AS v(CopyNo);\nOPEN copy_cursor;\nFETCH NEXT FROM copy_cursor INTO @CopyNo;\nWHILE @@FETCH_STATUS = 0\nBEGIN\n    PRINT @CopyNo;\n    FETCH NEXT FROM copy_cursor INTO @CopyNo;\nEND\nCLOSE copy_cursor;\nDEALLOCATE copy_cursor;   -- LOCAL 資料指標在批次結束時也會自動釋放\nGO"
+        },
+        {
+          "id": "table-variable-rollback",
+          "title": "資料表變數不受 ROLLBACK 影響",
+          "sql": "DECLARE @Log TABLE (Msg nvarchar(50));\nBEGIN TRAN;\n    INSERT INTO @Log VALUES (N'交易中寫入');\nROLLBACK;\nSELECT COUNT(*) AS LogCount FROM @Log;   -- 結果：1，交易回復了，資料表變數沒有\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/declare-local-variable-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "DECLARE @v type = value",
+              "宣告並給初值；沒給就是 NULL"
+            ],
+            [
+              "DECLARE @a int, @b int",
+              "一次宣告多個"
+            ],
+            [
+              "DECLARE @t TABLE (...)",
+              "資料表變數；不受 ROLLBACK 影響，沒有統計資料"
+            ],
+            [
+              "SELECT @v = col FROM ...",
+              "查無資料時保留原值；多列時取到哪一列不保證"
+            ],
+            [
+              "SET @v = (SELECT ...)",
+              "查無資料時變成 NULL；多列時報錯 512"
+            ],
+            [
+              "DECLARE c CURSOR LOCAL FAST_FORWARD FOR ...",
+              "只進唯讀資料指標，最省資源"
+            ],
+            [
+              "範圍",
+              "變數只活在宣告的批次裡，GO 之後就不見了"
+            ]
+          ]
+        },
+        {
+          "title": "資料指標選項",
+          "columns": [
+            "選項",
+            "意義"
+          ],
+          "rows": [
+            [
+              "LOCAL / GLOBAL",
+              "範圍是批次或程序／整個連線；沒寫時由資料庫選項決定，預設 GLOBAL"
+            ],
+            [
+              "FORWARD_ONLY / SCROLL",
+              "只能 FETCH NEXT／可以往任何方向取"
+            ],
+            [
+              "STATIC",
+              "開啟時複製一份到 tempdb，看不到之後的變更"
+            ],
+            [
+              "KEYSET",
+              "成員與順序固定，看得到其他欄位的變更"
+            ],
+            [
+              "DYNAMIC",
+              "每次 FETCH 都反映最新資料"
+            ],
+            [
+              "FAST_FORWARD",
+              "FORWARD_ONLY 加 READ_ONLY，並啟用效能最佳化"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FETCH",
+      "kind": "statement",
+      "aliases": ["FETCH NEXT", "FETCH PRIOR", "FETCH FIRST", "FETCH LAST", "FETCH ABSOLUTE", "FETCH RELATIVE"],
+      "summary": "從資料指標取一列；看 @@FETCH_STATUS 判斷有沒有取到，0 才是成功。",
+      "signature": "FETCH [ [ NEXT | PRIOR | FIRST | LAST | ABSOLUTE { n | @nvar } | RELATIVE { n | @nvar } ] FROM ]\n    { [ GLOBAL ] cursor_name | @cursor_variable }\n    [ INTO @variable_name [ ,...n ] ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE c CURSOR LOCAL FOR SELECT 1;OPEN c;FETCH NEXT FROM c;CLOSE c;DEALLOCATE c;"
+        },
+        {
+          "id": "loop",
+          "title": "只寫一次 FETCH 的迴圈",
+          "sql": "DECLARE @CopyNo int;\nDECLARE c CURSOR LOCAL FAST_FORWARD FOR\n    SELECT v.CopyNo FROM (VALUES (1), (2)) AS v(CopyNo);\nOPEN c;\nWHILE 1 = 1\nBEGIN\n    FETCH NEXT FROM c INTO @CopyNo;\n    IF @@FETCH_STATUS <> 0 BREAK;   -- 不必在迴圈前後各寫一次 FETCH\n    PRINT @CopyNo;\nEND\nCLOSE c;\nDEALLOCATE c;\nGO"
+        },
+        {
+          "id": "scroll",
+          "title": "SCROLL 資料指標任意取",
+          "sql": "DECLARE c CURSOR LOCAL SCROLL FOR\n    SELECT v.CopyNo FROM (VALUES (1), (2), (3)) AS v(CopyNo) ORDER BY v.CopyNo;\nOPEN c;\nFETCH LAST FROM c;          -- 結果：3\nFETCH PRIOR FROM c;         -- 結果：2\nFETCH ABSOLUTE 1 FROM c;    -- 結果：1\nCLOSE c;\nDEALLOCATE c;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/fetch-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "FETCH NEXT FROM c INTO @a, @b",
+              "取下一列；INTO 的變數數量與型別要對得上 SELECT 清單"
+            ],
+            [
+              "@@FETCH_STATUS = 0",
+              "成功取到一列"
+            ],
+            [
+              "@@FETCH_STATUS = -1",
+              "已經超過結果集結尾"
+            ],
+            [
+              "@@FETCH_STATUS = -2",
+              "那一列已經被刪除（KEYSET 資料指標）"
+            ],
+            [
+              "FETCH PRIOR / FIRST / LAST / ABSOLUTE n / RELATIVE n",
+              "要宣告成 SCROLL 資料指標"
+            ],
+            [
+              "OPEN / CLOSE / DEALLOCATE",
+              "開啟、關閉（還能再開）、釋放資料指標"
+            ],
+            [
+              "@@FETCH_STATUS 的範圍",
+              "整個連線共用，巢狀資料指標要在 FETCH 後立刻判斷"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ALTER INDEX",
+      "kind": "statement",
+      "summary": "重建或重組索引；REBUILD 連統計資料一起更新，REORGANIZE 線上整理而且可以中斷。",
+      "signature": "ALTER INDEX { index_name | ALL } ON table_or_view\n{   REBUILD [ PARTITION = { ALL | partition_number } ]\n        [ WITH ( { ONLINE = { ON | OFF } | FILLFACTOR = fillfactor | SORT_IN_TEMPDB = { ON | OFF }\n                 | DATA_COMPRESSION = { NONE | ROW | PAGE } | MAXDOP = n } [ ,...n ] ) ]\n  | REORGANIZE [ PARTITION = partition_number ] [ WITH ( LOB_COMPACTION = { ON | OFF } ) ]\n  | DISABLE\n  | SET ( { ALLOW_ROW_LOCKS | ALLOW_PAGE_LOCKS } = { ON | OFF } [ ,...n ] )\n}\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "CREATE TABLE #Loan(Id int PRIMARY KEY);ALTER INDEX ALL ON #Loan REBUILD;DROP TABLE #Loan;"
+        },
+        {
+          "id": "fragmentation",
+          "title": "依片段比例選重建或重組",
+          "sql": "CREATE TABLE #Loan (LoanId uniqueidentifier DEFAULT NEWID() PRIMARY KEY, Note char(200));\nINSERT INTO #Loan (Note) SELECT TOP (2000) 'x' FROM sys.all_objects;\nSELECT avg_fragmentation_in_percent AS Fragmentation\nFROM sys.dm_db_index_physical_stats(DB_ID('tempdb'), OBJECT_ID('tempdb..#Loan'), NULL, NULL, 'LIMITED');\nALTER INDEX ALL ON #Loan REORGANIZE;                     -- 片段不多：重組，線上且可中斷\nALTER INDEX ALL ON #Loan REBUILD WITH (FILLFACTOR = 90);  -- 片段嚴重：重建，順便預留空間\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "disable-trap",
+          "title": "停用後要 REBUILD 才會回來",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY, CopyNo int);\nCREATE INDEX IX_Loan_CopyNo ON #Loan (CopyNo);\nALTER INDEX IX_Loan_CopyNo ON #Loan DISABLE;   -- 停用後不再維護，也不會被使用\nALTER INDEX IX_Loan_CopyNo ON #Loan REBUILD;   -- 沒有 ENABLE，要 REBUILD 才重新啟用\nDROP TABLE #Loan;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/alter-index-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "REBUILD",
+              "重新建立索引並以完整掃描更新統計資料；預設離線"
+            ],
+            [
+              "REBUILD WITH (ONLINE = ON)",
+              "重建期間資料表照常可讀寫（Enterprise 版）"
+            ],
+            [
+              "REORGANIZE",
+              "整理葉層頁面順序；永遠線上、可隨時中斷，不更新統計資料"
+            ],
+            [
+              "ALL",
+              "資料表上的所有索引"
+            ],
+            [
+              "DISABLE",
+              "停用索引；叢集索引停用後整張表無法存取"
+            ],
+            [
+              "片段比例",
+              "5% 到 30% 常用 REORGANIZE，超過 30% 常用 REBUILD（經驗值）"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "UPDATE STATISTICS",
+      "kind": "statement",
+      "summary": "更新統計資料；沒指定時是取樣，要準確就加 FULLSCAN。",
+      "signature": "UPDATE STATISTICS table_or_indexed_view [ { index_or_statistics_name | ( name [ ,...n ] ) } ]\n[ WITH\n    [ FULLSCAN | SAMPLE number { PERCENT | ROWS } | RESAMPLE ]\n    [ , { ALL | COLUMNS | INDEX } ] [ , NORECOMPUTE ] [ , PERSIST_SAMPLE_PERCENT = { ON | OFF } ]\n]\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "CREATE TABLE #Loan(CopyNo int);UPDATE STATISTICS #Loan WITH FULLSCAN;DROP TABLE #Loan;"
+        },
+        {
+          "id": "single",
+          "title": "只更新一個統計資料",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY, CopyNo int);\nINSERT INTO #Loan SELECT TOP (1000) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)), 1 FROM sys.all_objects;\nCREATE STATISTICS st_CopyNo ON #Loan (CopyNo);\nUPDATE STATISTICS #Loan st_CopyNo WITH FULLSCAN;   -- 只更新這一個\nDBCC SHOW_STATISTICS ('tempdb..#Loan', st_CopyNo) WITH STAT_HEADER;   -- Rows Sampled 等於 Rows\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "resample",
+          "title": "沿用上次的取樣比例",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY, CopyNo int);\nUPDATE STATISTICS #Loan WITH SAMPLE 50 PERCENT;\nUPDATE STATISTICS #Loan WITH RESAMPLE;   -- 用回上一次的 50%\nDROP TABLE #Loan;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/update-statistics-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "UPDATE STATISTICS t",
+              "更新資料表上所有統計資料，取樣比例由系統決定"
+            ],
+            [
+              "UPDATE STATISTICS t name",
+              "只更新一個索引或統計資料"
+            ],
+            [
+              "WITH FULLSCAN",
+              "讀完整張表；最準也最慢"
+            ],
+            [
+              "WITH SAMPLE 10 PERCENT",
+              "指定取樣比例"
+            ],
+            [
+              "WITH RESAMPLE",
+              "沿用上次的取樣比例"
+            ],
+            [
+              "WITH NORECOMPUTE",
+              "關掉這些統計資料的自動更新"
+            ],
+            [
+              "EXEC sys.sp_updatestats",
+              "整個資料庫只更新有資料異動的統計資料"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CREATE STATISTICS",
+      "kind": "statement",
+      "summary": "在欄位上建立統計資料；多欄統計的長條圖只有第一欄。",
+      "signature": "CREATE STATISTICS statistics_name\nON table_or_indexed_view ( column [ ,...n ] )\n[ WHERE filter_predicate ]\n[ WITH [ FULLSCAN | SAMPLE number { PERCENT | ROWS } ] [ , NORECOMPUTE ] [ , INCREMENTAL = { ON | OFF } ] ]\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "CREATE TABLE #Loan(CopyNo int);CREATE STATISTICS st ON #Loan(CopyNo);DROP TABLE #Loan;"
+        },
+        {
+          "id": "multi-column",
+          "title": "多欄統計",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY, Branch char(3), CopyNo int);\nCREATE STATISTICS st_Branch_Copy ON #Loan (Branch, CopyNo);\nDBCC SHOW_STATISTICS ('tempdb..#Loan', st_Branch_Copy) WITH DENSITY_VECTOR;   -- 兩欄組合的密度\nDBCC SHOW_STATISTICS ('tempdb..#Loan', st_Branch_Copy) WITH HISTOGRAM;        -- 長條圖只有 Branch\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "filtered",
+          "title": "篩選統計",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY, Branch char(3), ReturnedAt datetime2 NULL);\nCREATE STATISTICS st_OpenLoan_Branch\n    ON #Loan (Branch)\n    WHERE ReturnedAt IS NULL   -- 只描述未歸還的那一部分\n    WITH FULLSCAN;\nDBCC SHOW_STATISTICS ('tempdb..#Loan', st_OpenLoan_Branch) WITH STAT_HEADER;\nDROP TABLE #Loan;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/create-statistics-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "ON t (col)",
+              "單欄統計；AUTO_CREATE_STATISTICS 開著時查詢也會自動建"
+            ],
+            [
+              "ON t (col1, col2)",
+              "多欄統計；密度涵蓋欄位組合，長條圖只有第一欄"
+            ],
+            [
+              "WHERE predicate",
+              "篩選統計：只描述符合條件的資料列"
+            ],
+            [
+              "WITH FULLSCAN / SAMPLE n PERCENT",
+              "建立時的取樣方式"
+            ],
+            [
+              "WITH NORECOMPUTE",
+              "不自動更新"
+            ],
+            [
+              "DROP STATISTICS t.name",
+              "刪除統計資料"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BACKUP DATABASE",
+      "kind": "statement",
+      "aliases": ["BACKUP LOG"],
+      "summary": "備份資料庫或記錄檔；路徑是伺服器端路徑，臨時備份要加 COPY_ONLY。",
+      "signature": "BACKUP DATABASE database_name\n    TO { DISK | URL } = 'physical_device' [ ,...n ]\n    [ WITH { COPY_ONLY | DIFFERENTIAL | COMPRESSION | CHECKSUM | INIT | FORMAT | STATS = n } [ ,...n ] ]\nBACKUP LOG database_name\n    TO { DISK | URL } = 'physical_device' [ ,...n ]\n    [ WITH { COPY_ONLY | NO_TRUNCATE | NORECOVERY | COMPRESSION | CHECKSUM | STATS = n } [ ,...n ] ]\n[ ; ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "BACKUP DATABASE master TO DISK = 'NUL' WITH COPY_ONLY;   -- 寫到 NUL，只驗證備份得出來"
+        },
+        {
+          "id": "full-verify",
+          "title": "完整備份並驗證",
+          "sql": "-- 路徑要換成 SQL Server 服務帳戶寫得進去的伺服器端資料夾\nBACKUP DATABASE master TO DISK = N'D:/backup/master_full.bak'\n    WITH COPY_ONLY, CHECKSUM, INIT, STATS = 10;\nRESTORE VERIFYONLY FROM DISK = N'D:/backup/master_full.bak' WITH CHECKSUM;   -- 確認備份檔可讀\nGO"
+        },
+        {
+          "id": "log-growth",
+          "title": "記錄檔一直長大",
+          "sql": "SELECT name, recovery_model_desc, log_reuse_wait_desc\nFROM sys.databases;   -- LOG_BACKUP 表示正在等記錄檔備份\n-- 完整復原模式要定期備份記錄檔，否則記錄檔不會重複使用\n-- BACKUP LOG Lib_Db TO DISK = N'D:/backup/Lib_Db_log.trn' WITH CHECKSUM;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/backup-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "BACKUP DATABASE d TO DISK = 'x.bak'",
+              "完整備份"
+            ],
+            [
+              "WITH DIFFERENTIAL",
+              "差異備份：上次完整備份之後變更的範圍"
+            ],
+            [
+              "BACKUP LOG d TO DISK = 'x.trn'",
+              "記錄檔備份；只適用完整或大量記錄復原模式"
+            ],
+            [
+              "WITH COPY_ONLY",
+              "臨時備份，不打斷差異與記錄檔的備份鏈"
+            ],
+            [
+              "WITH COMPRESSION",
+              "壓縮備份；Express 版不支援"
+            ],
+            [
+              "WITH CHECKSUM",
+              "寫入時計算總和檢查碼，還原時可以驗證"
+            ],
+            [
+              "WITH INIT / FORMAT",
+              "覆寫檔案裡原有的備份組；預設是附加"
+            ],
+            [
+              "WITH STATS = 10",
+              "每完成 10% 回報一次進度"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RESTORE DATABASE",
+      "kind": "statement",
+      "aliases": ["RESTORE LOG", "RESTORE FILELISTONLY", "RESTORE HEADERONLY", "RESTORE VERIFYONLY"],
+      "summary": "從備份還原；後面還要套用記錄檔就用 NORECOVERY，最後一步才 RECOVERY。",
+      "signature": "RESTORE DATABASE database_name\n    FROM DISK = 'physical_device' [ ,...n ]\n    [ WITH { RECOVERY | NORECOVERY | STANDBY = 'undo_file' }\n        [ , MOVE 'logical_file_name' TO 'operating_system_file_name' ] [ ,...n ]\n        [ , REPLACE ] [ , FILE = n ] [ , STATS = n ] ]\nRESTORE LOG database_name FROM DISK = 'physical_device'\n    [ WITH { RECOVERY | NORECOVERY } [ , STOPAT = 'datetime' | , STOPATMARK = 'mark_name' ] ]\nRESTORE { FILELISTONLY | HEADERONLY | VERIFYONLY } FROM DISK = 'physical_device'",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "RESTORE FILELISTONLY FROM DISK = N'D:/backup/Lib_Db.bak';   -- 先看邏輯檔名"
+        },
+        {
+          "id": "move",
+          "title": "還原成另一個資料庫",
+          "sql": "-- 路徑要換成伺服器端真的存在的備份檔與資料夾\nRESTORE DATABASE Lib_Db_Copy\n    FROM DISK = N'D:/backup/Lib_Db.bak'\n    WITH MOVE N'Lib_Db' TO N'D:/data/Lib_Db_Copy.mdf',        -- 邏輯檔名來自 FILELISTONLY\n         MOVE N'Lib_Db_log' TO N'D:/data/Lib_Db_Copy_log.ldf',\n         RECOVERY, STATS = 10;\nGO"
+        },
+        {
+          "id": "point-in-time",
+          "title": "還原到某個時間點",
+          "sql": "-- 完整備份與中間的記錄檔都用 NORECOVERY，最後一個才 RECOVERY\nRESTORE DATABASE Lib_Db FROM DISK = N'D:/backup/Lib_Db_full.bak' WITH NORECOVERY, REPLACE;\nRESTORE LOG Lib_Db FROM DISK = N'D:/backup/Lib_Db_log1.trn' WITH NORECOVERY;\nRESTORE LOG Lib_Db FROM DISK = N'D:/backup/Lib_Db_log2.trn'\n    WITH STOPAT = '2026-09-01T10:30:00', RECOVERY;\n-- 忘了最後的 RECOVERY：資料庫停在「正在還原」，補一句 RESTORE DATABASE Lib_Db WITH RECOVERY;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/restore-statements-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "RESTORE FILELISTONLY",
+              "列出備份裡的邏輯檔名與原始路徑；寫 MOVE 前先查"
+            ],
+            [
+              "RESTORE HEADERONLY",
+              "列出檔案裡每一個備份組"
+            ],
+            [
+              "RESTORE VERIFYONLY",
+              "檢查備份檔可讀，不真的還原"
+            ],
+            [
+              "WITH NORECOVERY",
+              "還原後保持「正在還原」，還能接著套用差異或記錄檔"
+            ],
+            [
+              "WITH RECOVERY",
+              "預設值；回復未提交交易並開放使用，之後不能再套用記錄檔"
+            ],
+            [
+              "WITH MOVE 'logical' TO 'path'",
+              "把資料檔或記錄檔還原到別的位置"
+            ],
+            [
+              "WITH REPLACE",
+              "覆蓋同名的既有資料庫"
+            ],
+            [
+              "WITH STOPAT = 'datetime'",
+              "記錄檔還原到指定時間點"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GRANT",
+      "kind": "statement",
+      "aliases": ["DENY", "REVOKE"],
+      "summary": "授與、拒絕或撤銷權限；DENY 優先於任何 GRANT，REVOKE 只是移除紀錄。",
+      "signature": "GRANT permission [ ,...n ] [ ON [ class :: ] securable ] TO principal [ ,...n ] [ WITH GRANT OPTION ]\nDENY permission [ ,...n ] [ ON [ class :: ] securable ] TO principal [ ,...n ] [ CASCADE ]\nREVOKE [ GRANT OPTION FOR ] permission [ ,...n ] [ ON [ class :: ] securable ]\n    { TO | FROM } principal [ ,...n ] [ CASCADE ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "CREATE USER Lib_U WITHOUT LOGIN;GRANT SELECT ON SCHEMA::dbo TO Lib_U;DROP USER Lib_U;"
+        },
+        {
+          "id": "deny-wins",
+          "title": "DENY 優先於 GRANT",
+          "sql": "CREATE USER Lib_Reader WITHOUT LOGIN;\nCREATE ROLE Lib_Staff;\nALTER ROLE Lib_Staff ADD MEMBER Lib_Reader;\nGRANT SELECT ON SCHEMA::dbo TO Lib_Reader;   -- 使用者本身有 GRANT\nDENY SELECT ON SCHEMA::dbo TO Lib_Staff;     -- 所屬角色有 DENY\nEXECUTE AS USER = 'Lib_Reader';\nSELECT HAS_PERMS_BY_NAME('dbo', 'SCHEMA', 'SELECT') AS CanSelect;   -- 結果：0，DENY 優先\nREVERT;\nALTER ROLE Lib_Staff DROP MEMBER Lib_Reader;\nDROP ROLE Lib_Staff;\nDROP USER Lib_Reader;\nGO"
+        },
+        {
+          "id": "revoke-not-deny",
+          "title": "REVOKE 不等於拒絕",
+          "sql": "CREATE USER Lib_Reader WITHOUT LOGIN;\nDENY SELECT ON SCHEMA::dbo TO Lib_Reader;\nREVOKE SELECT ON SCHEMA::dbo FROM Lib_Reader;   -- 移除 DENY 紀錄，回到沒有設定\nSELECT COUNT(*) AS PermissionRows\nFROM sys.database_permissions\nWHERE grantee_principal_id = USER_ID('Lib_Reader') AND permission_name = 'SELECT';   -- 結果：0\nDROP USER Lib_Reader;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/grant-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "GRANT perm ON obj TO p",
+              "授與權限"
+            ],
+            [
+              "GRANT ... WITH GRANT OPTION",
+              "對方還能再轉授給別人"
+            ],
+            [
+              "DENY perm ON obj TO p",
+              "明確拒絕；優先於直接或透過角色得到的 GRANT"
+            ],
+            [
+              "REVOKE perm ON obj FROM p",
+              "移除先前的 GRANT 或 DENY 紀錄，不等於拒絕"
+            ],
+            [
+              "REVOKE ... CASCADE",
+              "連同對方轉授出去的權限一起收回"
+            ],
+            [
+              "ON SCHEMA::dbo / ON DATABASE::d",
+              "以結構描述或整個資料庫為範圍"
+            ],
+            [
+              "sysadmin 成員",
+              "略過權限檢查，DENY 對它們無效"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "DBCC",
+      "kind": "statement",
+      "aliases": ["DBCC CHECKDB", "DBCC SHOW_STATISTICS", "DBCC SQLPERF", "DBCC OPENTRAN", "DBCC INPUTBUFFER", "DBCC CHECKIDENT", "DBCC SHRINKFILE", "DBCC FREEPROCCACHE"],
+      "summary": "資料庫主控台命令：檢查一致性、看統計資料與記錄檔用量等維護工作。",
+      "signature": "DBCC command_name [ ( argument [ ,...n ] ) ] [ WITH option [ ,...n ] ]\n-- CHECKDB [ ( database_name [ , NOINDEX ] ) ] [ WITH NO_INFOMSGS , ALL_ERRORMSGS ]\n-- SHOW_STATISTICS ( 'table' , target ) [ WITH STAT_HEADER | DENSITY_VECTOR | HISTOGRAM ]\n-- CHECKIDENT ( 'table' [ , { NORESEED | RESEED [ , new_value ] } ] )",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DBCC SQLPERF(LOGSPACE);   -- 每個資料庫的記錄檔大小與使用比例"
+        },
+        {
+          "id": "checkident",
+          "title": "查看與重設 IDENTITY",
+          "sql": "CREATE TABLE #Lib_Tag (TagId int IDENTITY(1, 1), TagName varchar(20));\nINSERT INTO #Lib_Tag (TagName) VALUES ('A'), ('B');\nDBCC CHECKIDENT ('#Lib_Tag', NORESEED);   -- 只查看目前值：2\nDBCC CHECKIDENT ('#Lib_Tag', RESEED, 100);\nINSERT INTO #Lib_Tag (TagName) VALUES ('C');\nSELECT TagId FROM #Lib_Tag WHERE TagName = 'C';   -- 結果：101\nDROP TABLE #Lib_Tag;\nGO"
+        },
+        {
+          "id": "checkdb",
+          "title": "檢查一致性",
+          "sql": "DBCC CHECKDB (N'master') WITH NO_INFOMSGS;\n-- 沒有任何輸出就是沒有一致性錯誤\n-- 大型資料庫耗 I/O，排在離峰時段\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/database-console-commands/dbcc-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "DBCC CHECKDB (d) WITH NO_INFOMSGS",
+              "檢查一致性；耗 I/O，大型資料庫排在離峰"
+            ],
+            [
+              "DBCC SHOW_STATISTICS ('t', ix)",
+              "看統計資料的標頭、密度與長條圖"
+            ],
+            [
+              "DBCC SQLPERF (LOGSPACE)",
+              "各資料庫記錄檔大小與使用比例"
+            ],
+            [
+              "DBCC OPENTRAN",
+              "目前資料庫最舊的進行中交易，找記錄檔長大的原因"
+            ],
+            [
+              "DBCC INPUTBUFFER (session_id)",
+              "某個工作階段最後送來的語句"
+            ],
+            [
+              "DBCC CHECKIDENT ('t', RESEED, n)",
+              "查看或重設 IDENTITY 目前值"
+            ],
+            [
+              "DBCC SHRINKFILE (file, target_mb)",
+              "縮小檔案；會造成索引片段，不要排成例行工作"
+            ],
+            [
+              "DBCC FREEPROCCACHE",
+              "清空整個執行計畫快取；正式環境慎用"
+            ]
+          ]
+        }
+      ]
     }
   ]
 }

@@ -76,6 +76,7 @@ https 位址；改過 `docsUrl` 後跑 `tools/Check-DocLinks.ps1`（要網路，
   `INSERT #t EXEC` 的 `EXEC` 也算），往後併字、由長到短對名稱與別名，對上的那一段要蓋到停留的字——
   停在 `CREATE INDEX` 的 `INDEX` 上也認得，`ALTER TABLE t MERGE` 在 `t` 就斷了。修飾字組合寫成
   `aliases`（`CREATE UNIQUE NONCLUSTERED INDEX`），不另寫名單；開頭後面直接接 `AS` 的（`EXECUTE AS`）不算。
+  中間夾著使用者名稱的（`DECLARE c CURSOR`）對不上多字名稱，說明併進開頭那個字（`DECLARE`）。
   建議清單的關鍵字候選走同一支（`TryGetStatementFor`）：候選字接在正在打的字前面再問，
   清單上按向右鍵與寫下去之後停上去一定是同一個答案。
 - **全域變數**靠 `@@`，位置不問。**提示與 datepart** 只在 `WITH (…)`、`OPTION (…)`、

@@ -139,13 +139,13 @@ public sealed class SqlBuiltInDocCatalogTests
     /// <remarks>
     /// 少了它，<c>SELECT year FROM dbo.Loan</c> 停在 <c>year</c> 上會冒出 <c>YEAR()</c>
     /// 的說明，而 <c>CREATE TABLE</c> 的 <c>TABLE</c> 會被說成資料表變數的型別——
-    /// 兩個都是提示自己編出來的答案。
+    /// 兩個都是提示自己編出來的答案。那個 <c>TABLE</c> 屬於語句，答案是 CREATE TABLE 的說明。
     /// </remarks>
     [Theory]
     [InlineData("SELECT CONVERT(int, '1')", 8, true, "CONVERT")]
     [InlineData("SELECT CONVERT (int, '1')", 8, true, "CONVERT")]
     [InlineData("SELECT year FROM dbo.Loan", 8, false, null)]
-    [InlineData("CREATE TABLE dbo.Loan (Id int)", 8, false, null)]
+    [InlineData("CREATE TABLE dbo.Loan (Id int)", 8, true, "CREATE TABLE")]
     [InlineData("DECLARE @t TABLE (Id int)", 12, true, "TABLE")]
     [InlineData("DECLARE @x nvarchar(20)", 12, true, "NVARCHAR")]
     [InlineData("DECLARE @x int", 12, true, "INT")]
@@ -865,6 +865,111 @@ public sealed class SqlBuiltInDocCatalogTests
 
         Assert.NotNull(reference);
         Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _));
+    }
+
+    /// <summary>
+    /// 資源裡的語句在一句開頭認得：換行、區塊裡、IF 的主體與模組的 AS 之後都算開頭。
+    /// </summary>
+    /// <remarks>
+    /// 問的是資源本身而不是測試資料：<c>BEGIN</c>、<c>SET</c>、<c>END</c> 算不算一句的開頭要看位置分析，
+    /// 名稱或別名寫錯的症狀則是那一筆安靜地永遠對不上。
+    /// </remarks>
+    [Theory]
+    [InlineData("ALTER TABLE Loan ADD DueDate date NULL", "TABLE", "ALTER TABLE")]
+    [InlineData("SELECT 1\nALTER TABLE Loan DROP COLUMN DueDate", "ALTER", "ALTER TABLE")]
+    [InlineData("BEGIN TRY\n    SELECT 1\nEND TRY\nBEGIN CATCH\n    THROW;\nEND CATCH", "TRY", "BEGIN TRY")]
+    [InlineData("BEGIN TRY\n    SELECT 1\nEND TRY\nBEGIN CATCH\n    THROW;\nEND CATCH", "CATCH", "BEGIN CATCH")]
+    [InlineData("BEGIN TRY\n    SELECT 1\nEND TRY", "END", "END TRY")]
+    [InlineData("SELECT 1\nBEGIN TRANSACTION", "TRANSACTION", "BEGIN TRANSACTION")]
+    [InlineData("BEGIN TRY\n    BEGIN TRAN\nEND TRY", "TRAN", "BEGIN TRAN")]
+    [InlineData("UPDATE Loan SET CopyNo = 1\nCOMMIT", "COMMIT", "COMMIT")]
+    [InlineData("IF @@TRANCOUNT > 0 ROLLBACK TRAN", "ROLLBACK", "ROLLBACK TRAN")]
+    [InlineData("BEGIN TRAN\nSAVE TRANSACTION BeforeLoan", "SAVE", "SAVE TRANSACTION")]
+    [InlineData("SET NOCOUNT ON\nSET XACT_ABORT ON", "XACT_ABORT", "SET XACT_ABORT")]
+    [InlineData("CREATE PROCEDURE dbo.Lib_Proc AS\nSET NOCOUNT ON", "SET", "SET NOCOUNT")]
+    [InlineData("SELECT 1\nSET TRANSACTION ISOLATION LEVEL SNAPSHOT", "ISOLATION", "SET TRANSACTION ISOLATION LEVEL")]
+    [InlineData("CREATE TABLE #Loan (LoanId int)\nCREATE TABLE #Copy (CopyNo int)", "TABLE", "CREATE TABLE")]
+    [InlineData("GO\nCREATE OR ALTER PROCEDURE dbo.Lib_Proc AS SELECT 1", "PROCEDURE", "CREATE OR ALTER PROCEDURE")]
+    [InlineData("ALTER PROC dbo.Lib_Proc AS SELECT 1", "PROC", "ALTER PROC")]
+    [InlineData("CREATE OR ALTER FUNCTION dbo.Lib_Double (@n int) RETURNS int", "OR", "CREATE OR ALTER FUNCTION")]
+    [InlineData("CREATE VIEW dbo.Lib_BranchView AS SELECT 1 AS One", "VIEW", "CREATE VIEW")]
+    [InlineData("CREATE TRIGGER dbo.Lib_TagInsert ON dbo.Lib_Tag AFTER INSERT AS\nSET NOCOUNT ON", "TRIGGER", "CREATE TRIGGER")]
+    [InlineData("IF OBJECT_ID('tempdb..#Loan') IS NOT NULL\n    DROP TABLE #Loan", "DROP", "DROP TABLE")]
+    [InlineData("DROP PROCEDURE IF EXISTS dbo.Lib_Proc", "PROCEDURE", "DROP PROCEDURE")]
+    [InlineData("EXEC sys.sp_help\nTRUNCATE TABLE Loan", "TRUNCATE", "TRUNCATE TABLE")]
+    [InlineData("SELECT 1\nDECLARE c CURSOR FOR SELECT CopyNo FROM Loan", "DECLARE", "DECLARE")]
+    [InlineData("WHILE @@FETCH_STATUS = 0\nBEGIN\n    FETCH NEXT FROM c INTO @CopyNo\nEND", "NEXT", "FETCH NEXT")]
+    [InlineData("ALTER INDEX ALL ON Loan REBUILD", "INDEX", "ALTER INDEX")]
+    [InlineData("SELECT 1\nUPDATE STATISTICS Loan WITH FULLSCAN", "STATISTICS", "UPDATE STATISTICS")]
+    [InlineData("CREATE STATISTICS st_CopyNo ON Loan (CopyNo)", "CREATE", "CREATE STATISTICS")]
+    [InlineData("BACKUP LOG Lib_Db TO DISK = 'x.trn'", "LOG", "BACKUP LOG")]
+    [InlineData("RESTORE FILELISTONLY FROM DISK = 'x.bak'", "RESTORE", "RESTORE FILELISTONLY")]
+    [InlineData("GRANT SELECT ON Loan TO Lib_Reader\nDENY SELECT ON Loan TO Lib_Reader", "DENY", "DENY")]
+    [InlineData("SELECT 1\nDBCC SHOW_STATISTICS ('Loan', IX_Loan)", "SHOW_STATISTICS", "DBCC SHOW_STATISTICS")]
+    [InlineData("DBCC TRACESTATUS", "DBCC", "DBCC")]
+    public void 資源裡的語句在句首認得(string text, string word, string expected)
+    {
+        var reference = SqlIdentifierScanner.FindAt(text, text.IndexOf(word, StringComparison.Ordinal));
+
+        Assert.NotNull(reference);
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
+        Assert.Equal(expected, doc.Name);
+    }
+
+    /// <summary>
+    /// 同一批字不在一句開頭、或開頭那串字對不上任何名稱時不是語句：
+    /// <c>UPDATE … SET</c> 的 SET、<c>ALTER DATABASE … SET</c> 的選項、區塊的 BEGIN／END。
+    /// </summary>
+    [Theory]
+    [InlineData("UPDATE Loan SET CopyNo = 1", "SET")]
+    [InlineData("UPDATE Loan\nSET CopyNo = 1", "SET")]
+    [InlineData("ALTER DATABASE Lib_Db SET RECOVERY SIMPLE", "SET")]
+    [InlineData("ALTER TABLE Loan DROP COLUMN DueDate", "DROP")]
+    [InlineData("IF 1 = 1\nBEGIN\n    SELECT 1\nEND", "BEGIN")]
+    [InlineData("IF 1 = 1\nBEGIN\n    SELECT 1\nEND", "END")]
+    [InlineData("SET NOCOUNT ON", "ON")]
+    [InlineData("SELECT CopyNo FROM Loan WHERE CopyNo = 1 OR CopyNo = 2", "OR")]
+    [InlineData("ALTER TABLE Loan DROP CONSTRAINT CK_Loan_Qty", "CONSTRAINT")]
+    [InlineData("DECLARE @t TABLE (Id int)", "TABLE")]
+    [InlineData("UPDATE Loan SET CopyNo = 1", "UPDATE")]
+    [InlineData("SELECT CopyNo FROM Loan ORDER BY CopyNo OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY", "FETCH")]
+    [InlineData("GRANT SELECT ON Loan TO Lib_Reader", "SELECT")]
+    public void 資源裡的語句在句首以外不認(string text, string word)
+    {
+        var reference = SqlIdentifierScanner.FindAt(text, text.IndexOf(word, StringComparison.Ordinal));
+
+        Assert.NotNull(reference);
+        Assert.False(
+            SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc) && doc.Kind == SqlBuiltInKind.Statement,
+            word);
+    }
+
+    /// <summary>建議清單的關鍵字候選用資源本身問，與停留提示同一個答案。</summary>
+    [Theory]
+    [InlineData("SET ", "NOCOUNT", "SET NOCOUNT")]
+    [InlineData("SET ", "TRANSACTION", "SET TRANSACTION")]
+    [InlineData("BEGIN ", "TRY", "BEGIN TRY")]
+    [InlineData("BEGIN TRY\n    SELECT 1\nEND TRY\nBEGIN ", "CATCH", "BEGIN CATCH")]
+    [InlineData("SELECT 1\n", "COMMIT", "COMMIT")]
+    [InlineData("", "BEGIN", null)]
+    [InlineData("UPDATE Loan ", "SET", null)]
+    [InlineData("CREATE ", "TABLE", "CREATE TABLE")]
+    [InlineData("CREATE OR ALTER ", "VIEW", "CREATE OR ALTER VIEW")]
+    [InlineData("ALTER TABLE Loan ", "DROP", null)]
+    [InlineData("", "DECLARE", "DECLARE")]
+    [InlineData("UPDATE ", "STATISTICS", "UPDATE STATISTICS")]
+    [InlineData("DBCC ", "CHECKDB", "DBCC CHECKDB")]
+    public void 資源裡的關鍵字候選照位置對到語句說明(string before, string candidate, string? expected)
+    {
+        var found = SqlBuiltInDocCatalog.TryGetStatementFor(before, before.Length, candidate, out var doc);
+
+        Assert.Equal(expected is not null, found);
+
+        if (expected is not null)
+        {
+            Assert.Equal(expected, doc.Name);
+        }
     }
 
     /// <summary>
