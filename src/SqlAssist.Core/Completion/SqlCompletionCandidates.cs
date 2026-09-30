@@ -102,11 +102,13 @@ public static class SqlCompletionCandidates
             case CompletionTarget.QueryHint:
                 return SqlArgumentCatalog.QueryHints;
 
-            // 封閉片語的字之外還有以那些字開頭的片段（CURSOR FOR 之後的 ssf），由上下文過濾挑。
+            // 封閉片語的字之外還有以那些字開頭的片段（CURSOR FOR 之後的 ssf），由上下文過濾挑；
+            // 收變數的那一格（SET ）再接上指令碼的變數。
             case CompletionTarget.ClauseKeyword:
                 return builtIn
                     .Where(item => item.Kind == SuggestionKind.Snippet && IsBuiltInEnabled(item, settings))
                     .Concat(PhraseOf(context))
+                    .Concat(context.ScriptSources)
                     .ToArray();
         }
 

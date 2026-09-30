@@ -32,13 +32,15 @@ public sealed class SqlClausePhrase
         bool isClosed,
         bool endsStatement,
         string[] words,
-        bool isAdditive = false)
+        bool isAdditive = false,
+        bool takesVariable = false)
     {
         Pattern = pattern;
         IsAdditive = isAdditive;
         After = after;
         Probe = probe;
         IsClosed = isClosed;
+        TakesVariable = takesVariable;
         EndsStatement = endsStatement;
         Words = words;
         _elements = Parse(pattern);
@@ -59,6 +61,16 @@ public sealed class SqlClausePhrase
     /// 不封閉的片語（<c>SET IDENTITY_INSERT </c> 之後是資料表）只換掉關鍵字，名稱照常。
     /// </remarks>
     public bool IsClosed { get; }
+
+    /// <summary>
+    /// 這一格除了 <see cref="Words"/> 也收變數：<c>SET </c> 之後是選項或 <c>@a = 1</c>。
+    /// </summary>
+    /// <remarks>
+    /// 封閉的清單在空前綴就開好，打 <c>@</c> 只是篩選那一份；變數不在裡面的話，接在 <c>;</c>、
+    /// <c>BEGIN</c> 之後的 <c>SET @</c> 什麼都列不出來，前一格判不出位置的 <c>SET @</c> 卻列得出來。
+    /// 與封閉一樣由剖析器探測，<c>SET NOCOUNT </c> 不收。
+    /// </remarks>
+    public bool TakesVariable { get; }
 
     /// <summary>
     /// 語句寫到片語為止已經完整（<c>CREATE INDEX i ON t (a) </c>、<c>OFFSET 10 ROWS </c>）。

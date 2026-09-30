@@ -236,6 +236,17 @@ SET IDENTITY_INSERT dbo.Loan ON
 
 SET @CopyNo = 1
 
+DECLARE @CopyCount INT;
+SET @CopyCount = 1
+
+DECLARE @CopyCount INT
+IF (1 = 1) SET @CopyCount = 1
+
+CREATE PROCEDURE dbo.usp_CountCopies @CopyCount INT AS
+BEGIN
+SET @CopyCount = 1
+END
+
 SELECT @CopyNo = CopyNo FROM dbo.Copy
 
 IF @CopyNo = 1 SELECT 1 ELSE SELECT 2

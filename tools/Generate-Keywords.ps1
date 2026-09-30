@@ -457,6 +457,9 @@ $RejectingErrorNumbers = @(46001, 46005, 46010, 46014) + $optionRejections
 # 非保留字的對照名稱：不是任何關鍵字的普通識別字。
 $PlainName = 'Lib_Reader'
 
+# 封閉那一格收不收變數的對照名稱：SET 之後除了選項還接 @ReaderId = 1。
+$PlainVariable = '@ReaderId'
+
 # 剖析一律交給 C#：第三階段與片語要把上千個候選字逐一配上幾十條續尾剖析，PowerShell 單執行緒要一個多小時，
 # 平行、並且前綴與續尾各只斷詞一次之後仍要二十多分鐘，所以剖析結果另存成快取，重跑只剖析新的文字。快取只記剖析器說了什麼
 # （拒收落在哪一段、整段完不完整），怎麼解讀每次重算：改片語、續尾或判定規則都用得上舊的結果，
@@ -1803,6 +1806,7 @@ function Add-ClausePhrase {
             # 名稱那一格被判成封閉；種類的片語改問名稱在那裡收不收。
             Closed        = $null -ne $Closed ? [bool]$Closed :
                 $Kinds ? -not $takesName : -not [SqlAssistPhraseProber]::AcceptsName($Probe, $PlainName, $continuationArray)
+            TakesVariable = [SqlAssistPhraseProber]::AcceptsName($Probe, $PlainVariable, $continuationArray)
             EndsStatement = $endsStatement
             Words         = @($words)
             TakesOperand  = $takesName -or $null -ne $value
@@ -1897,6 +1901,7 @@ function Add-ListPhrase {
     $words = [System.Collections.Generic.List[string]]::new()
     $probe = $null
     $closed = $true
+    $takesVariable = $false
 
     foreach ($first in @($script:phrases[$headKey].Words)) {
         # 第一項寫完、接得了逗號就好，整句寫不寫得完不論：對稱金鑰的 WITH 清單之後還要寫 ENCRYPTION BY。
@@ -1912,6 +1917,7 @@ function Add-ListPhrase {
         $itemProbe = "$Head$first$ending, "
         $probe ??= $itemProbe
         $closed = $closed -and -not [SqlAssistPhraseProber]::AcceptsName($itemProbe, $PlainName, $continuationArray)
+        $takesVariable = $takesVariable -or [SqlAssistPhraseProber]::AcceptsName($itemProbe, $PlainVariable, $continuationArray)
 
         foreach ($word in @(Get-PhraseWords -Probe $itemProbe)) {
             if (-not $words.Contains($word)) {
@@ -1929,6 +1935,7 @@ function Add-ListPhrase {
         After         = $After
         Probe         = $probe
         Closed        = $closed
+        TakesVariable = $takesVariable
         EndsStatement = $false
         Words         = @($words)
     }
@@ -2236,7 +2243,7 @@ foreach ($key in $chained.Keys) {
 $merged = [ordered]@{}
 
 foreach ($phrase in $phrases.Values) {
-    $key = "$($phrase.Pattern)`t$($phrase.Closed)`t$($phrase.EndsStatement)`t$($phrase.Words -join ' ')"
+    $key = "$($phrase.Pattern)`t$($phrase.Closed)`t$($phrase.TakesVariable)`t$($phrase.EndsStatement)`t$($phrase.Words -join ' ')"
 
     if ($merged.Contains($key)) {
         $merged[$key].After.Add($phrase.After)
@@ -2248,6 +2255,7 @@ foreach ($phrase in $phrases.Values) {
         After         = [System.Collections.Generic.List[string]]::new([string[]]@($phrase.After))
         Probe         = $phrase.Probe
         Closed        = $phrase.Closed
+        TakesVariable = $phrase.TakesVariable
         EndsStatement = $phrase.EndsStatement
         Words         = $phrase.Words
     }
@@ -2453,20 +2461,21 @@ foreach ($keyword in $statementEndings.Keys) {
 
 $null = $builder.AppendLine('    };')
 $null = $builder.AppendLine('')
-$null = $builder.AppendLine('    /// <summary>子句片語：游標前的尾巴、探測文字、是否封閉、語句到那裡是否已經完整，以及那裡接得上的字。</summary>')
+$null = $builder.AppendLine('    /// <summary>子句片語：游標前的尾巴、探測文字、是否封閉、是否收變數、語句到那裡是否已經完整，以及那裡接得上的字。</summary>')
 $null = $builder.AppendLine('    /// <remarks>')
 $null = $builder.AppendLine('    /// 探測文字執行期用不到，輸出來是為了讓測試逐條回驗：片語比對對那段文字')
 $null = $builder.AppendLine('    /// 必須認出同一個片語，兩邊說的才是同一個位置。')
 $null = $builder.AppendLine('    /// </remarks>')
-$null = $builder.AppendLine('    internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, bool Closed, bool EndsStatement, string[] Words)[] ClausePhrases =')
+$null = $builder.AppendLine('    internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, bool Closed, bool TakesVariable, bool EndsStatement, string[] Words)[] ClausePhrases =')
 $null = $builder.AppendLine('    {')
 
 foreach ($phrase in $phrases.Values) {
     $afterLiteral = ($phrase.After | ForEach-Object { "SqlKeywordPosition.$_" }) -join ' | '
     $probeLiteral = $phrase.Probe.Replace('\', '\\').Replace('"', '\"')
     $closedLiteral = $phrase.Closed ? 'true' : 'false'
+    $variableLiteral = $phrase.TakesVariable ? 'true' : 'false'
     $endsLiteral = $phrase.EndsStatement ? 'true' : 'false'
-    $null = $builder.AppendLine("        (`"$($phrase.Pattern)`", $afterLiteral, `"$probeLiteral`", $closedLiteral, $endsLiteral, new string[]")
+    $null = $builder.AppendLine("        (`"$($phrase.Pattern)`", $afterLiteral, `"$probeLiteral`", $closedLiteral, $variableLiteral, $endsLiteral, new string[]")
     $null = $builder.AppendLine('        {')
 
     $line = '           '

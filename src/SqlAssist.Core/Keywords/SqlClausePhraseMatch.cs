@@ -30,8 +30,12 @@ public sealed class SqlClausePhraseMatch
     /// <summary>前一格的位置判得出來，而且是片語要的那一種。</summary>
     public bool IsCertain { get; }
 
-    /// <summary>清單只有片語的字：片語封閉，而且比對是確定的。</summary>
+    /// <summary>清單只有片語的字（與 <see cref="OffersVariables"/>）：片語封閉，而且比對是確定的。</summary>
     public bool IsClosed => IsCertain && Phrase.IsClosed;
+
+    /// <summary>封閉的清單裡也放指令碼的變數，見 <see cref="SqlClausePhrase.TakesVariable"/>。</summary>
+    /// <remarks>不封閉時清單不在空前綴預開，打 <c>@</c> 走的是變數那一條，不必由片語給。</remarks>
+    public bool OffersVariables => IsClosed && Phrase.TakesVariable;
 
     /// <summary>片語的字的建議項。</summary>
     public IReadOnlyList<SqlSuggestion> Suggestions => Phrase.Suggestions;

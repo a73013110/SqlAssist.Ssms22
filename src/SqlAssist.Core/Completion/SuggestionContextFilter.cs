@@ -53,11 +53,15 @@ public static class SuggestionContextFilter
     {
         // 片語的字不看目標：剖析器證明過這一格接得上它們，而目標是「這一格要哪一種名稱」。
         // EXEC 之後的目標是程序，照目標過濾的話 EXEC AS 的 AS 永遠列不出來。
+        // 變數同理：片語證明過這一格收變數（SET @a = 1），SET 之後的位置本身卻不收名稱。
         var phraseSnippet = StartsWithPhraseWord(suggestion, context);
+        var phraseVariable = suggestion.Kind == SuggestionKind.Variable &&
+            context.ClausePhrase is { OffersVariables: true };
 
         return (!context.Bracketed || IsBracketable(suggestion.Kind)) &&
-               (IsProvenPhraseWord(suggestion) || phraseSnippet || IsAllowedForTarget(suggestion.Kind, context.Target)) &&
-               (phraseSnippet || IsAllowedForPosition(suggestion, context)) &&
+               (IsProvenPhraseWord(suggestion) || phraseSnippet || phraseVariable ||
+                IsAllowedForTarget(suggestion.Kind, context.Target)) &&
+               (phraseSnippet || phraseVariable || IsAllowedForPosition(suggestion, context)) &&
                IsAllowedForSchema(suggestion, context) &&
                IsAllowedSystemSchema(suggestion, context);
     }

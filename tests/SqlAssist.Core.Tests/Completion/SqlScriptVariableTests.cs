@@ -143,4 +143,46 @@ public sealed class SqlScriptVariableTests
         Assert.NotEmpty(variables);
         Assert.Empty(SuggestionContextFilter.Filter(variables, context));
     }
+
+    /// <summary>
+    /// SET 的選項清單在空前綴就開好，變數要在同一份裡：打 <c>@</c> 只是篩選它。
+    /// </summary>
+    /// <remarks>
+    /// 前一格判得出位置時（<c>;</c>、<c>)</c>、<c>BEGIN</c>）片語確定、清單封閉；判不出來時清單不預開，
+    /// 打 <c>@</c> 才走變數那一條。兩邊要列出同一份。
+    /// </remarks>
+    [Theory]
+    [InlineData("DECLARE @readerId INT;\r\nSET |")]
+    [InlineData("DECLARE @readerId INT\r\nIF (1 = 1) SET |")]
+    [InlineData("CREATE PROCEDURE dbo.usp_Renew @readerId INT AS\r\nBEGIN\r\nSET |")]
+    [InlineData("DECLARE @readerId INT;\r\nSET ROWCOUNT |")]
+    [InlineData("DECLARE @readerId INT;\r\nFETCH FROM c INTO |")]
+    public void 收變數的封閉片語連變數一起列(string sqlWithCaret)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+
+        Assert.Equal(CompletionTarget.ClauseKeyword, context.Target);
+        Assert.Contains(
+            SuggestionContextFilter.Filter(context.ScriptSources, context),
+            item => item.DisplayText == "@readerId");
+    }
+
+    /// <summary>
+    /// 封閉片語那一格接不了變數，或變數在那裡是新取的名字時不列。
+    /// </summary>
+    /// <remarks>
+    /// <c>CREATE PROCEDURE p </c> 之後剖析器也收 <c>@a</c>，但那是參數的宣告，與打 <c>@</c> 時同一條判斷。
+    /// </remarks>
+    [Theory]
+    [InlineData("DECLARE @readerId INT;\r\nSET NOCOUNT |")]
+    [InlineData("DECLARE @readerId INT;\r\nCREATE PROCEDURE dbo.usp_Renew |")]
+    public void 不收變數的封閉片語不列變數(string sqlWithCaret)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+
+        Assert.Equal(CompletionTarget.ClauseKeyword, context.Target);
+        Assert.Empty(context.ScriptSources);
+    }
 }

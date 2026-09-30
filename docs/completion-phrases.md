@@ -37,7 +37,9 @@
 
 - 封閉：目標是 `ClauseKeyword`，清單只有片語的字，排在 `WITH (` 資料表提示之前判斷，
   所以 `CREATE INDEX … WITH (` 列的是索引選項。目標已收斂，`SqlCompletionPolicy` 不等字元數，
-  `SET `、`CREATE ` 打完空白就開清單。
+  `SET `、`CREATE ` 打完空白就開清單。片語那一格收變數時（`SET `、`FETCH c INTO `）清單也放指令碼的變數：
+  打 `@` 只是篩選這份預開的清單，少了它們，前一格判得出位置的 `SET @`（`;`、`)`、`BEGIN` 之後）反而列不出變數。
+  宣告的位置（`CREATE PROCEDURE p `）照[變數](completion-variables.md#宣告的位置仍然不開清單)的判斷不列。
 - 不封閉（`SET IDENTITY_INSERT ` 之後是資料表）：名稱照常，只有關鍵字換掉。
 
 片語的字不看目標：目標說的是這一格要哪一種名稱，剖析器已證明片語的字接得上。候選清單依目標分派時

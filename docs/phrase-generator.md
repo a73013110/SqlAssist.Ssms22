@@ -18,12 +18,13 @@
 | （空） | 沒有尾巴，只認位置：「這個位置接得了這些字」；必須寫 `After` |
 
 候選字是關鍵字清單加上 ScriptDom 內部 `CodeGenerationSupporter` 的全部字串常數，
-接不接得上用與第三階段相同的規則：普通名稱過不了而它過得了才算。比的除了整段，
+規則同第三階段：普通名稱過不了而它過得了才算。比的除了整段，
 還有「撐過字本身」：`ROWS BETWEEN UNBOUNDED` 要再接 `PRECEDING` 才完整，只比整段的話
 它與普通名稱一起被拒。剖析器也有讀完才回頭驗的地方（`DECRYPTION BY CERTIFICATE KEY x` 在 `CERTIFICATE` 報錯）：
 讓前面的字被拒過的字，要有續尾把整句寫完才算。
 普通名稱在任何一組續尾整段都過不了的片語是**封閉**的；名稱後面還要再寫一段的
 （`UPDATE t SET`、`OPEN SYMMETRIC KEY k DECRYPTION`）也會判成封閉，由 `Closed = $false` 宣告不封閉。
+換 `@ReaderId` 過得了的另記 `TakesVariable`（收變數）。
 
 探測文字本身已是完整語句時（`CREATE INDEX i ON t (a) `），接得上的字也含下一句的開頭；
 產生器扣掉在 `SELECT 1; ` 探到的那一份，被誤扣的（`WITH` 也是 CTE 的開頭）由更長的片語或 `Values` 補回。

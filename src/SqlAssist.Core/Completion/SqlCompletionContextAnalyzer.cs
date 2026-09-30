@@ -258,7 +258,9 @@ public static class SqlCompletionContextAnalyzer
         // 變數只需要「這份指令碼裡出現過哪些 @名稱」，同樣不必解析範圍與欄位來源。
         // 資料表變數要多帶一份資料行清單：INSERT INTO @rows 提交之後展的是整句，
         // 而那份清單只存在於 DECLARE @rows TABLE (…) 裡。
-        if (context.Target == CompletionTarget.Variable)
+        //
+        // 封閉片語收變數的那一格（SET ）同一份：清單在空前綴就開好，打 @ 只是篩選它。
+        if (context.Target == CompletionTarget.Variable || OffersPhraseVariables(context, tokens))
         {
             return context.WithScriptSources(SqlScriptVariableSuggestions.Create(
                 tokens,
@@ -364,6 +366,28 @@ public static class SqlCompletionContextAnalyzer
     /// <c>@pub</c> 被換掉——那要按復原才救得回來；他正在<b>引用</b>時要的正是
     /// 上面幾行宣告過的名稱，與 CTE、暫存資料表完全同格。
     /// </remarks>
+    /// <summary>封閉片語的清單要不要放變數：片語那一格收變數，而且打 <c>@</c> 的話會列變數。</summary>
+    /// <remarks>
+    /// 剖析器只說得出那一格接不接 <c>@a</c>，說不出那是引用還是宣告：<c>CREATE PROCEDURE p </c> 之後的
+    /// <c>@a int</c> 是新取的參數。這裡與 <see cref="AnalyzeVariable"/> 問同一個問題，兩條路才列出同一份。
+    /// </remarks>
+    private static bool OffersPhraseVariables(SqlCompletionContext context, IReadOnlyList<SqlToken> tokens)
+    {
+        if (context.ClausePhrase is not { OffersVariables: true })
+        {
+            return false;
+        }
+
+        var index = 0;
+
+        while (index < tokens.Count && tokens[index].Start < context.TokenStart)
+        {
+            index++;
+        }
+
+        return !SqlScriptVariableSuggestions.IsDeclarationSlot(tokens, index);
+    }
+
     private static SqlCompletionContext AnalyzeVariable(string textBeforeCaret, int tokenStart)
     {
         var prefix = textBeforeCaret.Substring(tokenStart);

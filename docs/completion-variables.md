@@ -70,6 +70,8 @@ EXEC dbo.usp_Renew @|  → 同上
 | `CREATE PROCEDURE p @`、`CREATE PROC p @a int OUTPUT, @`、`CREATE FUNCTION f (@` | 同上 |
 | `SET @`、`SELECT @`、`WHERE a = @`、`EXEC p @` | 開，他要的是上面宣告過的名稱 |
 
+`SET ` 打完空白時選項清單已經開著，變數放在那一份裡，見[片語](completion-phrases.md#執行期)。
+
 判斷方式是從那個小老鼠往回走，走出這一句之前碰到 `DECLARE`、`PROCEDURE`、`PROC`、
 `FUNCTION` 就是宣告，先碰到能開始一句的關鍵字（`SET`、`SELECT`、`EXEC`…）就是引用。
 其餘的關鍵字屬於前一項的定義：`@a int = NULL`、`@a int OUTPUT`、`@a AS int`、

@@ -296,8 +296,9 @@ public static class SqlClausePhraseCatalog
 
         for (var index = 0; index < data.Length; index++)
         {
-            var (pattern, after, probe, closed, endsStatement, words) = data[index];
-            phrases[index] = new SqlClausePhrase(pattern, after, probe, closed, endsStatement, words);
+            var (pattern, after, probe, closed, takesVariable, endsStatement, words) = data[index];
+            phrases[index] = new SqlClausePhrase(
+                pattern, after, probe, closed, endsStatement, words, takesVariable: takesVariable);
         }
 
         for (var index = 0; index < additive.Length; index++)
