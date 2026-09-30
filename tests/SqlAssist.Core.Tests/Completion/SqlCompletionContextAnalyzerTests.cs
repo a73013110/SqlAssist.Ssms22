@@ -252,6 +252,37 @@ public sealed class SqlCompletionContextAnalyzerTests
         Assert.Equal("publ", context.Prefix);
     }
 
+    /// <summary>
+    /// 註解的最後一個字不是程式碼：句點不是限定字，數字不是數值，字不是關鍵字。
+    /// </summary>
+    /// <remarks>
+    /// 讀原文尾巴的話，<c>-- Uses Lib_Reader.</c> 下一行打的字成了點號之後的名稱，
+    /// 關鍵字全被目標過濾擋掉。區塊註解以 <c>*/</c> 結尾，從來沒有這個問題。
+    /// </remarks>
+    [Theory]
+    [InlineData("-- Uses Lib_Reader.\nS")]
+    [InlineData("SELECT 1\n-- next step.\nS")]
+    [InlineData("SELECT CopyNo -- the copy.\nF")]
+    [InlineData("-- version 1.\nS")]
+    [InlineData("-- @rows.\nS")]
+    public void 行註解結尾的句點不是限定字(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
+        Assert.Null(context.QualifierPath);
+        Assert.Equal(CompletionTarget.Any, context.Target);
+    }
+
+    [Fact]
+    public void 行註解結尾的關鍵字不決定目標()
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze("SELECT CopyNo -- FROM\nx");
+
+        Assert.NotEqual(CompletionTarget.DataSource, context.Target);
+        Assert.Equal(-1, context.TargetKeywordStart);
+    }
+
     [Fact]
     public void 空白輸入不建議()
     {

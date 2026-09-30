@@ -50,25 +50,25 @@ public static class SqlCompletionContextAnalyzer
             return AnalyzeVariable(textBeforeCaret, tokenStart);
         }
 
+        // 詞法分析只做一次：位置與「這裡是不是型別的位置」問的是同一段文字，
+        // 各自再分析一次的話，每按一鍵就把游標前的整份指令碼掃兩遍。
+        var textBeforeToken = textBeforeCaret.Substring(0, tokenStart);
+        var tokens = SqlTokenizer.Tokenize(textBeforeToken);
+        var beforeToken = CodeBefore(textBeforeToken, tokens);
+
         // 數值常值裡沒有東西可補：T-SQL 的一般識別字不能以數字開頭，
         // 所以清單裡沒有一項會是對的。位置分析在這裡也幫不上忙——運算子之後
         // 一律是 Any，於是 SET Quantity = Quantity - 10 打到 10 的時候整個目錄
         // 進場，模糊比對撈回 LOG10，而使用者順手按下 Enter 就把數字換成了
         // 一個函式名稱。
-        if (IsInNumericLiteral(textBeforeCaret, tokenStart))
+        if (IsInNumericLiteral(textBeforeCaret, tokenStart, beforeToken))
         {
             return Inert(tokenStart);
         }
 
         // 限定字之後（dbo.| 或 u.|）要的是名稱，關鍵字在那裡一個都不該出現，
         // 但這裡不用特別處理：限定字會讓 Target 收斂，關鍵字已經被目標過濾擋掉。
-        //
-        // 詞法分析只做一次：位置與「這裡是不是型別的位置」問的是同一段文字，
-        // 各自再分析一次的話，每按一鍵就把游標前的整份指令碼掃兩遍。
-        var textBeforeToken = textBeforeCaret.Substring(0, tokenStart);
-        var tokens = SqlTokenizer.Tokenize(textBeforeToken);
-
-        if (QualifiesScalarVariable(textBeforeCaret, tokenStart, tokens))
+        if (QualifiesScalarVariable(beforeToken, tokens))
         {
             return Inert(tokenStart);
         }
@@ -76,7 +76,6 @@ public static class SqlCompletionContextAnalyzer
         var caret = SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken);
         var keywordPosition = caret.Keywords;
         var prefix = SqlIdentifier.UnquoteOpening(textBeforeCaret.Substring(tokenStart));
-        var beforeToken = textBeforeToken.TrimEnd();
         var qualifierPath = ExtractQualifierPath(
             beforeToken,
             out var beforeQualifier,
@@ -396,7 +395,7 @@ public static class SqlCompletionContextAnalyzer
         // 只收資料來源位置：EXEC dbo.p @ 的 @ 後面是引數而不是那句話的目標，
         // 在那裡帶著 ExecuteCall 會讓提交去展開一個變數。
         var statementTarget = DetermineTarget(
-            textBeforeToken.TrimEnd(),
+            CodeBefore(textBeforeToken, tokens),
             tokens,
             textBeforeToken,
             out var keywordStart,
@@ -861,14 +860,14 @@ public static class SqlCompletionContextAnalyzer
     /// 方括號已經把「這是識別字」說完了——而它在這裡本來就走不到數字那一格，
     /// 往回找詞元起點時第一個字元是 <c>]</c>。
     /// </remarks>
-    private static bool IsInNumericLiteral(string text, int tokenStart)
+    private static bool IsInNumericLiteral(string text, int tokenStart, string beforeToken)
     {
         if (tokenStart < text.Length && char.IsDigit(text[tokenStart]))
         {
             return true;
         }
 
-        return FindSegmentBeforeDot(text, tokenStart) is { Length: > 0 } segment &&
+        return FindSegmentBeforeDot(beforeToken) is { Length: > 0 } segment &&
             char.IsDigit(segment[0]);
     }
 
@@ -884,27 +883,43 @@ public static class SqlCompletionContextAnalyzer
     /// （<c>DECLARE @rows TABLE (…)</c>），而宣告必然寫在使用之前，游標前方的詞元就夠。
     /// 名冊只在點號前面真的是變數時才收，一般的限定字不付這一趟。
     /// </remarks>
-    private static bool QualifiesScalarVariable(string text, int tokenStart, IReadOnlyList<SqlToken> tokens)
+    private static bool QualifiesScalarVariable(string beforeToken, IReadOnlyList<SqlToken> tokens)
     {
-        return FindSegmentBeforeDot(text, tokenStart) is { Length: > 0 } segment &&
+        return FindSegmentBeforeDot(beforeToken) is { Length: > 0 } segment &&
             segment[0] == '@' &&
             !SqlScriptTableCollector.Collect(tokens).ContainsKey(segment);
     }
 
-    /// <summary>游標前方緊接著「一段名稱加點號」時回傳那一段，否則 null。</summary>
-    private static string? FindSegmentBeforeDot(string text, int tokenStart)
+    /// <summary>程式碼以「一段名稱加點號」結尾時回傳那一段，否則 null。</summary>
+    private static string? FindSegmentBeforeDot(string beforeToken)
     {
-        var index = SkipWhitespaceBackward(text, tokenStart);
+        var index = beforeToken.Length;
 
-        if (index == 0 || text[index - 1] != '.')
+        if (index == 0 || beforeToken[index - 1] != '.')
         {
             return null;
         }
 
-        var segmentEnd = SkipWhitespaceBackward(text, index - 1);
-        var segmentStart = FindPreviousTokenStart(text, segmentEnd);
+        var segmentEnd = SkipWhitespaceBackward(beforeToken, index - 1);
+        var segmentStart = FindPreviousTokenStart(beforeToken, segmentEnd);
 
-        return text.Substring(segmentStart, segmentEnd - segmentStart);
+        return beforeToken.Substring(segmentStart, segmentEnd - segmentStart);
+    }
+
+    /// <summary>
+    /// 正在輸入的詞元之前的程式碼：剝到最後一個詞元的結尾，尾端的空白與註解都不算。
+    /// </summary>
+    /// <remarks>
+    /// 往回讀字面值的判斷（限定字的點號、數值、前一個關鍵字）都讀這一份。讀原文的話，
+    /// 註解的最後一個字會被當成程式碼：<c>-- Uses Lib_Reader.</c> 下一行打的字變成
+    /// 點號之後的名稱，關鍵字全被目標過濾擋掉；<c>-- 1.</c> 讓下一行成了數值常值。
+    /// 詞法分析本來就略過註解，以它的最後一個詞元為界就只有一條規則。
+    /// </remarks>
+    private static string CodeBefore(string textBeforeToken, IReadOnlyList<SqlToken> tokens)
+    {
+        return tokens.Count == 0
+            ? string.Empty
+            : textBeforeToken.Substring(0, tokens[tokens.Count - 1].End);
     }
 
     private static int SkipWhitespaceBackward(string text, int end)

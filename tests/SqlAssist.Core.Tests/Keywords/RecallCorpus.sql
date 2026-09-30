@@ -387,3 +387,13 @@ ALTER TABLE dbo.LoanArchive SET (SYSTEM_VERSIONING = OFF)
 ALTER TABLE dbo.LoanArchive DROP PERIOD FOR SYSTEM_TIME
 
 ALTER TABLE dbo.LoanArchive ADD PERIOD FOR SYSTEM_TIME (ValidFrom, ValidTo)
+
+-- Uses Lib_Reader.
+SELECT 1
+
+SELECT 1
+-- next step.
+SELECT 2
+
+SELECT CopyNo -- the copy.
+FROM dbo.Copy
