@@ -100,7 +100,7 @@ FROM dbo.PUBLISHER ⏎ |               → 換行了，Grammar
 （`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式。
 
 - `UPDATE t⏎SET` 的 SET 屬於 UPDATE，不是一句的開頭。
-- **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源**：`FETCH NEXT FROM c ` 接 `INTO`
+- **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c ` 接 `INTO`
   （`FetchTail`），`RESTORE`、`REVOKE`、`BULK INSERT` 的 FROM 是 `Any`。位置、目標與範圍分析
   共用 `IntroducesDataSource`，分岔時 `DISK` 被收成一張表。
 
@@ -114,10 +114,10 @@ FROM dbo.PUBLISHER ⏎ |               → 換行了，Grammar
 
 ## 數值常值不開清單
 
-`SET Fine = Fine - 10` 打到 `10` 時整個目錄進場，模糊比對把 `10` 對到 `LOG10`，
+`SET Fine = Fine - 10` 打到 `10` 時模糊比對會對到 `LOG10`，
 Enter 就把數字換成函式。
 
-T-SQL 的一般識別字不能以數字開頭，所以以數字開頭的詞元必然是數值常值，歸 `Inert`。
+一般識別字不能以數字開頭，以數字開頭的詞元必然是數值常值，歸 `Inert`。
 比的是第一個字元（`Cat_BookCopy2` 不算）。
 點號前那一段以數字開頭也算（`1.`），否則平台會以限定字 `1` 開清單。
 方括號裡的不算（`[192.0.2.10].` 是連結伺服器）。

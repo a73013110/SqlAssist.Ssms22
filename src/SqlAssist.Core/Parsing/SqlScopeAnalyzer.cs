@@ -319,8 +319,9 @@ public static class SqlScopeAnalyzer
     /// 的左括號永遠等不到右括號，把它算進深度就會讓整個 FROM 子句消失，
     /// 別名 <c>a</c> 也就永遠解析不出來。
     ///
-    /// FROM 接不接資料來源由它所屬的動詞決定（<see cref="SqlStatementBoundaries.IntroducesDataSource"/>）：
-    /// <c>RESTORE … FROM DISK</c>、<c>FETCH NEXT FROM c</c>、<c>REVOKE … FROM u</c> 後面都不是資料表。
+    /// FROM、INTO 接不接資料來源由它所屬的動詞決定（<see cref="SqlStatementBoundaries.IntroducesDataSource"/>）：
+    /// <c>RESTORE … FROM DISK</c>、<c>FETCH NEXT FROM c</c>、<c>REVOKE … FROM u</c>、<c>FETCH c INTO @a</c>
+    /// 後面都不是資料表。
     /// </remarks>
     internal static IReadOnlyList<SqlTableReference> ExtractSources(
         SqlStatementBoundaries boundaries,
@@ -359,7 +360,7 @@ public static class SqlScopeAnalyzer
                 token.IsQuoted ||
                 (!SourceKeywords.Contains(token.Value) &&
                     !SqlDdlTarget.IsDataSourceOn(tokens, index)) ||
-                (token.IsKeyword("FROM") && !boundaries.IntroducesDataSource(index)))
+                ((token.IsKeyword("FROM") || token.IsKeyword("INTO")) && !boundaries.IntroducesDataSource(index)))
             {
                 index++;
                 continue;

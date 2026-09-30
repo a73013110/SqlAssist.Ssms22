@@ -169,6 +169,37 @@ public sealed class SqlScriptVariableTests
     }
 
     /// <summary>
+    /// 帶方向字的 FETCH 沒有片語接住，INTO 之後照它所屬的動詞列變數，不當成 SELECT … INTO 的資料表。
+    /// </summary>
+    [Theory]
+    [InlineData("DECLARE @readerId INT;\r\nFETCH NEXT FROM c INTO |")]
+    [InlineData("DECLARE @readerId INT;\r\nFETCH PRIOR FROM GLOBAL c INTO |")]
+    [InlineData("DECLARE @readerId INT;\r\nFETCH ABSOLUTE 1 FROM c INTO |")]
+    [InlineData("DECLARE @readerId INT;\r\nFETCH RELATIVE @readerId FROM c INTO |")]
+    public void FETCH的INTO之後列變數(string sqlWithCaret)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+
+        Assert.Equal(CompletionTarget.Variable, context.Target);
+        Assert.Contains(
+            SuggestionContextFilter.Filter(context.ScriptSources, context),
+            item => item.DisplayText == "@readerId");
+    }
+
+    /// <summary>
+    /// FETCH 的 INTO 之後打 <c>@</c> 是純量位置：資料表變數不照資料來源提交。
+    /// </summary>
+    [Fact]
+    public void FETCH的INTO之後的小老鼠是純量位置()
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze("FETCH NEXT FROM c INTO @");
+
+        Assert.Equal(CompletionTarget.Variable, context.Target);
+        Assert.True(context.ExpectsScalar);
+    }
+
+    /// <summary>
     /// 封閉片語那一格接不了變數，或變數在那裡是新取的名字時不列。
     /// </summary>
     /// <remarks>

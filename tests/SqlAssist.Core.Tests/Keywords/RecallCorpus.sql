@@ -247,6 +247,15 @@ BEGIN
 SET @CopyCount = 1
 END
 
+DECLARE @CopyCount INT;
+FETCH NEXT FROM c INTO @CopyCount
+
+DECLARE @CopyCount INT;
+FETCH ABSOLUTE 1 FROM GLOBAL c INTO @CopyCount
+
+DECLARE @CopyCount INT;
+FETCH PRIOR FROM c INTO @CopyCount
+
 SELECT @CopyNo = CopyNo FROM dbo.Copy
 
 IF @CopyNo = 1 SELECT 1 ELSE SELECT 2

@@ -5,7 +5,7 @@ using SqlAssist.Core.Parsing;
 namespace SqlAssist.Core.Keywords;
 
 /// <summary>
-/// 一份指令碼的語句界線，以及每個 FROM 接不接資料來源。
+/// 一份指令碼的語句界線，以及每個 FROM、INTO 接不接資料來源。
 /// </summary>
 /// <remarks>
 /// 判準只有 <see cref="SqlKeywordPositionAnalyzer"/> 一份（<c>IsStatementHead</c>、
@@ -57,8 +57,8 @@ internal sealed class SqlStatementBoundaries
     /// <summary><paramref name="index"/> 是一句的開頭，判準與位置分析相同。</summary>
     public bool IsStatementHead(int index) => analyzer.IsStatementHead(Map(index));
 
-    /// <summary><paramref name="from"/> 的 FROM 後面接資料來源：它所屬的動詞是 SELECT、UPDATE 或 DELETE。</summary>
-    public bool IntroducesDataSource(int from) => analyzer.IntroducesDataSource(Map(from));
+    /// <summary><paramref name="keyword"/> 的 FROM 或 INTO 後面接資料來源，由它所屬的動詞決定。</summary>
+    public bool IntroducesDataSource(int keyword) => analyzer.IntroducesDataSource(Map(keyword));
 
     /// <summary><paramref name="from"/> 的 FROM 是 <c>FETCH … FROM</c>，後面是游標名稱。</summary>
     public bool IntroducesCursor(int from) => analyzer.IntroducesCursor(Map(from));

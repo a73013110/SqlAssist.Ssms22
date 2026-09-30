@@ -757,8 +757,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
         tokens[name].Kind == SqlTokenKind.Identifier && (!IsVerbCandidate(name) || tokens[name].IsKeyword("UPDATE"));
 
     /// <summary>
-    /// <paramref name="from"/> 的 FROM 後面接資料來源：它所屬的動詞（<see cref="FindVerb"/>）是
-    /// SELECT、UPDATE 或 DELETE。
+    /// <paramref name="keyword"/> 的 FROM 或 INTO 後面接資料來源，由它所屬的動詞（<see cref="FindVerb"/>）決定：
+    /// FROM 要 SELECT、UPDATE 或 DELETE，INTO 只有 FETCH 的不接。
     /// </summary>
     /// <remarks>
     /// 同一個字在別的動詞底下接的是別的東西：<c>FETCH NEXT FROM</c> 的游標、
@@ -766,15 +766,19 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <c>BULK INSERT t FROM</c> 的檔案、<c>CREATE LOGIN l FROM WINDOWS</c>。當成資料來源的症狀是
     /// <c>DISK</c> 被收成一張表，每次按鍵多查一次不存在的名稱，而 FROM 之後的清單全是資料表。
     ///
+    /// INTO 反過來只有一個例外：SELECT … INTO、INSERT、MERGE 與 OUTPUT … INTO 接的都是資料表，
+    /// <c>FETCH NEXT FROM c INTO</c> 接的是變數清單。當成資料來源的症狀是那裡整份列成資料表，
+    /// 打 <c>@</c> 之後資料表變數也照資料來源提交。
+    ///
     /// UPDATE 的 FROM 所屬的動詞是 SET：帶資料行指派的 SET（<see cref="IntroducesOptions"/>）算 UPDATE。
     /// 判不出動詞時照舊當成資料來源：<c>TRIM(' ' FROM x)</c> 那種在括號裡，範圍分析本來就不讀。
     ///
-    /// 位置分析（FROM 之後、以 FROM 為錨點的子句尾端）、上下文分析的目標與範圍分析的資料來源
+    /// 位置分析（FROM、INTO 之後，以它們為錨點的清單與子句尾端）、上下文分析的目標與範圍分析的資料來源
     /// 都問這一條。
     /// </remarks>
-    internal bool IntroducesDataSource(int from)
+    internal bool IntroducesDataSource(int keyword)
     {
-        var verb = FindVerb(from - 1);
+        var verb = FindVerb(keyword - 1);
 
         if (verb < 0)
         {
@@ -782,6 +786,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
 
         var token = tokens[verb];
+
+        if (tokens[keyword].IsKeyword("INTO"))
+        {
+            return !token.IsKeyword("FETCH");
+        }
 
         return token.IsKeyword("SELECT") ||
             token.IsKeyword("UPDATE") ||
@@ -1757,8 +1766,10 @@ public sealed partial class SqlKeywordPositionAnalyzer
         // 加引號的識別字是名稱不是關鍵字：[FROM] 之後不是資料來源位置。
         if (token.Kind == SqlTokenKind.Identifier && !token.IsQuoted)
         {
-            // 游標、備份裝置與主體前面的 FROM 不接資料來源，這裡判不出位置；游標名稱前的 GLOBAL 也是。
-            if ((token.IsKeyword("FROM") && !IntroducesDataSource(last)) || IntroducesCursor(last))
+            // 游標、備份裝置與主體前面的 FROM、變數清單前面的 INTO 不接資料來源，這裡判不出位置；
+            // 游標名稱前的 GLOBAL 也是。
+            if (((token.IsKeyword("FROM") || token.IsKeyword("INTO")) && !IntroducesDataSource(last)) ||
+                IntroducesCursor(last))
             {
                 return SqlKeywordPosition.Any;
             }
@@ -2256,14 +2267,14 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// </summary>
     /// <param name="clauseEnd">問的是子句尾端（<see cref="ClauseAnchors"/>），不是清單的起點。</param>
     /// <remarks>
-    /// 不接資料來源的 FROM（<see cref="IntroducesDataSource"/>）不是資料來源清單：尾端與逗號之後
-    /// 都判不出位置，<c>RESTORE … FROM DISK = 'a', </c> 不能列出資料表。
+    /// 不接資料來源的 FROM、INTO（<see cref="IntroducesDataSource"/>）不是資料來源清單：尾端與逗號之後
+    /// 都判不出位置，<c>RESTORE … FROM DISK = 'a', </c>、<c>FETCH c INTO @a, </c> 不能列出資料表。
     /// </remarks>
     private SqlKeywordPosition? RefineAnchor(int anchor, bool clauseEnd)
     {
         var token = tokens[anchor];
 
-        if (token.IsKeyword("FROM") && !IntroducesDataSource(anchor))
+        if ((token.IsKeyword("FROM") || token.IsKeyword("INTO")) && !IntroducesDataSource(anchor))
         {
             return clauseEnd && IntroducesCursor(anchor) ? SqlKeywordPosition.FetchTail : SqlKeywordPosition.Any;
         }

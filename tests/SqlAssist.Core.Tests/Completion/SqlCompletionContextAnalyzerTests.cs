@@ -453,4 +453,19 @@ public sealed class SqlCompletionContextAnalyzerTests
     {
         Assert.NotEqual(CompletionTarget.DataSource, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Target);
     }
+
+    /// <summary>
+    /// FETCH 的 INTO 接的是變數清單：逗號之後與清單寫完之後都不是資料來源清單。
+    /// </summary>
+    [Theory]
+    [InlineData("FETCH c INTO @a, ")]
+    [InlineData("FETCH NEXT FROM c INTO @a, ")]
+    [InlineData("FETCH NEXT FROM c INTO @a ")]
+    public void FETCH的INTO清單不是資料來源(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.NotEqual(CompletionTarget.DataSource, context.Target);
+        Assert.Equal(SqlKeywordPosition.Any, context.KeywordPosition);
+    }
 }

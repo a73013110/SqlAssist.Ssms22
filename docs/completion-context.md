@@ -97,7 +97,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 `SqlKeywordPositionAnalyzer` 與 `SqlScopeAnalyzer` 也早就這樣歸類。只有這一份漏掉時，
 症狀是 `USING ` 之後完全沒有清單，而使用者看不出它和 `FROM ` 之後有什麼不同。
 `FROM` 只算 SELECT、UPDATE、DELETE 的：`FETCH NEXT FROM ` 之後是資料指標，`REVOKE … FROM ` 之後
-不列資料表，判準見[語句的界線](completion-boundaries.md#語句的界線)。資料指標那一格由位置分析的
+不列資料表；`INTO` 不算 FETCH 的，那裡列指令碼變數。判準見[語句的界線](completion-boundaries.md#語句的界線)。資料指標那一格由位置分析的
 `IntroducesCursor` 一條認，位置與目標共用；名稱前的 `GLOBAL` 是修飾字，當成名稱就只剩 `INTO`。
 名稱只在指令碼裡，不查資料庫；宣告的認法（`Parsing/SqlCursorDeclaration`）與 `CursorOption` 共用，
 `DECLARE @c CURSOR` 是變數。

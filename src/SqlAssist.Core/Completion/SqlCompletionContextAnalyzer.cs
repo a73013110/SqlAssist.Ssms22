@@ -672,9 +672,12 @@ public static class SqlCompletionContextAnalyzer
         // SqlScopeAnalyzer 早就這樣歸類，只有這一份漏掉——症狀是 USING 之後完全沒有
         // 清單，而使用者看不出它和 FROM 之後有什麼不同。
         //
-        // FROM 另問它所屬的動詞：RESTORE … FROM、REVOKE … FROM 之後不是資料表，
+        // FROM、INTO 另問它所屬的動詞：RESTORE … FROM、REVOKE … FROM 之後不是資料表，
         // 判準與位置分析、範圍分析同一條（SqlStatementBoundaries.IntroducesDataSource）。
-        if (EndsWithKeyword(text, "FROM", out keywordStart))
+        // 不接資料表的 INTO 只有 FETCH 的，後面是變數清單。
+        var into = EndsWithKeyword(text, "INTO", out keywordStart);
+
+        if (into || EndsWithKeyword(text, "FROM", out keywordStart))
         {
             if (IntroducesDataSource(tokens, textBeforeToken, keywordStart))
             {
@@ -682,12 +685,11 @@ public static class SqlCompletionContextAnalyzer
             }
 
             keywordStart = -1;
-            return CompletionTarget.Any;
+            return into ? CompletionTarget.Variable : CompletionTarget.Any;
         }
 
         if (EndsWithKeyword(text, "JOIN", out keywordStart) ||
             EndsWithKeyword(text, "UPDATE", out keywordStart) ||
-            EndsWithKeyword(text, "INTO", out keywordStart) ||
             EndsWithKeyword(text, "USING", out keywordStart))
         {
             return CompletionTarget.DataSource;
@@ -697,12 +699,12 @@ public static class SqlCompletionContextAnalyzer
         return CompletionTarget.Any;
     }
 
-    /// <summary>從 <paramref name="keywordStart"/> 開始的 FROM 後面接資料來源。</summary>
+    /// <summary>從 <paramref name="keywordStart"/> 開始的 FROM 或 INTO 後面接資料來源。</summary>
     private static bool IntroducesDataSource(IReadOnlyList<SqlToken> tokens, string textBeforeToken, int keywordStart)
     {
         var index = FindTokenAt(tokens, keywordStart);
 
-        // 文字與詞元對不起來（FROM 寫在尾端的註解裡），照舊當成資料來源。
+        // 文字與詞元對不起來（關鍵字寫在尾端的註解裡），照舊當成資料來源。
         return index < 0 || new SqlStatementBoundaries(textBeforeToken, tokens).IntroducesDataSource(index);
     }
 
