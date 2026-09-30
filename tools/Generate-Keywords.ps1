@@ -63,8 +63,9 @@
     產出的 .cs 檔路徑。
 
 .PARAMETER CachePath
-    剖析結果快取的路徑，預設在不進版控的 artifacts/cache/。沒有快取的第一次約半小時，
-    之後只剖析新出現的文字；ScriptDom 換版本時整份自動作廢。
+    剖析結果快取的路徑，預設在不進版控的 artifacts/cache/。沒有快取的第一次約二十多分鐘，
+    之後只剖析新出現的文字；ScriptDom 換版本時整份自動作廢。跑的途中每兩分鐘存一次，
+    中途失敗也會存，中斷或失敗之後重跑從存下的地方接著算。
 
 .PARAMETER NoCache
     不讀舊快取、全部重新剖析，結果照樣寫回快取。懷疑快取與剖析器不一致時用。
@@ -453,7 +454,7 @@ $RejectingErrorNumbers = @(46005, 46010, 46014) + $optionRejections
 $PlainName = 'Lib_Reader'
 
 # 剖析一律交給 C#：第三階段與片語要把上千個候選字逐一配上幾十條續尾剖析，PowerShell 單執行緒要一個多小時，
-# 平行之後片語仍要半小時，所以剖析結果另存成快取，重跑只剖析新的文字。快取只記剖析器說了什麼
+# 平行、並且前綴與續尾各只斷詞一次之後仍要二十多分鐘，所以剖析結果另存成快取，重跑只剖析新的文字。快取只記剖析器說了什麼
 # （拒收落在哪一段、整段完不完整），怎麼解讀每次重算：改片語、續尾或判定規則都用得上舊的結果，
 # 只有 ScriptDom 版本、拒收錯誤碼或 <cache-facts> 區段變了才整份作廢。
 #
@@ -467,6 +468,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -476,24 +478,31 @@ public static class SqlAssistPhraseProber
 {
     private const string CacheFormat = "SqlAssistProbeCache/1";
 
+    // 中斷（Ctrl+C）攔不到，只能定期存：最多白算這麼久。
+    private static readonly TimeSpan CheckpointInterval = TimeSpan.FromMinutes(2);
+
     private static ThreadLocal<TSqlParser> _parser;
     private static HashSet<int> _rejecting;
     private static string _cacheKey;
+    private static string _cachePath;
     private static long _parses;
+    private static readonly Stopwatch _sinceSave = Stopwatch.StartNew();
+    private static long _savedMisses;
 
     private static readonly Memo<byte[]> _classes = new Memo<byte[]>();
     private static readonly Memo<bool> _complete = new Memo<bool>();
     private static readonly Memo<int> _rejection = new Memo<int>();
     private static readonly Memo<long> _accepted = new Memo<long>();
 
-    public static void Initialize(Type parserType, int[] rejecting, string cacheKey, string cachePath)
+    public static void Initialize(Type parserType, int[] rejecting, string cacheKey, string cachePath, bool loadCache)
     {
         // 建構參數是 initialQuotedIdentifiers；只傳 true 會落到 nonPublic 那個多載。
         _parser = new ThreadLocal<TSqlParser>(() => (TSqlParser)Activator.CreateInstance(parserType, new object[] { true }));
         _rejecting = new HashSet<int>(rejecting);
         _cacheKey = cacheKey;
+        _cachePath = cachePath;
 
-        if (cachePath != null)
+        if (loadCache)
         {
             LoadCache(cachePath);
         }
@@ -506,6 +515,18 @@ public static class SqlAssistPhraseProber
     private const byte InContinuation = 2;
     private const byte Whole = 3;
 
+    // 每拼接這麼多次，就另外整段剖析一次比對；對不上代表拼接的前提有漏洞，快取不能留。
+    private const int VerifyEvery = 64;
+
+    private static readonly ConcurrentDictionary<string, TSqlParserToken[]> _heads =
+        new ConcurrentDictionary<string, TSqlParserToken[]>(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, TSqlParserToken[]> _tails =
+        new ConcurrentDictionary<string, TSqlParserToken[]>(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, bool> _joins =
+        new ConcurrentDictionary<string, bool>(StringComparer.Ordinal);
+    private static long _spliced;
+    private static volatile bool _mismatch;
+
     private static IList<ParseError> ParseErrors(string text)
     {
         IList<ParseError> errors;
@@ -514,11 +535,167 @@ public static class SqlAssistPhraseProber
         return errors;
     }
 
+    /// <summary>剖析 prefix + word + continuation，結果與整段剖析相同，但斷詞只做一次。</summary>
+    /// <remarks>
+    /// 整段剖析一次約 80µs，改餵斷好的詞元只要約 20µs；同一個前綴配同一個字要接幾十條續尾，不必每次重新斷詞。
+    /// 前綴連同那個字一起斷（字要自成一個詞元，才知道前綴沒有吃進它），續尾另外斷，接起來餵剖析器。斷詞不是處處與上下文無關：GO 只有在行首才是批次分隔，SELECT a FROM t GO 的 GO
+    /// 是識別字、單獨斷卻是分隔符號，所以字與續尾連在一起斷的結果要與分開斷的相同才拼，否則整段剖析。
+    /// </remarks>
+    private static IList<ParseError> ParseErrors(string prefix, string word, string continuation)
+    {
+        var head = _heads.GetOrAdd(prefix + word, key => LexHead(key, prefix.Length));
+        var tail = _tails.GetOrAdd(continuation, LexTail);
+
+        if (head == null || tail == null || !_joins.GetOrAdd(word + "\u0001" + continuation, key => JoinsCleanly(word, continuation)))
+        {
+            return ParseErrors(prefix + word + continuation);
+        }
+
+        // 同一份詞元會被幾個執行緒同時拿去剖析，每次複製一份，不賭剖析器不改它。
+        var tokens = new List<TSqlParserToken>(head.Length + tail.Length);
+
+        foreach (var token in head)
+        {
+            tokens.Add(new TSqlParserToken(token.TokenType, token.Offset, token.Text, token.Line, token.Column));
+        }
+
+        var last = head[head.Length - 1];
+        var length = prefix.Length + word.Length;
+        var column = last.Column + last.Text.Length;
+
+        foreach (var token in tail)
+        {
+            tokens.Add(new TSqlParserToken(token.TokenType, length + token.Offset, token.Text, last.Line, column + token.Offset));
+        }
+
+        IList<ParseError> errors;
+        _parser.Value.Parse(tokens, out errors);
+        Interlocked.Increment(ref _parses);
+
+        if (Interlocked.Increment(ref _spliced) % VerifyEvery == 0)
+        {
+            var text = prefix + word + continuation;
+            var expected = ErrorSignature(ParseErrors(text));
+            var actual = ErrorSignature(errors);
+
+            if (expected != actual)
+            {
+                _mismatch = true;
+                throw new InvalidOperationException(string.Format(
+                    "拼接詞元的剖析結果與整段剖析不同，快取已刪除：{0}（整段 {1}，拼接 {2}）", text, expected, actual));
+            }
+        }
+
+        return errors;
+    }
+
+    /// <summary>斷詞，含最後的檔案結尾詞元；有斷詞錯誤就回傳 null，交給整段剖析。</summary>
+    private static TSqlParserToken[] Lex(string text, bool keepEnd)
+    {
+        IList<ParseError> errors;
+        var tokens = _parser.Value.GetTokenStream(new StringReader(text), out errors);
+
+        if (errors.Count > 0 || tokens.Count == 0 || tokens[tokens.Count - 1].TokenType != TSqlTokenType.EndOfFile)
+        {
+            return null;
+        }
+
+        var result = new TSqlParserToken[keepEnd ? tokens.Count : tokens.Count - 1];
+
+        for (var index = 0; index < result.Length; index++)
+        {
+            result[index] = tokens[index];
+        }
+
+        return result;
+    }
+
+    private static TSqlParserToken[] LexHead(string text, int wordStart)
+    {
+        var tokens = Lex(text, false);
+
+        if (tokens == null || tokens.Length == 0)
+        {
+            return null;
+        }
+
+        var last = tokens[tokens.Length - 1];
+        return last.Offset == wordStart && last.Text.Length == text.Length - wordStart ? tokens : null;
+    }
+
+    // 檔案結尾詞元要用斷詞器給的那一個：自己造的 Text 是空字串，剖析器在 WITHIN GROUP (GRAPH 的結尾
+    // 走的路就不同（整段剖析報內部錯誤 46001，自己造的報 46010）。
+    // 續尾的詞元沿用字所在的那一行，跨行的話行號對不上。
+    private static TSqlParserToken[] LexTail(string continuation)
+    {
+        return continuation.IndexOf('\n') < 0 && continuation.IndexOf('\r') < 0 ? Lex(continuation, true) : null;
+    }
+
+    private static bool JoinsCleanly(string word, string continuation)
+    {
+        var joined = Lex(word + continuation, true);
+        var alone = Lex(word, false);
+        var tail = _tails.GetOrAdd(continuation, LexTail);
+
+        if (joined == null || alone == null || tail == null || joined.Length != alone.Length + tail.Length)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < joined.Length; index++)
+        {
+            var expected = index < alone.Length ? alone[index] : tail[index - alone.Length];
+            var offset = index < alone.Length ? expected.Offset : word.Length + expected.Offset;
+
+            if (joined[index].TokenType != expected.TokenType || joined[index].Offset != offset || joined[index].Text != expected.Text)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // 產生器用得到的只有每個錯誤碼最早落在哪裡；拼接與整段在錯誤復原之後報的重複錯誤次數會不同，不比。
+    private static string ErrorSignature(IList<ParseError> errors)
+    {
+        var earliest = new SortedDictionary<int, int>();
+
+        foreach (var error in errors)
+        {
+            int offset;
+
+            if (!earliest.TryGetValue(error.Number, out offset) || error.Offset < offset)
+            {
+                earliest[error.Number] = error.Offset;
+            }
+        }
+
+        var signature = new StringBuilder();
+
+        foreach (var pair in earliest)
+        {
+            signature.Append(pair.Key).Append('@').Append(pair.Value).Append(';');
+        }
+
+        return signature.ToString();
+    }
+
     private static int ComputeRejection(string text)
+    {
+        return FirstRejectionIn(ParseErrors(text));
+    }
+
+    private static int ComputeRejection(string prefix, string word, string continuation)
+    {
+        return FirstRejectionIn(ParseErrors(prefix, word, continuation));
+    }
+
+    private static int FirstRejectionIn(IList<ParseError> errors)
     {
         var first = int.MaxValue;
 
-        foreach (var error in ParseErrors(text))
+        foreach (var error in errors)
         {
             if (_rejecting.Contains(error.Number) && error.Offset < first)
             {
@@ -534,6 +711,11 @@ public static class SqlAssistPhraseProber
         return ParseErrors(text).Count == 0;
     }
 
+    private static bool ComputeComplete(string prefix, string word, string continuation)
+    {
+        return ParseErrors(prefix, word, continuation).Count == 0;
+    }
+
     /// <summary>每個字接上續尾之後最早的拒收落在哪一段，每字兩個位元。</summary>
     private static byte[] ComputeClasses(string probe, string[] words, string continuation)
     {
@@ -543,7 +725,7 @@ public static class SqlAssistPhraseProber
         {
             var word = words[index];
             var wordEnd = probe.Length + word.Length;
-            var rejection = ComputeRejection(probe + word + continuation);
+            var rejection = ComputeRejection(probe, word, continuation);
 
             classes[index] =
                 rejection < probe.Length ? Recanted :
@@ -569,14 +751,15 @@ public static class SqlAssistPhraseProber
     /// 補上分號再剖析一次：落在分號上的錯誤是語句沒寫完，與出現未預期的檔案結尾同義，不算；
     /// 分號補上了還報 46097，代表剖析器又跳過了一段，整段過不了。
     /// </remarks>
-    private static long ComputeAcceptedFacts(string text)
+    private static long ComputeAcceptedFacts(string prefix, string word, string continuation)
     {
-        var errors = ParseErrors(text);
+        var text = prefix + word + continuation;
+        var errors = ParseErrors(prefix, word, continuation);
         var skipped = false;
 
         if (HasError(errors, 46097))
         {
-            var retried = ParseErrors(text + ";");
+            var retried = ParseErrors(prefix, word, continuation + ";");
             skipped = HasError(retried, 46097);
             errors = new List<ParseError>();
 
@@ -632,6 +815,11 @@ public static class SqlAssistPhraseProber
         return _complete.Get(text, ComputeComplete);
     }
 
+    private static bool IsComplete(string prefix, string word, string continuation)
+    {
+        return _complete.Get(prefix + word + continuation, key => ComputeComplete(prefix, word, continuation));
+    }
+
     /// <summary>第三階段：每個關鍵字在每個位置是否合法；位置的樣板任一個接得上就算。</summary>
     public static bool[][] ClassifyPositions(string[] keywords, bool[] canBeName, string[][] templates, string[] continuations, string plain)
     {
@@ -654,7 +842,25 @@ public static class SqlAssistPhraseProber
             }
         });
 
+        EndBatch();
         return result;
+    }
+
+    // 前綴連同字的詞元只在同一批探測裡重複用到，留著只會把記憶體吃光；檢查點也趁批次之間存，
+    // 那時沒有平行工作在寫快取。
+    private static void EndBatch()
+    {
+        _heads.Clear();
+
+        if (_sinceSave.Elapsed >= CheckpointInterval && Misses() != _savedMisses)
+        {
+            SaveCache(false);
+        }
+    }
+
+    private static long Misses()
+    {
+        return (long)_classes.Misses + _complete.Misses + _rejection.Misses + _accepted.Misses;
     }
 
     // 非保留字（APPLY、NOLOCK、GO…）當名字寫也合法，所以任何接受名稱的位置都「接受」它們：
@@ -684,7 +890,7 @@ public static class SqlAssistPhraseProber
     // whole：整段都要過，不只到這個字為止。只到字為止的判定看不出 46097 跳過的是哪裡，不看它。
     private static bool Accepted(string prefix, string word, string continuation, bool whole)
     {
-        var facts = _accepted.Get(prefix + word + continuation, ComputeAcceptedFacts);
+        var facts = _accepted.Get(prefix + word + continuation, key => ComputeAcceptedFacts(prefix, word, continuation));
 
         if (whole && (facts >> 32) != 0)
         {
@@ -802,7 +1008,7 @@ public static class SqlAssistPhraseProber
     {
         foreach (var continuation in continuations)
         {
-            if (IsComplete(probe + plain + continuation))
+            if (IsComplete(probe, plain, continuation))
             {
                 return true;
             }
@@ -868,7 +1074,7 @@ public static class SqlAssistPhraseProber
 
             foreach (var continuation in continuations)
             {
-                if (IsComplete(probe + pool[index] + continuation))
+                if (IsComplete(probe, pool[index], continuation))
                 {
                     complete = true;
                     break;
@@ -878,6 +1084,7 @@ public static class SqlAssistPhraseProber
             passed[index] = complete;
         });
 
+        EndBatch();
         var accepted = new List<string>();
 
         for (var index = 0; index < pool.Length; index++)
@@ -912,7 +1119,7 @@ public static class SqlAssistPhraseProber
         return string.Format("剖析 {0} 次；快取沿用 {1} 筆、新增 {2} 筆",
             Interlocked.Read(ref _parses),
             _classes.Hits + _complete.Hits + _rejection.Hits + _accepted.Hits,
-            _classes.Misses + _complete.Misses + _rejection.Misses + _accepted.Misses);
+            Misses());
     }
 
     private static void LoadCache(string path)
@@ -949,11 +1156,19 @@ public static class SqlAssistPhraseProber
         }
     }
 
-    /// <summary>只存這一次用到的項目：樣板或片語改掉之後，舊文字的結果不會一直留著。</summary>
-    public static void SaveCache(string path)
+    /// <summary>寫回快取。prune：只存這一次用到的項目，樣板或片語改掉之後舊文字的結果不會一直留著；
+    /// 只有跑完全程才修剪，檢查點與中途失敗時連同還沒用到的舊項目一起存。</summary>
+    public static void SaveCache(bool prune)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path));
-        var temporary = path + ".tmp";
+        // 拼接比對不上時，之前抽不到的那些也可能是錯的，整份不留。
+        if (_mismatch)
+        {
+            File.Delete(_cachePath);
+            return;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(_cachePath));
+        var temporary = _cachePath + ".tmp";
 
         using (var file = File.Create(temporary))
         using (var zip = new GZipStream(file, CompressionLevel.Fastest))
@@ -961,13 +1176,15 @@ public static class SqlAssistPhraseProber
         {
             writer.Write(CacheFormat);
             writer.Write(_cacheKey);
-            _classes.Write(writer, (w, value) => { w.Write(value.Length); w.Write(value); });
-            _complete.Write(writer, (w, value) => w.Write(value));
-            _rejection.Write(writer, (w, value) => w.Write(value));
-            _accepted.Write(writer, (w, value) => w.Write(value));
+            _classes.Write(writer, prune, (w, value) => { w.Write(value.Length); w.Write(value); });
+            _complete.Write(writer, prune, (w, value) => w.Write(value));
+            _rejection.Write(writer, prune, (w, value) => w.Write(value));
+            _accepted.Write(writer, prune, (w, value) => w.Write(value));
         }
 
-        File.Move(temporary, path, true);
+        File.Move(temporary, _cachePath, true);
+        _savedMisses = Misses();
+        _sinceSave.Restart();
     }
 
     private sealed class Memo<T>
@@ -1011,10 +1228,22 @@ public static class SqlAssistPhraseProber
             }
         }
 
-        public void Write(BinaryWriter writer, Action<BinaryWriter, T> write)
+        public void Write(BinaryWriter writer, bool prune, Action<BinaryWriter, T> write)
         {
-            var entries = _used.ToArray();
-            writer.Write(entries.Length);
+            var entries = new List<KeyValuePair<string, T>>(_used);
+
+            if (!prune)
+            {
+                foreach (var entry in Loaded)
+                {
+                    if (!_used.ContainsKey(entry.Key))
+                    {
+                        entries.Add(entry);
+                    }
+                }
+            }
+
+            writer.Write(entries.Count);
 
             foreach (var entry in entries)
             {
@@ -1041,7 +1270,18 @@ Add-Type -ReferencedAssemblies @(
     'System.IO.Compression', 'System.Threading', 'System.Threading.Tasks.Parallel'
 ) -TypeDefinition $proberSource
 
-[SqlAssistPhraseProber]::Initialize($parserType, [int[]]$RejectingErrorNumbers, $cacheKey, ($NoCache ? $null : $resolvedCachePath))
+[SqlAssistPhraseProber]::Initialize($parserType, [int[]]$RejectingErrorNumbers, $cacheKey, $resolvedCachePath, -not $NoCache)
+$proberReady = $true
+
+# 中途失敗（驗證不過的 throw 之類）也把算過的結果存回去，下次從這裡接著算。trap 管整個腳本，
+# 探測器建好之前的失敗沒有東西可存。Ctrl+C 不經過 trap，靠探測器每兩分鐘一次的檢查點。
+trap {
+    if ($proberReady) {
+        [SqlAssistPhraseProber]::SaveCache($false)
+    }
+
+    break
+}
 
 $positionNames = @($ContextTemplates.Keys)
 $templateArrays = [string[][]]::new($positionNames.Count)
@@ -2283,5 +2523,5 @@ $output = $builder.ToString().Replace("`r`n", "`n").Replace("`r", "`n")
 
 Write-Host "已寫出 $resolved"
 
-[SqlAssistPhraseProber]::SaveCache($resolvedCachePath)
+[SqlAssistPhraseProber]::SaveCache($true)
 Write-Host "$([SqlAssistPhraseProber]::CacheSummary())，快取：$resolvedCachePath"

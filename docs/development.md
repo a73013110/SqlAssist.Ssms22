@@ -91,7 +91,7 @@ SSMS 的安裝路徑、擴充的 Identity Id 與「已安裝的 SqlAssist 在哪
 | `Uninstall-Extension.ps1` | 解除安裝（保留使用者設定與紀錄） |
 | `Deploy-DebugExtension.ps1` | 部署 Debug 組件並**清除 MEF 快取**，供 F5 偵錯 |
 | `Show-Diagnostics.ps1` | 顯示安裝狀態與最近的診斷紀錄 |
-| `Generate-Keywords.ps1` | 以 ScriptDom 重新產生 `SqlKeywordCatalog.Generated.cs`；剖析快取在 `artifacts/cache/`，`-NoCache` 重建 |
+| `Generate-Keywords.ps1` | 以 ScriptDom 重新產生 `SqlKeywordCatalog.Generated.cs`；剖析快取在 `artifacts/cache/`，途中定期與失敗時都會存，`-NoCache` 重建 |
 | `Publish-Release.ps1` | 建置、驗證並建立 GitHub 草稿 Release |
 | `Test-VsixPackage.ps1` | 檢查 VSIX 套件結構 |
 | `Test-DebugDeployment.ps1` | 以隔離 fixture 驗證 Debug 部署完整性與 Install 門檻 |
