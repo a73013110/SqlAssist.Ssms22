@@ -30,7 +30,8 @@ public sealed class SqlCompletionContext
         bool expectsScalar = false,
         bool bracketed = false,
         SqlTableReference? columnOwner = null,
-        string? textBeforeCaret = null)
+        string? textBeforeCaret = null,
+        bool acceptsTypeAs = false)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         Slot = slot;
@@ -51,6 +52,7 @@ public sealed class SqlCompletionContext
         Bracketed = bracketed;
         ColumnOwner = columnOwner;
         TextBeforeCaret = textBeforeCaret;
+        AcceptsTypeAs = acceptsTypeAs;
     }
 
     /// <summary>
@@ -258,6 +260,15 @@ public sealed class SqlCompletionContext
     /// </remarks>
     public bool ExpectsScalar { get; }
 
+    /// <summary>
+    /// 這裡寫得出引出型別的 <c>AS</c>：<c>DECLARE @x |</c>、<c>CAST(@y |</c>。
+    /// </summary>
+    /// <remarks>
+    /// 判斷見 <see cref="SqlDataTypePosition.AcceptsAs"/>。這一個字不看目標與位置旗標：
+    /// 宣告那一格的目標是型別，<c>SET @x = CAST(@y |</c> 的位置是運算式，兩者都擋得掉它。
+    /// </remarks>
+    public bool AcceptsTypeAs { get; }
+
     /// <summary>分析的那段文字；沒有經過 <see cref="SqlCompletionContextAnalyzer"/> 時為 <c>null</c>。</summary>
     /// <remarks>
     /// 片段開頭的字要逐字接得上時，後面的字接上文字再分析一次（見 <see cref="SuggestionContextFilter"/>）；
@@ -328,6 +339,7 @@ public sealed class SqlCompletionContext
             ExpectsScalar,
             bracketed ?? Bracketed,
             ColumnOwner,
-            textBeforeCaret ?? TextBeforeCaret);
+            textBeforeCaret ?? TextBeforeCaret,
+            AcceptsTypeAs);
     }
 }

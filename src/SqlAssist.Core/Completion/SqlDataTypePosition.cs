@@ -130,13 +130,9 @@ public static class SqlDataTypePosition
             return true;
         }
 
-        // CAST(x AS |、PARSE(x AS |，以及 DECLARE @rows AS | 那種帶 AS 的宣告。
         if (token.IsKeyword("AS"))
         {
-            return IsInsideCall(tokens, last, TypeAfterAs) ||
-                (last >= 1 &&
-                    tokens[last - 1].Kind == SqlTokenKind.Variable &&
-                    SqlScriptVariableSuggestions.IsDeclarationSlot(tokens, last - 1));
+            return TypeFollowsAs(tokens, last);
         }
 
         // ALTER TABLE t ALTER COLUMN c |；DROP COLUMN c 之後不接型別。
@@ -145,7 +141,108 @@ public static class SqlDataTypePosition
             return true;
         }
 
-        return !SqlKeywordCatalog.IsKeyword(token.Value) && NamesNewColumn(tokens, last, textBeforeToken);
+        return NewColumnPosition(tokens, last, textBeforeToken) is
+            SqlKeywordPosition.ColumnDefinition or SqlKeywordPosition.AlterTableAdd or SqlKeywordPosition.ResultSetColumn;
+    }
+
+    /// <summary>
+    /// 在 <paramref name="tokens"/> 的尾端接得上型別那一組的 <c>AS</c>：之後是型別（<c>DECLARE @x |</c>、
+    /// <c>CAST(@y |</c>），或這一格本身是型別、也能改寫成計算資料行（<c>CREATE TABLE t (a int, b |</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 與「<c>AS</c> 之後是型別」同一條判斷，只是把 <c>AS</c> 放在還沒寫的那一格問；各認一份的症狀是
+    /// 型別認得、它前面的 <c>AS</c> 卻列不出來。宣告與資料行的 <c>AS</c> 寫在型別的位置上，型別清單
+    /// 多列它；<c>CAST</c> 的那一格照子句列其他字，只有落在選取清單時才碰巧有別名的 <c>AS</c>——
+    /// <c>SET @x = CAST(@y |</c> 就沒有。運算元還沒寫完（<c>CAST(|</c>、<c>CAST(@y + |</c>）時不列；
+    /// <c>RESULT SETS</c> 的資料行沒有計算資料行。
+    /// </remarks>
+    /// <param name="tokens">游標<b>之前</b>、不含正在輸入的那個詞元的詞法單元。</param>
+    /// <param name="textBeforeToken">同一段原文；問位置分析時要用。</param>
+    public static bool AcceptsAs(IReadOnlyList<SqlToken> tokens, string textBeforeToken)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        if (textBeforeToken is null)
+        {
+            throw new ArgumentNullException(nameof(textBeforeToken));
+        }
+
+        var last = tokens.Count - 1;
+
+        return last >= 0 &&
+            EndsOperand(tokens[last]) &&
+            (TypeFollowsAs(tokens, tokens.Count) ||
+                NewColumnPosition(tokens, last, textBeforeToken) is
+                    SqlKeywordPosition.ColumnDefinition or SqlKeywordPosition.AlterTableAdd);
+    }
+
+    /// <summary>
+    /// 寫在 <paramref name="asIndex"/> 的 <c>AS</c> 之後是型別：<c>CAST(x AS</c> 這幾個函式的第一個
+    /// <c>AS</c>，以及宣告的 <c>DECLARE @rows AS</c>、<c>CREATE PROCEDURE p @x AS</c>。
+    /// </summary>
+    /// <remarks>只讀 <paramref name="asIndex"/> 之前的詞元，所以那一格的 <c>AS</c> 可以還沒寫。</remarks>
+    private static bool TypeFollowsAs(IReadOnlyList<SqlToken> tokens, int asIndex)
+    {
+        if (asIndex >= 1 &&
+            tokens[asIndex - 1].Kind == SqlTokenKind.Variable &&
+            SqlScriptVariableSuggestions.IsDeclarationSlot(tokens, asIndex - 1))
+        {
+            return true;
+        }
+
+        var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, asIndex - 1);
+
+        return open >= 1 &&
+            IsBareIdentifier(tokens[open - 1]) &&
+            TypeAfterAs.Contains(tokens[open - 1].Value) &&
+            !HasAs(tokens, open + 1, asIndex);
+    }
+
+    /// <summary>
+    /// <paramref name="start"/> 到 <paramref name="end"/> 之間、不在內層括號裡的地方已經寫過 <c>AS</c>。
+    /// </summary>
+    /// <remarks><c>CAST(x AS int |</c> 的型別已經寫了，不能再接一個 <c>AS</c>。</remarks>
+    private static bool HasAs(IReadOnlyList<SqlToken> tokens, int start, int end)
+    {
+        for (var index = start; index < end; index++)
+        {
+            if (tokens[index].IsPunctuation("("))
+            {
+                var close = SqlTokenNavigator.FindClosingParenthesis(tokens, index, end);
+
+                if (close < 0)
+                {
+                    return false;
+                }
+
+                index = close;
+                continue;
+            }
+
+            if (tokens[index].IsKeyword("AS"))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>這個詞元寫完一個運算元：名稱、變數、常值、<c>)</c> 或 <c>CASE … END</c> 的 <c>END</c>。</summary>
+    private static bool EndsOperand(SqlToken token)
+    {
+        return token.Kind switch
+        {
+            SqlTokenKind.Variable or SqlTokenKind.Number or SqlTokenKind.String => true,
+            SqlTokenKind.Identifier => token.IsQuoted ||
+                !SqlKeywordCatalog.IsKeyword(token.Value) ||
+                token.IsKeyword("END") ||
+                SqlKeywordCatalog.EndsItem(token.Value),
+            _ => token.IsPunctuation(")")
+        };
     }
 
     /// <summary>
@@ -168,7 +265,8 @@ public static class SqlDataTypePosition
     }
 
     /// <summary>
-    /// <paramref name="last"/> 是剛寫完的新資料行名稱：<c>CREATE TABLE dbo.Loan (LoanId |</c>、
+    /// <paramref name="last"/> 可能是剛寫完的新資料行名稱時，回傳名稱前面那一格的位置；否則
+    /// <see cref="SqlKeywordPosition.None"/>。是的話那一格是資料行定義的開頭：<c>CREATE TABLE dbo.Loan (LoanId |</c>、
     /// <c>DECLARE @t TABLE (Id INT, Name |</c>、<c>ALTER TABLE t ADD ReaderId |</c>、
     /// <c>EXEC p WITH RESULT SETS ((Branch |</c>。
     /// </summary>
@@ -176,42 +274,21 @@ public static class SqlDataTypePosition
     /// 名稱前面那一格要是資料行定義的開頭，判準是位置分析的。只在名稱緊接著 <c>(</c>、逗號或
     /// <c>ADD</c> 時問——其餘的名稱前面不可能是那兩個位置，不必每一鍵都多分析一次。
     /// </remarks>
-    private static bool NamesNewColumn(IReadOnlyList<SqlToken> tokens, int last, string textBeforeToken)
+    private static SqlKeywordPosition NewColumnPosition(IReadOnlyList<SqlToken> tokens, int last, string textBeforeToken)
     {
-        if (last < 1 || tokens[last].Kind != SqlTokenKind.Identifier)
+        if (last < 1 || tokens[last].Kind != SqlTokenKind.Identifier || SqlKeywordCatalog.IsKeyword(tokens[last].Value))
         {
-            return false;
+            return SqlKeywordPosition.None;
         }
 
         var previous = tokens[last - 1];
 
         if (!previous.IsPunctuation("(") && !previous.IsPunctuation(",") && !previous.IsKeyword("ADD"))
         {
-            return false;
+            return SqlKeywordPosition.None;
         }
 
-        return SqlKeywordPositionAnalyzer.PositionBefore(tokens, last, textBeforeToken) is
-            SqlKeywordPosition.ColumnDefinition or SqlKeywordPosition.AlterTableAdd or SqlKeywordPosition.ResultSetColumn;
-    }
-
-    /// <summary>
-    /// <paramref name="index"/> 落在某個函式呼叫的引數裡，而那個函式在
-    /// <paramref name="names"/> 中。
-    /// </summary>
-    /// <remarks>
-    /// 找的是還沒關上的那個左括號——使用者正在打的呼叫一定是還開著的那一個。
-    /// 途中關得起來的括號整組跳過，它們是引數自己的。
-    /// </remarks>
-    private static bool IsInsideCall(
-        IReadOnlyList<SqlToken> tokens,
-        int index,
-        HashSet<string> names)
-    {
-        var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, index - 1);
-
-        return open >= 1 &&
-            IsBareIdentifier(tokens[open - 1]) &&
-            names.Contains(tokens[open - 1].Value);
+        return SqlKeywordPositionAnalyzer.PositionBefore(tokens, last, textBeforeToken);
     }
 
     private static bool IsBareIdentifier(SqlToken token)

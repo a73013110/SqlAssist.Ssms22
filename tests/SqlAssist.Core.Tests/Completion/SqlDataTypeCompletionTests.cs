@@ -1,6 +1,10 @@
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Settings;
 using SqlAssist.Core.Snippets;
 using Xunit;
 
@@ -81,10 +85,11 @@ public sealed class SqlDataTypeCompletionTests
     /// <summary>
     /// 型別位置的清單裡沒有關鍵字、片段與資料庫物件。
     /// </summary>
+    /// <remarks>宣告那一格另有可省的 <c>AS</c>，見 <see cref="型別前面的AS列得出來"/>。</remarks>
     [Fact]
     public void 型別位置排掉其他所有類別()
     {
-        var context = SqlCompletionContextAnalyzer.Analyze("DECLARE @rows ");
+        var context = SqlCompletionContextAnalyzer.Analyze("SELECT CAST(f.Amount AS ");
         var candidates = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty)
             .Concat(SqlDataTypeCatalog.All)
             .Concat(new[]
@@ -96,6 +101,51 @@ public sealed class SqlDataTypeCompletionTests
 
         Assert.NotEmpty(filtered);
         Assert.All(filtered, item => Assert.Equal(SuggestionKind.DataType, item.Kind));
+    }
+
+    /// <summary>
+    /// 型別那一組的 <c>AS</c> 列得出來：宣告的可省、資料行可改寫成計算資料行，<c>CAST</c> 的不在選取清單時沒有別名的 AS 可借。
+    /// </summary>
+    [Theory]
+    [InlineData("DECLARE @rows |")]
+    [InlineData("DECLARE @rows INT, @name |")]
+    [InlineData("CREATE PROCEDURE dbo.usp_Renew @readerId |")]
+    [InlineData("SET @rows = CAST (@name |")]
+    [InlineData("SET @rows = CAST(@name |")]
+    [InlineData("SET @rows = TRY_CAST(@name |")]
+    [InlineData("SET @rows = PARSE(@name |")]
+    [InlineData("SET @rows = CAST(ISNULL(@name, 0) |")]
+    [InlineData("SET @rows = CAST(CASE WHEN @name = 1 THEN 1 END |")]
+    [InlineData("SELECT CAST(f.Amount |")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId INT, Total |")]
+    [InlineData("DECLARE @copies TABLE (CopyNo INT, Total |")]
+    [InlineData("ALTER TABLE dbo.Loan ADD Total |")]
+    public async Task 型別前面的AS列得出來(string sqlWithCaret)
+    {
+        var list = await GetAsync(sqlWithCaret);
+
+        Assert.Contains(list, item => item.Kind == SuggestionKind.Keyword && item.DisplayText == "AS");
+    }
+
+    /// <summary>運算元還沒寫完、型別已經寫了，或那個函式不接型別時不另外放行 AS。</summary>
+    /// <remarks>判不出位置（<c>Any</c>）的格子本來就列整份關鍵字，所以問的是旗標而不是清單。</remarks>
+    [Theory]
+    [InlineData("SET @rows = CAST(|")]
+    [InlineData("SET @rows = CAST(@name + |")]
+    [InlineData("SET @rows = CAST(@name AS INT |")]
+    [InlineData("SET @rows = CAST(@name AS NVARCHAR(10) |")]
+    [InlineData("SET @rows = ISNULL(@name |")]
+    [InlineData("SET @rows = @name |")]
+    [InlineData("DECLARE @rows AS |")]
+    [InlineData("DECLARE @rows INT |")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch |")]
+    [InlineData("ALTER TABLE dbo.Loan ALTER COLUMN CopyNo |")]
+    [InlineData("SELECT a, b |")]
+    public void 不接型別的地方不列AS(string sqlWithCaret)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+
+        Assert.False(SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret).AcceptsTypeAs);
     }
 
     /// <summary>反過來，一般位置的清單裡一個型別都不該有。</summary>
@@ -166,5 +216,18 @@ public sealed class SqlDataTypeCompletionTests
         var item = SqlDataTypeCatalog.All.Single(entry => entry.DisplayText == name);
 
         Assert.StartsWith("已淘汰", item.Description);
+    }
+
+    private static Task<IReadOnlyList<SqlSuggestion>> GetAsync(string sqlWithCaret)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+
+        return SqlCompletionCandidates.GetAsync(
+            context,
+            BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current),
+            new SqlAssistSettings(),
+            SqlCompletionMetadata.None,
+            CancellationToken.None);
     }
 }

@@ -124,7 +124,8 @@ public static class SqlCompletionContextAnalyzer
                 CompletionTarget.DataType,
                 qualifierPath,
                 qualifierStart: qualifierStart,
-                clausePhrase: caret.Phrase);
+                clausePhrase: caret.Phrase,
+                acceptsTypeAs: SqlDataTypePosition.AcceptsAs(tokens, textBeforeToken));
         }
 
         // 這個位置文法上只能是使用者自己取的名字：衍生資料表的別名、AS 之後的別名、
@@ -211,7 +212,8 @@ public static class SqlCompletionContextAnalyzer
             qualifierStart: qualifierStart,
             clausePhrase: caret.Phrase,
             startsBatch: caret.StartsBatch,
-            columnOwner: columnOwner);
+            columnOwner: columnOwner,
+            acceptsTypeAs: SqlDataTypePosition.AcceptsAs(tokens, textBeforeToken));
     }
 
     /// <summary>

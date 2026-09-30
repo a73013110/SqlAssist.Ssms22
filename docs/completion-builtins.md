@@ -67,6 +67,12 @@ token 列舉裡根本沒有它——任何工具在這一塊都只能自己維�
 | `ALTER TABLE t ALTER COLUMN c ` | 前兩個詞元是 `ALTER COLUMN`；`DROP COLUMN c` 之後不是 |
 | `CREATE SEQUENCE s AS `、`CREATE TYPE t FROM ` | 以型別為底的物件，名稱之後的那個字 |
 
+型別那一組的 `AS` 與「`AS` 之後是型別」同一條判斷，只是把 `AS` 放在還沒寫的那一格問
+（`SqlDataTypePosition.AcceptsAs`）：`DECLARE @x `、`CREATE PROCEDURE p @x ` 的型別清單多列可省的 `AS`，
+新資料行名稱之後多列計算資料行的 `AS`（`RESULT SETS` 沒有）；`CAST(@y ` 寫完運算元、還沒寫過 `AS`
+時列它，不看目標與位置旗標。各認一份的症狀是 `SELECT CAST(@y ` 借別名的 `AS` 碰巧列得出來，
+`SET @x = CAST(@y ` 就列不出來。
+
 新資料行名稱之後不自己認形狀，問位置分析名稱前面那一格：`INSERT INTO t (col1, col2)`
 的括號長得與 `CREATE TABLE` 一模一樣，分得開兩者的判準（括號前面是不是 `TABLE`）只有
 位置分析一份。以前這裡另寫一份，`CREATE TABLE` 認得、`ALTER TABLE t ADD` 就認不得。

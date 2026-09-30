@@ -256,6 +256,25 @@ FETCH ABSOLUTE 1 FROM GLOBAL c INTO @CopyCount
 DECLARE @CopyCount INT;
 FETCH PRIOR FROM c INTO @CopyCount
 
+DECLARE @CopyCount AS INT
+
+DECLARE @CopyNo INT, @CopyCount AS INT
+
+CREATE PROCEDURE dbo.usp_CountCopies @CopyCount AS INT AS
+SELECT 1
+
+CREATE TABLE dbo.Loan (LoanId INT, CopyCount INT, Total AS (LoanId + CopyCount))
+
+DECLARE @Loan TABLE (LoanId INT, Total AS LoanId * 2)
+
+ALTER TABLE dbo.Loan ADD Total AS (LoanId + 1)
+
+DECLARE @CopyCount INT, @CopyNo VARCHAR(10);
+SET @CopyCount = CAST (@CopyNo AS INT)
+
+DECLARE @CopyCount INT, @CopyNo VARCHAR(10);
+SET @CopyCount = TRY_CAST (@CopyNo AS INT) + CAST(@CopyNo AS INT)
+
 SELECT @CopyNo = CopyNo FROM dbo.Copy
 
 IF @CopyNo = 1 SELECT 1 ELSE SELECT 2

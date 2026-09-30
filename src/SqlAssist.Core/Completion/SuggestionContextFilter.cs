@@ -57,13 +57,23 @@ public static class SuggestionContextFilter
         var phraseSnippet = StartsWithPhraseWord(suggestion, context);
         var phraseVariable = suggestion.Kind == SuggestionKind.Variable &&
             context.ClausePhrase is { OffersVariables: true };
+        var typeAs = IsTypeAs(suggestion, context);
 
         return (!context.Bracketed || IsBracketable(suggestion.Kind)) &&
-               (IsProvenPhraseWord(suggestion) || phraseSnippet || phraseVariable ||
+               (IsProvenPhraseWord(suggestion) || phraseSnippet || phraseVariable || typeAs ||
                 IsAllowedForTarget(suggestion.Kind, context.Target)) &&
-               (phraseSnippet || phraseVariable || IsAllowedForPosition(suggestion, context)) &&
+               (phraseSnippet || phraseVariable || typeAs || IsAllowedForPosition(suggestion, context)) &&
                IsAllowedForSchema(suggestion, context) &&
                IsAllowedSystemSchema(suggestion, context);
+    }
+
+    /// <summary>目錄裡的 <c>AS</c>，而這一格寫得出引出型別的 <c>AS</c>（<see cref="SqlCompletionContext.AcceptsTypeAs"/>）。</summary>
+    internal static bool IsTypeAs(SqlSuggestion suggestion, SqlCompletionContext context)
+    {
+        return context.AcceptsTypeAs &&
+            suggestion.Kind == SuggestionKind.Keyword &&
+            suggestion.Tag is not SqlClausePhrase &&
+            string.Equals(suggestion.DisplayText, "AS", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
