@@ -98,7 +98,7 @@
 - `WITH` 只認明確的：CTE 前一句必須以分號結束，`CREATE VIEW v⏎WITH SCHEMABINDING` 是選項。
 
 子句屬於哪個**動詞**另問往回第一個能開始一句的字（`FindVerb`，`UPDATE t⏎SET` 的 SET 屬於 UPDATE）；
-權限清單的一項（`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式。
+權限清單的一項（`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式，`CASE … END` 整組跳過。
 
 - **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c ` 接 `INTO`
   （`FetchTail`），`RESTORE`、`REVOKE`、`BULK INSERT` 的 FROM 是 `Any`。位置、目標與範圍分析

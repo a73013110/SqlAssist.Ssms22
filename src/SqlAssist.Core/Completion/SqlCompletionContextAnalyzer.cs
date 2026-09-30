@@ -316,7 +316,7 @@ public static class SqlCompletionContextAnalyzer
                     withScope.WithScriptSources(SqlScriptObjectSuggestions.DataSources(tokens, resolver)),
                 CompletionTarget.Procedure =>
                     withScope.WithScriptSources(SqlScriptObjectSuggestions.Procedures(tokens)),
-                CompletionTarget.Any => withScope.WithScriptSources(SqlScopeAliasSuggestions.Create(scope)),
+                CompletionTarget.Any => withScope.WithScriptSources(SqlScopeAliasSuggestions.Create(scope, resolver)),
                 _ => withScope
             };
         }

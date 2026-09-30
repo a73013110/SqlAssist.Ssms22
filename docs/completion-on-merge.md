@@ -46,6 +46,9 @@ CREATE TRIGGER tr ON t AFTER DELETE | → 不是資料表；ON 之後只跳過�
 之後接著獨立的 `UPDATE`，那個 `UPDATE` 仍然必須切斷範圍。T-SQL 裡 `THEN` 只出現在
 CASE 與 MERGE，而 CASE 的 `THEN` 後面是運算式，不會是這三個關鍵字。
 
+目標不寫 INTO 時（`MERGE dbo.Loan t USING …`）MERGE 本身就接資料來源，與 `UPDATE t` 同理；
+不收的症狀是 `ON |` 列不出 `t`。聯結提示 `INNER MERGE JOIN` 後面讀不出名稱，不會多一個來源。
+
 `INSERT (` 括號裡文法上只該有 target 的欄位，但範圍解析給的是整個 MERGE 的兩張表。
 收斂成一張要另外記住「這個括號屬於 INSERT 子句」；多幾個選不中的名稱是多按幾下，
 兩張表都不列的話那一格就完全沒有補字。

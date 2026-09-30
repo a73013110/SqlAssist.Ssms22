@@ -102,6 +102,20 @@ MERGE INTO dbo.Loan AS t USING dbo.Copy AS s ON t.CopyNo = s.CopyNo WHEN MATCHED
 
 MERGE dbo.Loan t USING dbo.Copy s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN DELETE;
 
+DECLARE @a int = 1, @b int = 2;
+MERGE Loan USING ((SELECT @a, @b) AS s (c1, c2) JOIN Copy ON s.c1 = Copy.CopyNo) ON Loan.CopyNo = s.c2 WHEN MATCHED THEN DELETE;
+
+SELECT a.ReaderId FROM (Lib_Reader a JOIN Loan AS b ON a.ReaderId = b.ReaderId)
+
+SELECT r.BranchId FROM Branch r JOIN (Lib_Reader a JOIN Loan b ON a.ReaderId = b.ReaderId) ON r.BranchId = a.BranchId
+
+WITH Chain (CopyNo, Depth) AS (SELECT CopyNo, 0 FROM dbo.Copy UNION ALL SELECT Chain.CopyNo, Chain.Depth + 1 FROM Chain JOIN dbo.Loan AS l ON Chain.CopyNo = l.CopyNo) SELECT CopyNo FROM Chain
+
+SELECT CASE WHEN l.CopyNo IS NULL THEN 0 ELSE 1 END FROM dbo.Loan l LEFT JOIN dbo.Copy c ON l.CopyNo = c.CopyNo
+
+DECLARE @AsOf datetime2 = SYSDATETIME();
+SELECT a.CopyNo FROM dbo.LoanArchive FOR SYSTEM_TIME AS OF @AsOf AS a JOIN dbo.Copy AS b ON a.CopyNo = b.CopyNo
+
 CREATE TABLE dbo.Loan (LoanId int IDENTITY(1, 1) NOT NULL PRIMARY KEY CLUSTERED, CopyNo int NULL CONSTRAINT FK_Loan_Copy FOREIGN KEY REFERENCES dbo.Copy (CopyNo) ON DELETE CASCADE ON UPDATE NO ACTION, ReaderId int DEFAULT 0, CONSTRAINT UQ_Loan UNIQUE NONCLUSTERED (CopyNo), CHECK (ReaderId > 0))
 
 CREATE TABLE #Loan (CopyNo int, INDEX IX_Loan (CopyNo))

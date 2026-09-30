@@ -53,6 +53,20 @@ public sealed class SqlScopeAliasSuggestionTests
     }
 
     /// <summary>
+    /// 沒寫別名的來源由名稱限定：只存在於指令碼裡的 CTE 與暫存資料表要列，資料庫的資料表名稱清單裡本來就有。
+    /// </summary>
+    [Theory]
+    [InlineData("WITH r AS (SELECT CopyNo FROM dbo.Copy) SELECT * FROM r JOIN dbo.Loan AS l ON |", "r,l")]
+    [InlineData("SELECT * FROM #Loan JOIN dbo.Copy AS c ON |", "#Loan,c")]
+    [InlineData("WITH r (CopyNo) AS (SELECT CopyNo FROM dbo.Copy UNION ALL SELECT l.CopyNo FROM r JOIN dbo.Loan AS l ON |", "r,l")]
+    [InlineData("SELECT * FROM dbo.Branch JOIN dbo.Copy AS c ON |", "c")]
+    [InlineData("SELECT * FROM Branch JOIN dbo.Copy AS c ON |", "c")]
+    public void 沒寫別名的指令碼來源以名稱列出(string sqlWithCaret, string expected)
+    {
+        Assert.Equal(expected.Split(','), Aliases(sqlWithCaret));
+    }
+
+    /// <summary>
     /// 相互關聯子查詢：自己那一層在前，外層的接在後面；同名時內層遮住外層。
     /// </summary>
     [Fact]

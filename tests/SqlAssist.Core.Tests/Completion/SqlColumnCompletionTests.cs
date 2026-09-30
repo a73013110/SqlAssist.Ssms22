@@ -311,6 +311,18 @@ public sealed class SqlColumnCompletionTests
     }
 
     /// <summary>
+    /// 遞迴 CTE 的第二段引用自己：主體還沒關上（游標就在裡面）時也認得那個名稱。
+    /// </summary>
+    [Theory]
+    [InlineData(";WITH c (Code, Name) AS (SELECT Id, Title FROM dbo.Copy UNION ALL SELECT l.CopyNo, x.Name FROM dbo.Loan l JOIN c x ON l.CopyNo = x.|")]
+    [InlineData(";WITH c (Code, Name) AS (SELECT Id, Title FROM dbo.Copy UNION ALL SELECT l.CopyNo, c.Name FROM dbo.Loan l JOIN c ON l.CopyNo = c.|")]
+    [InlineData(";WITH c (Code, Name) AS (SELECT Id, Title FROM dbo.Copy UNION ALL SELECT l.CopyNo, c.Name FROM dbo.Loan l JOIN c ON l.CopyNo = c.|) SELECT * FROM c")]
+    public void 還沒關上的遞迴CTE引用自己列得出欄位(string sqlWithCaret)
+    {
+        Assert.Equal(new[] { "Code", "Name" }, Columns(Analyze(sqlWithCaret)));
+    }
+
+    /// <summary>
     /// 別名後面寫出來的資料行清單同樣覆寫主體。
     /// </summary>
     /// <remarks>

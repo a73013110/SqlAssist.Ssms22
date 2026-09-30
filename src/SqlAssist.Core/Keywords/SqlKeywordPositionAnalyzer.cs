@@ -738,6 +738,14 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 return -1;
             }
 
+            // 寫完的 CASE … END 是一個運算元，與括號整組跳過同理：它的 END、ELSE 能開始一句，
+            // 停在那裡的話 SELECT CASE … END FROM t a 的 FROM 找不到 SELECT，a 就不算資料來源。
+            if (token.IsKeyword("END") && FindCaseStart(index) is var caseStart and >= 0)
+            {
+                index = caseStart;
+                continue;
+            }
+
             if (IsVerbCandidate(index) && !token.IsKeyword("WITH") && !NamesPermission(index))
             {
                 return index;

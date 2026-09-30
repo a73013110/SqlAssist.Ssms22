@@ -53,10 +53,14 @@ public static class SqlScopeAnalyzer
         };
 
     /// <summary>會在後面接資料來源的關鍵字。</summary>
+    /// <remarks>
+    /// MERGE 與 UPDATE 同理，後面直接是目標（<c>MERGE dbo.Loan t USING …</c>）；寫了 INTO 的由 INTO 收。
+    /// 聯結提示 <c>INNER MERGE JOIN</c> 後面是 JOIN，讀不出名稱，不會多收一個來源。
+    /// </remarks>
     private static readonly HashSet<string> SourceKeywords =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            "FROM", "JOIN", "APPLY", "INTO", "UPDATE", "USING"
+            "FROM", "JOIN", "APPLY", "INTO", "UPDATE", "MERGE", "USING"
         };
 
     /// <summary>
@@ -331,6 +335,7 @@ public static class SqlScopeAnalyzer
         var tokens = boundaries.Tokens;
         var references = new List<SqlTableReference>();
         var paired = SqlTokenNavigator.FindPairedParentheses(tokens, start, end);
+        var groupCloses = new HashSet<int>();
         var index = start;
         var depth = 0;
 
@@ -346,7 +351,7 @@ public static class SqlScopeAnalyzer
 
             if (paired[index - start])
             {
-                depth += token.IsPunctuation("(") ? 1 : -1;
+                depth += groupCloses.Contains(index) ? 0 : token.IsPunctuation("(") ? 1 : -1;
                 index++;
                 continue;
             }
@@ -373,6 +378,8 @@ public static class SqlScopeAnalyzer
 
             while (index < end)
             {
+                index = EnterJoinedTableGroups(tokens, index, end, groupCloses);
+
                 if (!TryParseTableReference(tokens, index, end, out var reference, out var next))
                 {
                     break;
@@ -396,6 +403,37 @@ public static class SqlScopeAnalyzer
 
         RemoveAliasReferences(references);
         return references;
+    }
+
+    /// <summary>
+    /// 跳過資料來源位置上括起一段聯結的左括號，把對應的右括號記進 <paramref name="groupCloses"/>。
+    /// </summary>
+    /// <remarks>
+    /// 資料來源位置上的括號只有兩種：開啟查詢的是衍生資料表（<see cref="SqlTokenNavigator.OpensQuery"/>），
+    /// 其餘是 <c>FROM (Lib_Reader a JOIN Loan b ON …)</c>、<c>USING ((SELECT …) AS s JOIN Copy ON …)</c>
+    /// 這種把聯結括起來的分組。分組沒有自己的範圍，裡面的來源與別名屬於這一層，所以不算深度；
+    /// 當成衍生資料表整段跳過的症狀是 <c>ON</c> 之後一個別名都不列，<c>a.</c> 也沒有欄位。
+    /// 還沒關上的分組一樣走進去：游標往往就在裡面。
+    /// </remarks>
+    private static int EnterJoinedTableGroups(
+        IReadOnlyList<SqlToken> tokens,
+        int index,
+        int end,
+        HashSet<int> groupCloses)
+    {
+        while (index < end && tokens[index].IsPunctuation("(") && !SqlTokenNavigator.OpensQuery(tokens, index))
+        {
+            var close = SqlTokenNavigator.FindClosingParenthesis(tokens, index, end);
+
+            if (close >= 0)
+            {
+                groupCloses.Add(close);
+            }
+
+            index++;
+        }
+
+        return index;
     }
 
     /// <summary>
@@ -664,6 +702,8 @@ public static class SqlScopeAnalyzer
     /// </remarks>
     private static void SkipTableSourceTail(IReadOnlyList<SqlToken> tokens, ref int index, int end)
     {
+        SkipTemporalClause(tokens, ref index, end);
+
         while (index < end &&
                (tokens[index].IsKeyword("WITH") ||
                    tokens[index].IsKeyword("TABLESAMPLE") ||
@@ -690,6 +730,64 @@ public static class SqlScopeAnalyzer
 
             index = close + 1;
         }
+    }
+
+    /// <summary>
+    /// 跳過時態表的 <c>FOR SYSTEM_TIME …</c>：<c>AS OF x</c>、<c>FROM x TO y</c>、<c>BETWEEN x AND y</c>、
+    /// <c>CONTAINED IN (x, y)</c>、<c>ALL</c>。
+    /// </summary>
+    /// <remarks>
+    /// 文法把它排在別名前面；跳不過的話 <c>FOR</c> 讀不成別名，<c>JOIN Loan FOR SYSTEM_TIME AS OF @d AS a</c>
+    /// 的 <c>a</c> 就不見了。寫到一半時停在讀得到的地方。
+    /// </remarks>
+    private static void SkipTemporalClause(IReadOnlyList<SqlToken> tokens, ref int index, int end)
+    {
+        if (index + 2 >= end || !tokens[index].IsKeyword("FOR") || !tokens[index + 1].IsKeyword("SYSTEM_TIME"))
+        {
+            return;
+        }
+
+        var cursor = index + 2;
+        var kind = tokens[cursor];
+        cursor++;
+
+        if (kind.IsKeyword("AS") && cursor < end && tokens[cursor].IsKeyword("OF"))
+        {
+            cursor = SkipOperand(tokens, cursor + 1, end);
+        }
+        else if ((kind.IsKeyword("FROM") || kind.IsKeyword("BETWEEN")) && (cursor = SkipOperand(tokens, cursor, end)) < end &&
+            (tokens[cursor].IsKeyword("TO") || tokens[cursor].IsKeyword("AND")))
+        {
+            cursor = SkipOperand(tokens, cursor + 1, end);
+        }
+        else if (kind.IsKeyword("CONTAINED") && cursor < end && tokens[cursor].IsKeyword("IN"))
+        {
+            cursor = SkipOperand(tokens, cursor + 1, end);
+        }
+        else if (!kind.IsKeyword("ALL"))
+        {
+            return;
+        }
+
+        index = cursor;
+    }
+
+    /// <summary>一個運算元：常值、變數、括號，或函式呼叫。</summary>
+    private static int SkipOperand(IReadOnlyList<SqlToken> tokens, int index, int end)
+    {
+        if (index >= end)
+        {
+            return index;
+        }
+
+        if (!tokens[index].IsPunctuation("("))
+        {
+            index++;
+        }
+
+        return index < end && tokens[index].IsPunctuation("(")
+            ? SqlTokenNavigator.SkipParenthesised(tokens, index, end)
+            : index;
     }
 
     /// <summary>讀出一對括號之間的資料行名稱。</summary>

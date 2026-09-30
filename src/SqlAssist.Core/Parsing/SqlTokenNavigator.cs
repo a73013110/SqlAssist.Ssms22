@@ -48,7 +48,10 @@ public static class SqlTokenNavigator
     /// <paramref name="open"/> 的左括號後面是不是一個查詢。
     /// </summary>
     /// <remarks>
-    /// 巢狀括號要看穿：<c>((SELECT …))</c> 的外層也是查詢的開頭。用迴圈而不是遞迴——
+    /// 巢狀括號要看穿：<c>((SELECT …))</c> 的外層也是查詢的開頭。但只在裡面那一組就是整個查詢時——
+    /// 關上之後接的是右括號或集合運算子；接別名或聯結的話（<c>((SELECT …) AS s JOIN Copy ON …)</c>），
+    /// 外層只是把一段聯結括起來，裡面的來源屬於外面那一層。當成查詢的症狀是 <c>ON</c> 之後
+    /// 一個別名都不列，範圍停在外層括號裡，而那裡沒有 FROM。用迴圈而不是遞迴——
     /// 一份全是左括號的文字不該讓分析器把堆疊用完。
     ///
     /// 與括號配對放在一起是因為兩者永遠一起用：範圍分析要它區分子查詢與
@@ -69,11 +72,35 @@ public static class SqlTokenNavigator
             next++;
         }
 
-        return next < tokens.Count
+        if (!(next < tokens.Count
             && tokens[next].Kind == SqlTokenKind.Identifier
             && !tokens[next].IsQuoted
-            && QueryKeywords.Contains(tokens[next].Value);
+            && QueryKeywords.Contains(tokens[next].Value)))
+        {
+            return false;
+        }
+
+        // 還沒關上的那一組當成查詢：游標就在裡面，後面接什麼還沒寫出來。
+        for (var inner = next - 1; inner > open; inner--)
+        {
+            var close = FindClosingParenthesis(tokens, inner, tokens.Count);
+
+            if (close >= 0 && close + 1 < tokens.Count && !ContinuesQuery(tokens[close + 1]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
+
+    /// <summary>接在一組查詢括號之後、仍屬於同一個查詢運算式的詞元。</summary>
+    private static bool ContinuesQuery(SqlToken token) =>
+        token.IsPunctuation(")") ||
+        token.IsKeyword("UNION") ||
+        token.IsKeyword("EXCEPT") ||
+        token.IsKeyword("INTERSECT") ||
+        token.IsKeyword("ORDER");
 
     /// <summary>
     /// 從一個限定名稱的<b>最後一個</b>詞元往回走到它的第一個詞元。

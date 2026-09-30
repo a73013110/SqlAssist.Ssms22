@@ -170,6 +170,86 @@ public sealed class SqlScopeAnalyzerTests
         Assert.False(table.IsDerived);
     }
 
+    /// <summary>
+    /// 括起一段聯結的括號不是衍生資料表：裡面的來源與別名屬於外面那一層。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT * FROM (Lib_Reader a JOIN Loan AS b ON |a.x = b.x)", "a,b")]
+    [InlineData("SELECT * FROM (Lib_Reader a JOIN Loan AS b ON |", "a,b")]
+    [InlineData("SELECT * FROM Branch r JOIN (Lib_Reader a JOIN Loan b ON |a.x = b.x) ON r.x = a.x", "r,a,b")]
+    [InlineData("SELECT * FROM ((Lib_Reader a JOIN Loan b ON a.x = b.x)) WHERE |", "a,b")]
+    [InlineData("MERGE Loan USING ((SELECT @a, @b) AS s (c1, c2) JOIN Copy ON |s.c1 = Copy.CopyNo) ON 1 = 1", "Loan,s,Copy")]
+    public void 括號聯結的來源屬於外層(string sqlWithCaret, string qualifiers)
+    {
+        var scope = Analyze(sqlWithCaret);
+
+        Assert.Equal(qualifiers.Split(','), scope.Tables.Select(table => table.Alias ?? table.ObjectName));
+    }
+
+    [Fact]
+    public void 括號聯結裡的衍生資料表仍讀得到資料行清單()
+    {
+        var scope = Analyze("MERGE Loan USING ((SELECT @a, @b) AS s (c1, c2) JOIN Copy ON s.| = Copy.CopyNo) ON 1 = 1");
+
+        Assert.True(scope.TryResolve("s", out var source));
+        Assert.True(source.IsDerived);
+        Assert.Equal(new[] { "c1", "c2" }, source.ColumnNames);
+    }
+
+    /// <summary>整個查詢包在兩層括號裡、或括號之後接集合運算子時，外層仍是衍生資料表。</summary>
+    [Theory]
+    [InlineData("SELECT | FROM ((SELECT 1 AS X)) d")]
+    [InlineData("SELECT | FROM ((SELECT 1 AS X) UNION (SELECT 2)) d")]
+    public void 包住整個查詢的括號仍是衍生資料表(string sqlWithCaret)
+    {
+        var table = Assert.Single(Analyze(sqlWithCaret).Tables);
+
+        Assert.True(table.IsDerived);
+        Assert.Equal("d", table.Alias);
+    }
+
+    /// <summary>MERGE 的目標不寫 INTO 時一樣是資料來源，別名解析得到。</summary>
+    [Theory]
+    [InlineData("MERGE dbo.Loan t USING dbo.Copy s ON |")]
+    [InlineData("MERGE dbo.Loan AS t USING dbo.Copy AS s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN UPDATE SET CopyNo = t.|")]
+    public void MERGE不寫INTO的目標也是資料來源(string sqlWithCaret)
+    {
+        var scope = Analyze(sqlWithCaret);
+
+        Assert.Equal(2, scope.Tables.Count);
+        Assert.True(scope.TryResolve("t", out var target));
+        Assert.Equal("Loan", target.ObjectName);
+    }
+
+    /// <summary>寫完的 CASE … END 是運算元：FROM 仍屬於 SELECT，後面的別名照收。</summary>
+    [Theory]
+    [InlineData("SELECT CASE WHEN 1 = 1 THEN 1 ELSE 2 END FROM dbo.Loan a LEFT JOIN dbo.Copy b ON |")]
+    [InlineData("SELECT CASE CopyNo WHEN 1 THEN 'x' END AS c FROM dbo.Loan a LEFT JOIN dbo.Copy b ON |")]
+    public void CASE之後的FROM仍收資料來源(string sqlWithCaret)
+    {
+        Assert.Equal(new[] { "a", "b" }, Analyze(sqlWithCaret).Tables.Select(table => table.Alias));
+    }
+
+    /// <summary>時態表的 FOR SYSTEM_TIME 排在別名前面，跳過之後別名照讀。</summary>
+    [Theory]
+    [InlineData("SELECT | FROM dbo.Loan FOR SYSTEM_TIME AS OF @d AS a JOIN dbo.Copy b ON a.CopyNo = b.CopyNo")]
+    [InlineData("SELECT | FROM dbo.Loan FOR SYSTEM_TIME FROM '2020-01-01' TO SYSDATETIME() a JOIN dbo.Copy b ON a.CopyNo = b.CopyNo")]
+    [InlineData("SELECT | FROM dbo.Loan FOR SYSTEM_TIME BETWEEN @s AND @e a JOIN dbo.Copy b ON a.CopyNo = b.CopyNo")]
+    [InlineData("SELECT | FROM dbo.Loan FOR SYSTEM_TIME CONTAINED IN (@s, @e) a JOIN dbo.Copy b ON a.CopyNo = b.CopyNo")]
+    [InlineData("SELECT | FROM dbo.Loan FOR SYSTEM_TIME ALL a JOIN dbo.Copy b ON a.CopyNo = b.CopyNo")]
+    public void 時態子句之後讀得到別名(string sqlWithCaret)
+    {
+        Assert.Equal(new[] { "a", "b" }, Analyze(sqlWithCaret).Tables.Select(table => table.Alias));
+    }
+
+    [Fact]
+    public void 聯結提示的MERGE不收成來源()
+    {
+        var scope = Analyze("SELECT | FROM dbo.Loan l INNER MERGE JOIN dbo.Copy c ON l.CopyNo = c.CopyNo");
+
+        Assert.Equal(new[] { "Loan", "Copy" }, scope.Tables.Select(table => table.ObjectName));
+    }
+
     [Fact]
     public void 衍生資料表標記為無中繼資料但保留別名()
     {

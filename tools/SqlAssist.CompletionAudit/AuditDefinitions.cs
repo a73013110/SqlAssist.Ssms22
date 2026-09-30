@@ -35,7 +35,8 @@ public sealed class AuditDefinitions
     private readonly List<(int Start, int End)> _statements = new();
     private readonly List<(int Start, int End)> _orderBys = new();
     private readonly Dictionary<int, int> _fromStarts = new();
-    private readonly Dictionary<int, string> _aliasSources = new();
+    private readonly Dictionary<int, (string Name, string? Database)> _aliasSources = new();
+    private readonly HashSet<int> _tableNames = new();
     private int _batchEnd;
 
     private AuditDefinitions()
@@ -111,14 +112,25 @@ public sealed class AuditDefinitions
         definitions.Any(definition => definition.DefinedAt > start && definition.From <= start && start < definition.To);
 
     /// <summary>
-    /// 別名 <paramref name="alias"/> 在 <paramref name="start"/> 指的資料表名稱（最後一段）；
+    /// 別名 <paramref name="alias"/> 在 <paramref name="start"/> 指的資料表名稱（最後一段）與寫出來的資料庫；
     /// 不是資料表的別名（衍生資料表、函式、資料表變數）或不在範圍內時是 null。
     /// </summary>
-    public string? SourceOf(string alias, int start) =>
+    /// <remarks>
+    /// 資料庫也要帶出來：名稱索引只比名字，<c>Other.dbo.Loan</c> 在連線的伺服器上沒有那個資料庫時，
+    /// 碰巧同名的 Loan 會讓欄位看起來列得出來。
+    /// </remarks>
+    public (string Name, string? Database)? SourceOf(string alias, int start) =>
         Nearest(alias, start, qualified: false) is { } definition &&
         _aliasSources.TryGetValue(definition.DefinedAt, out var source)
             ? source
             : null;
+
+    /// <summary>
+    /// <paramref name="qualifier"/> 在 <paramref name="start"/> 指的是 CTE 的名稱：當限定字要這個查詢的 FROM 寫出它，
+    /// 與別名不同——別名取在哪一層就在哪一層看得到，CTE 名稱在整句裡都「取過」。
+    /// </summary>
+    public bool NamesTable(string qualifier, int start) =>
+        Nearest(qualifier, start, qualified: false) is { } definition && _tableNames.Contains(definition.DefinedAt);
 
     /// <summary>
     /// <paramref name="start"/> 在一個查詢的選取清單裡，而那個查詢的 FROM 寫在它後面：截斷之後
@@ -184,9 +196,9 @@ public sealed class AuditDefinitions
     /// <summary>別名指的是資料庫裡的資料表時記下名稱：資料表查不到，別名之後的欄位就無從判斷。</summary>
     private void AddSource(Identifier? alias, TableReference? source)
     {
-        if (alias is { StartOffset: >= 0 } && source is NamedTableReference { SchemaObject.BaseIdentifier.Value: { } name })
+        if (alias is { StartOffset: >= 0 } && source is NamedTableReference { SchemaObject: { BaseIdentifier.Value: { } name } path })
         {
-            _aliasSources[alias.StartOffset] = name;
+            _aliasSources[alias.StartOffset] = (name, path.DatabaseIdentifier?.Value);
         }
     }
 
@@ -312,11 +324,24 @@ public sealed class AuditDefinitions
 
         public override void Visit(TableReferenceWithAliasAndColumns node) => _owner.Add(node.Columns, Scope.Query, qualifiable: true);
 
+        /// <summary>MERGE 目標的別名不在 TableReferenceWithAlias 上，引用得到整句（ON、動作子句、OUTPUT）。</summary>
+        public override void Visit(MergeSpecification node)
+        {
+            _owner.Add(node.TableAlias, Scope.Statement);
+            _owner.AddSource(node.TableAlias, node.Target);
+        }
+
         public override void Visit(SelectScalarExpression node) => _owner.Add(node.ColumnName?.Identifier, Scope.OrderBy);
 
         public override void Visit(CommonTableExpression node)
         {
             _owner.Add(node.ExpressionName, Scope.Statement);
+
+            if (node.ExpressionName is { StartOffset: >= 0 } name)
+            {
+                _owner._tableNames.Add(name.StartOffset);
+            }
+
             _owner.Add(node.Columns, Scope.Statement, qualifiable: true);
         }
 

@@ -15,16 +15,24 @@ namespace SqlAssist.Core.Completion;
 /// <c>MERGE … USING … AS source ON s</c> 列不出 <c>source</c>。
 ///
 /// 範圍與別名解析是同一份 <see cref="SqlStatementScope"/>：列得出來的別名一定解析得回來源，
-/// 相互關聯子查詢裡的外層別名也一樣。只列寫出來的別名，沒有別名的來源由資料表名稱
-/// 限定，那個名稱清單裡本來就有。
+/// 相互關聯子查詢裡的外層別名也一樣。
+///
+/// 列的是每個來源的<b>限定字</b>：寫了別名就是別名；沒寫別名的由名稱限定，資料庫的資料表
+/// 名稱清單裡本來就有，只存在於指令碼裡的 CTE 與暫存資料表沒有——症狀是
+/// <c>FROM cte JOIN dbo.Loan AS l ON |</c> 只列得出 <c>l</c>。
 /// </remarks>
 public static class SqlScopeAliasSuggestions
 {
-    public static IReadOnlyList<SqlSuggestion> Create(SqlStatementScope scope)
+    public static IReadOnlyList<SqlSuggestion> Create(SqlStatementScope scope, SqlColumnSourceResolver resolver)
     {
         if (scope is null)
         {
             throw new ArgumentNullException(nameof(scope));
+        }
+
+        if (resolver is null)
+        {
+            throw new ArgumentNullException(nameof(resolver));
         }
 
         List<SqlSuggestion>? suggestions = null;
@@ -35,29 +43,47 @@ public static class SqlScopeAliasSuggestions
         {
             foreach (var table in level.Tables)
             {
-                if (string.IsNullOrEmpty(table.Alias) ||
-                    !(seen ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase)).Add(table.Alias!))
+                var qualifier = string.IsNullOrEmpty(table.Alias)
+                    ? IsScriptOnly(table, resolver) ? table.ObjectName : null
+                    : table.Alias;
+
+                if (qualifier is null ||
+                    !(seen ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase)).Add(qualifier))
                 {
                     continue;
                 }
 
-                (suggestions ??= new List<SqlSuggestion>()).Add(Create(table.Alias!, table));
+                (suggestions ??= new List<SqlSuggestion>()).Add(Create(qualifier, table));
             }
         }
 
         return (IReadOnlyList<SqlSuggestion>?)suggestions ?? Array.Empty<SqlSuggestion>();
     }
 
+    /// <summary>沒有別名、名稱只寫在指令碼裡的來源：CTE 與暫存資料表。</summary>
+    /// <remarks>資料表變數不算：<c>@t.</c> 不是合法的限定字，那一格寫的是 <c>[@t]</c>，見變數建議。</remarks>
+    private static bool IsScriptOnly(SqlTableReference table, SqlColumnSourceResolver resolver) =>
+        !table.IsDerived &&
+        table.SchemaName is null &&
+        table.DatabaseName is null &&
+        table.ServerName is null &&
+        !string.IsNullOrEmpty(table.ObjectName) &&
+        (table.ObjectName.StartsWith("#", StringComparison.Ordinal) ||
+            resolver.FindCommonTableExpression(table.ObjectName) is not null);
+
     private static SqlSuggestion Create(string alias, SqlTableReference table)
     {
         var source = table.Path?.ToString() ?? table.ObjectName;
-        var kind = SqlKindText.Alias;
+        var named = string.IsNullOrEmpty(table.Alias);
+        var kind = !named
+            ? SqlKindText.Alias
+            : alias.StartsWith("#", StringComparison.Ordinal) ? SqlKindText.TemporaryTable : SqlKindText.CommonTableExpression;
 
         return new SqlSuggestion(
             alias,
             SqlIdentifier.QuoteIfNeeded(alias),
             kind,
-            string.IsNullOrEmpty(source)
+            named || string.IsNullOrEmpty(source)
                 ? ScriptSuggestionText.NameWithDescription(alias, kind)
                 : ScriptSuggestionText.AliasOf(alias, source),
             SuggestionKind.Alias,

@@ -36,6 +36,38 @@ public sealed class AuditDefinitionsTests
     }
 
     [Fact]
+    public void MERGE目標的別名在整句裡引用得到()
+    {
+        const string sql = "MERGE dbo.Loan t USING dbo.Copy s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN UPDATE SET CopyNo = t.CopyNo;";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.True(definitions.IsDefinition(At(sql, "t ", 1)));
+        Assert.True(definitions.IsDefinedBefore("t", At(sql, "t.", 1)));
+        Assert.True(definitions.IsDefinedBefore("t", At(sql, "t.", 2)));
+    }
+
+    [Fact]
+    public void CTE名稱當限定字時要這個查詢的FROM_別名不必()
+    {
+        const string sql = "WITH c (a) AS (SELECT 1 UNION ALL SELECT c.a + 1 FROM c WHERE c.a < 5) SELECT r.a FROM c r";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.True(definitions.NamesTable("c", At(sql, "c.a", 1)));
+        Assert.True(definitions.NeedsLaterFrom(At(sql, "c.a", 1)));
+        Assert.False(definitions.NamesTable("r", At(sql, "r.a", 1)));
+    }
+
+    [Theory]
+    [InlineData("SELECT 1 FROM LibArchive.dbo.Loan l WHERE l.CopyNo = 1", "LibArchive")]
+    [InlineData("SELECT 1 FROM dbo.Loan l WHERE l.CopyNo = 1", null)]
+    public void 別名的來源連寫出來的資料庫一起帶出(string sql, string? database)
+    {
+        var source = AuditDefinitions.Collect(sql).SourceOf("l", At(sql, "l.", 1));
+
+        Assert.Equal(("Loan", database), source);
+    }
+
+    [Fact]
     public void 資料行定義不讓同名的欄位引用變成指令碼名稱()
     {
         const string sql = "CREATE TABLE Loan (CopyNo int REFERENCES Copy (CopyNo))";

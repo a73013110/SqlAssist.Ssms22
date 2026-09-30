@@ -975,11 +975,14 @@ public sealed class SqlColumnSourceResolver
                     break;
                 }
 
+                // 還沒關上的主體到文字結尾為止：游標就在裡面，遞迴 CTE 的第二段引用的正是它自己，
+                // 丟掉的話 UNION ALL 之後 JOIN 自己的那個名稱一個欄位都列不出來，ON 之後也不列它。
                 var bodyEnd = SqlTokenNavigator.FindClosingParenthesis(tokens, cursor + 1, tokens.Count);
+                var closed = bodyEnd >= 0;
 
-                if (bodyEnd < 0)
+                if (!closed)
                 {
-                    break;
+                    bodyEnd = tokens.Count;
                 }
 
                 result ??= new Dictionary<string, SqlCommonTableExpression>(StringComparer.OrdinalIgnoreCase);
@@ -995,7 +998,13 @@ public sealed class SqlColumnSourceResolver
                             cursor + 2,
                             bodyEnd,
                             name.Start,
-                            tokens[bodyEnd].End));
+                            tokens[closed ? bodyEnd : tokens.Count - 1].End));
+                }
+
+                if (!closed)
+                {
+                    cursor = tokens.Count;
+                    break;
                 }
 
                 cursor = bodyEnd + 1;

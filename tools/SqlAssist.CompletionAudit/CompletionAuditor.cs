@@ -484,19 +484,29 @@ public sealed class CompletionAuditor
                     return shape.Excluded(_shapes[position - 2].Exclusion!.Value);
                 }
 
+                // 限定字是 CTE 名稱時要這個查詢的 FROM 寫出它；遞迴 CTE 第二段的選取清單寫在 FROM 之前，
+                // 截斷處還沒有來源，與之後才取的別名同一個盲點。
+                if (_definitions.NamesTable(qualifier.Text, qualifier.Start) && _definitions.NeedsLaterFrom(qualifier.Start))
+                {
+                    return shape.Excluded(AuditExclusion.Truncated);
+                }
+
                 return _shapes[position - 2].Class == AuditTokenClass.ScriptName &&
                     _definitions.SourceOf(qualifier.Text, qualifier.Start) is { } source &&
-                    _index.Find(source) is null &&
-                    !_definitions.IsDefinedBefore(source, qualifier.Start)
+                    (_index.Find(source.Name) is null && !_definitions.IsDefinedBefore(source.Name, qualifier.Start) ||
+                        source.Database is { Length: > 0 } database && _index.Find(database) != AuditTokenClass.Database)
                         ? shape.Excluded(AuditExclusion.Unresolved)
                         : shape;
             }
 
-            // 物件、變數與 CTE 名稱不靠 FROM 就列得出來；要 FROM 的只有欄位。
+            // 物件、變數與 CTE 名稱不靠 FROM 就列得出來；要 FROM 的只有欄位，以及當限定字的 CTE 名稱。
             var column = tokenClass == AuditTokenClass.Column ||
                 tokenClass == AuditTokenClass.ScriptName && _definitions.IsColumnDefinedBefore(token.Text, token.Start);
+            var qualifiesTable = position + 1 < Tokens.Count &&
+                Tokens[position + 1].IsPunctuation(".") &&
+                _definitions.NamesTable(token.Text, token.Start);
 
-            return column && token.Kind == SqlTokenKind.Identifier && _definitions.NeedsLaterFrom(token.Start)
+            return (column || qualifiesTable) && token.Kind == SqlTokenKind.Identifier && _definitions.NeedsLaterFrom(token.Start)
                 ? shape.Excluded(AuditExclusion.Truncated)
                 : shape;
         }
