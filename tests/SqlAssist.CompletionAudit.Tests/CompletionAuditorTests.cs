@@ -45,10 +45,79 @@ public sealed class CompletionAuditorTests
     {
         var catalog = new FakeCatalog(("ReaderId", AuditTokenClass.Column), ("Lib_Reader", AuditTokenClass.Object));
 
-        var result = await AuditAsync("SELECT r.ReaderId FROM Lib_Reader r", catalog);
+        var result = await AuditAsync("SELECT * FROM Lib_Reader r WHERE r.ReaderId = 1", catalog);
 
         Assert.Contains(result.Misses, miss => miss.TokenClass == AuditTokenClass.Column && miss.Word == "ReaderId");
         Assert.Contains(result.Misses, miss => miss.TokenClass == AuditTokenClass.Object && miss.Word == "Lib_Reader");
+    }
+
+    [Fact]
+    public async Task 別名指的資料表查不到_同名欄位不算漏()
+    {
+        var catalog = new FakeCatalog(("ReaderId", AuditTokenClass.Column));
+
+        var result = await AuditAsync("SELECT * FROM Lib_Tag r WHERE r.ReaderId = 1", catalog);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == "ReaderId");
+        Assert.True(result.Tally.Excluded[AuditExclusion.Unresolved] >= 2);
+    }
+
+    [Fact]
+    public async Task 限定字查不到存在_點號之後不稽核()
+    {
+        var catalog = new FakeCatalog(("ReaderId", AuditTokenClass.Column));
+
+        var result = await AuditAsync("SELECT * FROM Lib_Reader WHERE Lib_Tag.ReaderId = 1", catalog);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == "ReaderId");
+    }
+
+    [Theory]
+    [InlineData("SELECT ReaderId, PUBL_CODE FROM Lib_Reader", 2)]
+    [InlineData("SELECT r.ReaderId FROM Lib_Reader r", 2)]
+    [InlineData("WITH c (ReaderId) AS (SELECT 1) SELECT ReaderId FROM c", 1)]
+    public async Task 資料來源寫在游標之後_歸截斷盲點(string sql, int truncated)
+    {
+        var catalog = new FakeCatalog(
+            ("ReaderId", AuditTokenClass.Column),
+            ("PUBL_CODE", AuditTokenClass.Column),
+            ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync(sql, catalog);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.TokenClass is AuditTokenClass.Column or AuditTokenClass.ScriptName);
+        Assert.Equal(truncated, result.Tally.Excluded[AuditExclusion.Truncated]);
+    }
+
+    [Fact]
+    public async Task FROM_之後的欄位照常稽核()
+    {
+        var catalog = new FakeCatalog(("ReaderId", AuditTokenClass.Column), ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync("SELECT 1 FROM Lib_Reader WHERE ReaderId = 1", catalog);
+
+        Assert.Contains(result.Misses, miss => miss.TokenClass == AuditTokenClass.Column && miss.Word == "ReaderId");
+        Assert.False(result.Tally.Excluded.ContainsKey(AuditExclusion.Truncated));
+    }
+
+    [Theory]
+    [InlineData("CREATE LOGIN <login_name> WITH PASSWORD = 'x', CREDENTIAL = c\nSELECT 1")]
+    [InlineData("CREATE PROCEDURE <Procedure_Name, sysname, p> AS\nSELECT 1")]
+    public async Task 佔位符起到那一句結束不稽核(string sql)
+    {
+        var result = await AuditAsync(sql, AuditCatalog.None);
+
+        Assert.Equal("SELECT", result.Misses.Last().Word);
+        Assert.DoesNotContain(result.Misses, miss => miss.Word is "WITH" or "PASSWORD" or "CREDENTIAL" or "AS");
+        Assert.True(result.Tally.Excluded[AuditExclusion.Placeholder] > 0);
+    }
+
+    [Fact]
+    public async Task 比較運算不是佔位符()
+    {
+        var result = await AuditAsync("SELECT 1 WHERE @a <@b AND @c> 1", AuditCatalog.None);
+
+        Assert.False(result.Tally.Excluded.ContainsKey(AuditExclusion.Placeholder));
     }
 
     [Fact]

@@ -34,6 +34,8 @@ public sealed class AuditDefinitions
     private readonly List<(int Start, int End)> _queries = new();
     private readonly List<(int Start, int End)> _statements = new();
     private readonly List<(int Start, int End)> _orderBys = new();
+    private readonly Dictionary<int, int> _fromStarts = new();
+    private readonly Dictionary<int, string> _aliasSources = new();
     private int _batchEnd;
 
     private AuditDefinitions()
@@ -95,12 +97,63 @@ public sealed class AuditDefinitions
     /// <summary><paramref name="name"/> 在 <paramref name="start"/> 之前取過，而且這裡還在它的範圍內。</summary>
     /// <param name="qualified">這個名稱接在點號之後。</param>
     public bool IsDefinedBefore(string name, int start, bool qualified = false) =>
+        Nearest(name, start, qualified) is not null;
+
+    /// <summary><paramref name="name"/> 是之前取過的資料行名稱（CTE 或衍生資料表的資料行清單）。</summary>
+    public bool IsColumnDefinedBefore(string name, int start) => Nearest(name, start, qualified: true) is not null;
+
+    /// <summary>
+    /// <paramref name="name"/> 在同一個範圍裡、<paramref name="start"/> 之後才取：截斷的地方還沒寫到，
+    /// 產品與 SSMS 都不可能認得（<c>SELECT r.ReaderId FROM Lib_Reader r</c> 的 r）。
+    /// </summary>
+    public bool IsDefinedLater(string name, int start) =>
         _scoped.TryGetValue(AuditText.Normalize(name), out var definitions) &&
-        definitions.Any(definition =>
-            definition.DefinedAt < start &&
-            definition.From <= start &&
-            start < definition.To &&
-            (!qualified || definition.Qualifiable));
+        definitions.Any(definition => definition.DefinedAt > start && definition.From <= start && start < definition.To);
+
+    /// <summary>
+    /// 別名 <paramref name="alias"/> 在 <paramref name="start"/> 指的資料表名稱（最後一段）；
+    /// 不是資料表的別名（衍生資料表、函式、資料表變數）或不在範圍內時是 null。
+    /// </summary>
+    public string? SourceOf(string alias, int start) =>
+        Nearest(alias, start, qualified: false) is { } definition &&
+        _aliasSources.TryGetValue(definition.DefinedAt, out var source)
+            ? source
+            : null;
+
+    /// <summary>
+    /// <paramref name="start"/> 在一個查詢的選取清單裡，而那個查詢的 FROM 寫在它後面：截斷之後
+    /// 資料來源還沒出現，欄位誰都列不出來。
+    /// </summary>
+    public bool NeedsLaterFrom(int start)
+    {
+        (int Start, int End)? query = InnermostRange(_queries, start);
+        return query is { } range && _fromStarts.TryGetValue(range.Start, out var from) && start < from;
+    }
+
+    /// <summary>範圍內、<paramref name="start"/> 之前最近的那一次取名。</summary>
+    private Visibility? Nearest(string name, int start, bool qualified)
+    {
+        if (!_scoped.TryGetValue(AuditText.Normalize(name), out var definitions))
+        {
+            return null;
+        }
+
+        Visibility? nearest = null;
+
+        foreach (var definition in definitions)
+        {
+            if (definition.DefinedAt < start &&
+                definition.From <= start &&
+                start < definition.To &&
+                (!qualified || definition.Qualifiable) &&
+                (nearest is null || definition.DefinedAt > nearest.Value.DefinedAt))
+            {
+                nearest = definition;
+            }
+        }
+
+        return nearest;
+    }
 
     public static AuditDefinitions Collect(string batch)
     {
@@ -125,6 +178,15 @@ public sealed class AuditDefinitions
         if (scope != Scope.None)
         {
             _pending.Add((name, scope, qualifiable));
+        }
+    }
+
+    /// <summary>別名指的是資料庫裡的資料表時記下名稱：資料表查不到，別名之後的欄位就無從判斷。</summary>
+    private void AddSource(Identifier? alias, TableReference? source)
+    {
+        if (alias is { StartOffset: >= 0 } && source is NamedTableReference { SchemaObject.BaseIdentifier.Value: { } name })
+        {
+            _aliasSources[alias.StartOffset] = name;
         }
     }
 
@@ -163,7 +225,7 @@ public sealed class AuditDefinitions
 
             if (scope == Scope.OrderBy)
             {
-                var statementEnd = Innermost(_statements, start) ?? _batchEnd;
+                var statementEnd = InnermostRange(_statements, start)?.End ?? _batchEnd;
 
                 foreach (var (from, to) in _orderBys.Where(range => range.Start > start && range.End <= statementEnd))
                 {
@@ -173,32 +235,32 @@ public sealed class AuditDefinitions
                 continue;
             }
 
-            var end = scope switch
+            var (scopeStart, end) = scope switch
             {
-                Scope.Query => Innermost(_queries, start) ?? Innermost(_statements, start) ?? _batchEnd,
-                Scope.Statement => Innermost(_statements, start) ?? _batchEnd,
-                _ => _batchEnd,
+                Scope.Query => InnermostRange(_queries, start) ?? InnermostRange(_statements, start) ?? (0, _batchEnd),
+                Scope.Statement => InnermostRange(_statements, start) ?? (0, _batchEnd),
+                _ => (0, _batchEnd),
             };
 
-            list.Add(new Visibility(start, 0, end, qualifiable));
+            list.Add(new Visibility(start, scopeStart, end, qualifiable));
         }
     }
 
-    private static int? Innermost(List<(int Start, int End)> ranges, int offset)
+    private static (int Start, int End)? InnermostRange(List<(int Start, int End)> ranges, int offset)
     {
-        int? end = null;
+        (int Start, int End)? innermost = null;
         var length = int.MaxValue;
 
         foreach (var (start, stop) in ranges)
         {
             if (start <= offset && offset < stop && stop - start < length)
             {
-                end = stop;
+                innermost = (start, stop);
                 length = stop - start;
             }
         }
 
-        return end;
+        return innermost;
     }
 
     private sealed class Collector : TSqlFragmentVisitor
@@ -210,8 +272,15 @@ public sealed class AuditDefinitions
             _owner = owner;
         }
 
-        public override void Visit(QuerySpecification node) =>
+        public override void Visit(QuerySpecification node)
+        {
             _owner._queries.Add((node.StartOffset, node.StartOffset + node.FragmentLength));
+
+            if (node.FromClause is { StartOffset: >= 0 } from)
+            {
+                _owner._fromStarts[node.StartOffset] = from.StartOffset;
+            }
+        }
 
         public override void Visit(OrderByClause node) =>
             _owner._orderBys.Add((node.StartOffset, node.StartOffset + node.FragmentLength));
@@ -235,7 +304,11 @@ public sealed class AuditDefinitions
             }
         }
 
-        public override void Visit(TableReferenceWithAlias node) => _owner.Add(node.Alias, Scope.Query);
+        public override void Visit(TableReferenceWithAlias node)
+        {
+            _owner.Add(node.Alias, Scope.Query);
+            _owner.AddSource(node.Alias, node);
+        }
 
         public override void Visit(TableReferenceWithAliasAndColumns node) => _owner.Add(node.Columns, Scope.Query, qualifiable: true);
 

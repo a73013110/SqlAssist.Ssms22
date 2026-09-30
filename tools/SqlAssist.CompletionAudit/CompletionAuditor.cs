@@ -193,6 +193,7 @@ public sealed class CompletionAuditor
         private readonly IReadOnlyList<int> _heads;
         private readonly Dictionary<int, Probe> _probes = new();
         private readonly Shape[] _shapes;
+        private readonly bool[] _placeholders;
 
         private Batch(
             CompletionAuditor owner,
@@ -213,10 +214,11 @@ public sealed class CompletionAuditor
             _definitions = AuditDefinitions.Collect(text);
             _heads = SqlStatementHeads.Find(text, tokens);
             _shapes = new Shape[tokens.Count];
+            _placeholders = FindPlaceholders();
 
             for (var position = 0; position < tokens.Count; position++)
             {
-                _shapes[position] = Classify(position);
+                _shapes[position] = Exclude(position, Classify(position));
             }
         }
 
@@ -446,7 +448,134 @@ public sealed class CompletionAuditor
                 return Name(known);
             }
 
-            return new Shape("‹name›", exclusion: AuditExclusion.Unresolved, masked: true);
+            var exclusion = _definitions.IsDefinedLater(token.Text, token.Start) ? AuditExclusion.Truncated : AuditExclusion.Unresolved;
+            return new Shape("‹name›", exclusion: exclusion, masked: true);
+        }
+
+        /// <summary>
+        /// 名稱存在還不夠：點號之後要限定字（或別名指的資料表）也認得出來，選取清單裡要資料來源已經寫出來。
+        /// 形狀照舊，只加排除：簽章與範例要跟沒排除時一樣，後面的詞才留在原來那一群。
+        /// </summary>
+        private Shape Exclude(int position, Shape shape)
+        {
+            if (shape.Class is not { } tokenClass)
+            {
+                return shape;
+            }
+
+            if (_placeholders[position])
+            {
+                return shape.Excluded(AuditExclusion.Placeholder);
+            }
+
+            if (tokenClass is AuditTokenClass.Word or AuditTokenClass.GlobalVariable)
+            {
+                return shape;
+            }
+
+            var token = Tokens[position];
+
+            if (position >= 2 && Tokens[position - 1].IsPunctuation("."))
+            {
+                var qualifier = Tokens[position - 2];
+
+                if (_shapes[position - 2].Exclusion is AuditExclusion.Unresolved or AuditExclusion.Truncated)
+                {
+                    return shape.Excluded(_shapes[position - 2].Exclusion!.Value);
+                }
+
+                return _shapes[position - 2].Class == AuditTokenClass.ScriptName &&
+                    _definitions.SourceOf(qualifier.Text, qualifier.Start) is { } source &&
+                    _index.Find(source) is null &&
+                    !_definitions.IsDefinedBefore(source, qualifier.Start)
+                        ? shape.Excluded(AuditExclusion.Unresolved)
+                        : shape;
+            }
+
+            // 物件、變數與 CTE 名稱不靠 FROM 就列得出來；要 FROM 的只有欄位。
+            var column = tokenClass == AuditTokenClass.Column ||
+                tokenClass == AuditTokenClass.ScriptName && _definitions.IsColumnDefinedBefore(token.Text, token.Start);
+
+            return column && token.Kind == SqlTokenKind.Identifier && _definitions.NeedsLaterFrom(token.Start)
+                ? shape.Excluded(AuditExclusion.Truncated)
+                : shape;
+        }
+
+        /// <summary>佔位符起到那一句結束的詞元。</summary>
+        private bool[] FindPlaceholders()
+        {
+            var marked = new bool[Tokens.Count];
+
+            for (var position = 0; position < Tokens.Count; position++)
+            {
+                if (!IsPlaceholder(position))
+                {
+                    continue;
+                }
+
+                var next = _heads.Where(head => head > position).DefaultIfEmpty(Tokens.Count).First();
+
+                for (; position < next; position++)
+                {
+                    marked[position] = true;
+                }
+
+                position--;
+            }
+
+            return marked;
+        }
+
+        /// <summary>
+        /// 範例的佔位符：緊貼的 <c>&lt;</c>、名稱、<c>&gt;</c>，只有一個名稱（<c>&lt;login_name&gt;</c>）或帶逗號
+        /// （範本的 <c>&lt;Author,,Name&gt;</c>），不跨行。比較運算長不成這樣：<c>a &lt;b AND c&gt; d</c>
+        /// 中間不只一個名稱，也沒有逗號。
+        /// </summary>
+        private bool IsPlaceholder(int position)
+        {
+            var open = Tokens[position];
+
+            if (open.Kind != SqlTokenKind.Operator ||
+                open.Text != "<" ||
+                position + 1 >= Tokens.Count ||
+                Tokens[position + 1].Kind != SqlTokenKind.Identifier ||
+                Tokens[position + 1].Start != open.End)
+            {
+                return false;
+            }
+
+            var names = 0;
+            var commas = 0;
+
+            for (var index = position + 1; index < Tokens.Count; index++)
+            {
+                var token = Tokens[index];
+
+                if (_text.IndexOf('\n', open.End, token.End - open.End) >= 0)
+                {
+                    return false;
+                }
+
+                if (token.Kind == SqlTokenKind.Operator && token.Text == ">")
+                {
+                    return token.Start == Tokens[index - 1].End && (commas > 0 || names == 1);
+                }
+
+                if (token.IsPunctuation(","))
+                {
+                    commas++;
+                }
+                else if (token.Kind == SqlTokenKind.Identifier)
+                {
+                    names++;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            return false;
         }
 
         private static Shape Name(AuditTokenClass tokenClass) =>
@@ -596,5 +725,8 @@ public sealed class CompletionAuditor
         public bool Masked { get; }
 
         public AuditTokenClass? MaskClass { get; }
+
+        /// <summary>同一個樣子、不稽核。</summary>
+        public Shape Excluded(AuditExclusion exclusion) => new(Text, exclusion: exclusion, masked: Masked, maskClass: MaskClass);
     }
 }

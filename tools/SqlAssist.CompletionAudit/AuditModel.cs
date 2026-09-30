@@ -81,8 +81,23 @@ public enum AuditExclusion
     /// <summary>新取的名稱：別名定義、CREATE 目標、宣告。</summary>
     NewName,
 
-    /// <summary>名稱但查不到它存在（沒有連線、別的資料庫的物件、使用者打錯）。</summary>
+    /// <summary>
+    /// 名稱但查不到它存在（沒有連線、別的資料庫的物件、使用者打錯）；點號之後的名稱，限定字或別名指的資料表
+    /// 查不到也算——只看名字的話，別的資料庫的表碰巧有同名欄位就被當成漏。
+    /// </summary>
     Unresolved,
+
+    /// <summary>
+    /// 要靠游標之後才寫的部分才認得出來：選取清單寫在 FROM 之前，或限定字是之後才取的別名。
+    /// 截斷的地方還沒有資料來源，產品與 SSMS 都列不出來。
+    /// </summary>
+    Truncated,
+
+    /// <summary>
+    /// 範例的佔位符（<c>&lt;login_name&gt;</c>、範本的 <c>&lt;Author,,Name&gt;</c>）起到那一句結束：不是 T-SQL，
+    /// 產品把 <c>&lt;</c> 讀成比較運算子，之後的位置都不算數。
+    /// </summary>
+    Placeholder,
 }
 
 /// <summary>漏的樣子。</summary>
