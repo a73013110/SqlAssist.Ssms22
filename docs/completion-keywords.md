@@ -7,10 +7,10 @@
 
 T-SQL 關鍵字不是手寫的，由 `tools/Generate-Keywords.ps1` 反射
 SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCatalog.Generated.cs`。
-換 SSMS 版本重跑一次就更新。剖析結果快取在 `artifacts/cache/`，之後只剖析新出現的文字。
+換 SSMS 版本重跑就更新。剖析結果快取在 `artifacts/cache/`，只剖析新出現的文字。
 快取只存剖析器的回答（拒收落在
 哪一段、整段完不完整），解讀每次重算；ScriptDom 版本、拒收錯誤碼或探測器 `<cache-facts>`
-區段一變就整份作廢，懷疑不一致時加 `-NoCache` 重建。每個階段都自我驗證，不猜任何一個字：
+區段一變就整份作廢，懷疑不一致時加 `-NoCache` 重建。每個階段都自我驗證，不猜字：
 
 1. **取字面值**：`TSqlTokenType` 的成員名稱大寫後丟回 tokenizer，對得回原成員才採用；
    camelCase 的再試補底線的寫法（`CURRENT_TIMESTAMP`、`IDENTITY_INSERT`）。
@@ -26,7 +26,7 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
    之後往回找子句；是語句本身（`BREAK`）時是[語句界線](completion-boundaries.md#語句的界線)，
    那一句再也接不了別的字時之後才是語句開頭（`COMMIT` 還接 `TRAN`，照舊 `Any`）。
 
-手寫的只有每個位置的樣板，關鍵字的分類全部由剖析器決定。樣板必須是分析器判得出、
+手寫的只有每個位置的樣板，分類全部由剖析器決定。樣板必須是分析器判得出、
 而且回報含該位置的文字：樣板表隨產物輸出成 `SqlKeywordCatalogData.Templates`，
 由 Core 測試逐條回驗。只有產生器分得出的位置是自欺——型別寫完之後（`CREATE TABLE t (a int |`）因此沒有樣板，是 `Any`。
 
@@ -35,7 +35,7 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
 
 ### 召回稽核
 
-`SqlKeywordRecallTests` 在語料 `RecallCorpus.sql` 每個字的起點問清單，列不出就失敗。
+`SqlKeywordRecallTests` 以[召回稽核](completion-audit.md)的判定守 `RecallCorpus.sql` 零漏。
 沒有豁免名單：刻意不收的不進語料，理由寫在[那一格的文件](completion-phrases.md#刻意沒收的)。
 
 ### 依位置分層
@@ -64,7 +64,7 @@ TABLESAMPLE (10       → PERCENT、ROWS（TableSampleTail）
 PIVOT (SUM(x) FOR y   → IN（PivotClause）
 ```
 
-位置切在「游標前一個詞元」之後，那正是分析器認得的粒度——它分不出
+位置切在「游標前一個詞元」之後，那是分析器認得的粒度——它分不出
 `FROM t ` 的 `t` 是資料表還是聯結對象，目錄就不假裝分得出來。
 
 #### 判不出位置的字只在判不出位置時出現

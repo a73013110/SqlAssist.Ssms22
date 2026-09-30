@@ -76,8 +76,8 @@ SSMS 的安裝路徑、擴充的 Identity Id 與「已安裝的 SqlAssist 在哪
 .\tools\Build-Extension.ps1 -SsmsInstallDir 'D:\SSMS 22\Release'
 ```
 
-`Install-Extension.ps1`、`Uninstall-Extension.ps1`、`Deploy-DebugExtension.ps1` 與
-`Generate-Keywords.ps1` 收同一個參數。專案檔的 `SsmsInstallDir` 屬性另有一份預設值，
+`Install-Extension.ps1`、`Uninstall-Extension.ps1`、`Deploy-DebugExtension.ps1`、
+`Generate-Keywords.ps1` 與 `Audit-Completions.ps1` 收同一個參數。專案檔的 `SsmsInstallDir` 屬性另有一份預設值，
 因為 MSBuild 讀不到 PowerShell 模組；`Build-Extension.ps1` 一律把解析後的路徑
 以 `/p:SsmsInstallDir=` 傳進去，不靠專案檔那份。
 
@@ -91,6 +91,9 @@ SSMS 的安裝路徑、擴充的 Identity Id 與「已安裝的 SqlAssist 在哪
 | `Uninstall-Extension.ps1` | 解除安裝（保留使用者設定與紀錄） |
 | `Deploy-DebugExtension.ps1` | 部署 Debug 組件並**清除 MEF 快取**，供 F5 偵錯 |
 | `Show-Diagnostics.ps1` | 顯示安裝狀態與最近的診斷紀錄 |
+| `Audit-Completions.ps1` | 建議清單的[召回稽核](completion-audit.md)：建置執行器、跑語料、寫報告到 `artifacts/completion-audit/` |
+| `Set-CompletionAuditConnection.ps1` | 設定稽核直連的伺服器（版控外，密碼以 DPAPI 加密） |
+| `Register-CompletionAuditTask.ps1` | 以目前使用者註冊稽核的夜間排程（不立刻執行） |
 | `Generate-Keywords.ps1` | 以 ScriptDom 重新產生 `SqlKeywordCatalog.Generated.cs`；剖析快取在 `artifacts/cache/`，途中定期與失敗時都會存，`-NoCache` 重建 |
 | `Publish-Release.ps1` | 建置、驗證並建立 GitHub 草稿 Release |
 | `Test-VsixPackage.ps1` | 檢查 VSIX 套件結構 |
