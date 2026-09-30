@@ -14,7 +14,7 @@ namespace SqlAssist.CompletionAudit.Runner;
 /// <remarks>
 /// 密碼解開後只放進 <see cref="SecureString"/> 交給 <see cref="SqlCredential"/>，不進連線字串：
 /// 連線字串會出現在例外、紀錄與快取鍵裡，密碼不在上面就不可能跟著出去。
-/// 登入名稱留空是 Windows 驗證（排程以目前使用者執行）；埠是 0 時不指定，給具名執行個體。
+/// 登入名稱留空是 Windows 驗證；埠是 0 時不指定，給具名執行個體。
 /// </remarks>
 internal sealed class AuditConnection
 {
@@ -39,7 +39,7 @@ internal sealed class AuditConnection
     /// <summary>預設的設定檔位置；與 <c>Set-CompletionAuditConnection.ps1</c> 同一個。</summary>
     public static string DefaultPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "SqlAssist", "CompletionAudit", "connection.json");
+        "SqlAssist.Ssms22", "CompletionAudit", "connection.json");
 
     public string Server { get; }
 

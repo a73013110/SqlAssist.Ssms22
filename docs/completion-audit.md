@@ -1,13 +1,13 @@
 # 召回稽核
 
-本頁包含夜間召回稽核的方法、語料、連線與排程、輸出與晨間審查；守 `RecallCorpus.sql` 的單元測試見
+本頁包含召回稽核的方法、語料、連線、執行、輸出與審查；守 `RecallCorpus.sql` 的單元測試見
 [關鍵字](completion-keywords.md#召回稽核)。
 
 ## 方法
 
 不靠人挑案例，也不把 SSMS 當真值：拿真實完整的 SQL，在每個詞元起點截斷，走產品同一條路徑
 （`SqlCompletionCandidates`，資料庫由 `ISqlCompletionMetadata` 注入）問「這裡列什麼」，作者寫的下一個詞
-就是答案。判定在 `tools/SqlAssist.CompletionAudit`，單元測試與夜間工具共用。
+就是答案。判定在 `tools/SqlAssist.CompletionAudit`，單元測試與稽核工具共用。
 
 - 空前綴就會自己開的位置（`SqlCompletionPolicy.IsClosed`）清單在那時建好、打字只篩選，所以拿空前綴的
   候選；其餘拿打了第一個字元時的候選（全域變數是 `@@`）。答案要在排名與上限之後**看得到**。
@@ -35,22 +35,18 @@
 `artifacts/completion-audit/corpora/`，旁邊的 `manifest.json` 記來源與授權；不進版控，換語料就改 commit。
 新增來源實作 `IAuditCorpusSource`。
 
-## 連線與排程
+## 連線與執行
 
 ```powershell
-.\tools\Set-CompletionAuditConnection.ps1          # 互動輸入；重跑就是修改
-.\tools\Set-CompletionAuditConnection.ps1 -Show    # 只印非機密欄位
-.\tools\Register-CompletionAuditTask.ps1 -At 02:00 # 只註冊，不立刻執行
+.\tools\Set-CompletionAuditConnection.ps1                   # 互動輸入；重跑就是修改，-Show 只印非機密欄位
+.\tools\Audit-Completions.ps1 -Sources recall -MaxMinutes 5 # 先確認工具正常
+.\tools\Audit-Completions.ps1 -MaxMinutes 60                # 全部語料
 ```
 
-設定存在 `%LOCALAPPDATA%\SqlAssist\CompletionAudit\connection.json`，密碼以 DPAPI（目前使用者）加密，
-工具只交給 `SqlCredential`，不進連線字串與紀錄；登入名稱輸入 `-` 是 Windows 驗證。建議用只有 CONNECT 與
-VIEW DEFINITION 的唯讀登入。排程以目前使用者、只在登入時執行：換了帳戶 DPAPI 就解不開。
-
-## 執行與輸出
-
-`tools/Audit-Completions.ps1` 先建置執行器（稽核的就是目前這份程式），參數 `-SsmsInstallDir`、`-Sources`、
-`-Database`、`-MaxMinutes`、`-Cluster`、`-RawNames`。有漏不算失敗，只有工具錯誤才非零結束碼。
+連線設定與名稱代號金鑰在 `%LOCALAPPDATA%\SqlAssist.Ssms22\CompletionAudit\`。密碼以 DPAPI（目前使用者）
+加密，只交給 `SqlCredential`；登入名稱輸入 `-` 是 Windows 驗證，建議用只有 CONNECT 與 VIEW DEFINITION
+的唯讀登入。沒設定時 `modules` 略過。執行前先建置執行器（稽核的就是目前這份程式）；有漏不算失敗，只有
+工具錯誤才非零結束碼。
 
 | `artifacts/completion-audit/` | 內容 |
 |---|---|
@@ -63,9 +59,11 @@ VIEW DEFINITION 的唯讀登入。排程以目前使用者、只在登入時執�
 本機金鑰算的穩定代號（`T_` 物件、`C_` 欄位、`A_` 指令碼取的名稱、`N_` 不明），註解與常值遮掉。
 做完的段隨時進快取：時間到或 Ctrl+C 之後，下一次接著跑。
 
-## 晨間審查
+## 審查
 
-1. 只讀 `clusters.md` 與 `state.json`，不讀 `raw.jsonl`。
+使用者說「審查最新一次召回稽核」時照做：
+
+1. 只讀最新一份 `clusters.md` 與 `state.json`，不讀 `raw.jsonl`。
 2. 每一群決定：實作、忽略或需使用者決策；前兩者寫進 `state.json`，第三種列出來問。
 
    ```json

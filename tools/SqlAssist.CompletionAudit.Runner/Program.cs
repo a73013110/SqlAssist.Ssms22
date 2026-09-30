@@ -7,7 +7,7 @@ using System.Threading;
 namespace SqlAssist.CompletionAudit.Runner;
 
 /// <summary>
-/// 夜間召回稽核。結束碼：0 跑完（有漏也是 0）、1 工具本身出錯、2 參數不對。
+/// 建議清單召回稽核。結束碼：0 跑完（有漏也是 0）、1 工具本身出錯、2 參數不對。
 /// </summary>
 internal static class Program
 {

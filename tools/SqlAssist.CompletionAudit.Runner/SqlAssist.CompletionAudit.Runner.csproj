@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    夜間召回稽核的執行器。SSMS 的 SqlParser 與 SmoMetadataProvider 是 .NET Framework 組件，
+    召回稽核的執行器。SSMS 的 SqlParser 與 SmoMetadataProvider 是 .NET Framework 組件，
     所以是 net48；那幾個組件不複製進輸出，執行時由 SsmsAssemblies 從安裝目錄解析
     （路徑由 tools/Audit-Completions.ps1 以 SqlAssist.Tools.psm1 取得後傳入）。
   -->

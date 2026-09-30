@@ -5,11 +5,11 @@
 
 .DESCRIPTION
     互動輸入伺服器 IP、埠、資料庫清單、登入名稱與密碼，寫到
-    %LOCALAPPDATA%\SqlAssist\CompletionAudit\connection.json。重跑就是修改：每一欄直接按 Enter 沿用現值，
+    %LOCALAPPDATA%\SqlAssist.Ssms22\CompletionAudit\connection.json（擴充自己的設定與紀錄也在這個資料夾）。重跑就是修改：每一欄直接按 Enter 沿用現值，
     密碼留空沿用原本那一份。登入名稱輸入 - 改用 Windows 驗證（不存密碼）。
 
-    密碼以 ConvertFrom-SecureString 加密，只有同一台電腦、同一個 Windows 使用者解得開；
-    排程工作也要以這個使用者執行。建議使用只有 CONNECT 與 VIEW DEFINITION 的唯讀登入。
+    密碼以 ConvertFrom-SecureString 加密，只有同一台電腦、同一個 Windows 使用者解得開。
+    建議使用只有 CONNECT 與 VIEW DEFINITION 的唯讀登入。
 
 .PARAMETER Show
     只印出非機密欄位（伺服器、埠、資料庫、登入名稱、是否信任憑證、有沒有存密碼），不修改。
@@ -20,7 +20,7 @@
 [CmdletBinding()]
 param(
     [switch]$Show,
-    [string]$Path = (Join-Path $env:LOCALAPPDATA 'SqlAssist\CompletionAudit\connection.json')
+    [string]$Path = (Join-Path $env:LOCALAPPDATA 'SqlAssist.Ssms22\CompletionAudit\connection.json')
 )
 
 $ErrorActionPreference = 'Stop'

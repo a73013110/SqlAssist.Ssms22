@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
     召回稽核的判定：哪些詞元是答案、在它的起點走產品路徑、列不出來怎麼分群。
-    netstandard2.0 讓 net10 的單元測試（RecallCorpus.sql 零漏）與 net48 的夜間執行器參照同一份。
+    netstandard2.0 讓 net10 的單元測試（RecallCorpus.sql 零漏）與 net48 的稽核執行器參照同一份。
   -->
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>

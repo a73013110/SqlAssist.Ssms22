@@ -9,7 +9,7 @@ namespace SqlAssist.CompletionAudit.Runner;
 /// 跨夜保留的分類：每一群是 gap（確認要補）、ignore（不補）或 fixed（修好了），附理由。
 /// </summary>
 /// <remarks>
-/// 由晨間審查寫（見 docs/completion-audit.md），工具只讀：報告只列沒分類過的新群，與標成 fixed 卻又出現的退化。
+/// 由審查寫（見 docs/completion-audit.md），工具只讀：報告只列沒分類過的新群，與標成 fixed 卻又出現的退化。
 /// 不存在時建一份空的，讓審查的人知道要寫在哪裡。
 /// </remarks>
 internal sealed class AuditState
