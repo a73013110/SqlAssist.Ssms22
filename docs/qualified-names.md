@@ -59,7 +59,7 @@
 「結構描述 `LibArchive`」，而那個結構描述並不存在。理由與 `QuoteIfNeeded` 那條一樣
 ——關掉一個為了少打幾個字的設定，不代表要產生無效語法。
 
-重新對齊在**問清單之前**做完一次（`SqlMetadataService.ResolveQualifierAsync`），過濾、
+重新對齊在**問清單之前**做完一次（`ISqlCompletionMetadata.ResolveQualifierAsync`），過濾、
 插入文字與目錄選擇讀的是同一份。各自再判一次的話，症狀是清單列得出來、Tab 下去卻
 少一段。已經挪過的不再挪第二次：重複套用會把正確的路徑推出段數上限。
 

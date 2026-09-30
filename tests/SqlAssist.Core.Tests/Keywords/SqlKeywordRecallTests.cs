@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Core.Settings;
 using SqlAssist.Core.Snippets;
 using Xunit;
 
@@ -24,6 +26,8 @@ namespace SqlAssist.Core.Tests.Keywords;
 public sealed class SqlKeywordRecallTests
 {
     private const string Caret = "⎵";
+
+    private static readonly SqlAssistSettings Settings = new();
 
     [Fact]
     public void 語料裡的每一個字在它的起點列得出來()
@@ -119,7 +123,10 @@ public sealed class SqlKeywordRecallTests
                 continue;
             }
 
-            if (SuggestionContextFilter.Filter(Candidates(context, builtIn), context)
+            if (SqlCompletionCandidates
+                .GetAsync(context, builtIn, Settings, SqlCompletionMetadata.None, CancellationToken.None)
+                .GetAwaiter()
+                .GetResult()
                 .Any(suggestion => StartsWithWords(suggestion.DisplayText, words)))
             {
                 closed = false;
@@ -128,30 +135,6 @@ public sealed class SqlKeywordRecallTests
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// 候選清單：與 <c>SqlAsyncCompletionSource.GetCandidatesAsync</c> 同一套分派，少了資料庫那一份。
-    /// </summary>
-    private static IEnumerable<SqlSuggestion> Candidates(SqlCompletionContext context, IReadOnlyList<SqlSuggestion> builtIn)
-    {
-        var phrase = context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>();
-
-        if (SqlInstanceList.For(context.Target) is { } instanceList)
-        {
-            return instanceList.Suggestions(context.ScriptSources, SqlInstanceListData.Empty);
-        }
-
-        return context.Target switch
-        {
-            CompletionTarget.GlobalVariable => SqlGlobalVariableCatalog.All,
-            CompletionTarget.DatePart => SqlArgumentCatalog.DateParts,
-            CompletionTarget.TableHint => SqlArgumentCatalog.TableHints,
-            CompletionTarget.QueryHint => SqlArgumentCatalog.QueryHints,
-            CompletionTarget.ClauseKeyword => phrase,
-            CompletionTarget.DataType => SqlDataTypeCatalog.All.Concat(phrase),
-            _ => builtIn.Concat(phrase).Concat(context.ScriptSources)
-        };
     }
 
     /// <summary>建議項的顯示文字以這幾個字開頭；<c>INDEX(</c>、<c>varchar(n)</c> 的括號不算字。</summary>

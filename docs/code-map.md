@@ -6,7 +6,7 @@
 
 | 想做的事 | 從這裡進去 |
 | --- | --- |
-| 建議清單多／少了某一類項目 | `Core/Completion/BuiltInSuggestionCatalog.cs`、`Ssms22/Completion/SqlAsyncCompletionSource.cs` |
+| 建議清單多／少了某一類項目 | `Core/Completion/BuiltInSuggestionCatalog.cs`、`SqlCompletionCandidates.cs` |
 | 排名順序不對 | `Core/Completion/SuggestionList.cs`、`SuggestionScore.cs`、`Core/Matching/FuzzyMatcher.cs` |
 | 某個位置不該開清單／該開沒開、打完字沒重開 | `Core/Completion/SqlCompletionSlot.cs`、`SqlCompletionPolicy.cs`、`SqlCompletionContextAnalyzer.cs`、`SqlCompletionTriggers.cs`、`Core/Keywords/SqlKeywordPositionAnalyzer.cs`、`Ssms22/Completion/SqlCompletionReopen.cs` |
 | 某個位置出現不該有的候選 | `Core/Completion/SuggestionContextFilter.cs`、`Core/Keywords/SqlKeywordPositionExtensions.cs`、`tools/Generate-Keywords.ps1` 的樣板 |

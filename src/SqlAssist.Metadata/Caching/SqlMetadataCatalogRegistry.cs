@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Querying;
 
@@ -188,6 +189,23 @@ public sealed class SqlMetadataCatalogRegistry
         return objectInfo.Kind.IsScriptDeclared()
             ? null
             : ScopeTo(catalog, objectInfo.DatabaseName, objectInfo.ServerName);
+    }
+
+    /// <summary>
+    /// 把目錄換成限定字指名的那一台伺服器、那一個資料庫。
+    /// </summary>
+    /// <remarks>
+    /// 沒有路徑、或路徑就在目前這條連線上時原樣回傳，所以呼叫端不必自己分三種
+    /// 情形——分開寫的症狀是某一條路徑忘了換，而它會安靜地拿本地同名的物件回答。
+    /// </remarks>
+    public SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, SqlObjectPath? path)
+    {
+        if (catalog is null || path is null || path.IsLocal)
+        {
+            return catalog;
+        }
+
+        return ScopeTo(catalog, path.DatabaseName, path.ServerName);
     }
 
     /// <summary>把目錄換成指定的伺服器與資料庫；兩者都沒指定時原樣回傳。</summary>

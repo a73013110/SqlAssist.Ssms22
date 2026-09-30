@@ -7,11 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.SqlServer.Management.UI.VSIntegration;
 using SqlAssist.Core.Completion;
-using SqlAssist.Core.Localization;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Parsing;
-using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Caching;
+using SqlAssist.Metadata.Completion;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Querying;
 using SqlAssist.Ssms22;
@@ -23,15 +22,17 @@ namespace SqlAssist.Ssms22.Connections;
 /// 銜接 SSMS 的查詢視窗連線與中繼資料層。
 /// </summary>
 /// <remarks>
-/// 只負責兩件事：從 SSMS 取得目前連線並在連線或資料庫改變時重建連線來源，
-/// 以及把中繼資料層的物件描述轉成建議清單用的 <see cref="SqlSuggestion"/>。
-/// 實際的查詢、分層與快取都在 <see cref="SqlMetadataCatalog"/>。
+/// 只負責從 SSMS 取得目前連線，並在連線或資料庫改變時重建連線來源。
+/// 實際的查詢、分層與快取都在 <see cref="SqlMetadataCatalog"/>；建議清單那一份
+/// （物件、欄位與參數轉成 <see cref="SqlSuggestion"/>）在 <see cref="SqlCatalogCompletionMetadata"/>，
+/// 與召回稽核共用。
 /// </remarks>
 internal sealed class SqlMetadataService : IDisposable
 {
     private readonly object _syncRoot = new();
     private readonly HashSet<string> _warmingDetails = new(StringComparer.OrdinalIgnoreCase);
     private readonly IServiceProvider _serviceProvider;
+    private readonly SqlCatalogCompletionMetadata _completion;
     private SqlMetadataCatalog? _catalog;
 
     /// <summary>上一次從編輯器連線算出的快取鍵，用來判斷連線或資料庫有沒有換過。</summary>
@@ -111,7 +112,14 @@ internal sealed class SqlMetadataService : IDisposable
     public SqlMetadataService(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _completion = new SqlCatalogCompletionMetadata(
+            ResolveCatalog,
+            (operation, timer) => ReportIfSlow(operation, timer),
+            message => SqlAssistDiagnostics.Write(message));
     }
+
+    /// <summary>建議清單要問資料庫的那一份，接在這個查詢視窗的連線上。</summary>
+    public ISqlCompletionMetadata Completion => _completion;
 
     /// <summary>
     /// 這個查詢視窗目前那條連線的目錄，以及它連著的伺服器；還沒解析出來時為 null，並在背景補上。
@@ -253,159 +261,6 @@ internal sealed class SqlMetadataService : IDisposable
             _confirmedConnectionEvents != Volatile.Read(ref _connectionEvents);
     }
 
-    /// <summary>
-    /// 取得目前資料庫的物件建議。回傳的建議只帶名稱層級的資訊，
-    /// 欄位與定義要另外呼叫 <see cref="GetDetailAsync"/>。
-    /// </summary>
-    public Task<IReadOnlyList<SqlSuggestion>> GetSuggestionsAsync(
-        CancellationToken cancellationToken)
-    {
-        return GetSuggestionsAsync(qualifierPath: null, cancellationToken);
-    }
-
-    /// <summary>
-    /// 取得限定字所指位置的物件建議：沒有限定字或本地限定字用目前連線的資料庫，
-    /// 跨資料庫則用同一台伺服器上的那一個。
-    /// </summary>
-    /// <remarks>
-    /// 跨資料庫第一次一定要查一輪，而這條路徑跑在平台的背景工作上，不是按鍵路徑
-    /// ——清單會晚一點出現，不會讓打字卡住。之後就與本地的目錄一樣命中快取。
-    ///
-    /// 只在<b>使用者真的打出資料庫名稱</b>之後才走到這裡。預先把每一個進得去的
-    /// 資料庫都撈一份的話，共用主機上等於幾十輪查詢與幾十份常駐快照，
-    /// 而其中九成九不會有人用到。
-    /// </remarks>
-    public async Task<IReadOnlyList<SqlSuggestion>> GetSuggestionsAsync(
-        SqlObjectPath? qualifierPath,
-        CancellationToken cancellationToken)
-    {
-        var catalog = ScopeTo(ResolveCatalog(), qualifierPath);
-
-        if (catalog is null)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var timer = Stopwatch.StartNew();
-        var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
-
-        // 跨伺服器那一條的耗時由對方決定，紀錄裡要看得出是哪一台——本機慢與
-        // 對面慢的處理方式完全不同，混成同一行等於每次都要再問一次。
-        if (qualifierPath is { IsCrossServer: true })
-        {
-            ReportIfSlow(
-                $"連結伺服器建議 {qualifierPath.ServerName}.{qualifierPath.DatabaseName}（第一層）",
-                timer);
-        }
-        else if (qualifierPath is { IsCrossDatabase: true })
-        {
-            ReportIfSlow($"跨資料庫建議 {qualifierPath.DatabaseName}（第一層）", timer);
-        }
-
-        // 連結伺服器只在目前這條連線的清單裡才對：往右走過任何一格之後，
-        // 那一格的下一段不可能再是一台伺服器（T-SQL 沒有五段式名稱）。
-        return BuildSuggestions(snapshot, includeLinkedServers: qualifierPath is null or { IsLocal: true });
-    }
-
-    /// <summary>
-    /// 用目前這條連線的名單認出限定字，回傳重新對齊過的上下文。
-    /// </summary>
-    /// <remarks>
-    /// 只看文字時 <c>dbo.</c>、<c>LibArchive.</c> 與 <c>LIBSQL02.</c> 是同一個形狀，
-    /// 建議清單、插入文字與目錄選擇卻要三種不同的答案。因此在<b>問清單之前</b>
-    /// 先把上下文換成對齊過的那一個，後面三條路都讀同一份——各自再判一次的話，
-    /// 症狀是清單列得出來、Tab 下去卻少一段。
-    ///
-    /// 讀的是本機第一層快照，也就是候選清單下一步無論如何都要載入的那一份，
-    /// 所以這裡不會多送一輪查詢。刻意等它而不是只取已經快取的：查詢視窗剛開的
-    /// 第一次補全還沒有快照，只取快取的症狀是「第一次沒有清單，再按一次才有」。
-    ///
-    /// 認不出來就維持右對齊的原判，也就是這個功能出現之前的行為。
-    /// </remarks>
-    public async Task<SqlCompletionContext> ResolveQualifierAsync(
-        SqlCompletionContext context,
-        CancellationToken cancellationToken)
-    {
-        // 限定字已經解析成別名時（u.），清單裡放的是欄位，那一段不是任何名稱空間。
-        if (context.QualifierPath is not { } qualifier ||
-            context.Target == CompletionTarget.Column)
-        {
-            return context;
-        }
-
-        if (ResolveCatalog() is not { } catalog)
-        {
-            return context;
-        }
-
-        var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
-        var resolved = SqlQualifierResolver.Resolve(qualifier, snapshot);
-
-        return ReferenceEquals(resolved, qualifier) ? context : context.WithQualifierPath(resolved);
-    }
-
-    /// <summary>
-    /// 取得 <c>sys</c> 與 <c>INFORMATION_SCHEMA</c> 底下的系統物件建議。
-    /// </summary>
-    /// <remarks>
-    /// 呼叫端必須先確認這個位置真的要它——這一份有一兩千筆，混進一般清單的話，
-    /// 打第一個字元時真正要找的東西會被 <c>sp_</c> 開頭的名稱淹掉。
-    /// 第一次被問到才查資料庫，之後整個工作階段都用快取。
-    /// </remarks>
-    public async Task<IReadOnlyList<SqlSuggestion>> GetSystemSuggestionsAsync(
-        SqlObjectPath? qualifierPath,
-        CancellationToken cancellationToken)
-    {
-        if (ScopeTo(ResolveCatalog(), qualifierPath) is not { } catalog)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var timer = Stopwatch.StartNew();
-        var objects = await catalog.GetSystemObjectsAsync(cancellationToken).ConfigureAwait(false);
-
-        if (objects.Count == 0)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var suggestions = new List<SqlSuggestion>(objects.Count);
-        AddObjects(suggestions, objects);
-        ReportIfSlow($"系統物件建議（{suggestions.Count} 筆）", timer);
-        return suggestions;
-    }
-
-    /// <summary>
-    /// 取得一份執行個體名單（定序、語言、時區）與在用的那一個。
-    /// </summary>
-    /// <remarks>
-    /// 一律問查詢視窗自己那條連線的目錄，不跟著限定字換——名單屬於<b>執行個體</b>，
-    /// 而使用者正在編輯的這份指令碼跑在那條連線上。跨資料庫或跨伺服器的目錄
-    /// 回答的是別台機器支援什麼，選中的名稱在這裡可能根本不存在。
-    ///
-    /// 只回資料；組成建議項、去重與排名分級在 Core 的 <see cref="SqlInstanceList.Suggestions"/>。
-    /// 查不到時回傳 <see cref="SqlInstanceListData.Empty"/>。
-    /// </remarks>
-    public async Task<SqlInstanceListData> GetInstanceListAsync(
-        SqlInstanceList list,
-        CancellationToken cancellationToken)
-    {
-        if (list is null)
-        {
-            throw new ArgumentNullException(nameof(list));
-        }
-
-        if (ResolveCatalog() is not { } catalog)
-        {
-            return SqlInstanceListData.Empty;
-        }
-
-        var timer = Stopwatch.StartNew();
-        var data = await catalog.GetInstanceListAsync(list, cancellationToken).ConfigureAwait(false);
-        ReportIfSlow($"{list.Target} 名單（{data.Entries.Count} 筆）", timer);
-        return data;
-    }
-
     /// <summary>取得目前資料庫的第一層中繼資料；沒有可用連線時回傳 null。</summary>
     public Task<SqlDatabaseSnapshot?> GetSnapshotAsync(CancellationToken cancellationToken)
     {
@@ -428,85 +283,11 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>
-    /// 取得限定字所指資料來源的欄位建議。
-    /// </summary>
-    /// <remarks>
-    /// 只在使用者真的輸入 <c>別名.</c> 時才觸發，因此會落在第二層按需載入：
-    /// 一次只查一個物件的欄位，不會因為敘述裡有幾張資料表就全部撈回來。
-    ///
-    /// 插入的文字一律<b>不</b>補限定字：使用者已經自己打了 <c>a.</c>，
-    /// 再補一次會變成 <c>a.a.欄位</c>。
-    /// </remarks>
-    /// <param name="includeDatabaseObjects">
-    /// 關掉時不對資料庫送出任何查詢，只剩欄位名稱寫在指令碼裡的來源（子查詢、CTE）
-    /// 列得出來。
-    /// </param>
-    public async Task<IReadOnlyList<SqlSuggestion>> GetColumnSuggestionsAsync(
-        IReadOnlyList<SqlColumnSource> sources,
-        bool includeDatabaseObjects,
-        CancellationToken cancellationToken)
-    {
-        if (sources is null || sources.Count == 0)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var settings = SqlAssistSettingsStore.Current;
-        var suggestions = new List<SqlSuggestion>();
-
-        foreach (var source in sources)
-        {
-            if (source.Kind == SqlColumnSourceKind.Names)
-            {
-                foreach (var name in source.Names)
-                {
-                    suggestions.Add(BuildScriptColumnSuggestion(
-                        name,
-                        settings,
-                        qualifier: null,
-                        source.SourceName));
-                }
-
-                continue;
-            }
-
-            if (!includeDatabaseObjects)
-            {
-                continue;
-            }
-
-            var total = Stopwatch.StartNew();
-
-            if (await ResolveTableAsync(source.Table!, cancellationToken).ConfigureAwait(false) is not { } resolved)
-            {
-                continue;
-            }
-
-            ReportIfSlow(
-                $"欄位建議 {resolved.Object.QualifiedName}" +
-                $"（第二層{(resolved.DetailWasCached ? "命中快取" : "查詢資料庫")}）",
-                total);
-
-            if (resolved.Detail is not { Columns.Count: > 0 } detail)
-            {
-                continue;
-            }
-
-            foreach (var column in detail.Columns)
-            {
-                suggestions.Add(BuildColumnSuggestion(resolved.Object, column, settings, qualifier: null));
-            }
-        }
-
-        return suggestions;
-    }
-
-    /// <summary>
     /// 取得單一資料來源的欄位名稱，查不到時回傳 null。
     /// </summary>
     /// <remarks>
-    /// 展開 <c>SELECT *</c> 用的。與 <see cref="GetColumnSuggestionsAsync"/> 走同一條
-    /// 分層路徑，但只要名稱：展開後寫進編輯器的就只有名稱，型別與 PK 那些
+    /// 展開 <c>SELECT *</c> 用的。與欄位建議走同一條解析（<see cref="SqlResolvedTable"/>），
+    /// 但只要名稱：展開後寫進編輯器的就只有名稱，型別與 PK 那些
     /// 是給建議清單看的。
     ///
     /// 回傳 null 與回傳空清單刻意分開：「查不到這個物件」必須讓呼叫端整個放棄，
@@ -518,77 +299,14 @@ internal sealed class SqlMetadataService : IDisposable
     {
         var timer = Stopwatch.StartNew();
 
-        if (await ResolveTableAsync(table, cancellationToken).ConfigureAwait(false) is not { } resolved)
+        if (await SqlResolvedTable.ResolveAsync(ResolveCatalog(), table, cancellationToken).ConfigureAwait(false)
+            is not { } resolved)
         {
             return null;
         }
 
         ReportIfSlow($"展開欄位 {resolved.Object.QualifiedName}（第二層）", timer);
         return ToColumnNames(resolved.Detail);
-    }
-
-    /// <summary>
-    /// 取得 <c>EXEC</c> 正在呼叫的那個模組的參數建議。
-    /// </summary>
-    /// <remarks>
-    /// 與欄位建議走同一條分層路徑：使用者真的打出小老鼠時才查一個物件的第二層。
-    /// 查不到、或那個名稱不是可執行的模組時回傳空清單而不是 null——這裡少列幾筆
-    /// 只是少了補字，他自己的變數仍然照列。
-    ///
-    /// 插入文字連 <c> = </c> 一起寫進去：打出參數名稱就是要做具名傳值，
-    /// 而 <c>EXEC p @readerId</c>（沒有等號）在文法上是照順序傳一個變數，
-    /// 那是另一件事，由變數那一份負責。
-    /// </remarks>
-    public async Task<IReadOnlyList<SqlSuggestion>> GetParameterSuggestionsAsync(
-        SqlExecutedModule module,
-        bool includeDatabaseObjects,
-        CancellationToken cancellationToken)
-    {
-        if (module is null || !includeDatabaseObjects || ResolveCatalog() is not { } catalog)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var timer = Stopwatch.StartNew();
-        var matches = await catalog
-            .FindObjectsAsync(module.ObjectName, module.SchemaName, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (matches.Count == 0 || !matches[0].Kind.IsExecutable())
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var detail = await catalog
-            .GetDetailAsync(matches[0], cancellationToken, NotificationOrigin.Typing)
-            .ConfigureAwait(false);
-
-        ReportIfSlow($"參數建議 {matches[0].QualifiedName}（第二層）", timer);
-
-        if (detail is not { Parameters.Count: > 0 })
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var suggestions = new List<SqlSuggestion>(detail.Parameters.Count);
-
-        foreach (var parameter in detail.Parameters)
-        {
-            // 純量函式的傳回值也在這一份裡，它的名稱是空字串。
-            if (parameter.Name.Length == 0)
-            {
-                continue;
-            }
-
-            suggestions.Add(new SqlSuggestion(
-                parameter.Name,
-                parameter.Name + " = ",
-                parameter.IsOutput ? parameter.DataType + " OUTPUT" : parameter.DataType,
-                ConnectionText.ParameterOf(matches[0].QualifiedName, parameter.ToScriptLine()),
-                SuggestionKind.Parameter));
-        }
-
-        return suggestions;
     }
 
     /// <summary>只看快取裡有沒有這個資料來源的欄位名稱；沒有就回傳 null，不觸發查詢。</summary>
@@ -598,106 +316,9 @@ internal sealed class SqlMetadataService : IDisposable
     /// </remarks>
     public IReadOnlyList<string>? PeekColumnNames(SqlTableReference table)
     {
-        var catalog = ScopeTo(PeekCatalog(), table?.Path);
-        var snapshot = catalog?.CachedSnapshot;
-
-        if (catalog is null || snapshot is null || snapshot.IsEmpty)
-        {
-            return null;
-        }
-
-        return TryPeekResolved(catalog, snapshot, table, out _, out var detail)
-            ? ToColumnNames(detail)
+        return SqlResolvedTable.TryPeek(PeekCatalog(), table, out var resolved)
+            ? ToColumnNames(resolved.Detail)
             : null;
-    }
-
-    /// <summary>解析出來的資料來源：物件本身、它的欄位明細，以及明細是不是現成的。</summary>
-    private readonly struct ResolvedTable
-    {
-        public ResolvedTable(SqlObjectInfo objectInfo, SqlObjectDetail? detail, bool detailWasCached)
-        {
-            Object = objectInfo;
-            Detail = detail;
-            DetailWasCached = detailWasCached;
-        }
-
-        public SqlObjectInfo Object { get; }
-
-        public SqlObjectDetail? Detail { get; }
-
-        /// <summary>明細在這次要求之前就已經在快取裡；只影響診斷紀錄怎麼寫。</summary>
-        public bool DetailWasCached { get; }
-    }
-
-    /// <summary>
-    /// 把敘述裡的資料來源解析成物件與欄位明細，允許查詢資料庫。
-    /// </summary>
-    /// <remarks>
-    /// 「同名物件取哪一個、衍生資料表不查」這些規則只能有一份：欄位建議與
-    /// <c>SELECT *</c> 展開各自解析的話，同一個別名在兩個功能會指到不同的資料表。
-    /// </remarks>
-    private async Task<ResolvedTable?> ResolveTableAsync(
-        SqlTableReference table,
-        CancellationToken cancellationToken)
-    {
-        if (table is null || table.IsDerived)
-        {
-            return null;
-        }
-
-        var catalog = ScopeTo(ResolveCatalog(), table.Path);
-
-        if (catalog is null)
-        {
-            return null;
-        }
-
-        // 走目錄那一支而不是自己比對快照：sys.triggers 這一類名稱的答案不在第一層，
-        // 而那一份只有被指名時才載入。
-        var matches = await catalog
-            .FindObjectsAsync(table.ObjectName, table.SchemaName, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (matches.Count == 0)
-        {
-            return null;
-        }
-
-        var cached = catalog.TryGetCachedDetail(matches[0].ObjectId, out _);
-        var detail = await catalog
-            .GetDetailAsync(matches[0], cancellationToken, NotificationOrigin.Typing)
-            .ConfigureAwait(false);
-        return new ResolvedTable(matches[0], detail, cached);
-    }
-
-    /// <summary>
-    /// 同一套解析規則的唯讀版本，只認快取裡現成的明細。
-    /// </summary>
-    /// <remarks>快照由呼叫端傳進來：敘述裡有好幾個資料來源時，那一份要重複用。</remarks>
-    private static bool TryPeekResolved(
-        SqlMetadataCatalog catalog,
-        SqlDatabaseSnapshot snapshot,
-        SqlTableReference? table,
-        out SqlObjectInfo objectInfo,
-        out SqlObjectDetail detail)
-    {
-        objectInfo = null!;
-        detail = null!;
-
-        if (table is null || table.IsDerived)
-        {
-            return false;
-        }
-
-        var matches = snapshot.Find(table.ObjectName, table.SchemaName);
-
-        if (matches.Count == 0 || !catalog.TryGetCachedDetail(matches[0].ObjectId, out detail))
-        {
-            return false;
-        }
-
-        objectInfo = matches[0];
-        return true;
     }
 
     private static IReadOnlyList<string>? ToColumnNames(SqlObjectDetail? detail)
@@ -715,113 +336,6 @@ internal sealed class SqlMetadataService : IDisposable
         }
 
         return names;
-    }
-
-    /// <summary>
-    /// 取得敘述中所有資料來源的欄位，供沒有限定字的位置使用。
-    /// </summary>
-    /// <remarks>
-    /// 資料表與檢視的欄位只回傳<b>已經在快取裡</b>的，絕不觸發查詢：這條路徑在
-    /// 每一次按鍵上。沒命中就這一輪不顯示欄位，<see cref="WarmColumns"/> 會在背景
-    /// 補上，下一次按鍵就有了。子查詢與 CTE 的欄位名稱寫在指令碼裡，不必等任何東西。
-    ///
-    /// 有兩個以上相異的限定字時，插入的文字會補上別名，否則
-    /// <c>SELECT Name FROM A a JOIN B b</c> 這種寫法會因為欄位名稱模稜兩可而執行失敗。
-    /// </remarks>
-    public IReadOnlyList<SqlSuggestion> GetCachedScopeColumns(IReadOnlyList<SqlColumnSource> sources)
-    {
-        if (sources is null || sources.Count == 0 || _disposed)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var settings = SqlAssistSettingsStore.Current;
-        var qualify = NeedsQualifier(sources);
-        var suggestions = new List<SqlSuggestion>();
-        SqlMetadataCatalog? catalog = null;
-        SqlDatabaseSnapshot? snapshot = null;
-
-        foreach (var source in sources)
-        {
-            if (source.Kind == SqlColumnSourceKind.Names)
-            {
-                foreach (var name in source.Names)
-                {
-                    suggestions.Add(BuildScriptColumnSuggestion(
-                        name,
-                        settings,
-                        qualify ? source.Qualifier : null,
-                        source.SourceName));
-                }
-
-                continue;
-            }
-
-            // 目錄與第一層快照只在真的有資料表來源時才解析：一份全是子查詢的敘述
-            // 不必為了列欄位去碰連線。
-            catalog ??= ResolveCatalog();
-
-            // 敘述可以同時 JOIN 本地與跨資料庫的表，所以快照要跟著來源走，
-            // 不能整段共用一份——共用的症狀是跨資料庫那一張比對到本地的同名表。
-            var sourceCatalog = ScopeTo(catalog, source.Table!.Path);
-            var sourceSnapshot = ReferenceEquals(sourceCatalog, catalog)
-                ? snapshot ??= catalog?.CachedSnapshot
-                : sourceCatalog?.CachedSnapshot;
-
-            if (sourceCatalog is null || sourceSnapshot is null || sourceSnapshot.IsEmpty)
-            {
-                continue;
-            }
-
-            if (!TryPeekResolved(sourceCatalog, sourceSnapshot, source.Table!, out var objectInfo, out var detail))
-            {
-                continue;
-            }
-
-            foreach (var column in detail.Columns)
-            {
-                suggestions.Add(BuildColumnSuggestion(
-                    objectInfo,
-                    column,
-                    settings,
-                    qualify ? source.Qualifier : null));
-            }
-        }
-
-        return suggestions;
-    }
-
-    /// <summary>
-    /// 插入的欄位名稱要不要補限定字。
-    /// </summary>
-    /// <remarks>
-    /// 依據是<b>相異</b>的限定字數量而不是來源數量：<c>FROM (SELECT Id, * FROM T t) d</c>
-    /// 攤平出兩個來源，但它們都叫 <c>d</c>，欄位名稱不可能因此模稜兩可。
-    /// </remarks>
-    private static bool NeedsQualifier(IReadOnlyList<SqlColumnSource> sources)
-    {
-        string? first = null;
-
-        foreach (var source in sources)
-        {
-            if (source.Qualifier is null)
-            {
-                continue;
-            }
-
-            if (first is null)
-            {
-                first = source.Qualifier;
-                continue;
-            }
-
-            if (!string.Equals(first, source.Qualifier, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /// <summary>
@@ -919,15 +433,8 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>
-    /// 預先載入敘述中各資料來源的欄位。
+    /// 在背景預先載入敘述中各資料來源的欄位；規則在 <see cref="SqlCatalogCompletionMetadata.WarmColumnsAsync"/>。
     /// </summary>
-    /// <remarks>
-    /// 使用者輸入 <c>a.</c> 的那一刻才去查欄位，等待就完全落在打字的節奏上。
-    /// 但在那之前他已經打過 <c>FROM PUBLISHER a</c>，也已經至少開過一次建議清單——
-    /// 那時就可以把敘述裡每一張資料表的欄位先撈回來，等到真的按下點號時直接命中快取。
-    ///
-    /// 失敗一律安靜略過：這只是預熱，真正需要時還會再走一次正規路徑。
-    /// </remarks>
     public void WarmColumns(IReadOnlyList<SqlColumnSource> sources)
     {
         if (sources is null || sources.Count == 0 || _disposed)
@@ -936,75 +443,8 @@ internal sealed class SqlMetadataService : IDisposable
         }
 
         // 呼叫端在按鍵路徑上，一定要先離開它的執行緒再開始查。
-        SqlAssistPlatformGuard.BeginProbe("預先載入欄位", () => Task.Run(async () =>
-        {
-            var editorCatalog = ResolveCatalog();
-
-            if (editorCatalog is null)
-            {
-                return;
-            }
-
-            foreach (var source in sources)
-            {
-                // 子查詢與 CTE 的欄位名稱已經從指令碼讀出來了，沒有什麼好預熱的。
-                if (_disposed || source.Kind != SqlColumnSourceKind.Table)
-                {
-                    continue;
-                }
-
-                var table = source.Table!;
-                var catalog = ScopeTo(editorCatalog, table.Path);
-
-                if (catalog is null)
-                {
-                    continue;
-                }
-
-                // 目前這條連線的第一層不在這裡觸發：那是建議清單自己的工作，
-                // 這裡只是背景加速，不該再排一輪同樣的查詢。
-                //
-                // 跨資料庫的目錄相反——沒有別人會去載它。敘述已經把那個資料庫的
-                // 名字寫出來了（FROM LibArchive.dbo.Loan l），等於使用者指名要它；
-                // 從前要等他真的打出那一整串限定字才載，症狀是 SET | 與 WHERE |
-                // 這種沒有限定字的位置永遠列不出跨庫來源的欄位，而同一份欄位
-                // 打出 l. 就有。載一次就進快取，重複與失敗退避由這一支自己擋。
-                if (!catalog.IsSnapshotFresh)
-                {
-                    if (ReferenceEquals(catalog, editorCatalog))
-                    {
-                        continue;
-                    }
-
-                    await catalog.WarmSnapshotAsync().ConfigureAwait(false);
-
-                    if (!catalog.IsSnapshotFresh)
-                    {
-                        continue;
-                    }
-                }
-
-                // 第一層在上面已經確認新鮮，這一支不會多送一輪查詢；但敘述寫出
-                // sys.triggers 時它會把系統物件那一份載進來——只讀快取的
-                // GetCachedScopeColumns 沒有別的機會等到它，症狀是 SELECT | 與
-                // WHERE | 永遠列不出系統檢視的欄位，而打出 t. 卻列得出來。
-                var matches = await catalog
-                    .FindObjectsAsync(table.ObjectName, table.SchemaName, CancellationToken.None)
-                    .ConfigureAwait(false);
-
-                if (matches.Count == 0 || catalog.TryGetCachedDetail(matches[0].ObjectId, out _))
-                {
-                    continue;
-                }
-
-                var timer = Stopwatch.StartNew();
-                await catalog
-                    .GetDetailAsync(matches[0], CancellationToken.None, NotificationOrigin.Ambient)
-                    .ConfigureAwait(false);
-                SqlAssistDiagnostics.Write(
-                    $"已預先載入 {matches[0].QualifiedName} 的欄位（{timer.ElapsedMilliseconds} ms）");
-            }
-        }));
+        SqlAssistPlatformGuard.BeginProbe("預先載入欄位", () => Task.Run(
+            () => _completion.WarmColumnsAsync(sources, CancellationToken.None)));
     }
 
     /// <summary>
@@ -1116,25 +556,9 @@ internal sealed class SqlMetadataService : IDisposable
         SqlEditorConnectionWatcher.Unregister(this);
     }
 
-    /// <summary>
-    /// 把目錄換成路徑指名的那一台伺服器、那一個資料庫。
-    /// </summary>
-    /// <remarks>
-    /// 沒有路徑、或路徑就在目前這條連線上時原樣回傳，所以呼叫端不必自己分三種
-    /// 情形——分開寫的症狀是某一條路徑忘了換，而它會安靜地拿本地同名的物件回答。
-    ///
-    /// 兩種「別的地方」在這裡收斂成同一個回傳型別：同一台伺服器的別的資料庫是
-    /// 換連線，別台伺服器是換 SQL 的限定字。上面四層一行都不知道差別。
-    /// </remarks>
-    private SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, SqlObjectPath? path)
-    {
-        if (catalog is null || path is null || path.IsLocal)
-        {
-            return catalog;
-        }
-
-        return ScopeTo(catalog, path.DatabaseName, path.ServerName);
-    }
+    /// <summary>把目錄換成限定字指名的那一台伺服器、那一個資料庫。</summary>
+    private static SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, SqlObjectPath? path) =>
+        SqlMetadataCatalogRegistry.Default.ScopeTo(catalog, path);
 
     /// <summary>
     /// 把目錄換成這個物件自己記下的來源。
@@ -1148,13 +572,6 @@ internal sealed class SqlMetadataService : IDisposable
     /// </remarks>
     private static SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, SqlObjectInfo? objectInfo) =>
         SqlMetadataCatalogRegistry.Default.ScopeTo(catalog, objectInfo);
-
-    /// <summary>把目錄換成指定的伺服器與資料庫；兩者都沒指定時原樣回傳。</summary>
-    private static SqlMetadataCatalog? ScopeTo(
-        SqlMetadataCatalog? catalog,
-        string? databaseName,
-        string? serverName = null) =>
-        SqlMetadataCatalogRegistry.Default.ScopeTo(catalog, databaseName, serverName);
 
     /// <summary>
     /// 取得目前連線對應的目錄。使用者切換資料庫或重新連線時，快取鍵會改變，
@@ -1428,170 +845,5 @@ internal sealed class SqlMetadataService : IDisposable
             _catalog = SqlMetadataCatalogRegistry.Default.GetOrCreate(connectionSource);
             return _catalog;
         }
-    }
-
-    private static IReadOnlyList<SqlSuggestion> BuildSuggestions(
-        SqlDatabaseSnapshot snapshot,
-        bool includeLinkedServers = false)
-    {
-        // 結構描述讀擁有物件的那一份：與角色同名的空結構描述選了也接不到任何東西。
-        // 完整名單留給 SqlQualifierResolver 認限定字。
-        var schemas = snapshot.SchemasWithObjects;
-        var suggestions = new List<SqlSuggestion>(
-            snapshot.Objects.Count + schemas.Count + snapshot.Databases.Count);
-
-        AddObjects(suggestions, snapshot.Objects);
-
-        // 名稱的中間段一律只寫名稱本身：點號由使用者自己打，而打出點號會讓上下文
-        // 整個換掉，重開清單那條路本來就會接手。連點號一起寫進去等於替使用者決定
-        // 「你還要繼續往下走」，想直接用這個名稱的人得先退掉一個他沒要求的字元。
-        var schemaKind = SqlKindText.Schema;
-        var databaseKind = SqlKindText.Database;
-
-        foreach (var schema in schemas)
-        {
-            suggestions.Add(new SqlSuggestion(
-                schema,
-                schema,
-                schemaKind,
-                SqlKindText.Named(schemaKind, SqlIdentifier.Quote(schema)),
-                SuggestionKind.Schema,
-                schemaName: schema));
-        }
-
-        foreach (var database in snapshot.Databases)
-        {
-            // 插入文字留空給 SqlInsertionText 依設定加括號：資料庫名稱與其他
-            // 物件名稱適用同一條規則，含空白或連字號時一定會加，其餘看使用者偏好。
-            suggestions.Add(new SqlSuggestion(
-                database,
-                database,
-                databaseKind,
-                $"USE {SqlIdentifier.QuoteIfNeeded(database)}",
-                SuggestionKind.Database));
-        }
-
-        if (includeLinkedServers)
-        {
-            foreach (var server in snapshot.LinkedServers)
-            {
-                // 名稱不保證是識別字的形狀——連結伺服器可以直接以位址命名，
-                // 方括號由 SqlInsertionText 依與其他名稱同一條規則補。
-                suggestions.Add(new SqlSuggestion(
-                    server,
-                    server,
-                    SqlKindText.LinkedServer,
-                    SqlKindText.Named(SqlKindText.LinkedServer, SqlIdentifier.QuoteIfNeeded(server)),
-                    SuggestionKind.LinkedServer));
-            }
-        }
-
-        return suggestions;
-    }
-
-    /// <summary>
-    /// 把只知道名稱的欄位轉成建議項。
-    /// </summary>
-    /// <remarks>
-    /// 子查詢與 CTE 的輸出欄位寫在指令碼裡，型別、NULL 與 PK 都無從得知——
-    /// 那些要追到最內層的資料表，而中間任何一段運算式都會讓答案不成立。
-    /// 說明欄改寫來源本身：使用者要的是「這個名稱打不打得出來」。
-    ///
-    /// 暫存資料表與資料表變數說得出出處，就寫它的名字：在
-    /// <c>UPDATE #Loan SET |</c> 看到「查詢結果」會讓人以為認錯了東西。
-    ///
-    /// 欄位的排序刻意保留選取清單的順序，與資料表欄位保留定義順序同一個理由。
-    /// </remarks>
-    private static SqlSuggestion BuildScriptColumnSuggestion(
-        string name,
-        SqlAssistSettings settings,
-        string? qualifier,
-        string? sourceName)
-    {
-        var insertionText = SqlInsertionText.Column(name, qualifier, settings);
-        var origin = sourceName ?? ConnectionText.QueryResult;
-        var source = qualifier is null ? string.Empty : $" · {qualifier}";
-
-        return new SqlSuggestion(
-            name,
-            insertionText,
-            $"{origin}{source}",
-            $"{origin}\r\n{name}",
-            SuggestionKind.Column);
-    }
-
-    /// <summary>
-    /// 把中繼資料裡的欄位轉成建議項。
-    /// </summary>
-    /// <remarks>
-    /// 呼叫端一律照資料表的定義順序逐欄呼叫，不重排：模糊比對的分數才是主要排名依據，
-    /// 而分數相同時（例如還沒輸入任何字元）依序號排列比字母序更接近使用者的心智模型。
-    /// </remarks>
-    /// <param name="qualifier">
-    /// 插入時要補在欄位前面的別名或資料表名稱；不需要限定時為 null。
-    /// </param>
-    private static SqlSuggestion BuildColumnSuggestion(
-        SqlObjectInfo info,
-        SqlColumnInfo column,
-        SqlAssistSettings settings,
-        string? qualifier)
-    {
-        var annotations = column.IsPrimaryKey ? " · PK" : string.Empty;
-        var source = qualifier is null ? string.Empty : $" · {qualifier}";
-        var insertionText = SqlInsertionText.Column(column.Name, qualifier, settings);
-
-        return new SqlSuggestion(
-            column.Name,
-            insertionText,
-            $"{column.DataType}{(column.IsNullable ? " NULL" : " NOT NULL")}{annotations}{source}",
-            $"{info.QualifiedName}\r\n{column.ToScriptLine()}",
-            SuggestionKind.Column,
-            schemaName: info.SchemaName,
-            tag: column);
-    }
-
-    private static void AddObjects(List<SqlSuggestion> suggestions, IReadOnlyList<SqlObjectInfo> objects)
-    {
-        foreach (var info in objects)
-        {
-            var kind = ToSuggestionKind(info.Kind);
-
-            if (kind is null)
-            {
-                continue;
-            }
-
-            suggestions.Add(new SqlSuggestion(
-                info.Name,
-                info.QualifiedName,
-                $"{info.Kind.ToDisplayName()} · {info.SchemaName}",
-                // 預覽內容改為選取時才載入，這裡只放立即可得的標題。
-                info.Kind.ToDisplayTitle(info.QualifiedName),
-                kind.Value,
-                schemaName: info.SchemaName,
-                tag: info));
-        }
-    }
-
-    private static SuggestionKind? ToSuggestionKind(SqlObjectKind kind)
-    {
-        return kind switch
-        {
-            SqlObjectKind.Table => SuggestionKind.Table,
-            // 同義字幾乎都指向資料表或檢視，放在資料來源清單裡才找得到。
-            SqlObjectKind.Synonym => SuggestionKind.Table,
-            SqlObjectKind.View => SuggestionKind.View,
-            SqlObjectKind.Procedure => SuggestionKind.Procedure,
-            SqlObjectKind.ScalarFunction => SuggestionKind.Function,
-
-            // 資料表值函式與純量函式分開：前者接得上 FROM、JOIN 與 APPLY，
-            // 後者只出現在運算式位置。壓成同一類的症狀是 FROM 之後一個函式都不出現。
-            SqlObjectKind.InlineTableFunction => SuggestionKind.TableFunction,
-            SqlObjectKind.TableValuedFunction => SuggestionKind.TableFunction,
-            SqlObjectKind.Trigger => SuggestionKind.Trigger,
-            SqlObjectKind.Sequence => SuggestionKind.Sequence,
-            SqlObjectKind.TableType => SuggestionKind.UserDefinedType,
-            _ => null
-        };
     }
 }

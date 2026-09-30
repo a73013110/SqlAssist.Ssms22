@@ -1,4 +1,5 @@
 {
   "NameWithDescription": "{name} ({description})",
-  "AliasOf": "{alias} (alias of {source})"
+  "AliasOf": "{alias} (alias of {source})",
+  "QueryResult": "Query result"
 }

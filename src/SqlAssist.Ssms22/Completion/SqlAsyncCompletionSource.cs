@@ -288,7 +288,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                        NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug,
                        context.Prefix, ActiveSqlEditor.GetDocumentName(_textView)))
             {
-                context = await _metadataService
+                context = await _metadataService.Completion
                     .ResolveQualifierAsync(context, token)
                     .ConfigureAwait(false);
             }
@@ -317,11 +317,9 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             _metadataService.WarmColumns(context.ScopeSources);
         }
 
-        var candidates = await GetCandidatesAsync(context, settings, token).ConfigureAwait(false);
-
-        // 上下文過濾要在建立清單時做完：平台會快取這份清單，
-        // 之後每一次按鍵只重新比對前綴，不會再問來源一次。
-        var suggestions = SuggestionContextFilter.Filter(candidates, context);
+        var suggestions = await SqlCompletionCandidates
+            .GetAsync(context, GetBuiltIn(), settings, _metadataService.Completion, token)
+            .ConfigureAwait(false);
 
         if (suggestions.Count == 0)
         {
@@ -501,148 +499,6 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             : suggestion.Preview;
     }
 
-    private async Task<IReadOnlyList<SqlSuggestion>> GetCandidatesAsync(
-        SqlCompletionContext context,
-        SqlAssistSettings settings,
-        CancellationToken token)
-    {
-        // 全域變數是一份封閉的內建清單，這個位置不必等中繼資料——
-        // 而 GetSuggestionsAsync 在快取還沒暖的時候會真的去查一次資料庫。
-        if (context.Target == CompletionTarget.GlobalVariable)
-        {
-            return SqlGlobalVariableCatalog.All;
-        }
-
-        // 變數全部讀自指令碼本身，上下文分析已經把它們算好了。
-        // EXEC dbo.usp_Renew @| 還要加上那個程序的參數——兩者在這個位置都對。
-        if (context.Target == CompletionTarget.Variable)
-        {
-            if (context.ExecutedModule is not { } module)
-            {
-                return context.ScriptSources;
-            }
-
-            var parameters = await _metadataService
-                .GetParameterSuggestionsAsync(module, settings.IncludeDatabaseObjects, token)
-                .ConfigureAwait(false);
-
-            return parameters.Concat(context.ScriptSources).ToArray();
-        }
-
-        // 游標名稱同樣只寫在指令碼裡；FETCH | 還接得了 NEXT、PRIOR 這些方向，由片語給。
-        if (context.Target == CompletionTarget.Cursor)
-        {
-            return context.ClausePhrase is { } cursorPhrase
-                ? context.ScriptSources.Concat(cursorPhrase.Suggestions).ToArray()
-                : context.ScriptSources;
-        }
-
-        // 引數與提示是純粹的封閉清單，一次資料庫都不必問。
-        switch (context.Target)
-        {
-            case CompletionTarget.DatePart:
-                return SqlArgumentCatalog.DateParts;
-            case CompletionTarget.TableHint:
-                return SqlArgumentCatalog.TableHints;
-            case CompletionTarget.QueryHint:
-                return SqlArgumentCatalog.QueryHints;
-
-            // 封閉片語的字之外還有以那些字開頭的片段（CURSOR FOR 之後的 ssf），由上下文過濾挑。
-            case CompletionTarget.ClauseKeyword:
-                return GetBuiltIn()
-                    .Where(item => item.Kind == SuggestionKind.Snippet && IsBuiltInEnabled(item, settings))
-                    .Concat(context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>())
-                    .ToArray();
-        }
-
-        // 定序、語言與時區的名單只有伺服器知道，但那個位置不會因為問不到而空掉：
-        // 文法上的字（DATABASE_DEFAULT）與這份指令碼已經寫過的值都不必送出查詢。
-        // 關掉「列出資料庫物件與欄位」的人要的是「不要連線」，剩下的正好是這一份。
-        if (SqlInstanceList.For(context.Target) is { } instanceList)
-        {
-            var server = settings.IncludeDatabaseObjects
-                ? await _metadataService.GetInstanceListAsync(instanceList, token).ConfigureAwait(false)
-                : SqlInstanceListData.Empty;
-
-            return instanceList.Suggestions(context.ScriptSources, server);
-        }
-
-        // 內建型別是一份封閉的清單，但使用者自訂的資料表型別在資料庫裡，
-        // DECLARE @t dbo.XType 要的正是後者。片語的字照接上來：資料行定義的 PERIOD 之後還有 FOR。
-        if (context.Target == CompletionTarget.DataType)
-        {
-            var types = settings.IncludeDatabaseObjects
-                ? await _metadataService.GetSuggestionsAsync(context.QualifierPath, token).ConfigureAwait(false)
-                : Array.Empty<SqlSuggestion>();
-
-            return SqlDataTypeCatalog.All
-                .Concat(types)
-                .Concat(context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>())
-                .ToArray();
-        }
-
-        if (context.Target == CompletionTarget.Column)
-        {
-            // 關掉「列出資料庫物件與欄位」等於不對資料庫送出任何查詢，
-            // 那時只有欄位名稱寫在指令碼裡的來源（子查詢、CTE）列得出來。
-            // 片語的字照接上來：DROP COLUMN 之後還有 IF EXISTS。
-            var columns = await _metadataService
-                .GetColumnSuggestionsAsync(context.ColumnSources!, settings.IncludeDatabaseObjects, token)
-                .ConfigureAwait(false);
-
-            return context.ClausePhrase is { } phrase
-                ? columns.Concat(phrase.Suggestions).ToArray()
-                : columns;
-        }
-
-        // 跨資料庫或跨伺服器的限定字：清單只能來自那個地方。混進本地的物件、
-        // 關鍵字與敘述裡的欄位就是「看起來完全正常，選中的每一個名稱卻不是
-        // 使用者指名的那一個」——而關鍵字與片段在限定字之後本來就一個都不對。
-        if (context.QualifierPath is { IsLocal: false })
-        {
-            return settings.IncludeDatabaseObjects
-                ? await _metadataService
-                    .GetSuggestionsAsync(context.QualifierPath, token)
-                    .ConfigureAwait(false)
-                : Array.Empty<SqlSuggestion>();
-        }
-
-        // 指令碼自己宣告的 CTE 與暫存資料表不必對資料庫送出任何查詢，
-        // 因此與「列出資料庫物件」的設定無關——關掉那個設定的人要的是
-        // 「不要連線」，不是「看不到我上一行才寫的名稱」。
-        // 不封閉的子句片語（SET IDENTITY_INSERT 之後是資料表）把它的字接上來；
-        // 目錄裡的關鍵字在那一格由上下文過濾換成片語的字。
-        var builtIn = GetBuiltIn()
-            .Where(item => IsBuiltInEnabled(item, settings))
-            .Concat(context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>())
-            .Concat(context.ScriptSources);
-
-        if (!settings.IncludeDatabaseObjects)
-        {
-            return builtIn.ToArray();
-        }
-
-        var database = await _metadataService.GetSuggestionsAsync(token).ConfigureAwait(false);
-
-        // 敘述裡看得到的欄位放在資料庫物件前面：SELECT | FROM PUBLISHER a 這種位置，
-        // 使用者要的幾乎都是欄位，而不是整個資料庫的物件清單。
-        var scopeColumns = _metadataService.GetCachedScopeColumns(context.ScopeSources);
-        var candidates = builtIn.Concat(scopeColumns).Concat(database);
-
-        // sys.| 與 EXEC | 才把系統物件拉進來：那一份有一兩千筆，混進一般清單的話，
-        // 打第一個字元時真正要找的東西會被 sp_ 開頭的名稱淹掉。
-        if (context.WantsSystemObjects)
-        {
-            var system = await _metadataService
-                .GetSystemSuggestionsAsync(context.QualifierPath, token)
-                .ConfigureAwait(false);
-
-            candidates = candidates.Concat(system);
-        }
-
-        return candidates.ToArray();
-    }
-
     private CompletionItem CreateItem(
         SqlSuggestion suggestion,
         SqlAssistSettings settings,
@@ -696,23 +552,6 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
 
             return _builtIn;
         }
-    }
-
-    /// <summary>
-    /// 內建項目是否啟用。
-    /// </summary>
-    /// <remarks>
-    /// 關鍵字不受「輸入時轉大寫」影響：那個開關管的是輸入分隔字元時要不要
-    /// 改寫已經打出來的字，與清單裡要不要列出 SELECT 是兩件事。
-    /// 目前只有程式碼片段可以個別關掉，關鍵字一律列出。
-    /// </remarks>
-    private static bool IsBuiltInEnabled(SqlSuggestion item, SqlAssistSettings settings)
-    {
-        return item.Kind switch
-        {
-            SuggestionKind.Snippet => settings.IncludeSnippets,
-            _ => true
-        };
     }
 
     /// <summary>這一次清單在找什麼；通知的主體。</summary>

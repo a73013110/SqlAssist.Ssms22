@@ -2,5 +2,7 @@
   // 說明面板的標題列：名稱加上種類（SqlKindText），或變數宣告的型別。
   "NameWithDescription": "{name}（{description}）",
   // 別名的說明面板標題：別名與它指向的資料來源。
-  "AliasOf": "{alias}（{source} 的別名）"
+  "AliasOf": "{alias}（{source} 的別名）",
+  // 欄位來自沒有名稱的查詢結果（例如衍生資料表）時的來源名稱。
+  "QueryResult": "查詢結果"
 }

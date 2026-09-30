@@ -1,0 +1,4 @@
+{
+  // 建議清單裡參數項目的說明。{parameter} 是參數宣告，例如 @BranchId int。
+  "ParameterOf": "{routine} 的參數：{parameter}"
+}
