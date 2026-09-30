@@ -143,6 +143,18 @@ public static class SqlCompletionContextAnalyzer
                 keywordPosition: keywordPosition);
         }
 
+        // CREATE PROCEDURE | 的第一段可能是結構描述：名字是新的，限定它的結構描述不是。
+        // 物件與關鍵字都不對，底下的目標判斷不必問。
+        if (caret.NewNameQualifier)
+        {
+            return new SqlCompletionContext(
+                caret.Slot,
+                tokenStart,
+                prefix,
+                CompletionTarget.Schema,
+                keywordPosition: keywordPosition);
+        }
+
         // CREATE INDEX ix ON | 的 ON 後面是資料表，JOIN b ON | 的 ON 後面是述詞。
         // 這一條先問，因為它是唯一需要看詞元的：DetermineTarget 只認得游標前一、
         // 兩個詞元的字面值，而分辨這兩種 ON 要再往前看一個名稱單位。

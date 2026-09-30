@@ -75,7 +75,7 @@
 
 3. 稽核自己的誤判改 `tools/SqlAssist.CompletionAudit` 的判定，不標 `ignore`。判定新認得的名稱會讓召回語料
    轉紅時（MERGE 目標別名、`inserted`／`deleted`），與補上它的產品修正放同一批。
-4. 修正一批一條分支；修好之後 `-Cluster <識別>` 重驗，仍漏 0 才改成 `fixed`。在 worktree 裡修時，
+4. 修好之後 `-Cluster <識別>` 重驗，仍漏 0 才改成 `fixed`。在 worktree 裡修時，
    `artifacts/` 不進版控：先把主工作區的 `artifacts\completion-audit` 以 junction 連到同一個位置，
    `-Cluster` 才找得到原始紀錄，`state.json` 也才改到同一份。
 5. 標 `fixed` 的群再出現就是退化，排在報告最前面。

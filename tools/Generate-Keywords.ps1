@@ -1727,6 +1727,9 @@ $positionPhraseProbes = @($ClausePhrases | Where-Object { -not $_['Pattern'] } |
 # 物件種類之後的新名字：CREATE 之後寫到哪幾個字，下一格就是新物件的名稱。執行期拿它判斷新名字的格子。
 $createdKinds = [System.Collections.Generic.List[string]]::new()
 
+# 名稱寫得出結構描述當限定字的種類（CREATE PROCEDURE dbo.p）；登入、索引、資料庫這些不行。
+$schemaQualifiedKinds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
 # 每個片語展開過幾層。展開到已探過的一格時，只在這次的層數比較多才再往下：OPEN 的展開先走到
 # OPEN SYMMETRIC KEY {name}，之後宣告的那一條要走得更深。
 $phraseBudgets = @{}
@@ -1794,7 +1797,13 @@ function Add-ClausePhrase {
     # 建立的物件種類寫完了，下一格是物件的名稱。ON、AUTHORIZATION 之後是既有的物件（CREATE FULLTEXT INDEX ON t、
     # CREATE SCHEMA AUTHORIZATION u），不是這一句建立的名字。
     if ($Kinds -eq 'New' -and $takesName -and $Pattern -notmatch ' (ON|AUTHORIZATION)$') {
-        $script:createdKinds.Add($Pattern.Substring('CREATE '.Length))
+        $kind = $Pattern.Substring('CREATE '.Length)
+        $script:createdKinds.Add($kind)
+
+        # 兩段式名稱撐過點號之後那一段：CREATE INDEX s.ix 在點號就報錯。
+        if ([SqlAssistPhraseProber]::FirstRejection("$Probe$PlainName.$PlainName x") -gt "$Probe$PlainName.".Length) {
+            $null = $script:schemaQualifiedKinds.Add($kind)
+        }
     }
 
     if (-not $silent) {
@@ -2514,17 +2523,18 @@ foreach ($position in $additivePhrases.Keys) {
 $null = $builder.AppendLine('    };')
 $null = $builder.AppendLine('')
 $null = $builder.AppendLine('    /// <summary>')
-$null = $builder.AppendLine('    /// CREATE 之後寫到這幾個字，下一格是物件的名稱；值是那一格除了名稱還接不接得上片語的字')
-$null = $builder.AppendLine('    /// （CREATE DATABASE 之後還有 SCOPED）。')
+$null = $builder.AppendLine('    /// CREATE 之後寫到這幾個字，下一格是物件的名稱；AlsoWords 是那一格除了名稱還接不接得上片語的字')
+$null = $builder.AppendLine('    /// （CREATE DATABASE 之後還有 SCOPED），SchemaQualified 是名稱寫不寫得出結構描述（CREATE PROCEDURE dbo.p）。')
 $null = $builder.AppendLine('    /// </summary>')
-$null = $builder.AppendLine('    internal static readonly KeyValuePair<string, bool>[] CreatedKinds =')
+$null = $builder.AppendLine('    internal static readonly (string Kind, bool AlsoWords, bool SchemaQualified)[] CreatedKinds =')
 $null = $builder.AppendLine('    {')
 
 # 那一格除了名稱還接不接得上別的字，要等片語全部補完才知道：CREATE DATABASE 之後的 ENCRYPTION 是
 # CREATE DATABASE ENCRYPTION KEY 那一條補的。
 foreach ($kind in $createdKinds) {
     $alsoWords = @($phrases.Values | Where-Object { $_.Pattern -eq "CREATE $kind" -and $_.After -contains 'StatementStart' -and @($_.Words).Count -gt 0 }).Count -gt 0
-    $null = $builder.AppendLine("        new(`"$kind`", $($alsoWords ? 'true' : 'false')),")
+    $schemaQualified = $schemaQualifiedKinds.Contains($kind)
+    $null = $builder.AppendLine("        (`"$kind`", $($alsoWords ? 'true' : 'false'), $($schemaQualified ? 'true' : 'false')),")
 }
 
 $null = $builder.AppendLine('    };')

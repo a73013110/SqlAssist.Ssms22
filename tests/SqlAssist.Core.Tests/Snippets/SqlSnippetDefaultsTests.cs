@@ -288,7 +288,7 @@ public sealed class SqlSnippetDefaultsTests
     ///
     /// 標頭本身也守著兩件事：它不含錢字號（否則會多出使用者沒宣告的欄位），
     /// 而且註解不會改變下一格的上下文——後者由
-    /// <see cref="新建物件的名稱欄位不主動開清單"/> 連帶守住，那幾格分析的正是
+    /// <see cref="可能是名字的欄位打了字才有清單"/> 連帶守住，那幾格分析的正是
     /// 「標頭加上 CREATE …」這一整段。
     /// </remarks>
     [Fact]
@@ -386,6 +386,7 @@ public sealed class SqlSnippetDefaultsTests
 
     /// <remarks>
     /// 反過來守：這幾格填的是使用者正要取的<b>新名字</b>，清單裡沒有一項會是對的。
+    /// 名稱寫得出結構描述的（<c>ctb</c>、<c>cv</c>、<c>cp</c>、<c>cf</c>）第一段可能是結構描述，見下一個測試。
     /// 彈出來的唯一效果是他順手按下 Enter，剛打的名字被換成別人的資料表。
     ///
     /// 不必為此加旗標：<c>CREATE TABLE</c>、<c>;WITH</c>、<c>) AS</c> 這些位置分析器
@@ -393,11 +394,6 @@ public sealed class SqlSnippetDefaultsTests
     /// 在 <see cref="SqlCompletionPolicy"/>。
     /// </remarks>
     [Theory]
-    [InlineData("ctb", "table")]
-    [InlineData("cv", "view")]
-    [InlineData("cp", "procedure")]
-    [InlineData("cf", "function")]
-    [InlineData("ctf", "function")]
     [InlineData("cix", "index")]
     [InlineData("cte", "cte")]
     [InlineData("wcte", "cte")]
@@ -413,11 +409,17 @@ public sealed class SqlSnippetDefaultsTests
     /// <remarks>
     /// <c>ctb</c> 的資料行格是資料行定義的開頭：使用者多半在取新名字，但這一格也接得了
     /// CONSTRAINT、PRIMARY KEY。<c>cdb</c> 的資料庫名稱格同理：<c>CREATE DATABASE</c> 之後也接得了
-    /// SCOPED、ENCRYPTION。所以打了字才有清單，而且不預先選中。
+    /// SCOPED、ENCRYPTION。新物件的名稱格第一段可能是結構描述（<c>dbo.ProcedureName</c>）。
+    /// 所以打了字才有清單，而且不預先選中；一進格就開的話，Tab 會把 <c>dbo</c> 提交進整格的預設值。
     /// </remarks>
     [Theory]
     [InlineData("ctb", "column")]
     [InlineData("cdb", "database")]
+    [InlineData("ctb", "table")]
+    [InlineData("cv", "view")]
+    [InlineData("cp", "procedure")]
+    [InlineData("cf", "function")]
+    [InlineData("ctf", "function")]
     public void 可能是名字的欄位打了字才有清單(string shortcut, string fieldId)
     {
         var context = AnalyzeBeforeField(shortcut, fieldId);

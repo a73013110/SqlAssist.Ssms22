@@ -54,7 +54,8 @@
 | `LibMirror.LibArchive.` | 資料庫 | 該資料庫的結構描述與全部物件 | **是，且不看設定** |
 
 「接得住物件的位置」由 `SuggestionContextFilter.IsQualifiedNameStart` 一處決定，名稱的
-三種開頭共用；`USE` 只收資料庫。清單裡的結構描述讀 `SqlDatabaseSnapshot.SchemasWithObjects`，
+三種開頭共用；`USE` 只收資料庫，新物件名稱的第一段（`CREATE PROCEDURE `）只收結構描述，
+見[子句邊界](completion-boundaries.md#create-的名稱格)。清單裡的結構描述讀 `SqlDatabaseSnapshot.SchemasWithObjects`，
 底下沒有物件的（`guest`、`db_denydatareader` 這類角色同名的）不列；認限定字仍讀完整的
 `Schemas`，否則空結構描述與資料庫同名時會被改認成資料庫。
 
@@ -84,5 +85,5 @@
 哪些位置列得出第一段，由 `IsQualifiedNameStart` 一處決定：凡是接得住一個資料庫物件
 的位置都算——`FROM`、`JOIN`、運算式裡的純量函式、`EXEC` 的程序、`APPLY` 的資料表值
 函式、`NEXT VALUE FOR` 的序列。逐個位置補的話，漏掉的那一個沒有徵兆：使用者只會
-看到「這裡沒有建議」，而語法明明合法。`USE` 是唯一的特例，那裡的資料庫是整句的
-終點而不是第一段。
+看到「這裡沒有建議」，而語法明明合法。特例有兩個：`USE` 的資料庫是整句的
+終點而不是第一段；新物件名稱的第一段只接結構描述，名字本身還在點號之後。

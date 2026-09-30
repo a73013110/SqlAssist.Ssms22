@@ -567,6 +567,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         CompletionTarget.TableFunction => SqlKindText.TableFunction,
         CompletionTarget.Column => SqlKindText.Column,
         CompletionTarget.Database => SqlKindText.Database,
+        CompletionTarget.Schema => SqlKindText.Schema,
         CompletionTarget.GlobalVariable => SqlKindText.GlobalVariable,
         CompletionTarget.Variable => SqlKindText.Variable,
         CompletionTarget.DataType => SqlKindText.DataType,

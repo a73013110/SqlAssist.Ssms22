@@ -26,7 +26,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("ALTER PROC ", CompletionTarget.Procedure)]
     [InlineData("ALTER FUNCTION ", CompletionTarget.Function)]
     [InlineData("ALTER VIEW ", CompletionTarget.View)]
-    [InlineData("CREATE OR ALTER VIEW ", CompletionTarget.View)]
+    [InlineData("CREATE OR ALTER VIEW v", CompletionTarget.View)]
     [InlineData("ALTER TRIGGER ", CompletionTarget.Trigger)]
     [InlineData("DROP VIEW ", CompletionTarget.View)]
     [InlineData("DROP VIEW IF EXISTS ", CompletionTarget.View)]

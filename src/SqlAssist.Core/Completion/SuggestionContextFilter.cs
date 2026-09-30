@@ -233,6 +233,9 @@ public static class SuggestionContextFilter
             CompletionTarget.TableFunction => kind == SuggestionKind.TableFunction,
             CompletionTarget.Column => kind == SuggestionKind.Column,
             CompletionTarget.Database => kind == SuggestionKind.Database,
+
+            // 新物件名稱的第一段只有結構描述，上面 IsQualifiedNameStart 已經放行。
+            CompletionTarget.Schema => false,
             CompletionTarget.GlobalVariable => kind == SuggestionKind.GlobalVariable,
             // EXEC p @| 同時接得了他自己的變數與那個程序的參數，兩者都對。
             CompletionTarget.Variable => kind is SuggestionKind.Variable or SuggestionKind.Parameter,
@@ -338,15 +341,21 @@ public static class SuggestionContextFilter
     /// 資料型別、日期部分與兩種提示。那些位置放進來的話，每一次按鍵都要多背
     /// 一份一定比不中的名單。
     ///
-    /// <c>USE</c> 是唯一的特例：那裡的資料庫名稱是整句的<b>終點</b>而不是名稱的
+    /// <c>USE</c> 是一個特例：那裡的資料庫名稱是整句的<b>終點</b>而不是名稱的
     /// 第一段，連結伺服器與結構描述在那裡根本接不上（<c>USE</c> 換不了伺服器，
-    /// 也不接結構描述）。
+    /// 也不接結構描述）。新物件名稱的第一段是另一個：只接結構描述。
     /// </remarks>
     private static bool IsQualifiedNameStart(SuggestionKind kind, CompletionTarget target)
     {
         if (target == CompletionTarget.Database)
         {
             return kind == SuggestionKind.Database;
+        }
+
+        // 新物件名稱的限定字只有結構描述：CREATE PROCEDURE 換不了資料庫與伺服器。
+        if (target == CompletionTarget.Schema)
+        {
+            return kind == SuggestionKind.Schema;
         }
 
         return target is CompletionTarget.Any

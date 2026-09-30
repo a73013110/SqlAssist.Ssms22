@@ -187,10 +187,9 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <remarks>
     /// 不手寫：產生器從 <c>CREATE</c> 一路展開到名稱為止（<c>SYMMETRIC KEY</c>、<c>UNIQUE CLUSTERED INDEX</c>、
     /// <c>OR ALTER PROCEDURE</c>）。手寫的名單只收得到常用的十幾種，其餘種類的名稱格整份目錄全部進場。
-    /// 名稱那一格還接得上別的字（<c>CREATE DATABASE SCOPED</c>）或可能是既有物件（<c>CREATE OR ALTER</c>）時
-    /// 是「可能是名字」，其餘是新名字。
+    /// 那一格是什麼名字見 <see cref="CreatedNameSlot"/>。
     /// </remarks>
-    private static readonly (string[] Words, SqlCompletionSlot Slot)[] CreatedKinds = BuildCreatedKinds();
+    private static readonly (string[] Words, bool MayExist, bool SchemaQualified)[] CreatedKinds = BuildCreatedKinds();
 
     /// <summary>標頭以 <c>AS</c> 結束、後面接主體的物件種類。</summary>
     private static readonly HashSet<string> ModuleKinds =
@@ -288,7 +287,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 : -1;
         var phrase = SqlClausePhraseCatalog.Match(analyzer, tokens, textBeforeToken, caret.Keywords, listAnchor);
 
-        return new SqlCaretPosition(caret.Keywords, caret.Slot, phrase, analyzer.StartsBatch());
+        return new SqlCaretPosition(caret.Keywords, caret.Slot, phrase, analyzer.StartsBatch(), caret.NewNameQualifier);
     }
 
     /// <summary>同一個批次裡游標前面還沒有任何詞元。</summary>
@@ -1332,9 +1331,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 四種都是「前面的字已經說完這裡要一個還不存在的名稱」：
     ///
     /// <list type="bullet">
-    /// <item><c>CREATE PROCEDURE </c>、<c>CREATE UNIQUE INDEX </c>、<c>CREATE SYMMETRIC KEY </c> 這類建立敘述的物件名稱（<see cref="CreatedKinds"/>）。
-    /// <c>CREATE OR ALTER</c> 例外：那一格也常是既有物件，所以是「可能是名字」。
-    /// <c>ALTER PROCEDURE </c> 要的是既有物件，不在這裡。</item>
+    /// <item><c>CREATE PROCEDURE </c>、<c>CREATE UNIQUE INDEX </c>、<c>CREATE SYMMETRIC KEY </c> 這類建立敘述的物件名稱（<see cref="CreatedKinds"/>），
+    /// 哪一段是新名字見 <see cref="CreatedNameSlot"/>。<c>ALTER PROCEDURE </c> 要的是既有物件，不在這裡。</item>
     /// <item><c>SELECT … INTO </c> 的目標。<c>INSERT INTO </c>、<c>MERGE INTO </c> 要的是
     /// 既有資料表，<c>FETCH … INTO </c> 與 <c>OUTPUT … INTO </c> 的子句錨點不是 SELECT，
     /// 都不在這裡。</item>
@@ -1343,9 +1341,9 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// </list>
     ///
     /// 帶限定字時一樣：<c>CREATE PROCEDURE dbo.</c> 的點號由 <see cref="AnalyzeAt"/>
-    /// 剝掉之後回到這裡。
+    /// 剝掉之後回到這裡，<paramref name="qualified"/> 記著剝過。
     /// </remarks>
-    private bool TryResolveNewName(int last, out SqlCaretPosition caret)
+    private bool TryResolveNewName(int last, bool qualified, out SqlCaretPosition caret)
     {
         var token = tokens[last];
 
@@ -1372,7 +1370,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             !token.IsQuoted &&
             FindCreatedKind(last, endsAt: true) is { } kind)
         {
-            caret = new SqlCaretPosition(SqlKeywordPosition.Any, kind.Slot);
+            caret = CreatedNameSlot(kind, qualified);
             return true;
         }
 
@@ -1384,7 +1382,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 建立敘述的物件種類：<paramref name="endsAt"/> 為真時是以 <paramref name="index"/> 結尾、前面緊接 CREATE 的那一種，
     /// 否則是 <paramref name="index"/> 的 CREATE 之後寫的那一種；都不是回 null。
     /// </summary>
-    private (string[] Words, SqlCompletionSlot Slot)? FindCreatedKind(int index, bool endsAt)
+    private (string[] Words, bool MayExist, bool SchemaQualified)? FindCreatedKind(int index, bool endsAt)
     {
         foreach (var kind in CreatedKinds)
         {
@@ -1416,14 +1414,34 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return true;
     }
 
-    private static (string[] Words, SqlCompletionSlot Slot)[] BuildCreatedKinds()
+    /// <summary>建立敘述的名稱那一格，名稱寫到 <paramref name="qualified"/> 那一段時是什麼名字。</summary>
+    /// <remarks>
+    /// 一條規則：<b>這一段列得出東西就是「可能是名字」，列不出才是新名字</b>。列得出的有三種：
+    /// 那一格可能是既有物件（<c>CREATE OR ALTER</c>）、也接得上別的字（<c>CREATE DATABASE SCOPED</c>），
+    /// 或是還沒寫限定字而名稱寫得出結構描述（<c>CREATE PROCEDURE dbo.p</c> 的 <c>dbo</c>）——新的只有最後一段。
+    /// 前兩種每一段都照目標列既有的名稱，結構描述已在其中；只剩第三種的那一段只列結構描述
+    /// （<see cref="SqlCaretPosition.NewNameQualifier"/>），點號之後回到新名字。
+    /// </remarks>
+    private static SqlCaretPosition CreatedNameSlot((string[] Words, bool MayExist, bool SchemaQualified) kind, bool qualified)
     {
-        var kinds = new List<(string[] Words, SqlCompletionSlot Slot)>();
-
-        foreach (var pair in SqlKeywordCatalogData.CreatedKinds)
+        if (kind.MayExist)
         {
-            var mayExist = pair.Value || pair.Key.StartsWith("OR ALTER ", StringComparison.OrdinalIgnoreCase);
-            kinds.Add((pair.Key.Split(' '), mayExist ? SqlCompletionSlot.MaybeName : SqlCompletionSlot.Name));
+            return new SqlCaretPosition(SqlKeywordPosition.Any, SqlCompletionSlot.MaybeName);
+        }
+
+        return kind.SchemaQualified && !qualified
+            ? new SqlCaretPosition(SqlKeywordPosition.Any, SqlCompletionSlot.MaybeName, newNameQualifier: true)
+            : new SqlCaretPosition(SqlKeywordPosition.Any, SqlCompletionSlot.Name);
+    }
+
+    private static (string[] Words, bool MayExist, bool SchemaQualified)[] BuildCreatedKinds()
+    {
+        var kinds = new List<(string[] Words, bool MayExist, bool SchemaQualified)>();
+
+        foreach (var (kind, alsoWords, schemaQualified) in SqlKeywordCatalogData.CreatedKinds)
+        {
+            var mayExist = alsoWords || kind.StartsWith("OR ALTER ", StringComparison.OrdinalIgnoreCase);
+            kinds.Add((kind.Split(' '), mayExist, schemaQualified));
         }
 
         kinds.Sort((left, right) => right.Words.Length.CompareTo(left.Words.Length));
@@ -1623,9 +1641,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <c>AS AS</c> 這種寫不出來的東西不該讓分析器把堆疊用完。往前一句再問的遞迴
     /// 另由 <see cref="KeywordsBefore"/> 擋住層數。
     /// </param>
+    /// <param name="qualified">游標那個名稱已經寫了限定字，<paramref name="last"/> 在整個名稱之前。</param>
     private SqlCaretPosition AnalyzeAt(
         int last,
-        bool followAlias)
+        bool followAlias,
+        bool qualified = false)
     {
         if (last < 0)
         {
@@ -1667,7 +1687,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
         {
             return AnalyzeAt(
                 SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last - 1) - 1,
-                followAlias);
+                followAlias,
+                qualified: true);
         }
 
         // 加引號的識別字是名稱不是關鍵字：[AS] 之後不是別名位置。
@@ -1686,7 +1707,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 : SqlKeywordPosition.Any);
         }
 
-        if (TryResolveNewName(last, out var named))
+        if (TryResolveNewName(last, qualified, out var named))
         {
             return named;
         }

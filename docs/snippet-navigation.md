@@ -72,13 +72,14 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
 | `FROM `、`ALTER TABLE `、`DROP TABLE IF EXISTS `… | 列出資料表與檢視 |
 | `CREATE INDEX ix ON ` 這種 DDL 的 `ON` | 同上；與 JOIN 條件的 `ON` 由 `SqlDdlTarget` 分開 |
 | `別名.` 這種限定字 | 列出那一張表的欄位 |
-| `CREATE TABLE `、`CREATE VIEW `、`;WITH `… | 不參與；那是新名字（`Name`） |
+| `CREATE INDEX `、`;WITH `… | 不參與；那是新名字（`Name`） |
+| `CREATE TABLE `、`CREATE VIEW `、`CREATE PROCEDURE ` | 打了字才有，軟選，只列結構描述：名稱的第一段可能是結構描述 |
 | `ctb` 的資料行格（`CREATE TABLE t (`） | 打了字才有，軟選：可能是新資料行，也可能是 `CONSTRAINT` |
 | `cix` 的 `ON t (`、`INSERT INTO t (` 這種資料行的位置 | 列出那張表的資料行，見[欄位](completion-columns.md#文法指定的所屬資料表) |
 
-第四、五列不必特別處理：分析器自己就把那一格分類成新名字或可能是名字，規則只有
+第四到六列不必特別處理：分析器自己就把那一格分類成新名字或可能是名字，規則只有
 `SqlCompletionPolicy` 一份。各有守門測試（`物件欄位落在會列出資料來源的位置`、
-`新建物件的名稱欄位不主動開清單`、`資料行定義的欄位是可能是名字的位置`）。
+`新建物件的名稱欄位不主動開清單`、`可能是名字的欄位打了字才有清單`）。
 
 過去 `tabStops` 不敢開清單的理由是「placeholder 的預設值會被當成篩選前綴」，
 那是真的——`dbo.TargetTable` 當前綴時清單一定是空的。解法是**適用範圍改成整格，

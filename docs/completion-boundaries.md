@@ -13,11 +13,11 @@
 - **寫完的 `CASE … END` 也是運算元**，後面照外層位置。還沒寫完的 CASE 是游標
   所在的那一層：`CASE WHEN a = 1 THEN b ` 之後接 `WHEN`、`ELSE`、`END`。
 - **逗號代表清單再來一項**，位置回到清單的**起點**：`SELECT a, ` 與 `SELECT ` 同一個位置；
-  判成尾端會列出 `FROM`、`INTO`，`CASE` 反而不見。
+  判成尾端的話 `CASE` 不見。
 - **TOP 子句不是選取清單的一項**：`SELECT TOP 10 `、`TOP (10) `、`TOP 10 PERCENT `
-  之後仍是起點，另接 `PERCENT`、`WITH TIES`。當成一項會列出 `FROM`。
+  之後仍是起點，另接 `PERCENT`、`WITH TIES`。
 - **`ON` 的述詞寫完之後是兩個位置的聯集**：述詞尾端（`AND`、`OR`）與資料來源尾端
-  （`WHERE`、`JOIN`、`GROUP`）。只報前者就打不出 `WHERE`。
+  （`WHERE`、`JOIN`、`GROUP`）。
 - **`SET` 子句寫完之後也是**：`UPDATE t SET a = 1 ` 另接 `WHERE`、`FROM`、`OUTPUT`。
 - **其餘的 `SET` 帶出選項**（含 `ALTER DATABASE x SET`）。名稱寫完
   （`SET NOCOUNT `）只列 `ON`、`OFF` 這類值；停在關鍵字上是還沒寫完（`SET IDENTITY_INSERT `
@@ -32,33 +32,30 @@
 
 ## 名稱位置三分類
 
-分析器在同一趟反向走訪裡替游標那一格分類（`SqlCompletionSlot`）；開不開、選不選只看
+分析器替游標那一格分類（`SqlCompletionSlot`）；開不開、選不選只看
 `SqlCompletionPolicy` 一條規則。開的兩類還要候選集合封閉或前綴達到觸發字元數。
 
 | 分類 | 意思 | 例子 | 清單 |
 |---|---|---|---|
 | `Inert` | 不可補 | 字串、註解、`10`、`1.` | 不開 |
-| `Name` | 一定是新名字 | `AS `、`DECLARE @`、`CREATE PROCEDURE ` | 不開 |
-| `MaybeName` | 名字或關鍵字都可能 | `FROM dbo.T `、`SELECT PublCode ` | 開，軟選 |
+| `Name` | 一定是新名字 | `AS `、`DECLARE @`、`CREATE PROCEDURE dbo.` | 不開 |
+| `MaybeName` | 名字或關鍵字都可能 | `FROM dbo.T `、`SELECT PublCode `、`CREATE PROCEDURE ` | 開，軟選 |
 | `Grammar` | 其餘 | `SELECT `、`WHERE a = ` | 開，打了字才硬選 |
 
-`Name` 的清單沒有一項會對，Enter 只會把剛打的 `a` 換成 `ALTER PROCEDURE`。
-`MaybeName` 的 `FROM dbo.T W` 可能是別名也可能是打到一半的 `WHERE`：軟選時只有 Tab 提交，
-Enter 照常換行保住別名，按 ↓ 轉成硬選。代價是 `FR`＋Enter 不再補成 `FROM`。
+`MaybeName` 的 `FROM dbo.T W` 可能是別名也可能是打到一半的 `WHERE`，軟選讓 Enter 保住別名，
+代價是 `FR`＋Enter 不再補成 `FROM`。它寫得出清單外的新名字，目標不讓它封閉：打了字才開。
 
 - **`Name`**：`AS ` 之後的別名、文法強制別名的括號之後（衍生資料表、`PIVOT (…) `、
-  `UNPIVOT (…) `）、`DECLARE @`（見[變數](completion-variables.md)）、`CREATE <種類> ` 的新物件
-  （種類見[產生器](phrase-generator.md)的 `Kinds`）、敘述開頭 `WITH ` 與 `WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
+  `UNPIVOT (…) `）、`DECLARE @`（見[變數](completion-variables.md)）、`CREATE <種類> ` 列不出東西的那一段（見下文）、敘述開頭 `WITH ` 與 `WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
   （`INSERT INTO `、`MERGE INTO ` 要既有資料表，是 `Grammar`）、`RESULT SETS ((` 的資料行名稱。
-- **`MaybeName`**：同一行沒有 AS 的別名、`CREATE OR ALTER <種類> `（常是既有物件）、名稱那一格也接得上字的種類
-  （`CREATE DATABASE SCOPED`）、資料行定義的起點（`CREATE TABLE t (`、逗號之後、
+- **`MaybeName`**：同一行沒有 AS 的別名、`CREATE <種類> ` 列得出東西的那一段、資料行定義的起點（`CREATE TABLE t (`、逗號之後、
   `DECLARE @t TABLE (`）、`ALTER TABLE t ADD `——新資料行名稱或 `CONSTRAINT` 都對。
 
 括號是什麼由**前面**那個字決定：接在 `FROM`、`JOIN`、`APPLY`、`USING` 後面的是衍生資料表，
 接在 `IN`、`EXISTS`、`=` 後面的是運算式；`FROM (t1 JOIN t2 ON …) ` 是括號包起來的聯結、
 名稱後的 `WITH (NOLOCK)` 是提示，都不接別名。`AS` 也看前面：一項剛寫完、還沒有別名時才是
 別名，其餘照常——`CREATE VIEW v AS ` 的主體、`EXECUTE AS`、`FOR SYSTEM_TIME AS`（接 `OF`）。
-`CAST(x AS ` 由「型別的位置」先接走，見[資料型別](completion-builtins.md#資料型別)。
+`CAST(x AS ` 由[型別的位置](completion-builtins.md#資料型別)先接走。
 
 ### 別名規則
 
@@ -72,14 +69,18 @@ Enter 照常換行保住別名，按 ↓ 轉成硬選。代價是 `FR`＋Enter �
   （`Grammar`）：`DELETE [TOP (5)] FROM t `、`FETCH NEXT FROM c `。`DELETE a FROM t ` 照常。
 - 項目結尾是識別字、變數、`)`、常值或 `CASE … END` 的 `END`；`*` 後面不接別名。
 - 還沒有別名：最後一個運算元前面不緊鄰另一個運算元或 `AS`。
-- 同一行：前一個詞元結尾到游標之間沒有換行（註解前的也算）；別名一定寫在同一行，
+- 同一行：前一個詞元結尾到游標之間沒有換行（註解前的也算），
   這是分開別名與 `WHE` 的唯一線索。
 
-```text
-FROM dbo.PUBLISHER |、SELECT a + b | → MaybeName
-FROM CTE_TEST a |、SELECT * |        → Grammar
-FROM dbo.PUBLISHER ⏎ |               → 換行了，Grammar
-```
+### CREATE 的名稱格
+
+名稱只有最後一段是新的：**列得出東西的那一段是 `MaybeName`，列不出才是 `Name`**（`CreatedNameSlot`）。
+列得出的是既有物件（`CREATE OR ALTER `）、同一格的字（`CREATE DATABASE SCOPED`），或還沒寫限定字時的
+結構描述（種類由[產生器](phrase-generator.md)探出）。
+其餘是 `Name`：`CREATE PROCEDURE dbo.`、`CREATE INDEX `。
+
+取捨：不列資料庫（跨庫建立少見）。打了字才開，否則片段 `cp` 名稱欄位的 Tab 把 `dbo` 提交進
+`dbo.ProcedureName`；代價是 `CREATE OR ALTER PROCEDURE ` 也不再空前綴就開。`SELECT … INTO ` 仍整格 `Name`。
 
 ## 語句的界線
 
@@ -93,13 +94,12 @@ FROM dbo.PUBLISHER ⏎ |               → 換行了，Grammar
   `AS`、IF 的條件、SET 選項的值、寫完一整句的字（`BREAK`）。
 - **隱含的**：子句尾端又換了行（下一節），或前一句判不出位置而寫到一個運算元。
   但剖析器不看換行：前一句的[片語](completion-phrases.md)確定接得上的字仍屬於前一句
-  （`OFFSET 0 ROWS⏎FETCH`、`ALTER DATABASE d⏎SET`），不為個別的字寫特例。
+  （`OFFSET 0 ROWS⏎FETCH`、`ALTER DATABASE d⏎SET`）。
 - `WITH` 只認明確的：CTE 前一句必須以分號結束，`CREATE VIEW v⏎WITH SCHEMABINDING` 是選項。
 
-子句屬於哪個**動詞**另問往回第一個能開始一句的字（`FindVerb`）；權限清單的一項
-（`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式。
+子句屬於哪個**動詞**另問往回第一個能開始一句的字（`FindVerb`，`UPDATE t⏎SET` 的 SET 屬於 UPDATE）；
+權限清單的一項（`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式。
 
-- `UPDATE t⏎SET` 的 SET 屬於 UPDATE，不是一句的開頭。
 - **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c ` 接 `INTO`
   （`FetchTail`），`RESTORE`、`REVOKE`、`BULK INSERT` 的 FROM 是 `Any`。位置、目標與範圍分析
   共用 `IntroducesDataSource`，分岔時 `DISK` 被收成一張表。
@@ -114,13 +114,9 @@ FROM dbo.PUBLISHER ⏎ |               → 換行了，Grammar
 
 ## 數值常值不開清單
 
-`SET Fine = Fine - 10` 打到 `10` 時模糊比對會對到 `LOG10`，
-Enter 就把數字換成函式。
-
-一般識別字不能以數字開頭，以數字開頭的詞元必然是數值常值，歸 `Inert`。
-比的是第一個字元（`Cat_BookCopy2` 不算）。
-點號前那一段以數字開頭也算（`1.`），否則平台會以限定字 `1` 開清單。
-方括號裡的不算（`[192.0.2.10].` 是連結伺服器）。
+`SET Fine = Fine - 10` 打到 `10` 時模糊比對會對到 `LOG10`，Enter 就把數字換成函式。
+以數字開頭的詞元必然是數值常值，歸 `Inert`；點號前那一段以數字開頭也算（`1.`，否則平台以限定字 `1`
+開清單），方括號裡的不算（`[192.0.2.10].` 是連結伺服器）。
 
 變數後的點號只有資料表變數算限定字：`@rows.` 列它的資料行（提交時改寫成 `[@rows].`，
 見[插入文字](completion-insertion.md#欄位的限定字另有一條)），純量變數的 `@x.value(`

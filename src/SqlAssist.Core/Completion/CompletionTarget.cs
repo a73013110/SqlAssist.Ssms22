@@ -42,6 +42,14 @@ public enum CompletionTarget
     Database,
 
     /// <summary>
+    /// 新物件名稱的第一段（<c>CREATE PROCEDURE </c>），只建議結構描述。
+    /// </summary>
+    /// <remarks>
+    /// 名字本身是新的，限定它的結構描述卻是既有的；點號之後才是新名字，那一格不開清單。
+    /// </remarks>
+    Schema,
+
+    /// <summary>
     /// 游標停在 <c>@@</c> 開頭的詞元上，因此只建議 T-SQL 全域變數。
     /// </summary>
     /// <remarks>

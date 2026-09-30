@@ -496,13 +496,16 @@ public sealed class SqlKeywordPositionTests
     /// <remarks>
     /// <c>CREATE OR ALTER</c> 也常是既有物件，所以只是「可能是名字」；那個位置也接得上字的
     /// （<c>CREATE SCHEMA AUTHORIZATION</c>、<c>CREATE DATABASE ENCRYPTION KEY</c>）同樣只是可能。
+    /// 名稱寫得出結構描述的種類，第一段也只是可能（<c>CREATE PROCEDURE dbo.p</c> 的 <c>dbo</c>），點號之後才是新名字。
     /// <c>ALTER</c>、<c>INSERT INTO</c> 要的是既有物件，照常。
     /// WITH 只認敘述開頭的那一個：資料表提示與模組選項的 WITH 不是 CTE。
     /// </remarks>
     [Theory]
-    [InlineData("CREATE PROCEDURE ", SqlCompletionSlot.Name)]
+    [InlineData("CREATE PROCEDURE ", SqlCompletionSlot.MaybeName)]
     [InlineData("CREATE PROC dbo.", SqlCompletionSlot.Name)]
-    [InlineData("CREATE TABLE ", SqlCompletionSlot.Name)]
+    [InlineData("CREATE VIEW [dbo].", SqlCompletionSlot.Name)]
+    [InlineData("CREATE TABLE ", SqlCompletionSlot.MaybeName)]
+    [InlineData("CREATE TABLE LibArchive.dbo.", SqlCompletionSlot.Name)]
     [InlineData("CREATE UNIQUE CLUSTERED INDEX ", SqlCompletionSlot.Name)]
     [InlineData("CREATE CERTIFICATE ", SqlCompletionSlot.Name)]
     [InlineData("CREATE SYMMETRIC KEY ", SqlCompletionSlot.Name)]
@@ -533,6 +536,33 @@ public sealed class SqlKeywordPositionTests
     public void 新名字的位置(string textBeforeToken, SqlCompletionSlot expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Slot);
+    }
+
+    /// <summary>
+    /// 新名字的第一段可能是結構描述：只在名稱寫得出結構描述、還沒寫限定字、而那一格不是既有物件時。
+    /// </summary>
+    /// <remarks>
+    /// <c>CREATE OR ALTER</c> 的那一格照目標列既有物件，結構描述已在其中，不走這一條。
+    /// </remarks>
+    [Theory]
+    [InlineData("CREATE PROCEDURE ", true)]
+    [InlineData("CREATE PROC ", true)]
+    [InlineData("CREATE VIEW ", true)]
+    [InlineData("CREATE FUNCTION ", true)]
+    [InlineData("CREATE TYPE ", true)]
+    [InlineData("CREATE SEQUENCE ", true)]
+    [InlineData("CREATE SYNONYM ", true)]
+    [InlineData("CREATE TRIGGER ", true)]
+    [InlineData("CREATE PROCEDURE dbo.", false)]
+    [InlineData("CREATE OR ALTER PROCEDURE ", false)]
+    [InlineData("CREATE UNIQUE CLUSTERED INDEX ", false)]
+    [InlineData("CREATE STATISTICS ", false)]
+    [InlineData("CREATE LOGIN ", false)]
+    [InlineData("CREATE SCHEMA ", false)]
+    [InlineData("SELECT a INTO ", false)]
+    public void 新名字的限定字(string textBeforeToken, bool expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).NewNameQualifier);
     }
 
     /// <summary>

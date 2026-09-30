@@ -89,6 +89,34 @@ public sealed class SqlSchemaCompletionTests
         Assert.Equal(new[] { "dbo" }, Schemas(sqlWithCaret));
     }
 
+    /// <summary>
+    /// 新物件名稱的第一段只列使用者結構描述，物件、關鍵字與片段都不列；點號之後是新名字，什麼都不列。
+    /// </summary>
+    /// <remarks>
+    /// 名字是新的，限定它的結構描述卻是既有的。整格判成新名字的話，寫 <c>dbo.</c> 的人拿不到 <c>dbo</c>。
+    /// </remarks>
+    [Theory]
+    [InlineData("CREATE PROCEDURE |")]
+    [InlineData("CREATE VIEW |")]
+    [InlineData("CREATE TABLE |")]
+    [InlineData("GO\nCREATE PROC |")]
+    public void 新物件名稱的第一段只列結構描述(string sqlWithCaret)
+    {
+        var context = Analyze(sqlWithCaret);
+        var items = SuggestionContextFilter.Filter(Candidates(), context);
+
+        Assert.Equal(SqlCompletionSlot.MaybeName, context.Slot);
+        Assert.Equal(new[] { "dbo" }, items.Select(item => item.DisplayText).ToArray());
+    }
+
+    [Theory]
+    [InlineData("CREATE PROCEDURE dbo.|")]
+    [InlineData("CREATE VIEW dbo.v|")]
+    public void 新物件名稱點號之後不開(string sqlWithCaret)
+    {
+        Assert.False(SqlCompletionPolicy.OffersItems(Analyze(sqlWithCaret).Slot));
+    }
+
     [Fact]
     public void USE之後不列結構描述()
     {

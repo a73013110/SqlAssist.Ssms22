@@ -45,7 +45,10 @@ public static class SqlCompletionPolicy
     /// 這幾種線索說的都是同一件事，各自補的話漏掉的那一種沒有徵兆，只是那個位置要多打一個字：
     /// <list type="bullet">
     /// <item>限定字（<c>dbo.</c>、<c>a.</c>）與左方括號：這一格是一個名稱。</item>
-    /// <item>目標收斂（<c>FROM </c>、<c>EXEC </c>、<c>DATEADD(</c>、封閉的子句片語）。</item>
+    /// <item>目標收斂（<c>FROM </c>、<c>EXEC </c>、<c>DATEADD(</c>、封閉的子句片語）。可能是名字的那一格不算：
+    /// 目標說的是要哪一類既有名稱，那一格卻還寫得出清單外的新名字（<c>CREATE PROCEDURE </c> 之後的
+    /// 結構描述或新程序名、<c>CREATE OR ALTER PROCEDURE </c> 之後的既有或新程序）。算的話片段的名稱欄位
+    /// 一進格就開，Tab 把 <c>dbo</c> 提交進 <c>dbo.ProcedureName</c>。</item>
     /// <item>文法指定了資料行的所屬資料表（<c>UPDATE t SET </c>、<c>INSERT INTO t (</c>）：
     /// 省略掉的限定字。</item>
     /// <item>只接得了那幾個字的關鍵字位置（<c>ORDER </c>、MERGE 的 <c>THEN </c>），
@@ -61,7 +64,7 @@ public static class SqlCompletionPolicy
 
         return context.QualifierPath is not null ||
             context.Bracketed ||
-            context.Target != CompletionTarget.Any ||
+            (context.Target != CompletionTarget.Any && context.Slot != SqlCompletionSlot.MaybeName) ||
             context.ColumnOwner is not null ||
             context.KeywordPosition.IsClosed();
     }

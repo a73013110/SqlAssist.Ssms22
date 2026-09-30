@@ -84,14 +84,18 @@ public sealed class SqlCompletionPolicyTests
     [InlineData("CAST(x AS ", true, true, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.DataType)]
     [InlineData("CAST(x AS I", true, true, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.DataType)]
 
-    // CREATE 之後是新名稱；CREATE OR ALTER 可能是既有物件；ALTER 一定是既有物件。
-    [InlineData("CREATE PROCEDURE ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
-    [InlineData("CREATE PROCEDURE u", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
+    // CREATE 之後是新名稱，第一段可能是結構描述；CREATE OR ALTER 可能是既有物件；ALTER 一定是既有物件。
+    // 可能是名字的兩種都寫得出清單外的新名字，目標不讓它們封閉，打了字才開；點號之後照限定字封閉。
+    [InlineData("CREATE PROCEDURE ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.Schema)]
+    [InlineData("CREATE PROCEDURE u", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.Schema)]
     [InlineData("CREATE PROCEDURE dbo.", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
+    [InlineData("CREATE PROCEDURE dbo.u", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
     [InlineData("CREATE UNIQUE NONCLUSTERED INDEX ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
-    [InlineData("CREATE TABLE ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
-    [InlineData("CREATE OR ALTER PROCEDURE u", true, true, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.Procedure)]
-    [InlineData("CREATE OR ALTER VIEW ", true, true, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.View)]
+    [InlineData("CREATE TABLE ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.Schema)]
+    [InlineData("CREATE CERTIFICATE ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
+    [InlineData("CREATE OR ALTER PROCEDURE dbo.", true, true, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.Procedure)]
+    [InlineData("CREATE OR ALTER PROCEDURE u", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.Procedure)]
+    [InlineData("CREATE OR ALTER VIEW ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.View)]
     [InlineData("ALTER PROCEDURE u", true, true, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.Procedure)]
 
     // 封閉的片語是收斂的目標：那一格只有片語的字，與 CAST(x AS 一樣不必等字元數。

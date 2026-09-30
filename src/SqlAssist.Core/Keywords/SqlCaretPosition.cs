@@ -16,12 +16,14 @@ public readonly struct SqlCaretPosition
         SqlKeywordPosition keywords,
         SqlCompletionSlot slot = SqlCompletionSlot.Grammar,
         SqlClausePhraseMatch? phrase = null,
-        bool startsBatch = false)
+        bool startsBatch = false,
+        bool newNameQualifier = false)
     {
         Keywords = keywords;
         Slot = slot;
         Phrase = phrase;
         StartsBatch = startsBatch;
+        NewNameQualifier = newNameQualifier;
     }
 
     /// <summary>
@@ -47,4 +49,12 @@ public readonly struct SqlCaretPosition
     /// 語句開頭，分不出這一點。
     /// </remarks>
     public bool StartsBatch { get; }
+
+    /// <summary>
+    /// 這一格是新名字的限定字：<c>CREATE PROCEDURE </c> 的第一段可能是結構描述，名字本身還在點號之後。
+    /// </summary>
+    /// <remarks>
+    /// 為真時 <see cref="Slot"/> 是可能是名字，列得出來的只有結構描述。
+    /// </remarks>
+    public bool NewNameQualifier { get; }
 }
