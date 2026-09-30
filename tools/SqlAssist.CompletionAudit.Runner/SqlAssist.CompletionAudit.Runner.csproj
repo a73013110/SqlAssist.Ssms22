@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    夜間召回稽核的執行器。SSMS 的 SqlParser 與 SmoMetadataProvider 是 .NET Framework 組件，
+    所以是 net48；那幾個組件不複製進輸出，執行時由 SsmsAssemblies 從安裝目錄解析
+    （路徑由 tools/Audit-Completions.ps1 以 SqlAssist.Tools.psm1 取得後傳入）。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>SqlAssist.CompletionAudit.Runner</AssemblyName>
+    <RootNamespace>SqlAssist.CompletionAudit.Runner</RootNamespace>
+    <Platforms>AnyCPU;x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+    <IsPackable>false</IsPackable>
+    <SsmsInstallDir Condition="'$(SsmsInstallDir)' == ''">C:\Program Files\Microsoft SQL Server Management Studio 22\Release</SsmsInstallDir>
+    <SsmsIde>$(SsmsInstallDir)\Common7\IDE</SsmsIde>
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
+    <!-- 與擴充同一個樣子：SQLite 的 BCL 相依不進輸出目錄，一律用 SSMS 那一份。SQL Memory 的隔離 AppDomain
+         以輸出目錄為 ApplicationBase，這裡多一份 System.Memory 就是兩個 ReadOnlySpan，開資料庫時
+         以 MissingMethodException 收場。 -->
+    <PackageReference Include="System.Memory" Version="4.6.3" ExcludeAssets="runtime" />
+    <PackageReference Include="System.Buffers" Version="4.6.1" ExcludeAssets="runtime" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" ExcludeAssets="runtime" />
+    <PackageReference Include="System.Numerics.Vectors" Version="4.6.1" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\SqlAssist.CompletionAudit\SqlAssist.CompletionAudit.csproj" />
+    <ProjectReference Include="..\..\src\SqlAssist.Metadata\SqlAssist.Metadata.csproj" />
+    <ProjectReference Include="..\..\src\SqlAssist.SqlMemory.Isolation\SqlAssist.SqlMemory.Isolation.csproj" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="Microsoft.SqlServer.Management.SqlParser">
+      <HintPath>$(SsmsIde)\Microsoft.SqlServer.Management.SqlParser.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.SqlServer.Management.SmoMetadataProvider">
+      <HintPath>$(SsmsIde)\Microsoft.SqlServer.Management.SmoMetadataProvider.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.SqlServer.ConnectionInfo">
+      <HintPath>$(SsmsIde)\Microsoft.SqlServer.ConnectionInfo.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.Data.SqlClient">
+      <HintPath>$(SsmsIde)\Microsoft.Data.SqlClient.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <None Include="corpora.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

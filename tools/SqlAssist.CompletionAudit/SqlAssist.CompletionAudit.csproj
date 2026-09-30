@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    召回稽核的判定：哪些詞元是答案、在它的起點走產品路徑、列不出來怎麼分群。
+    netstandard2.0 讓 net10 的單元測試（RecallCorpus.sql 零漏）與 net48 的夜間執行器參照同一份。
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>SqlAssist.CompletionAudit</AssemblyName>
+    <RootNamespace>SqlAssist.CompletionAudit</RootNamespace>
+    <Platforms>AnyCPU;x64</Platforms>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SqlAssist.Core\SqlAssist.Core.csproj" />
+    <!-- 認新取的名稱要整句的語法樹；版本與 Core 相同。 -->
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
+  </ItemGroup>
+</Project>

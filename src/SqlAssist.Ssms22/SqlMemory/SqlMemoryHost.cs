@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
@@ -187,9 +186,7 @@ internal static class SqlMemoryHost
             .OpenAsync(DatabasePath(), AppDomain.CurrentDomain.BaseDirectory, cancellationToken)
             .ConfigureAwait(false);
 
-    internal static string DatabasePath() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "SqlAssist.Ssms22", "SQLMemory", "SQLMemory.db");
+    internal static string DatabasePath() => SqlMemoryLocation.DatabasePath();
 
     /// <summary>沒有人接結果的背景工作一律走 Guard；維護與心跳失敗的內容已由宿主記錄，這裡只擋未觀察的例外。</summary>
     private sealed class GuardedTimers : ISqlMemoryTimerFactory

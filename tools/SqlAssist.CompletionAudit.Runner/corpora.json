@@ -1,0 +1,24 @@
+{
+  "corpora": [
+    {
+      "name": "scriptdom",
+      "repository": "microsoft/SqlScriptDOM",
+      "commit": "8d8f667716e1868237814314070b7d54539d1c13",
+      "path": "Test/SqlDom/TestScripts",
+      "extension": ".sql",
+      "format": "sql",
+      "license": "MIT",
+      "licenseUrl": "https://github.com/microsoft/SqlScriptDOM/blob/8d8f667716e1868237814314070b7d54539d1c13/LICENSE"
+    },
+    {
+      "name": "sqldocs",
+      "repository": "MicrosoftDocs/sql-docs",
+      "commit": "5482777e62f1524a414c82e728b84009a37c21b2",
+      "path": "docs/t-sql",
+      "extension": ".md",
+      "format": "markdown",
+      "license": "CC-BY-4.0 (documentation), MIT (code samples)",
+      "licenseUrl": "https://github.com/MicrosoftDocs/sql-docs/blob/5482777e62f1524a414c82e728b84009a37c21b2/LICENSE"
+    }
+  ]
+}

@@ -118,6 +118,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{EF86EC9E-A
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{FC52F393-0A06-41A8-81F5-7125FBF96322}"
 	ProjectSection(SolutionItems) = preProject
+		tools\Audit-Completions.ps1 = tools\Audit-Completions.ps1
 		tools\Build-Extension.ps1 = tools\Build-Extension.ps1
 		tools\Check-DocLinks.ps1 = tools\Check-DocLinks.ps1
 		tools\Check-Docs.ps1 = tools\Check-Docs.ps1
@@ -126,7 +127,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{FC52F393
 		tools\Generate-Keywords.ps1 = tools\Generate-Keywords.ps1
 		tools\Install-Extension.ps1 = tools\Install-Extension.ps1
 		tools\Publish-Release.ps1 = tools\Publish-Release.ps1
+		tools\Register-CompletionAuditTask.ps1 = tools\Register-CompletionAuditTask.ps1
 		tools\Run-CoreTests.ps1 = tools\Run-CoreTests.ps1
+		tools\Set-CompletionAuditConnection.ps1 = tools\Set-CompletionAuditConnection.ps1
 		tools\Show-Diagnostics.ps1 = tools\Show-Diagnostics.ps1
 		tools\SqlAssist.Deployment.psm1 = tools\SqlAssist.Deployment.psm1
 		tools\SqlAssist.Tools.psm1 = tools\SqlAssist.Tools.psm1
@@ -164,6 +167,12 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.TextGenerator", "tools\SqlAssist.TextGenerator\SqlAssist.TextGenerator.csproj", "{0A85A7D3-5CDD-42CC-85D0-84EC0B997A0D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.TextGenerator.Tests", "tests\SqlAssist.TextGenerator.Tests\SqlAssist.TextGenerator.Tests.csproj", "{A7E8A039-DA1B-4412-9A97-09B1130EC4F0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.CompletionAudit", "tools\SqlAssist.CompletionAudit\SqlAssist.CompletionAudit.csproj", "{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.CompletionAudit.Runner", "tools\SqlAssist.CompletionAudit.Runner\SqlAssist.CompletionAudit.Runner.csproj", "{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.CompletionAudit.Tests", "tests\SqlAssist.CompletionAudit.Tests\SqlAssist.CompletionAudit.Tests.csproj", "{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -319,11 +328,50 @@ Global
 		{A7E8A039-DA1B-4412-9A97-09B1130EC4F0}.Release|x64.Build.0 = Release|x64
 		{A7E8A039-DA1B-4412-9A97-09B1130EC4F0}.Release|x86.ActiveCfg = Release|Any CPU
 		{A7E8A039-DA1B-4412-9A97-09B1130EC4F0}.Release|x86.Build.0 = Release|Any CPU
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Debug|x64.ActiveCfg = Debug|x64
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Debug|x64.Build.0 = Debug|x64
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Debug|x86.Build.0 = Debug|Any CPU
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Release|x64.ActiveCfg = Release|x64
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Release|x64.Build.0 = Release|x64
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Release|x86.ActiveCfg = Release|Any CPU
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11}.Release|x86.Build.0 = Release|Any CPU
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Debug|x64.ActiveCfg = Debug|x64
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Debug|x64.Build.0 = Debug|x64
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Debug|x86.Build.0 = Debug|Any CPU
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Release|x64.ActiveCfg = Release|x64
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Release|x64.Build.0 = Release|x64
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Release|x86.ActiveCfg = Release|Any CPU
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22}.Release|x86.Build.0 = Release|Any CPU
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Debug|x64.ActiveCfg = Debug|x64
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Debug|x64.Build.0 = Debug|x64
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Debug|x86.Build.0 = Debug|Any CPU
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Release|x64.ActiveCfg = Release|x64
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Release|x64.Build.0 = Release|x64
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Release|x86.ActiveCfg = Release|Any CPU
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{5C0F1C2E-7A43-4B8E-9D1A-2F6B3E8C4A11} = {FC52F393-0A06-41A8-81F5-7125FBF96322}
+		{9E2D4B71-3C58-4F0A-8B6E-1D7C2A9F5B22} = {FC52F393-0A06-41A8-81F5-7125FBF96322}
+		{2B7A9C3D-6E14-4D5F-A0B8-3C9E1F4A6D33} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{67C522AA-C08A-444B-974C-F812587DEBD8} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{68274BB6-5A79-49C9-BE49-8B9B2FA700E2} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{0354E203-91FB-49F3-A687-E020902BC82A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}

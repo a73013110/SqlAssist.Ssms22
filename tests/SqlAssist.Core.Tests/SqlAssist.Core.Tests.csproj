@@ -15,6 +15,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\SqlAssist.Core\SqlAssist.Core.csproj" />
+    <!-- 召回稽核的判定與夜間稽核工具共用一份，這裡守 RecallCorpus.sql 零漏。 -->
+    <ProjectReference Include="..\..\tools\SqlAssist.CompletionAudit\SqlAssist.CompletionAudit.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!--
