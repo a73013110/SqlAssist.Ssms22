@@ -4894,7 +4894,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("WITHIN GROUP (*", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (", true, false, new string[]
         {
-            "GRAPH", "ORDER",
+            "ORDER",
         }),
         ("CURRENT", SqlKeywordPosition.Predicate, "DELETE FROM t WHERE CURRENT ", true, false, new string[]
         {

@@ -25,6 +25,7 @@
             46005  必須是 X 卻發現 Y     → 不合法
             46010  語法不正確            → 不合法
             46014  只可存在於資料行層級  → 不合法
+            46001  剖析器內部錯誤        → 不合法
             46029  出現未預期的檔案結尾  → 合法，只是語句還沒寫完
         單一續尾會誤判——BACKUP 之後是檔案結尾、SELECT 之後卻是語法錯誤，兩者都合法。
         因此每個位置試一組續尾取聯集：任一組能過就算合法。
@@ -432,6 +433,9 @@ $Continuations = @(
 #         不算進來的話任何名稱都「接受」，非保留字的 OFFSET 就分不出來。
 # 46014 = "Default 條件約束只可存在於資料行層級"。剖析器吃得下 CREATE TABLE t (DEFAULT
 #         卻另外報這一條，不算進來的話 DEFAULT 會被分到資料行定義的開頭。
+# 46001 = "剖析器內部錯誤"。剖析器在報錯的詞元上當掉、之後都沒檢查，與 46010 一樣是它過不去的地方。
+#         不算進來的話 WITHIN GROUP (GRAPH 在檔案結尾只報這一條、一個拒收都沒有，GRAPH 就接得上。
+#         算在它報的位置而不是整段作廢：換一條續尾剖析器照常走完的話，那個字仍然成立。
 # 46029 = "出現未預期的檔案結尾"，代表吃下去了、只是語句沒寫完，那是合法的。
 #
 # 另有一族訊息說「這個字不是這裡的選項」（{0} is not a WITH option for a procedure.）：
@@ -448,7 +452,7 @@ if ($optionRejections.Count -eq 0) {
 }
 
 Write-Host "選項拒收訊息：$($optionRejections -join ', ')"
-$RejectingErrorNumbers = @(46005, 46010, 46014) + $optionRejections
+$RejectingErrorNumbers = @(46001, 46005, 46010, 46014) + $optionRejections
 
 # 非保留字的對照名稱：不是任何關鍵字的普通識別字。
 $PlainName = 'Lib_Reader'

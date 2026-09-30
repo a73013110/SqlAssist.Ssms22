@@ -332,6 +332,18 @@ public sealed class SqlClausePhraseTests
     }
 
     /// <summary>
+    /// 剖析器在字後面當掉（46001）不算接得上。
+    /// </summary>
+    /// <remarks>
+    /// <c>WITHIN GROUP (GRAPH</c> 在檔案結尾只報內部錯誤、一個拒收都沒有，以前 GRAPH 因此與 ORDER 並列。
+    /// </remarks>
+    [Fact]
+    public void 剖析器當掉的字不算接得上()
+    {
+        Assert.DoesNotContain("GRAPH", Offered("SELECT PERCENTILE_CONT(0.5) WITHIN GROUP ("));
+    }
+
+    /// <summary>
     /// 片語的字只屬於那條尾巴，不會漏到別的位置。
     /// </summary>
     [Theory]
