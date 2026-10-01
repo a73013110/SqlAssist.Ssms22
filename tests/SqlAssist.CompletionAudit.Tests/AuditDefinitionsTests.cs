@@ -67,6 +67,30 @@ public sealed class AuditDefinitionsTests
         Assert.Equal(("Loan", database), source);
     }
 
+    [Theory]
+    [InlineData("INSERT INTO LibArchive.dbo.Loan (CopyNo) VALUES (1)", "Loan", "LibArchive")]
+    [InlineData("CREATE INDEX IX_Copy ON dbo.Copy (Branch, CopyNo) INCLUDE (Loan)", "Copy", null)]
+    [InlineData("CREATE TABLE Loan (Branch int, CONSTRAINT FK_Copy FOREIGN KEY (Branch) REFERENCES Copy (CopyNo))", "Copy", null)]
+    [InlineData("CREATE TABLE Loan (Branch int, CopyNo int, PRIMARY KEY (Branch, CopyNo))", "Loan", null)]
+    [InlineData("MERGE Loan t USING Copy s ON 1 = 1 WHEN NOT MATCHED THEN INSERT (Branch, CopyNo) VALUES (1, 2);", "Loan", null)]
+    [InlineData("SELECT * INTO #Loan FROM LibArchive.dbo.Loan; INSERT INTO #Loan (CopyNo) VALUES (1)", "Loan", "LibArchive")]
+    public void 資料行清單帶出它屬於的資料表(string sql, string table, string? database)
+    {
+        var owner = AuditDefinitions.Collect(sql).ColumnListOwner(sql.LastIndexOf("CopyNo", System.StringComparison.Ordinal));
+
+        Assert.Equal((table, database), owner);
+    }
+
+    [Fact]
+    public void 資料表變數與清單外的名稱沒有擁有者()
+    {
+        const string sql = "DECLARE @t TABLE (CopyNo int); INSERT INTO @t (CopyNo) SELECT CopyNo FROM Copy";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.Null(definitions.ColumnListOwner(At(sql, "CopyNo", 2)));
+        Assert.Null(definitions.ColumnListOwner(At(sql, "CopyNo", 3)));
+    }
+
     [Fact]
     public void 暫存資料表是SELECT星號INTO一張表時_來源是那張表()
     {

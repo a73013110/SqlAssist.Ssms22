@@ -473,7 +473,8 @@ public sealed class CompletionAuditor
         }
 
         /// <summary>
-        /// 名稱存在還不夠：點號之後要限定字（或別名指的資料表）也認得出來，選取清單裡要資料來源已經寫出來。
+        /// 名稱存在還不夠：點號之後要限定字（或別名指的資料表）也認得出來，資料行清單要它屬於的資料表認得出來，
+        /// 選取清單裡要資料來源已經寫出來。
         /// 形狀照舊，只加排除：簽章與範例要跟沒排除時一樣，後面的詞才留在原來那一群。
         /// </summary>
         private Shape Exclude(int position, Shape shape)
@@ -500,6 +501,12 @@ public sealed class CompletionAuditor
 
             var token = Tokens[position];
 
+            // INSERT INTO Other.dbo.Loan (CopyNo)：名稱索引只比名字，那張表查不到時碰巧同名的欄位不算列得出來。
+            if (_definitions.ColumnListOwner(token.Start) is { } owner && IsUnresolved(owner, token.Start))
+            {
+                return shape.Excluded(AuditExclusion.Unresolved);
+            }
+
             if (position >= 2 && Tokens[position - 1].IsPunctuation("."))
             {
                 var qualifier = Tokens[position - 2];
@@ -518,8 +525,7 @@ public sealed class CompletionAuditor
 
                 return _shapes[position - 2].Class == AuditTokenClass.ScriptName &&
                     _definitions.SourceOf(qualifier.Text, qualifier.Start) is { } source &&
-                    (_index.Find(source.Name) is null && !_definitions.IsDefinedBefore(source.Name, qualifier.Start) ||
-                        source.Database is { Length: > 0 } database && _index.Find(database) != AuditTokenClass.Database)
+                    IsUnresolved(source, qualifier.Start)
                         ? shape.Excluded(AuditExclusion.Unresolved)
                         : shape;
             }
@@ -535,6 +541,14 @@ public sealed class CompletionAuditor
                 ? shape.Excluded(AuditExclusion.Truncated)
                 : shape;
         }
+
+        /// <summary>
+        /// 資料表查不到存在：名稱索引沒有、指令碼在 <paramref name="start"/> 之前也沒取過（暫存資料表、CTE），
+        /// 或寫出來的資料庫不在連線的伺服器上。
+        /// </summary>
+        private bool IsUnresolved((string Name, string? Database) table, int start) =>
+            _index.Find(table.Name) is null && !_definitions.IsDefinedBefore(table.Name, start) ||
+            table.Database is { Length: > 0 } database && _index.Find(database) != AuditTokenClass.Database;
 
         /// <summary>佔位符起到那一句結束的詞元。</summary>
         private bool[] FindPlaceholders()

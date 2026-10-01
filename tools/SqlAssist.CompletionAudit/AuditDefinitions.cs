@@ -27,6 +27,9 @@ namespace SqlAssist.CompletionAudit;
 /// <c>inserted</c>／<c>deleted</c> 不是誰取的名字，卻在兩種範圍裡引用得到：DML 觸發程序的整句（指父資料表）
 /// 與 OUTPUT 子句（指那句 DML 的目標）。範圍外的同名詞照一般名稱判斷。
 ///
+/// 資料行清單（INSERT／MERGE 的資料行、索引、條件約束與統計資料的欄位）記下它屬於哪一張表：名稱索引只比名字，
+/// 那張表查不到時，碰巧同名的欄位不算列得出來（<see cref="ColumnListOwner"/>）。
+///
 /// 剖析不過的那一句（<see cref="IsUnparsed"/>）挖成空白再剖析，其餘的句子照常認；那一句裡的名稱認不出來，
 /// 在稽核裡歸成不明，不算漏。
 /// </remarks>
@@ -44,6 +47,7 @@ public sealed class AuditDefinitions
     private readonly Dictionary<int, int> _fromStarts = new();
     private readonly Dictionary<int, (string Name, string? Database)> _aliasSources = new();
     private readonly Dictionary<string, (string Name, string? Database)> _starSources = new(StringComparer.Ordinal);
+    private readonly Dictionary<int, (string Name, string? Database)> _columnOwners = new();
     private readonly HashSet<int> _tableNames = new();
     private readonly List<(int Start, int End, SchemaObjectName? Owner)> _changeTables = new();
     private int _batchEnd;
@@ -200,6 +204,25 @@ public sealed class AuditDefinitions
     /// </summary>
     public bool IsChangeTable(string name, int start) =>
         AuditText.Normalize(name) is "INSERTED" or "DELETED" && InnermostChangeRange(start) is not null;
+
+    /// <summary>
+    /// <paramref name="start"/> 起頭的名稱在一份資料行清單裡時，那份清單屬於的資料表（最後一段）與寫出來的資料庫；
+    /// 不在清單裡、或清單屬於的不是具名資料表（資料表變數）時是 null。
+    /// </summary>
+    /// <remarks>
+    /// <c>INSERT INTO Other.dbo.Loan (CopyNo)</c>、<c>CREATE INDEX … ON Copy (CopyNo)</c> 的 CopyNo 是那張表的欄位；
+    /// 那張表查不到時，別的表碰巧有 CopyNo 也不代表列得出來。暫存資料表與 <see cref="SourceOf"/> 一樣看
+    /// <c>SELECT * INTO</c> 的那張表。
+    /// </remarks>
+    public (string Name, string? Database)? ColumnListOwner(int start)
+    {
+        if (!_columnOwners.TryGetValue(start, out var owner))
+        {
+            return null;
+        }
+
+        return _starSources.TryGetValue(AuditText.Normalize(owner.Name), out var projected) ? projected : owner;
+    }
 
     /// <summary>
     /// <paramref name="start"/> 這裡的 <c>inserted</c>／<c>deleted</c> 指的資料表；目標不是具名資料表時是 null。
@@ -395,6 +418,31 @@ public sealed class AuditDefinitions
         }
     }
 
+    /// <summary>記下資料行清單裡每一個欄位屬於 <paramref name="owner"/>；擁有者不是具名資料表時不記。</summary>
+    private void AddColumns(IEnumerable<TSqlFragment>? columns, SchemaObjectName? owner)
+    {
+        if (owner is not { BaseIdentifier.Value: { } name })
+        {
+            return;
+        }
+
+        foreach (var column in columns ?? Array.Empty<TSqlFragment>())
+        {
+            var last = column switch
+            {
+                Identifier identifier => identifier,
+                ColumnReferenceExpression reference => reference.MultiPartIdentifier?.Identifiers.LastOrDefault(),
+                ColumnWithSortOrder sorted => sorted.Column?.MultiPartIdentifier?.Identifiers.LastOrDefault(),
+                _ => null
+            };
+
+            if (last is { StartOffset: >= 0 })
+            {
+                _columnOwners[last.StartOffset] = (name, owner.DatabaseIdentifier?.Value);
+            }
+        }
+    }
+
     private void Add(IEnumerable<Identifier>? names, Scope scope, bool qualifiable = false)
     {
         foreach (var name in names ?? Array.Empty<Identifier>())
@@ -522,6 +570,65 @@ public sealed class AuditDefinitions
         {
             _owner.Add(node.TableAlias, Scope.Statement);
             _owner.AddSource(node.TableAlias, node.Target);
+
+            foreach (var clause in node.ActionClauses)
+            {
+                if (clause.Action is InsertMergeAction insert)
+                {
+                    _owner.AddColumns(insert.Columns, (node.Target as NamedTableReference)?.SchemaObject);
+                }
+            }
+        }
+
+        public override void Visit(InsertSpecification node) =>
+            _owner.AddColumns(node.Columns, (node.Target as NamedTableReference)?.SchemaObject);
+
+        public override void Visit(CreateIndexStatement node)
+        {
+            _owner.AddColumns(node.Columns, node.OnName);
+            _owner.AddColumns(node.IncludeColumns, node.OnName);
+        }
+
+        public override void Visit(CreateColumnStoreIndexStatement node)
+        {
+            _owner.AddColumns(node.Columns, node.OnName);
+            _owner.AddColumns(node.OrderedColumns, node.OnName);
+        }
+
+        public override void Visit(CreateStatisticsStatement node) => _owner.AddColumns(node.Columns, node.OnName);
+
+        public override void Visit(CreateTableStatement node) => AddTableElements(node.Definition, node.SchemaObjectName);
+
+        public override void Visit(AlterTableAddTableElementStatement node) => AddTableElements(node.Definition, node.SchemaObjectName);
+
+        /// <summary>參考的那一邊屬於被參考的資料表；自己這一邊由所在的 CREATE／ALTER TABLE 記。</summary>
+        public override void Visit(ForeignKeyConstraintDefinition node) =>
+            _owner.AddColumns(node.ReferencedTableColumns, node.ReferenceTableName);
+
+        /// <summary>資料表層級的條件約束與索引，欄位屬於所在的那張表。</summary>
+        private void AddTableElements(TableDefinition? definition, SchemaObjectName? table)
+        {
+            foreach (var constraint in definition?.TableConstraints ?? (IList<ConstraintDefinition>)Array.Empty<ConstraintDefinition>())
+            {
+                switch (constraint)
+                {
+                    case UniqueConstraintDefinition unique:
+                        _owner.AddColumns(unique.Columns, table);
+                        break;
+                    case ForeignKeyConstraintDefinition foreignKey:
+                        _owner.AddColumns(foreignKey.Columns, table);
+                        break;
+                    case DefaultConstraintDefinition { Column: { } column }:
+                        _owner.AddColumns(new[] { column }, table);
+                        break;
+                }
+            }
+
+            foreach (var index in definition?.Indexes ?? (IList<IndexDefinition>)Array.Empty<IndexDefinition>())
+            {
+                _owner.AddColumns(index.Columns, table);
+                _owner.AddColumns(index.IncludeColumns, table);
+            }
         }
 
         /// <summary>DML 觸發程序：整句裡 <c>inserted</c>／<c>deleted</c> 指父資料表。DDL 與登入觸發程序沒有它們。</summary>

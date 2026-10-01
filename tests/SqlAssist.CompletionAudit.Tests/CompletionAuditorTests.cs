@@ -73,6 +73,42 @@ public sealed class CompletionAuditorTests
     }
 
     [Theory]
+    [InlineData("INSERT INTO Lib_Tag (\nReaderId,\nPUBL_CODE) VALUES (1, 2)")]
+    [InlineData("INSERT INTO LibArchive.dbo.Lib_Reader (ReaderId, PUBL_CODE) VALUES (1, 2)")]
+    [InlineData("CREATE INDEX IX_Tag ON Lib_Tag (ReaderId, PUBL_CODE) INCLUDE (ReaderId)")]
+    [InlineData("MERGE Lib_Tag t USING Lib_Reader s ON 1 = 1 WHEN NOT MATCHED THEN INSERT (ReaderId, PUBL_CODE) VALUES (1, 2);")]
+    [InlineData("ALTER TABLE Lib_Tag ADD CONSTRAINT PK_Tag PRIMARY KEY (ReaderId, PUBL_CODE)")]
+    [InlineData("CREATE STATISTICS ST_Tag ON Lib_Tag (ReaderId, PUBL_CODE)")]
+    public async Task 資料行清單的擁有者查不到_同名欄位不算漏(string sql)
+    {
+        var catalog = new FakeCatalog(
+            ("ReaderId", AuditTokenClass.Column),
+            ("PUBL_CODE", AuditTokenClass.Column),
+            ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync(sql, catalog);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word is "ReaderId" or "PUBL_CODE");
+    }
+
+    [Theory]
+    [InlineData("INSERT INTO Lib_Reader (ReaderId, PUBL_CODE) VALUES (1, 2)")]
+    [InlineData("CREATE INDEX IX_Reader ON Lib_Reader (ReaderId, PUBL_CODE)")]
+    [InlineData("MERGE Lib_Reader t USING Lib_Tag s ON 1 = 1 WHEN NOT MATCHED THEN INSERT (ReaderId, PUBL_CODE) VALUES (1, 2);")]
+    [InlineData("CREATE TABLE #Reader (ReaderId int)\nINSERT INTO #Reader (ReaderId, PUBL_CODE) VALUES (1, 2)")]
+    public async Task 資料行清單的擁有者認得_欄位照常稽核(string sql)
+    {
+        var catalog = new FakeCatalog(
+            ("ReaderId", AuditTokenClass.Column),
+            ("PUBL_CODE", AuditTokenClass.Column),
+            ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync(sql, catalog);
+
+        Assert.Contains(result.Misses, miss => miss.TokenClass == AuditTokenClass.Column && miss.Word == "PUBL_CODE");
+    }
+
+    [Theory]
     [InlineData("SELECT ReaderId, PUBL_CODE FROM Lib_Reader", 2)]
     [InlineData("SELECT r.ReaderId FROM Lib_Reader r", 2)]
     [InlineData("WITH c (ReaderId) AS (SELECT 1) SELECT ReaderId FROM c", 1)]
