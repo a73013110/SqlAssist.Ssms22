@@ -283,8 +283,7 @@ public sealed class SqlScopeAnalyzerTests
     /// 資料列集函式與衍生資料表一樣接得住資料行清單。
     /// </summary>
     /// <remarks>
-    /// 文法上的 <c>rowset_function</c>，與使用者定義的資料表值函式同形狀卻不同待遇，
-    /// 所以那三個名字只能寫死。
+    /// 文法上的 <c>rowset_function</c> 只接資料行清單，所以那三個名字只能寫死。
     /// </remarks>
     [Theory]
     [InlineData("SELECT | FROM OPENQUERY(LibArchive, 'SELECT 1, 2') AS T (CopyNo, ReaderId)")]
@@ -298,30 +297,42 @@ public sealed class SqlScopeAnalyzerTests
     }
 
     /// <summary>
-    /// 其餘具名來源後面那串括號是資料表提示，不是資料行清單。
+    /// 具名資料表後面那串括號是資料表提示；使用者定義的函式後面每一項都是提示時才是提示。
     /// </summary>
     /// <remarks>
-    /// T-SQL 的 <c>table_source</c> 文法裡只有 <c>derived_table</c> 與
-    /// <c>rowset_function</c> 後面有 <c>(column_alias …)</c>；具名資料表與使用者定義
-    /// 的資料表值函式後面就只有別名，那串括號是舊式提示。兩者形狀一模一樣，所以憑據
-    /// 只能是來源的形狀——實測回報過的症狀是
+    /// 函式後面兩種都寫得出來，形狀一模一樣。整份當清單的症狀是
     /// <c>SELECT * INTO #Temp FROM dbo.fn(x) f (NOLOCK)</c> 之後，<c>#Temp</c> 的結構
     /// 只剩一個叫 NOLOCK 的欄位。
     /// </remarks>
     [Theory]
     [InlineData("SELECT | FROM dbo.Loan l (NOLOCK)", "Loan")]
+    [InlineData("SELECT | FROM dbo.Loan l (CopyNo)", "Loan")]
     [InlineData("SELECT | FROM dbo.Loan WITH (NOLOCK) l", "Loan")]
     [InlineData("SELECT | FROM dbo.fn_LoansByReader(0) l (NOLOCK)", "fn_LoansByReader")]
-    [InlineData("SELECT | FROM dbo.fn_LoansByReader(0) l (CopyNo, ReaderId)", "fn_LoansByReader")]
-    [InlineData("SELECT | FROM dbo.OPENQUERY(0) l (CopyNo, ReaderId)", "OPENQUERY")]
-    [InlineData("SELECT | FROM [OPENQUERY](0) l (CopyNo, ReaderId)", "OPENQUERY")]
-    public void 具名來源後面的括號不是資料行清單(string sqlWithCaret, string objectName)
+    [InlineData("SELECT | FROM dbo.fn_LoansByReader(0) l (NOLOCK, INDEX (1))", "fn_LoansByReader")]
+    public void 資料表提示不是資料行清單(string sqlWithCaret, string objectName)
     {
         var table = Assert.Single(Analyze(sqlWithCaret).Tables);
 
         Assert.Equal(objectName, table.ObjectName);
         Assert.Equal("l", table.Alias);
         Assert.Empty(table.ColumnNames);
+    }
+
+    /// <summary>使用者定義的函式後面寫的不是提示，就是資料行清單。</summary>
+    /// <remarks>整份當提示的症狀是 <c>CROSS APPLY l.</c> 列不出 <c>CopyNo</c>。</remarks>
+    [Theory]
+    [InlineData("SELECT | FROM dbo.fn_LoansByReader(0) AS l (CopyNo, ReaderId)", "fn_LoansByReader")]
+    [InlineData("SELECT | FROM dbo.fn_LoansByReader(0) l (CopyNo, ReaderId)", "fn_LoansByReader")]
+    [InlineData("SELECT | FROM dbo.OPENQUERY(0) l (CopyNo, ReaderId)", "OPENQUERY")]
+    [InlineData("SELECT | FROM [OPENQUERY](0) l (CopyNo, ReaderId)", "OPENQUERY")]
+    public void 使用者定義的函式後面讀得到資料行清單(string sqlWithCaret, string objectName)
+    {
+        var table = Assert.Single(Analyze(sqlWithCaret).Tables);
+
+        Assert.Equal(objectName, table.ObjectName);
+        Assert.Equal("l", table.Alias);
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, table.ColumnNames);
     }
 
     /// <summary>

@@ -176,6 +176,9 @@ public static class SqlArgumentCatalog
             TryFind(QueryHintDefinitions, name, leading: true, out _);
     }
 
+    /// <summary>這個名稱是不是一個資料表提示（<c>NOLOCK</c>、<c>INDEX</c>）。</summary>
+    public static bool IsTableHint(string? name) => TryFind(TableHintDefinitions, name, leading: false, out _);
+
     private static bool TryFind(
         (string Name, Func<string> Description)[] definitions,
         string? name,

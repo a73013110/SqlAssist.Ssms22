@@ -35,11 +35,10 @@ public static class SqlScopeAnalyzer
             "DESC", "PERCENT", "TIES", "FROM", "TABLE", "CASE", "ELSE", "NULL"
         };
 
-    /// <summary>別名後面接得住資料行清單的資料列集函式。</summary>
+    /// <summary>別名後面只接資料行清單的資料列集函式。</summary>
     /// <remarks>
-    /// T-SQL 的 <c>table_source</c> 文法裡 <c>rowset_function</c> 與
-    /// <c>derived_table</c> 一樣有 <c>(column_alias …)</c>，<c>user_defined_function</c>
-    /// 沒有——同樣是「名稱加引數清單」的形狀，能不能接資料行清單卻不同，所以這三個
+    /// 同樣是「名稱加引數清單」的形狀，資料列集函式與衍生資料表一樣後面只有
+    /// <c>(column_alias …)</c>，使用者定義的函式卻還寫得出舊式資料表提示，所以這三個
     /// 名字只能寫死。它們是文法的一部分而不是使用者物件，帶結構描述的
     /// <c>dbo.OPENROWSET(…)</c> 因此不在此列。
     ///
@@ -507,8 +506,8 @@ public static class SqlScopeAnalyzer
         var derivedName = string.Empty;
         var isDerived = false;
 
-        // 別名後面的資料行清單只接在衍生資料表與資料列集函式後面，見 TryReadColumnList。
-        var takesColumnList = false;
+        // 別名後面那串括號是什麼由來源的形狀決定，見 ReadAliasParentheses。
+        var aliasList = AliasList.Hints;
 
         if (first.IsPunctuation("("))
         {
@@ -516,7 +515,7 @@ public static class SqlScopeAnalyzer
             // 否則後面用這個別名限定欄位時會誤判成資料表名稱。
             index = SqlTokenNavigator.SkipParenthesised(tokens, index, end);
             isDerived = true;
-            takesColumnList = true;
+            aliasList = AliasList.Columns;
         }
         else if (first.Kind == SqlTokenKind.Variable)
         {
@@ -576,10 +575,10 @@ public static class SqlScopeAnalyzer
             {
                 index = SqlTokenNavigator.SkipParenthesised(tokens, index, end);
 
-                // 引數清單跳完的形狀相同，但只有資料列集函式接得住資料行清單。
-                takesColumnList = parts.Count == 1 &&
-                    !first.IsQuoted &&
-                    RowsetFunctions.Contains(parts[0]);
+                // 資料列集函式只接資料行清單；使用者定義的函式兩種都寫得出來。
+                aliasList = parts.Count == 1 && !first.IsQuoted && RowsetFunctions.Contains(parts[0])
+                    ? AliasList.Columns
+                    : AliasList.Either;
             }
         }
         else
@@ -592,7 +591,7 @@ public static class SqlScopeAnalyzer
         SkipTableSourceTail(tokens, ref index, end);
 
         var alias = TryReadAlias(tokens, ref index, end);
-        var columnNames = ReadAliasParentheses(tokens, ref index, end, takesColumnList && alias is not null);
+        var columnNames = ReadAliasParentheses(tokens, ref index, end, alias is null ? AliasList.Hints : aliasList);
 
         SkipTableSourceTail(tokens, ref index, end);
 
@@ -647,17 +646,14 @@ public static class SqlScopeAnalyzer
     /// <c>c.</c> 列不出欄位還算看得出來，<c>SELECT *</c> 展開才是真的糟——它以為只有
     /// 一個來源，攤出一份少了一半欄位、卻仍然執行得動的選取清單。
     ///
-    /// 接得住它的只有<b>衍生資料表</b>與 <see cref="RowsetFunctions"/>——T-SQL 的
-    /// <c>table_source</c> 文法裡只有這兩條後面有 <c>(column_alias …)</c>，具名資料表
-    /// 與使用者定義的資料表值函式後面就只有別名。所以別名後面那串括號是不是資料行
-    /// 清單，由<b>來源的形狀</b>決定，不去猜括號裡寫了什麼。
-    ///
-    /// 猜括號內容行不通：<c>FROM dbo.Loan l (NOLOCK)</c> 與
-    /// <c>FROM dbo.fn_Loans(0) f (NOLOCK)</c> 都是舊式資料表提示，形狀與資料行清單
-    /// 一模一樣。實測回報過的症狀是 <c>SELECT * INTO #Temp FROM dbo.fn(x) f (NOLOCK)</c>
-    /// 之後，<c>#Temp</c> 的結構只剩一個叫 NOLOCK 的欄位——而假結構會一路傳到預覽與
-    /// <c>INSERT INTO #Temp</c> 的整句展開。用關鍵字名單分辨也不對：<c>NOLOCK</c>
-    /// 不是保留字，資料行真的叫得出這個名字。
+    /// 是哪一種先看<b>來源的形狀</b>：衍生資料表與 <see cref="RowsetFunctions"/> 只接資料行
+    /// 清單，具名資料表只接提示。使用者定義的函式兩種都寫得出來——
+    /// <c>dbo.fn_Loans(0) f (NOLOCK)</c> 是提示，<c>dbo.fn_Split(x) AS s (CopyNo)</c> 是資料行
+    /// 清單——只有這一種看括號內容：每一項都以資料表提示開頭才是提示
+    /// （<see cref="AllTableHints"/>）。整份當提示的症狀是 <c>s.</c> 列不出 <c>CopyNo</c>；整份當清單則是
+    /// <c>SELECT * INTO #Temp FROM dbo.fn(x) f (NOLOCK)</c> 之後，<c>#Temp</c> 的結構只剩一個叫 NOLOCK
+    /// 的欄位，假結構一路傳到預覽與 <c>INSERT INTO #Temp</c> 的整句展開。真有資料行叫 NOLOCK 時
+    /// 讀成提示，代價只是少列一個名稱。
     ///
     /// 走到這裡不必再分辨資料表提示與函式引數：<c>WITH (NOLOCK)</c> 與函式自己的
     /// 引數清單都在別名<b>之前</b>就跳完了。沒有別名也不收，文法要求這串括號接在
@@ -670,7 +666,7 @@ public static class SqlScopeAnalyzer
         IReadOnlyList<SqlToken> tokens,
         ref int index,
         int end,
-        bool isColumnList)
+        AliasList list)
     {
         if (index >= end || !tokens[index].IsPunctuation("("))
         {
@@ -684,9 +680,62 @@ public static class SqlScopeAnalyzer
             return Array.Empty<string>();
         }
 
+        var isColumnList = list == AliasList.Columns ||
+            list == AliasList.Either && !AllTableHints(tokens, index + 1, close);
         var names = isColumnList ? ReadColumnList(tokens, index + 1, close) : Array.Empty<string>();
         index = close + 1;
         return names;
+    }
+
+    /// <summary>括號裡逗號隔開的每一項都以資料表提示開頭（<c>NOLOCK</c>、<c>INDEX (ix)</c>）。</summary>
+    private static bool AllTableHints(IReadOnlyList<SqlToken> tokens, int start, int end)
+    {
+        var itemStart = true;
+
+        for (var index = start; index < end; index++)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation("("))
+            {
+                index = SqlTokenNavigator.FindClosingParenthesis(tokens, index, end);
+
+                if (index < 0)
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (token.IsPunctuation(","))
+            {
+                itemStart = true;
+                continue;
+            }
+
+            if (itemStart && (token.Kind != SqlTokenKind.Identifier || token.IsQuoted || !SqlArgumentCatalog.IsTableHint(token.Value)))
+            {
+                return false;
+            }
+
+            itemStart = false;
+        }
+
+        return true;
+    }
+
+    /// <summary>別名後面那串括號可能是什麼。</summary>
+    private enum AliasList
+    {
+        /// <summary>舊式資料表提示：具名資料表，或沒寫別名。</summary>
+        Hints,
+
+        /// <summary>資料行清單：衍生資料表與資料列集函式。</summary>
+        Columns,
+
+        /// <summary>兩種都寫得出來，看內容：使用者定義的資料表值函式。</summary>
+        Either,
     }
 
     /// <summary>

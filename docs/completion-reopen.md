@@ -113,7 +113,8 @@ session?.OpenOrUpdate(trigger, caret, token);        // 3
 看到的是上一個狀態。
 
 緊接在 `FROM`、`JOIN`、`EXEC` 之後的限定字一律當結構描述：
-`FROM dbo.` 要列出 dbo 的物件，而 `FROM u.` 這種寫法並不存在。
+`FROM dbo.` 要列出 dbo 的物件，而 `FROM u.` 這種寫法並不存在。`APPLY` 例外：限定字是前面來源的
+別名時列它的欄位（`CROSS APPLY a.Doc.nodes('…')`）。
 
 沒有限定字的位置（`SELECT |`、`WHERE |`、`ON |`）也會列出敘述看得到的欄位，
 而且排在資料庫物件之前——在這些位置要的幾乎都是欄位。這裡走的是同一個

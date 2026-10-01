@@ -350,6 +350,15 @@ public sealed class SqlColumnCompletionTests
         Assert.Equal(new[] { "Seq", "Title" }, Columns(Analyze(sqlWithCaret)));
     }
 
+    /// <summary>APPLY 之後的限定字是看得到的別名時列它的欄位，否則仍是結構描述。</summary>
+    /// <remarks><c>CROSS APPLY d.Doc.nodes('…')</c> 對前面來源的 XML 資料行呼叫方法；FROM、JOIN 之後沒有這種寫法。</remarks>
+    [Fact]
+    public void APPLY之後的別名限定字列得出欄位()
+    {
+        Assert.Equal(new[] { "Doc" }, Columns(Analyze("SELECT * FROM (SELECT CAST(NULL AS xml) AS Doc) d CROSS APPLY d.|")));
+        Assert.Equal(CompletionTarget.TableFunction, Analyze("SELECT * FROM (SELECT CAST(NULL AS xml) AS Doc) d CROSS APPLY dbo.|").Target);
+    }
+
     /// <summary>資料表提示後面的來源仍然解析得出來。</summary>
     /// <remarks>提示沒有整段跳完的話，逗號之後那張表就不在範圍裡，<c>c.</c> 什麼都列不出來。</remarks>
     [Theory]

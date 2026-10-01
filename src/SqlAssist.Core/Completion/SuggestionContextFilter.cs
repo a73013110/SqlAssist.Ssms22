@@ -229,8 +229,8 @@ public static class SuggestionContextFilter
             CompletionTarget.Function => kind is SuggestionKind.Function
                 or SuggestionKind.TableFunction,
 
-            // APPLY 之後只有資料表值函式接得上。
-            CompletionTarget.TableFunction => kind == SuggestionKind.TableFunction,
+            // APPLY 之後只有資料表值函式接得上；別名是 a.Doc.nodes('…') 的開頭。
+            CompletionTarget.TableFunction => kind is SuggestionKind.TableFunction or SuggestionKind.Alias,
             CompletionTarget.Column => kind == SuggestionKind.Column,
             CompletionTarget.Database => kind == SuggestionKind.Database,
 

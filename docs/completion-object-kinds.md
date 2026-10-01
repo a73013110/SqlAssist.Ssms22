@@ -17,6 +17,7 @@
   它回傳的是一個值，放在那裡剖析不過。
 - `APPLY` 之後**只**列資料表值函式。那個位置文法上要的是資料表值函式或衍生資料表，
   `CROSS APPLY dbo.Loan` 剖析得過卻沒有意義；而純量函式從前是連帶列出來的雜訊。
+  前面來源的別名也列：`CROSS APPLY a.Doc.nodes('…')` 呼叫的是 XML 資料行的方法。
   認的是 `APPLY` 一個字，前面的 `CROSS` 與 `OUTER` 不改變後面要什麼。
 - `ALTER FUNCTION`、`DROP FUNCTION` 之後兩種都列：兩種都改得動也刪得掉。
 

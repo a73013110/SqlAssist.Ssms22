@@ -119,6 +119,10 @@ SELECT a.CopyNo FROM dbo.LoanArchive FOR SYSTEM_TIME AS OF @AsOf AS a JOIN dbo.C
 DECLARE @Loan AS TABLE (LoanId int, CopyNo int);
 SELECT c.CopyNo FROM dbo.Copy c JOIN @Loan l ON l.CopyNo = c.CopyNo
 
+SELECT 1 FROM dbo.fn_LoansByCopy('A1') AS s (LoanCount) CROSS APPLY dbo.fn_LoansByCopy(s.LoanCount) AS t
+
+SELECT n.Item FROM dbo.Copy c CROSS APPLY dbo.fn_LoansByCopy(c.CopyNo) AS s (Doc) CROSS APPLY s.Doc.nodes('/Loan') AS n (Item)
+
 CREATE TABLE dbo.Loan (LoanId int IDENTITY(1, 1) NOT NULL PRIMARY KEY CLUSTERED, CopyNo int NULL CONSTRAINT FK_Loan_Copy FOREIGN KEY REFERENCES dbo.Copy (CopyNo) ON DELETE CASCADE ON UPDATE NO ACTION, ReaderId int DEFAULT 0, CONSTRAINT UQ_Loan UNIQUE NONCLUSTERED (CopyNo), CHECK (ReaderId > 0))
 
 CREATE TABLE #Loan (CopyNo int, INDEX IX_Loan (CopyNo))

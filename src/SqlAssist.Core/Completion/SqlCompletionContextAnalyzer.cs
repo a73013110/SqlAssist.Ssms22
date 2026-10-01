@@ -316,7 +316,8 @@ public static class SqlCompletionContextAnalyzer
                     withScope.WithScriptSources(SqlScriptObjectSuggestions.DataSources(tokens, resolver)),
                 CompletionTarget.Procedure =>
                     withScope.WithScriptSources(SqlScriptObjectSuggestions.Procedures(tokens)),
-                CompletionTarget.Any => withScope.WithScriptSources(SqlScopeAliasSuggestions.Create(scope, resolver)),
+                CompletionTarget.Any or CompletionTarget.TableFunction =>
+                    withScope.WithScriptSources(SqlScopeAliasSuggestions.Create(scope, resolver)),
                 _ => withScope
             };
         }
@@ -324,7 +325,10 @@ public static class SqlCompletionContextAnalyzer
         // 前方關鍵字已經指定了物件類別（FROM、JOIN、EXEC…），代表游標正在輸入
         // 資料來源本身，此時點號前面必然是結構描述而不是別名：
         // FROM dbo.| 要列出 dbo 的物件，FROM u.| 這種寫法並不存在。
-        if (context.Target != CompletionTarget.Any)
+        //
+        // APPLY 例外：CROSS APPLY a.Doc.nodes('…') 是對前面來源的 XML 資料行呼叫方法，
+        // 限定字是看得到的別名時就是別名，解不開才回到結構描述；上面那一格因此也列別名。
+        if (context.Target is not (CompletionTarget.Any or CompletionTarget.TableFunction))
         {
             return withScope;
         }
@@ -332,9 +336,12 @@ public static class SqlCompletionContextAnalyzer
         // 多段的限定字不可能是別名：別名只有一段，而 LibArchive.dbo. 這種寫法
         // 說的是「哪一個資料庫的哪一個結構描述」。拿最右邊那一段去比對別名的話，
         // 剛好取名叫 dbo 的別名會讓清單改列它的欄位。
+        // 游標所在的那個來源不算：CROSS APPLY dbo.| 的 dbo 自己就被讀成一個沒有別名的來源，
+        // 而來源的引數也引用不到它自己的別名。
         if (!context.QualifierPath.IsLocal ||
             context.Qualifier is null ||
-            !scope.TryResolve(context.Qualifier, out var table))
+            !scope.TryResolve(context.Qualifier, out var table) ||
+            table.Start <= caretPosition && caretPosition <= table.End)
         {
             return withScope;
         }
