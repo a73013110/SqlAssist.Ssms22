@@ -58,6 +58,10 @@ SELECT CopyNo FROM dbo.Copy TABLESAMPLE (10 PERCENT)
 
 SELECT p.[1] FROM (SELECT CopyNo, BranchId FROM dbo.Copy) s PIVOT (COUNT(CopyNo) FOR BranchId IN ([1])) p
 
+SELECT p.[1] FROM (SELECT CopyNo, BranchId FROM dbo.Copy) AS s PIVOT (COUNT(CopyNo) FOR BranchId IN ([1])) AS p
+
+SELECT v.a, d.a FROM (VALUES (1)) AS v(a) CROSS APPLY (SELECT 1 AS a) AS d
+
 SELECT CAST(CopyNo AS varchar(10)), CONVERT(nvarchar(20), CopyNo), TRY_CAST(CopyNo AS int) FROM dbo.Copy
 
 SELECT CopyNo FROM dbo.Copy WITH (INDEX (IX_Copy), UPDLOCK)
@@ -111,6 +115,8 @@ MERGE INTO dbo.Loan AS t USING dbo.Copy AS s ON t.CopyNo = s.CopyNo WHEN MATCHED
 MERGE dbo.Loan AS t USING dbo.Copy AS s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN DELETE OUTPUT $action, deleted.CopyNo, s.CopyNo INTO @Changes;
 
 MERGE dbo.Loan t USING dbo.Copy s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN DELETE;
+
+MERGE Loan USING (SELECT * FROM Copy) AS s ON Loan.CopyNo = s.CopyNo WHEN MATCHED THEN DELETE;
 
 DECLARE @a int = 1, @b int = 2;
 MERGE Loan USING ((SELECT @a, @b) AS s (c1, c2) JOIN Copy ON s.c1 = Copy.CopyNo) ON Loan.CopyNo = s.c2 WHEN MATCHED THEN DELETE;

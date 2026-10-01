@@ -227,29 +227,32 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
-    /// 文法強制別名的右括號後面只能是別名：衍生資料表與 PIVOT、UNPIVOT。
+    /// 文法強制別名的右括號後面是別名或 <c>AS</c>：衍生資料表與 PIVOT、UNPIVOT。
     /// </summary>
     /// <remarks>
-    /// <c>FROM (SELECT 1)</c> 少了別名就是語法錯誤，所以那一格一定是名字。
+    /// <c>FROM (SELECT 1)</c> 少了別名就是語法錯誤，與 <c>FROM dbo.T </c> 一樣是可能是名字的格子：
+    /// 列得出 <c>AS</c>，軟選讓 Enter 保住別名。<c>AS</c> 之後才一定是名字。
     /// 括號是什麼由它<b>前面</b>那個字決定：同樣裝著一個 SELECT，
     /// 接在 <c>IN</c> 後面的那個是運算式，後面不接別名。換行也不改變這件事。
     /// </remarks>
     [Theory]
-    [InlineData("SELECT * FROM (SELECT 1 AS a) ")]
-    [InlineData("SELECT * FROM t JOIN (SELECT 1 AS a) ")]
-    [InlineData("SELECT * FROM t CROSS APPLY (SELECT 1 AS a) ")]
-    [InlineData("SELECT * FROM ((SELECT 1 AS a)) ")]
-    [InlineData("SELECT * FROM (VALUES (1), (2)) ")]
-    [InlineData("MERGE dbo.T AS t USING (SELECT 1 AS a) ")]
-    [InlineData("SELECT * FROM (SELECT 1)\n")]
-    [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR y IN ([a])) ")]
-    [InlineData("SELECT * FROM t UNPIVOT (v FOR y IN (a, b)) ")]
-    [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR y IN ([a])) AS ")]
-    public void 必填別名的括號之後一定是名字(string textBeforeToken)
+    [InlineData("SELECT * FROM (SELECT 1 AS a) ", SqlCompletionSlot.MaybeName)]
+    [InlineData("SELECT * FROM t JOIN (SELECT 1 AS a) ", SqlCompletionSlot.MaybeName)]
+    [InlineData("SELECT * FROM t CROSS APPLY (SELECT 1 AS a) ", SqlCompletionSlot.MaybeName)]
+    [InlineData("SELECT * FROM ((SELECT 1 AS a)) ", SqlCompletionSlot.MaybeName)]
+    [InlineData("SELECT * FROM (VALUES (1), (2)) ", SqlCompletionSlot.MaybeName)]
+    [InlineData("MERGE dbo.T AS t USING (SELECT 1 AS a) ", SqlCompletionSlot.MaybeName)]
+    [InlineData("SELECT * FROM (SELECT 1)\n", SqlCompletionSlot.MaybeName)]
+    [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR y IN ([a])) ", SqlCompletionSlot.MaybeName)]
+    [InlineData("SELECT * FROM t UNPIVOT (v FOR y IN (a, b)) ", SqlCompletionSlot.MaybeName)]
+    [InlineData("SELECT * FROM (SELECT 1 AS a) AS ", SqlCompletionSlot.Name)]
+    [InlineData("MERGE dbo.T AS t USING (SELECT 1 AS a) AS ", SqlCompletionSlot.Name)]
+    [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR y IN ([a])) AS ", SqlCompletionSlot.Name)]
+    public void 必填別名的括號之後是別名或AS(string textBeforeToken, SqlCompletionSlot slot)
     {
         var caret = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken);
 
-        Assert.Equal(SqlCompletionSlot.Name, caret.Slot);
+        Assert.Equal(slot, caret.Slot);
         Assert.Equal(SqlKeywordPosition.TableSourceTail, caret.Keywords);
     }
 

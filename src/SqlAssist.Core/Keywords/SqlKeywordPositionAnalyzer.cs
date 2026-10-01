@@ -2007,8 +2007,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 所以問的是同一個問題：<c>AS</c> 前面是不是一項剛寫完、還沒有別名的清單項目——
     /// 與同一行沒有 AS 的別名是同一條規則（<see cref="IsUnaliasedItem"/>）。只看位置是
     /// 資料來源尾端不夠：<c>FROM t FOR SYSTEM_TIME AS </c> 也在那個位置，後面接的卻是
-    /// <c>OF</c>。衍生資料表那一格本來就是名字——它的別名是文法強制的，多一個
-    /// <c>AS</c> 不改變這件事。
+    /// <c>OF</c>。前面那一格本來就寫得出名字時（衍生資料表的別名是文法強制的）也是別名，
+    /// 多一個 <c>AS</c> 不改變這件事。
     ///
     /// 比的是<b>整個值相等</b>而不是位元交集：判不出位置時回傳的
     /// <see cref="SqlKeywordPosition.Any"/> 含著上面那兩個旗標，用交集的話
@@ -2022,7 +2022,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
         var before = AnalyzeAt(asIndex - 1, followAlias: false);
         afterAlias = before.Keywords;
 
-        return before.Slot == SqlCompletionSlot.Name
+        return before.Slot is SqlCompletionSlot.Name or SqlCompletionSlot.MaybeName
             || IsUnaliasedItem(asIndex - 1, before.Keywords);
     }
 
@@ -2091,8 +2091,10 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <c>FROM (SELECT …)</c> 是衍生資料表，<c>WHERE x IN (SELECT …)</c>
     /// 是運算式，兩者裡面裝的是同一個東西。
     ///
-    /// 文法強制別名的括號之後那一格一定是名字，寫完之後才是資料來源尾端：衍生資料表
-    /// （<c>FROM (SELECT 1)</c> 直接是語法錯誤）與 <c>PIVOT (…)</c>、<c>UNPIVOT (…)</c>。
+    /// 文法強制別名的括號之後那一格是別名或它前面的 <c>AS</c>：衍生資料表
+    /// （<c>FROM (SELECT 1)</c> 直接是語法錯誤，含 APPLY 與 MERGE 的 USING）與 <c>PIVOT (…)</c>、
+    /// <c>UNPIVOT (…)</c>。與 <c>FROM dbo.T </c> 同一種可能是名字的格子：列得出 AS，軟選讓 Enter 保住別名。
+    /// 判成一定是名字的話清單整個不開，<c>AS</c> 打不出來。別名是必填的，換行也不改變這件事。
     /// 其餘情形這一整組括號只是一個算完的運算元，跳過它，位置由更前面的子句關鍵字決定。
     /// </remarks>
     private SqlCaretPosition AfterGroup(int close)
@@ -2107,7 +2109,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         if (RequiresAlias(open))
         {
-            return new SqlCaretPosition(SqlKeywordPosition.TableSourceTail, SqlCompletionSlot.Name);
+            return new SqlCaretPosition(SqlKeywordPosition.TableSourceTail, SqlCompletionSlot.MaybeName);
         }
 
         // CTE 寫完之後是它自己那一句的開頭：SELECT、INSERT、UPDATE、DELETE、MERGE。

@@ -338,9 +338,6 @@ public sealed class SqlCompletionContextAnalyzerTests
     /// 剛打的 <c>a</c> 被換成 <c>ALTER PROCEDURE</c>——要按復原才救得回來。
     /// </remarks>
     [Theory]
-    [InlineData("SELECT * FROM (SELECT 1 AS a) ")]
-    [InlineData("SELECT * FROM (SELECT 1 AS a) a")]
-    [InlineData("SELECT * FROM t JOIN (SELECT 1 AS a) x")]
     [InlineData("SELECT * FROM (SELECT 1 AS a) AS a")]
     [InlineData("SELECT * FROM dbo.PUBLISHER AS c")]
     [InlineData("SELECT c.PUBL_CODE AS co")]
@@ -368,6 +365,8 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData(";WITH CTE_TEST AS (SELECT 1 AS a)\r\nSELECT * FROM CTE_TEST a")]
     [InlineData("SELECT * FROM CTE_TEST AS a INNER JOIN dbo.Cat_BookCopy b")]
     [InlineData("SELECT c.PUBL_CODE co")]
+    [InlineData("SELECT * FROM (SELECT 1 AS a) a")]
+    [InlineData("SELECT * FROM t JOIN (SELECT 1 AS a) x")]
     public void 可能是別名的位置軟選(string textBeforeCaret)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -375,6 +374,32 @@ public sealed class SqlCompletionContextAnalyzerTests
         Assert.Equal(SqlCompletionSlot.MaybeName, context.Slot);
         Assert.True(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
         Assert.True(SqlCompletionPolicy.UsesSoftSelection(context));
+    }
+
+    /// <summary>
+    /// 文法強制別名的括號之後列得出 <c>AS</c>，而且軟選。
+    /// </summary>
+    /// <remarks>
+    /// 判成一定是名字時清單整個不開，寫 <c>AS v(a)</c> 的人打不出 AS；
+    /// 軟選讓直接寫別名的人按 Enter 照常換行。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM (VALUES (1)) A")]
+    [InlineData("SELECT * FROM (SELECT 1 AS a) A")]
+    [InlineData("SELECT * FROM t CROSS APPLY (SELECT 1 AS a) A")]
+    [InlineData("MERGE Loan USING (SELECT * FROM Copy) A")]
+    [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR y IN ([a])) A")]
+    public void 必填別名的括號之後列得出AS(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+        var suggestions = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty);
+
+        Assert.True(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
+        Assert.True(SqlCompletionPolicy.UsesSoftSelection(context));
+        Assert.Contains(
+            SuggestionContextFilter.Filter(suggestions, context),
+            suggestion => suggestion.Kind == SuggestionKind.Keyword &&
+                suggestion.DisplayText == "AS");
     }
 
     /// <summary>

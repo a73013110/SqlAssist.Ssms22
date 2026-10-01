@@ -44,18 +44,18 @@
 | `Grammar` | 其餘 | `SELECT `、`WHERE a = ` | 開，打了字才硬選 |
 
 `MaybeName` 的 `FROM dbo.T W` 可能是別名也可能是打到一半的 `WHERE`，軟選讓 Enter 保住別名，
-代價是 `FR`＋Enter 不再補成 `FROM`。它寫得出清單外的新名字，目標不讓它封閉：打了字才開。
+代價是 `FR`＋Enter 不再補成 `FROM`。它寫得出清單外的新名字，所以不封閉：打了字才開。
 
-- **`Name`**：`AS ` 之後的別名、文法強制別名的括號之後（衍生資料表、`PIVOT (…) `、
-  `UNPIVOT (…) `）、`DECLARE @`（見[變數](completion-variables.md)）、`CREATE <種類> ` 列不出東西的那一段（見下文）、敘述開頭 `WITH ` 與 `WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
+- **`Name`**：`AS ` 之後的別名、`DECLARE @`（見[變數](completion-variables.md)）、`CREATE <種類> ` 列不出東西的那一段（見下文）、`WITH ` 與 `WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
   （`INSERT INTO `、`MERGE INTO ` 要既有資料表，是 `Grammar`）、`RESULT SETS ((` 的資料行名稱。
-- **`MaybeName`**：同一行沒有 AS 的別名、`CREATE <種類> ` 列得出東西的那一段、資料行定義的起點（`CREATE TABLE t (`、逗號之後、
+- **`MaybeName`**：同一行沒有 AS 的別名、文法強制別名的括號之後（衍生資料表、`PIVOT (…) `、
+  `UNPIVOT (…) `）、`CREATE <種類> ` 列得出東西的那一段、資料行定義的起點（`CREATE TABLE t (`、逗號之後、
   `DECLARE @t TABLE (`）、`ALTER TABLE t ADD `——新資料行名稱或 `CONSTRAINT` 都對。
 
 括號是什麼由**前面**那個字決定：接在 `FROM`、`JOIN`、`APPLY`、`USING` 後面的是衍生資料表，
 接在 `IN`、`EXISTS`、`=` 後面的是運算式；`FROM (t1 JOIN t2 ON …) ` 是括號包起來的聯結、
-名稱後的 `WITH (NOLOCK)` 是提示，都不接別名。`AS` 也看前面：一項剛寫完、還沒有別名時才是
-別名，其餘照常——`CREATE VIEW v AS ` 的主體、`EXECUTE AS`、`FOR SYSTEM_TIME AS`（接 `OF`）。
+名稱後的 `WITH (NOLOCK)` 是提示，都不接別名。衍生資料表判成 `Name` 的話清單不開，`AS` 打不出來。
+`AS` 也看前面：一項剛寫完、還沒有別名時才是別名，其餘照常——`CREATE VIEW v AS ` 的主體、`EXECUTE AS`、`FOR SYSTEM_TIME AS`（接 `OF`）。
 `CAST(x AS ` 由[型別的位置](completion-builtins.md#資料型別)先接走。
 
 ### 別名規則
@@ -81,7 +81,7 @@
 其餘是 `Name`：`CREATE PROCEDURE dbo.`、`CREATE INDEX `。
 
 取捨：不列資料庫（跨庫建立少見）。打了字才開，否則片段 `cp` 名稱欄位的 Tab 把 `dbo` 提交進
-`dbo.ProcedureName`；代價是 `CREATE OR ALTER PROCEDURE ` 也不再空前綴就開。`SELECT … INTO ` 仍整格 `Name`。
+`dbo.ProcedureName`；代價是 `CREATE OR ALTER PROCEDURE ` 也不再空前綴就開。
 
 ## 語句的界線
 

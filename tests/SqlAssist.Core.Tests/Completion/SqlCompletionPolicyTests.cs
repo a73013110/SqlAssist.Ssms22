@@ -74,7 +74,10 @@ public sealed class SqlCompletionPolicyTests
     [InlineData("SELECT * FROM dbo.Loan\n/* 接續 */ ssf", true, true, SqlCompletionSlot.Grammar,
         SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.StatementStart, CompletionTarget.Any)]
 
-    [InlineData("FROM (SELECT 1 x) ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any)]
+    // 文法強制的別名與同一行的別名同一種格子：打了字才開、列得出 AS。
+    [InlineData("FROM (SELECT 1 x) ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any)]
+    [InlineData("FROM (SELECT 1 x) A", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any)]
+    [InlineData("MERGE Loan USING (SELECT 1 x) A", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any)]
     [InlineData("FROM t AS ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any)]
     [InlineData("SELECT CASE WHEN a=1 THEN 2 END AS ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
     [InlineData("DECLARE @", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]

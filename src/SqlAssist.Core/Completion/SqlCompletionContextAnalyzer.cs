@@ -128,7 +128,7 @@ public static class SqlCompletionContextAnalyzer
                 acceptsTypeAs: SqlDataTypePosition.AcceptsAs(tokens, textBeforeToken));
         }
 
-        // 這個位置文法上只能是使用者自己取的名字：衍生資料表的別名、AS 之後的別名、
+        // 這個位置文法上只能是使用者自己取的名字：AS 之後的別名、
         // CREATE 的物件名稱、CTE 名稱、SELECT … INTO 的新資料表。底下的目標判斷都在問
         // 「要列哪一類既有物件」，對新名字沒有意義——CREATE PROCEDURE dbo. 的限定字
         // 也一起丟掉，那裡沒有要查的東西。可能是名字的那一格照常往下走：清單以軟選開啟，
