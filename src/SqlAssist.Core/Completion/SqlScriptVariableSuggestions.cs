@@ -22,12 +22,12 @@ namespace SqlAssist.Core.Completion;
 public static class SqlScriptVariableSuggestions
 {
     /// <summary>
-    /// 往回走到這些字就代表使用者正在<b>宣告</b>一個名字：變數、程序參數、函式參數。
+    /// 往回走到這些字就代表使用者正在<b>宣告</b>一個名字：變數、程序、函式與彙總的參數。
     /// </summary>
     private static readonly HashSet<string> DeclarationAnchors =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            "DECLARE", "PROCEDURE", "PROC", "FUNCTION"
+            "DECLARE", "PROCEDURE", "PROC", "FUNCTION", "AGGREGATE"
         };
 
     /// <summary>

@@ -59,11 +59,11 @@ token 列舉裡根本沒有它——任何工具在這一塊都只能自己維�
 
 | 寫法 | 怎麼認出來 |
 |---|---|
-| `DECLARE @a INT = NULL, @b `、`CREATE PROCEDURE p @x int OUTPUT, @y ` | 前一個詞元是落在[宣告位置](completion-variables.md#宣告的位置仍然不開清單)上的變數 |
+| `DECLARE @a INT = NULL, @b `、`CREATE PROCEDURE p @x int OUTPUT, @y `、`CREATE AGGREGATE g (@a ` | 前一個詞元是落在[宣告位置](completion-variables.md#宣告的位置仍然不開清單)上的變數 |
 | `RETURNS ` | 一個詞元就決定得了 |
 | `CAST(x AS `、`TRY_CAST`、`PARSE`、`TRY_PARSE` | `AS` 而且還沒關上的那個左括號屬於這幾個函式 |
 | `CONVERT(`、`TRY_CONVERT(` | 左括號前面是這兩個名字 |
-| `CREATE TABLE t (Id `、`DECLARE @t TABLE (Id `、`ALTER TABLE t ADD Id `、`WITH RESULT SETS ((Id ` | 名稱前面那一格是資料行定義的開頭（位置分析的 `ColumnDefinition`、`AlterTableAdd`、`ResultSetColumn`） |
+| `CREATE TABLE t (Id `、`DECLARE @t TABLE (Id `、`ALTER TABLE t ADD Id `、`WITH RESULT SETS ((Id ` | 名稱前面那一格是資料行定義的開頭（位置分析的 `ColumnDefinition`、`AlterTableAdd`、`ResultSetColumn`）；名稱可加方括號 |
 | `ALTER TABLE t ALTER COLUMN c ` | 前兩個詞元是 `ALTER COLUMN`；`DROP COLUMN c` 之後不是 |
 | `CREATE SEQUENCE s AS `、`CREATE TYPE t FROM ` | 以型別為底的物件，名稱之後的那個字 |
 
@@ -72,6 +72,10 @@ token 列舉裡根本沒有它——任何工具在這一塊都只能自己維�
 新資料行名稱之後多列計算資料行的 `AS`（`RESULT SETS` 沒有）；`CAST(@y ` 寫完運算元、還沒寫過 `AS`
 時列它，不看目標與位置旗標。各認一份的症狀是 `SELECT CAST(@y ` 借別名的 `AS` 碰巧列得出來，
 `SET @x = CAST(@y ` 就列不出來。
+
+資料行定義的開頭是一條規則：左括號前面是一份資料列的定義標頭——資料表的名稱（`CREATE` 以 `TABLE` 結尾的種類，
+含 `EXTERNAL TABLE`；`INSERT BULK t`）、資料表型別（`@t TABLE`、`AS TABLE`、CLR 的 `RETURNS TABLE`），或資料列集函式的
+結構描述（`OPENJSON(@j) WITH (`、`OPENXML(…) WITH (`）。名稱的省略段（`LibArchive..t`、`..t`）由共用的名稱單位跳過。
 
 新資料行名稱之後不自己認形狀，問位置分析名稱前面那一格：`INSERT INTO t (col1, col2)`
 的括號長得與 `CREATE TABLE` 一模一樣，分得開兩者的判準（括號前面是不是 `TABLE`）只有

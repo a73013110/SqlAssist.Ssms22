@@ -47,6 +47,23 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch ")]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch varchar(10), CopyCount ")]
     [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE, RESULT SETS ((Branch int), (CopyNo ")]
+    [InlineData("SELECT * FROM OPENJSON(@doc, '$') WITH (CopyNo ")]
+    [InlineData("SELECT * FROM OPENJSON(@doc, '$') WITH (CopyNo int, Branch ")]
+    [InlineData("SELECT * FROM dbo.Loan l CROSS APPLY OPENJSON(l.Doc) WITH (CopyNo ")]
+    [InlineData("SELECT * FROM OPENXML(@handle, '/r') WITH (CopyNo int, Branch ")]
+    [InlineData("CREATE EXTERNAL TABLE dbo.LoanFile (LoanId ")]
+    [InlineData("CREATE EXTERNAL TABLE dbo.LoanFile (LoanId int, CopyNo ")]
+    [InlineData("CREATE TABLE LibArchive..Loan (LoanId ")]
+    [InlineData("CREATE TABLE LibArchive..Loan (LoanId int, CopyNo ")]
+    [InlineData("CREATE AGGREGATE dbo.LoanConcat (@doc ")]
+    [InlineData("CREATE AGGREGATE dbo.LoanConcat (@doc xml(LibSchemaCollection), @copyNo ")]
+    [InlineData("CREATE FUNCTION dbo.fn_Copies () RETURNS @t ")]
+    [InlineData("CREATE TABLE [dbo].[Loan]([LoanId] ")]
+    [InlineData("CREATE TABLE ..Loan (LoanId ")]
+    [InlineData("CREATE TABLE .dbo.Loan (LoanId ")]
+    [InlineData("INSERT BULK dbo.Loan (LoanId int, CopyNo ")]
+    [InlineData("CREATE FUNCTION dbo.fn_Copies () RETURNS TABLE (CopyNo ")]
+    [InlineData("CREATE TABLE [dbo].[Loan]([LoanId] [int] NOT NULL, [Key] ")]
     public void 型別的位置只建議型別(string textBeforeCaret)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -75,6 +92,8 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("EXEC dbo.usp_Renew @readerId = NULL, @days ")]
     [InlineData("CREATE PROCEDURE dbo.usp_Renew @readerId INT AS SELECT @readerId ")]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch int ")]
+    [InlineData("SELECT * FROM dbo.fn_Copies(1) WITH (Branch ")]
+    [InlineData("SELECT * FROM dbo.Loan WITH (Branch ")]
     public void 不是型別的位置(string textBeforeCaret)
     {
         Assert.NotEqual(

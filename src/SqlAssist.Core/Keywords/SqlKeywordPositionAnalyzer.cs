@@ -1518,9 +1518,14 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <paramref name="open"/> 的左括號開啟的是資料行定義清單。
     /// </summary>
     /// <remarks>
-    /// <c>CREATE TABLE t (</c>、<c>DECLARE @t TABLE (</c>、<c>RETURNS @t TABLE (</c>、
-    /// <c>CREATE TYPE x AS TABLE (</c>。這一層的每一項開頭是新資料行名稱，或 CONSTRAINT、
-    /// PRIMARY KEY、INDEX 這些字，見 <see cref="SqlKeywordPosition.ColumnDefinition"/>。
+    /// 一條規則：<b>左括號前面是一份資料列的定義標頭</b>。三種標頭——
+    /// 資料表的名稱（<c>CREATE TABLE t (</c>、<c>CREATE EXTERNAL TABLE t (</c>，種類取自
+    /// <see cref="CreatedKinds"/> 裡以 TABLE 結尾的那幾種；大量載入的 <c>INSERT BULK t (</c>）、資料表型別（<c>DECLARE @t TABLE (</c>、
+    /// <c>RETURNS @t TABLE (</c>、CLR 函式的 <c>RETURNS TABLE (</c>、<c>CREATE TYPE x AS TABLE (</c>），以及資料列集函式的結構描述
+    /// （<c>OPENJSON(@j) WITH (</c>、<c>OPENXML(@h, '/r') WITH (</c>）。
+    /// 這一層的每一項開頭是新資料行名稱，或 CONSTRAINT、PRIMARY KEY、INDEX 這些字，
+    /// 見 <see cref="SqlKeywordPosition.ColumnDefinition"/>；名稱之後是型別。
+    /// 只認 <c>CREATE</c> 緊接 <c>TABLE</c> 的症狀是 <c>CREATE EXTERNAL TABLE</c> 的資料行之後列不出型別。
     /// </remarks>
     private bool OpensColumnDefinitions(int open)
     {
@@ -1532,7 +1537,16 @@ public sealed partial class SqlKeywordPositionAnalyzer
         if (tokens[open - 1].IsKeyword("TABLE"))
         {
             return open >= 2 &&
-                (tokens[open - 2].Kind == SqlTokenKind.Variable || tokens[open - 2].IsKeyword("AS"));
+                (tokens[open - 2].Kind == SqlTokenKind.Variable || tokens[open - 2].IsKeyword("AS") ||
+                 tokens[open - 2].IsKeyword("RETURNS"));
+        }
+
+        if (tokens[open - 1].IsKeyword("WITH"))
+        {
+            return open >= 2 && tokens[open - 2].IsPunctuation(")") &&
+                SqlTokenNavigator.FindOpeningParenthesis(tokens, open - 2) is var call and >= 1 &&
+                tokens[call - 1].Kind == SqlTokenKind.Identifier &&
+                SqlFunctionCatalog.IsRowsetFunction(tokens[call - 1].Value);
         }
 
         if (tokens[open - 1].Kind != SqlTokenKind.Identifier)
@@ -1542,9 +1556,18 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         var start = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, open - 1);
 
-        return start >= 2 &&
-            tokens[start - 1].IsKeyword("TABLE") &&
-            tokens[start - 2].IsKeyword("CREATE");
+        if (start < 2)
+        {
+            return false;
+        }
+
+        if (tokens[start - 1].IsKeyword("BULK") && tokens[start - 2].IsKeyword("INSERT"))
+        {
+            return true;
+        }
+
+        return FindCreatedKind(start - 1, endsAt: true) is { } kind &&
+            string.Equals(kind.Words[kind.Words.Length - 1], "TABLE", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

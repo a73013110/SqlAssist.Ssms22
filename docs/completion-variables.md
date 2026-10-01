@@ -67,7 +67,7 @@ EXEC dbo.usp_Renew @|  → 同上
 | 位置 | 開不開 |
 |---|---|
 | `DECLARE @`、`DECLARE @a INT = NULL, @` | 不開，他正在取名字 |
-| `CREATE PROCEDURE p @`、`CREATE PROC p @a int OUTPUT, @`、`CREATE FUNCTION f (@` | 同上 |
+| `CREATE PROCEDURE p @`、`CREATE PROC p @a int OUTPUT, @`、`CREATE FUNCTION f (@`、`CREATE AGGREGATE g (@` | 同上 |
 | `SET @`、`SELECT @`、`WHERE a = @`、`EXEC p @` | 開，他要的是上面宣告過的名稱 |
 
 `SET ` 打完空白時選項清單已經開著，變數放在那一份裡，見[片語](completion-phrases.md#執行期)。

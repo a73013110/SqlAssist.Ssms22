@@ -143,6 +143,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT * FROM OPENROWSET(BULK 'Copy.csv', ", "FORMAT", "DATA_SOURCE", "FIRSTROW", "SINGLE_CLOB")]
     [InlineData("SELECT * FROM OPENROWSET(BULK 'Copy.csv', FORMAT = 'CSV', ", "DATA_SOURCE", "FIELDQUOTE")]
     [InlineData("CREATE EXTERNAL TABLE dbo.LoanArchiveFile (LoanId int)\nWITH (LOCATION = '/loan/', ", "DATA_SOURCE", "FILE_FORMAT")]
+    [InlineData("CREATE AGGREGATE dbo.LoanConcat (@copyNo int) ", "RETURNS")]
     [InlineData("GRANT EXECUTE ON ", "SCHEMA", "OBJECT")]
     [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR y ", "IN")]
     [InlineData("ALTER DATABASE CURRENT SET ", "READ_COMMITTED_SNAPSHOT", "SINGLE_USER", "RECOVERY")]

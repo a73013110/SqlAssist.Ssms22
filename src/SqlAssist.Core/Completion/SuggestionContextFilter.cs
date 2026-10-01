@@ -290,15 +290,15 @@ public static class SuggestionContextFilter
     /// 內建的資料列集函式：<c>OPENROWSET</c>、<c>OPENJSON</c>、<c>OPENXML</c>、<c>CONTAINSTABLE</c> 這一類。
     /// </summary>
     /// <remarks>
-    /// 它們是不在中繼資料裡的資料表值函式，接得上資料表值函式的兩個目標（資料來源與 <c>APPLY</c>）都列。
-    /// 認的是位置旗標而不是名單：關鍵字目錄裡只有它們帶著 <see cref="SqlKeywordPosition.DataSource"/>，
-    /// 不是關鍵字的 <c>OPENJSON</c> 在函式目錄裡也只帶那一個位置。少了這一條，關鍵字照目標整份擋掉，
+    /// 它們是不在中繼資料裡的資料表值函式，接得上資料表值函式的兩個目標（資料來源與 <c>APPLY</c>）都列；
+    /// 哪些名稱算數見 <see cref="SqlFunctionCatalog.IsRowsetFunction"/>。少了這一條，關鍵字照目標整份擋掉，
     /// <c>FROM </c> 之後一個都列不出來。
     /// </remarks>
     private static bool IsRowsetFunction(SqlSuggestion suggestion)
     {
         return suggestion.Kind is SuggestionKind.Keyword or SuggestionKind.BuiltInFunction &&
-            (suggestion.Positions & SqlKeywordPosition.DataSource) != SqlKeywordPosition.None;
+            suggestion.Tag is not SqlClausePhrase &&
+            SqlFunctionCatalog.IsRowsetFunction(suggestion.DisplayText);
     }
 
     /// <summary>

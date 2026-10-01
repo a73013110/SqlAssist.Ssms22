@@ -111,13 +111,19 @@ public static class SqlDataTypePosition
             return SqlScriptVariableSuggestions.IsDeclarationSlot(tokens, last);
         }
 
-        if (token.Kind != SqlTokenKind.Identifier || token.IsQuoted)
+        if (token.Kind != SqlTokenKind.Identifier)
         {
             // CONVERT(|、TRY_CONVERT(|
             return token.IsPunctuation("(") &&
                 last >= 1 &&
                 IsBareIdentifier(tokens[last - 1]) &&
                 TypeFirstArgument.Contains(tokens[last - 1].Value);
+        }
+
+        // 加了方括號的只可能是名稱：SSMS 產生的指令碼一律寫 CREATE TABLE [dbo].[Loan]([LoanId] |。
+        if (token.IsQuoted)
+        {
+            return IsNewColumn(tokens, last, textBeforeToken);
         }
 
         if (TypeIntroducers.Contains(token.Value))
@@ -141,6 +147,12 @@ public static class SqlDataTypePosition
             return true;
         }
 
+        return IsNewColumn(tokens, last, textBeforeToken);
+    }
+
+    /// <summary><paramref name="last"/> 是剛寫完的新資料行名稱，之後是它的型別。</summary>
+    private static bool IsNewColumn(IReadOnlyList<SqlToken> tokens, int last, string textBeforeToken)
+    {
         return NewColumnPosition(tokens, last, textBeforeToken) is
             SqlKeywordPosition.ColumnDefinition or SqlKeywordPosition.AlterTableAdd or SqlKeywordPosition.ResultSetColumn;
     }
@@ -276,7 +288,8 @@ public static class SqlDataTypePosition
     /// </remarks>
     private static SqlKeywordPosition NewColumnPosition(IReadOnlyList<SqlToken> tokens, int last, string textBeforeToken)
     {
-        if (last < 1 || tokens[last].Kind != SqlTokenKind.Identifier || SqlKeywordCatalog.IsKeyword(tokens[last].Value))
+        if (last < 1 || tokens[last].Kind != SqlTokenKind.Identifier ||
+            (!tokens[last].IsQuoted && SqlKeywordCatalog.IsKeyword(tokens[last].Value)))
         {
             return SqlKeywordPosition.None;
         }

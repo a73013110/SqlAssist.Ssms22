@@ -299,6 +299,19 @@ public static class SqlFunctionCatalog
     private static readonly HashSet<string> UppercaseNames = BuildUppercaseNames();
 
     /// <summary>
+    /// 這個名稱是內建的資料列集函式：<c>OPENROWSET</c>、<c>OPENXML</c> 這些關鍵字，以及 <c>OPENJSON</c>。
+    /// </summary>
+    /// <remarks>
+    /// 關鍵字認位置旗標：目錄裡只有它們帶著 <see cref="SqlKeywordPosition.DataSource"/>。
+    /// 建議清單（哪些目標列它們）與位置分析（<c>OPENJSON(@j) WITH (</c> 是資料行定義）問的是同一份。
+    /// </remarks>
+    public static bool IsRowsetFunction(string name)
+    {
+        return RowsetFunctions.Contains(name) ||
+            (SqlKeywordCatalog.GetPositions(name) & SqlKeywordPosition.DataSource) != SqlKeywordPosition.None;
+    }
+
+    /// <summary>
     /// 查出某個內建函式名稱的標準寫法。
     /// </summary>
     /// <remarks>

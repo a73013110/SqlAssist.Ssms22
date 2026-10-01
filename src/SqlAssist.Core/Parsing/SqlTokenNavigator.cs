@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Keywords;
 
 namespace SqlAssist.Core.Parsing;
 
@@ -112,6 +113,11 @@ public static class SqlTokenNavigator
     ///
     /// <paramref name="last"/> 不是識別字時原樣回傳：呼叫端要問的是位置，
     /// 而不是「這裡有沒有名稱」。
+    ///
+    /// 省略的段也是名稱的一部分：<c>LibArchive..Loan</c> 省略了結構描述，<c>..Loan</c>、<c>.dbo.Loan</c>
+    /// 連前面幾段都省略，點號之間沒有詞元。只認寫出來的段的話，<c>CREATE TABLE LibArchive..Loan (</c>
+    /// 往回走停在點號上，認不出這是資料表的定義。點號前面的保留字不是名稱（<c>TABLE..Loan</c> 的
+    /// <c>TABLE</c>），開頭的點號接在右括號之後時是方法呼叫（<c>(…).value(</c>），兩者都不算。
     /// </remarks>
     public static int SkipQualifiedNameBackward(IReadOnlyList<SqlToken> tokens, int last)
     {
@@ -122,15 +128,36 @@ public static class SqlTokenNavigator
 
         var index = last;
 
-        while (index >= 2 &&
-               tokens[index - 1].IsPunctuation(".") &&
-               tokens[index - 2].Kind == SqlTokenKind.Identifier)
+        while (index >= 1 && tokens[index - 1].IsPunctuation("."))
         {
-            index -= 2;
+            var dots = index - 1;
+
+            while (dots >= 1 && tokens[dots - 1].IsPunctuation("."))
+            {
+                dots--;
+            }
+
+            if (dots >= 1 && IsNamePart(tokens[dots - 1]))
+            {
+                index = dots - 1;
+                continue;
+            }
+
+            if (dots >= 1 && tokens[dots - 1].IsPunctuation(")"))
+            {
+                break;
+            }
+
+            index = dots;
+            break;
         }
 
         return index;
     }
+
+    /// <summary>寫得進多段式名稱的一段：識別字，保留字要加引號。</summary>
+    private static bool IsNamePart(SqlToken token) =>
+        token.Kind == SqlTokenKind.Identifier && (token.IsQuoted || !SqlKeywordCatalog.IsKeyword(token.Value));
 
     /// <summary>從 <paramref name="open"/> 起找出對應的右括號；配不起來時回傳 -1。</summary>
     public static int FindClosingParenthesis(IReadOnlyList<SqlToken> tokens, int open, int end)

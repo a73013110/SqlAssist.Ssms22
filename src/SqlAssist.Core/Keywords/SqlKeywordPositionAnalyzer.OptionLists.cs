@@ -356,10 +356,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>
-    /// <paramref name="last"/> 關上 <c>CREATE|ALTER FUNCTION</c> 名稱之後的參數清單。
+    /// <paramref name="last"/> 關上 <c>CREATE|ALTER FUNCTION</c> 或 <c>CREATE AGGREGATE</c> 名稱之後的參數清單。
     /// </summary>
     /// <remarks>
     /// 名稱可以限定（<c>dbo.fn_Fee</c>）；<c>CREATE OR ALTER</c> 的 FUNCTION 前面同樣是 ALTER。
+    /// 彙總的參數清單之後同樣接 <c>RETURNS</c>。
     /// </remarks>
     private bool EndsFunctionParameters(int last)
     {
@@ -382,7 +383,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         var function = name - 1;
 
-        return IsBareKeyword(function) && tokens[function].IsKeyword("FUNCTION") &&
+        // AGGREGATE 不在關鍵字目錄裡，只認沒加引號的字。
+        return (tokens[function].IsKeyword("FUNCTION") || tokens[function].IsKeyword("AGGREGATE")) &&
             (tokens[function - 1].IsKeyword("CREATE") || tokens[function - 1].IsKeyword("ALTER"));
     }
 

@@ -498,3 +498,18 @@ SELECT * FROM OPENXML(@Handle, '/r')
 CREATE EXTERNAL TABLE dbo.LoanArchiveFile
 WITH (LOCATION = '/loan/', DATA_SOURCE = LibSource, FILE_FORMAT = LibFormat)
 AS SELECT LoanId FROM dbo.Loan
+
+DECLARE @Doc nvarchar(max) = N'[]'
+SELECT * FROM OPENJSON(@Doc, '$') WITH (CopyNo int, Branch varchar(10))
+
+DECLARE @Handle int
+SELECT * FROM OPENXML(@Handle, '/r') WITH (CopyNo int, Branch varchar(10))
+
+CREATE EXTERNAL TABLE dbo.LoanFile (LoanId int, CopyNo int)
+WITH (LOCATION = '/loan/', DATA_SOURCE = LibSource, FILE_FORMAT = LibFormat)
+
+CREATE TABLE LibArchive..LoanCopy (LoanId int, CopyNo int)
+
+CREATE TABLE [dbo].[LoanCopy]([LoanId] int NOT NULL, [CopyNo] int NULL)
+
+INSERT BULK dbo.Loan (LoanId int, CopyNo int)
