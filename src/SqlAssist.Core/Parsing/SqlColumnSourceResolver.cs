@@ -59,6 +59,13 @@ public sealed class SqlColumnSourceResolver
             "HAVING", "WHERE", "OPTION", "FOR"
         };
 
+    /// <summary>接兩段查詢的集合運算；ORDER BY 寫在最後一段之後，名稱卻是第一段的。</summary>
+    private static readonly HashSet<string> SetOperators =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "UNION", "EXCEPT", "INTERSECT"
+        };
+
     private static readonly Dictionary<string, SqlCommonTableExpression> NoCommonTableExpressions =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -404,6 +411,125 @@ public sealed class SqlColumnSourceResolver
             commonTableExpression.BodyEnd,
             commonTableExpression.Name);
     }
+
+    /// <summary>
+    /// <paramref name="tokenStart"/> 那一格是查詢 ORDER BY 的一項時，選取清單取過的別名；其餘位置是空清單。
+    /// </summary>
+    /// <param name="tokenStart">游標那個詞的起點；之前的最後一個詞元要是 <c>BY</c> 或逗號。</param>
+    /// <remarks>
+    /// 選取清單的別名只有查詢的 ORDER BY 引用得到，而且要整項只寫它：運算式裡（<c>ORDER BY Seq + 1</c>）、
+    /// GROUP BY、視窗與 WITHIN GROUP 的 ORDER BY 都看不到，所以 ORDER BY 與它的 SELECT 之間不能有沒關上的左括號。
+    /// 集合運算（<c>UNION</c>…）的 ORDER BY 用第一段的名稱。
+    ///
+    /// 只列寫了別名的項：沒寫的就是來源的欄位，已經列過一次。
+    /// </remarks>
+    public IReadOnlyList<string> FindOrderByAliases(int tokenStart)
+    {
+        var previous = -1;
+
+        while (previous + 1 < _tokens.Count && _tokens[previous + 1].End <= tokenStart)
+        {
+            previous++;
+        }
+
+        if (previous < 1 || !(_tokens[previous].IsPunctuation(",") || IsOrderBy(previous)))
+        {
+            return Array.Empty<string>();
+        }
+
+        var orderBy = -1;
+        var select = -1;
+
+        for (var index = previous; index >= 0; index--)
+        {
+            var token = _tokens[index];
+
+            if (token.IsPunctuation(")"))
+            {
+                index = SqlTokenNavigator.FindOpeningParenthesis(_tokens, index);
+
+                if (index < 0)
+                {
+                    return Array.Empty<string>();
+                }
+
+                continue;
+            }
+
+            if (token.IsPunctuation("(") || token.IsPunctuation(";") || token.IsKeyword("GO"))
+            {
+                break;
+            }
+
+            if (orderBy < 0 && token.IsKeyword("BY"))
+            {
+                // 逗號屬於 GROUP BY、PARTITION BY 的清單。
+                if (!IsOrderBy(index))
+                {
+                    return Array.Empty<string>();
+                }
+
+                orderBy = index - 1;
+                index--;
+                continue;
+            }
+
+            if (token.IsKeyword("SELECT") && !_tokens[Math.Max(index - 1, 0)].IsPunctuation("."))
+            {
+                select = index;
+
+                var before = index >= 1 && _tokens[index - 1].IsKeyword("ALL") ? index - 2 : index - 1;
+
+                if (before >= 0 && SetOperators.Contains(_tokens[before].Value) && !_tokens[before].IsQuoted)
+                {
+                    index = before;
+                    continue;
+                }
+
+                break;
+            }
+
+            if (select < 0 && Boundaries.IsStatementHead(index))
+            {
+                break;
+            }
+        }
+
+        if (orderBy < 0 || select < 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var aliases = new List<string>();
+        var item = SkipSelectListPrelude(select + 1, orderBy);
+
+        while (item < orderBy)
+        {
+            var itemEnd = FindItemEnd(item, orderBy);
+
+            if (itemEnd == item)
+            {
+                break;
+            }
+
+            if (!IsColumnReference(item, itemEnd) && TryGetOutputName(item, itemEnd, out var alias))
+            {
+                aliases.Add(alias);
+            }
+
+            if (itemEnd >= orderBy || !_tokens[itemEnd].IsPunctuation(","))
+            {
+                break;
+            }
+
+            item = itemEnd + 1;
+        }
+
+        return aliases;
+    }
+
+    private bool IsOrderBy(int by) =>
+        by >= 1 && _tokens[by].IsKeyword("BY") && _tokens[by - 1].IsKeyword("ORDER");
 
     private IReadOnlyDictionary<string, SqlCommonTableExpression> CommonTableExpressions =>
         _commonTableExpressions ??= CollectCommonTableExpressions(_tokens);
@@ -910,6 +1036,27 @@ public sealed class SqlColumnSourceResolver
         }
 
         name = last.Value;
+        return true;
+    }
+
+    /// <summary>選取項只是一個欄位參照（<c>Id</c>、<c>a.Id</c>），沒有另外取名字。</summary>
+    private bool IsColumnReference(int start, int end)
+    {
+        if ((end - start) % 2 == 0)
+        {
+            return false;
+        }
+
+        for (var i = start; i < end; i++)
+        {
+            if ((i - start) % 2 == 0
+                ? _tokens[i].Kind != SqlTokenKind.Identifier
+                : !_tokens[i].IsPunctuation("."))
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 

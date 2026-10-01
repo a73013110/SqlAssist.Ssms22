@@ -67,6 +67,44 @@ public static class SqlScopeAliasSuggestions
         return (IReadOnlyList<SqlSuggestion>?)suggestions ?? Array.Empty<SqlSuggestion>();
     }
 
+    /// <summary>
+    /// 查詢 ORDER BY 的一項引用得到的選取清單別名（<c>SELECT CopyNo AS Seq … ORDER BY Seq</c>）；其餘位置是空的。
+    /// </summary>
+    /// <remarks>
+    /// 它是這段查詢的輸出欄位，不是資料來源的限定字，所以列成欄位、說明與子查詢的欄位同一句。
+    /// 哪裡引用得到見 <see cref="SqlColumnSourceResolver.FindOrderByAliases"/>。
+    /// </remarks>
+    public static IReadOnlyList<SqlSuggestion> OrderByAliases(SqlColumnSourceResolver resolver, int tokenStart)
+    {
+        if (resolver is null)
+        {
+            throw new ArgumentNullException(nameof(resolver));
+        }
+
+        var aliases = resolver.FindOrderByAliases(tokenStart);
+
+        if (aliases.Count == 0)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var suggestions = new SqlSuggestion[aliases.Count];
+
+        for (var index = 0; index < aliases.Count; index++)
+        {
+            var alias = aliases[index];
+
+            suggestions[index] = new SqlSuggestion(
+                alias,
+                SqlIdentifier.QuoteIfNeeded(alias),
+                ScriptSuggestionText.QueryResult,
+                $"{ScriptSuggestionText.QueryResult}\r\n{alias}",
+                SuggestionKind.Column);
+        }
+
+        return suggestions;
+    }
+
     /// <summary>沒有別名、名稱只寫在指令碼裡的來源：CTE 與暫存資料表。</summary>
     /// <remarks>資料表變數不算：<c>@t.</c> 不是合法的限定字，那一格寫的是 <c>[@t]</c>，見變數建議。</remarks>
     private static bool IsScriptOnly(SqlTableReference table, SqlColumnSourceResolver resolver) =>

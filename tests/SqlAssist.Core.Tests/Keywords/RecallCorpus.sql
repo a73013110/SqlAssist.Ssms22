@@ -480,6 +480,8 @@ SELECT 2
 SELECT CopyNo -- the copy.
 FROM dbo.Copy
 
+SELECT CopyNo AS Seq FROM dbo.Copy ORDER BY Seq
+
 INSERT INTO dbo.Loan (CopyNo, ReaderId) VALUES (1, NULL)
 
 DECLARE @Fee int

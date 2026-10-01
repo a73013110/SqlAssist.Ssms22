@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 
@@ -317,7 +318,7 @@ public static class SqlCompletionContextAnalyzer
                 CompletionTarget.Procedure =>
                     withScope.WithScriptSources(SqlScriptObjectSuggestions.Procedures(tokens)),
                 CompletionTarget.Any or CompletionTarget.TableFunction =>
-                    withScope.WithScriptSources(SqlScopeAliasSuggestions.Create(scope, resolver)),
+                    withScope.WithScriptSources(AliasesOf(scope, resolver, context.TokenStart)),
                 _ => withScope
             };
         }
@@ -387,6 +388,18 @@ public static class SqlCompletionContextAnalyzer
     /// <c>@pub</c> 被換掉——那要按復原才救得回來；他正在<b>引用</b>時要的正是
     /// 上面幾行宣告過的名稱，與 CTE、暫存資料表完全同格。
     /// </remarks>
+    /// <summary>限定字的別名，加上 ORDER BY 引用得到的選取清單別名。</summary>
+    private static IReadOnlyList<SqlSuggestion> AliasesOf(
+        SqlStatementScope scope,
+        SqlColumnSourceResolver resolver,
+        int tokenStart)
+    {
+        var qualifiers = SqlScopeAliasSuggestions.Create(scope, resolver);
+        var selected = SqlScopeAliasSuggestions.OrderByAliases(resolver, tokenStart);
+
+        return selected.Count == 0 ? qualifiers : qualifiers.Concat(selected).ToArray();
+    }
+
     /// <summary>封閉片語的清單要不要放變數：片語那一格收變數，而且打 <c>@</c> 的話會列變數。</summary>
     /// <remarks>
     /// 剖析器只說得出那一格接不接 <c>@a</c>，說不出那是引用還是宣告：<c>CREATE PROCEDURE p </c> 之後的

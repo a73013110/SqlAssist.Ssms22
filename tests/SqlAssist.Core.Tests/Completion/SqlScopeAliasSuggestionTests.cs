@@ -116,4 +116,47 @@ public sealed class SqlScopeAliasSuggestionTests
         Assert.Equal(expected, SqlInsertionText.Build(alias, context, bracketed));
         Assert.Contains("dbo.Loan", alias.Preview);
     }
+
+    /// <summary>
+    /// 查詢的 ORDER BY 一項的開頭引用得到選取清單取的別名，列成欄位；只列寫了別名的項。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT CopyNo AS Seq FROM dbo.Copy ORDER BY |", "Seq")]
+    [InlineData("SELECT CopyNo AS Seq FROM dbo.Copy ORDER BY S|", "Seq")]
+    [InlineData("SELECT 1 AS a ORDER BY |", "a")]
+    [InlineData("SELECT TOP (5) CopyNo AS Seq, 'Fee' = 1, Title Name, ReaderId FROM dbo.Loan ORDER BY Seq DESC, |", "Seq,Fee,Name")]
+    [InlineData("SELECT CopyNo AS Seq FROM dbo.Copy GROUP BY CopyNo ORDER BY |", "Seq")]
+    [InlineData("SELECT CopyNo AS Seq FROM dbo.Copy UNION ALL SELECT ReaderId AS Other FROM dbo.Loan ORDER BY |", "Seq")]
+    [InlineData("SELECT (SELECT TOP 1 Title AS Heading FROM dbo.Copy ORDER BY |) AS Latest FROM dbo.Loan", "Heading")]
+    public void ORDER_BY列出選取清單的別名(string sqlWithCaret, string expected)
+    {
+        Assert.Equal(expected.Split(','), SelectAliases(sqlWithCaret));
+    }
+
+    /// <summary>
+    /// 別名只能整項引用：運算式裡、GROUP BY、視窗與 WITHIN GROUP 的 ORDER BY 都看不到。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT CopyNo AS Seq FROM dbo.Copy GROUP BY |")]
+    [InlineData("SELECT CopyNo AS Seq FROM dbo.Copy WHERE |")]
+    [InlineData("SELECT CopyNo AS Seq, |")]
+    [InlineData("SELECT CopyNo AS Seq FROM dbo.Copy ORDER BY Seq + |")]
+    [InlineData("SELECT CopyNo AS Seq FROM dbo.Copy ORDER BY COALESCE(Seq, |")]
+    [InlineData("SELECT CopyNo AS Seq, ROW_NUMBER() OVER (ORDER BY |) FROM dbo.Copy")]
+    [InlineData("SELECT STRING_AGG(Title, ', ') WITHIN GROUP (ORDER BY |) AS Titles FROM dbo.Copy")]
+    [InlineData("SELECT CopyNo AS Seq FROM dbo.Copy ORDER BY Seq\nEXEC dbo.usp_Renew 1, |")]
+    public void ORDER_BY以外不列選取清單的別名(string sqlWithCaret)
+    {
+        Assert.Empty(SelectAliases(sqlWithCaret));
+    }
+
+    private static string[] SelectAliases(string sqlWithCaret)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        return SuggestionContextFilter.Filter(context.ScriptSources, context)
+            .Where(suggestion => suggestion.Kind == SuggestionKind.Column)
+            .Select(suggestion => suggestion.DisplayText)
+            .ToArray();
+    }
 }

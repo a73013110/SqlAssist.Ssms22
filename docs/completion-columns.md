@@ -74,6 +74,13 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 `UPDATE t⏎SET` 的 SET 仍是指派：片語前一格的換行只給真的開始一句的字，
 見[子句片語](phrase-generator.md#前一格)。
 
+## ORDER BY 的選取清單別名
+
+`SELECT CopyNo AS Seq FROM dbo.Copy ORDER BY |` 列得出 `Seq`：查詢的 ORDER BY 是唯一引用得到選取清單別名的子句，
+而且只能整項寫它，所以只在 `BY` 或逗號之後列（`SqlColumnSourceResolver.FindOrderByAliases`）。運算式裡、
+GROUP BY、視窗與 `WITHIN GROUP` 的 ORDER BY 都看不到——ORDER BY 與它的 SELECT 之間有沒關上的左括號就不列；
+集合運算用第一段的名稱。只列寫了別名的項，沒寫的就是來源的欄位，已經列過；說明欄與子查詢的欄位同一句「查詢結果」。
+
 ## 資料表值函式的別名
 
 `SELECT f.| FROM dbo.Loan l CROSS APPLY dbo.fn_LoansByReader(l.CopyNo) f` 的 `f`
