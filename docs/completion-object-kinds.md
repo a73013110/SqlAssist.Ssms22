@@ -23,6 +23,11 @@
 
 反過來也不能把資料表值函式併進 `Table`：那樣 `ALTER FUNCTION` 之後就列不出它們了。
 
+內建的資料列集函式（`OPENROWSET`、`OPENQUERY`、`OPENXML`、`OPENJSON`、`CONTAINSTABLE`）是不在中繼資料裡的
+資料表值函式，`FROM` 與 `APPLY` 兩個目標都列。認的是位置旗標 `DataSource`：關鍵字目錄裡只有它們帶著，
+不是關鍵字的 `OPENJSON` 在函式目錄裡也只帶那一個。少了這條，關鍵字照目標整份擋掉，`FROM ` 之後一個都列不出來。
+`TRUNCATE TABLE ` 的目標也是資料來源、位置判不出來，那裡會多列它們。
+
 `APPLY` 有自己的 `CompletionTarget` 而不是共用 `Function`，還有第二個好處：
 `CompletionTarget.Function` 因此收斂成「`ALTER`／`DROP FUNCTION` 的那個名稱」，
 提交時分得出「這裡要補括號」還是「這裡只要名稱」——見[函式呼叫](function-call-insertion.md)。

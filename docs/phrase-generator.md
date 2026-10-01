@@ -17,18 +17,17 @@
 | `...` | 動詞之後、下一個字面字之前的其餘標頭；第一個詞元不能是關鍵字（`EXECUTE AS … WITH` 是別的敘述） |
 | （空） | 沒有尾巴，只認位置：「這個位置接得了這些字」；必須寫 `After` |
 
-候選字是關鍵字清單加上 ScriptDom 內部 `CodeGenerationSupporter` 的全部字串常數，
-規則同第三階段：普通名稱過不了而它過得了才算。比的除了整段，
-還有「撐過字本身」：`ROWS BETWEEN UNBOUNDED` 要再接 `PRECEDING` 才完整，只比整段的話
+候選字是關鍵字清單加上 ScriptDom 內部 `CodeGenerationSupporter` 的字串常數，
+普通名稱過不了而它過得了才算。比的除了整段，還有「撐過字本身」：`ROWS BETWEEN UNBOUNDED` 要再接 `PRECEDING` 才完整，只比整段的話
 它與普通名稱一起被拒。剖析器也有讀完才回頭驗的地方（`DECRYPTION BY CERTIFICATE KEY x` 在 `CERTIFICATE` 報錯）：
 讓前面的字被拒過的字，要有續尾把整句寫完才算。
-普通名稱在任何一組續尾整段都過不了的片語是**封閉**的；名稱後面還要再寫一段的
+普通名稱在任何續尾都過不了的片語是**封閉**的；名稱後面還要再寫一段的
 （`UPDATE t SET`、`OPEN SYMMETRIC KEY k DECRYPTION`）也會判成封閉，由 `Closed = $false` 宣告不封閉。
 換 `@ReaderId` 過得了的另記 `TakesVariable`（收變數）。
 
 探測文字本身已是完整語句時（`CREATE INDEX i ON t (a) `），接得上的字也含下一句的開頭；
 產生器扣掉在 `SELECT 1; ` 探到的那一份，被誤扣的（`WITH` 也是 CTE 的開頭）由更長的片語或 `Values` 補回。
-這種片語帶 `EndsStatement`，游標換了行就不算數——那一格更可能是下一句。
+這種片語帶 `EndsStatement`，游標換了行就不算數。
 
 - `Expand`：每個接得上的字接在後面成為新片語。語句標頭寫完了照樣往下（`CREATE MASTER KEY` 之後的 `ENCRYPTION`），
   扣掉下一句的開頭沒有字就不立；子句裡的不往下，由位置分析說（立了會藏掉索引篩選 `IS NOT NULL` 之後的 `WITH`）。
@@ -37,14 +36,14 @@
   值、名稱與選項的等號各是一步、不算一層（`FETCH ABSOLUTE 1 FROM`、`ALGORITHM = AES_256`）；接得了值的格子是運算式，
   不走名稱與等號。等號之後的值不逐一展開，收成一個 `{name}` 往下。同一格只有層數比上次多才再展開，已由位置片語說了的不立。
 - 探測代入：`{value}` 用剖析器收的數值或字串；`{name}` 用普通名稱，收不了的格子與等號之後用那一格列得出的
-  第一個字（手寫的也算）——資料庫加密金鑰的 `ALGORITHM =` 什麼名稱都先收，整句寫完才驗。
+  第一個字（手寫的也算）：`ALGORITHM =` 什麼名稱都先收，整句寫完才驗。
 - `Kinds`：`CREATE`、`ALTER`、`DROP` 之後是物件種類，展開到名稱為止，名稱之後只列一層（`CREATE TABLE t ` 之後的 `AS`）：
   否則 `CREATE PROCEDURE p AS` 之後是整份語句開頭。更深的標頭各自宣告，已是位置的（`CREATE SEQUENCE t `）由位置片語說。
   `CREATE` 寫到名稱的種類（`SYMMETRIC KEY`、`UNIQUE CLUSTERED INDEX`、`OR ALTER PROCEDURE`）輸出成 `CreatedKinds`，
   位置分析拿它判新名字，不手寫名單；名稱寫得成兩段式（`CREATE INDEX s.i` 不行）另記 `SchemaQualified`。
 - `Values`：剖析器把值當名稱看、分不出來時才手寫（`SET DATEFORMAT` 的 `dmy`、資料庫加密金鑰的演算法）。
   每個值仍要剖析得過（接得上一組續尾，或開得了一組清單：索引鍵之後的 `WITH` 只接 `(`），
-  過不了就中止產生；`Closed` 由人宣告那一格只有這幾個值。手寫的值也往下展開，之後的字同樣只有從那條路探得到。
+  過不了就中止產生；`Closed` 由人宣告那一格只有這幾個值。手寫的值也往下展開。
 - `Template`：用 `After` 位置的第幾個樣板探測：`IS` 要 `WHERE a `，代表樣板 `WHERE a = 1 ` 之後寫不出它。
 
 ## 片語裡的每一個字
@@ -58,21 +57,21 @@
 `Lead` 片語的第一個字不是關鍵字、墊的那段也列不出時，收進 `None` 的附加片語。
 
 語句說明也是證據，名稱與別名只補進已有的片語（另立會封閉 `BEGIN ` 其餘的字）。`DBCC ` 之後
-什麼都收、探不出字，名單只有說明；ScriptDom 的 DBCC 名單混著 `WRITEPAGE` 等內部命令，不用。
+探不出字，名單只有說明；ScriptDom 的 DBCC 名單混著 `WRITEPAGE` 等內部命令，不用。
 命令括號裡的字（`NORESEED`）同理：說明裡以 `DBCC 命令` 開頭的每一格（預覽的「命令」表一列一個，
 別名少了寫法就中止產生）第一組括號裡的大寫字，立成不封閉的 `DBCC 命令 (*`。
 
 第一個字前面那段是位置，不是片語。那個位置有只認位置的片語就補進去；沒有、關鍵字目錄在那裡
 也給不了（`AT` 不在 `SelectListTail`，`ENABLE` 不是關鍵字）時，另立**附加片語**：只認位置，
 比對永遠是「可能」，只加字、不藏字——普通片語比對確定時，`SELECT a ` 之後就只剩 `AT`。
-一格同時是幾個位置（`SUM(a) ` 接 `AT` 也接 `WITHIN`）時取聯集。
+一格是幾個位置（`SUM(a) ` 接 `AT` 也接 `WITHIN`）時取聯集。
 前面那段已有片語列得出這個字（`CREATE ` 之後的 `SYNONYM`）就不立。
 
 ## 唯一的接續併成一項
 
 後面只接得了一個字的字與那個字併成一項：`ASYMMETRIC KEY`、`ENCRYPTION BY PASSWORD`、`OR ALTER`，選一次寫完。
 條件是那個字寫到這裡還沒完整、封閉、接不了名稱或值——`OPEN SYMMETRIC` 也是完整的資料指標語句，不併。
-中間每一段的片語照舊，一個字一個字打的人看到的是同一條路；片語接不接得上一個字認的是一項的第一個字。
+中間每一段的片語照舊；片語接不接得上一個字認的是一項的第一個字。
 
 ## 前一格
 
@@ -81,16 +80,15 @@
 所以每個片語交代它第一個字前面那一格，二選一：
 
 - `After`：位置名稱，取自第三階段的樣板表，探測用每個位置的**第一個**樣板，
-  執行期由同一個位置分析回驗；兩個都不寫就是 `StatementStart`。
-  探到一樣結果的位置併成一個。
+  執行期由同一個位置分析回驗；兩個都不寫就是 `StatementStart`。探到一樣結果的位置併成一個。
 - `Lead`：前一格判不出位置、而尾巴本身就認得出意思（`WITH EXECUTE AS`、`NEXT VALUE FOR`）時，
-  探測要墊的文字；執行期不看前一格。判得出來的一律寫 `After`，同一件事只由位置分析說一次。
+  探測要墊的文字；執行期不看前一格。判得出來的一律寫 `After`。
 
 會重複的格子（`CURSOR LOCAL FAST_FORWARD `、MERGE 的 `WHEN`、視窗框架、`WITH RESULT SETS (…)` 的兩層清單）
 尾巴寫不出來，位置寫得出來：沒有尾巴的片語帶 `After`，探測文字就是那個位置的樣板；
-`AS OBJECT` 這種下一個字由掛在位置上的片語給。
+`AS OBJECT` 的下一個字由掛在位置上的片語給。
 
-`FOR` 還分游標選項、觸發程序標頭與 `SYNONYM` 的物件種類。`CREATE USER {name}` 從語句開頭寫起，不掛在物件種類上：
+`FOR` 還分游標選項、觸發程序標頭與 `SYNONYM` 的物件種類。`CREATE USER {name}` 從語句開頭寫起：
 `ALTER USER` 接別的字，確定的比對會藏掉它們。前一格判不出位置的（選取清單以外的 `NEXT VALUE`、
 預設值條件約束、`NOT FOR REPLICATION`）才寫更長的 `Lead` 尾巴，由比對取項數多的分開。
 
@@ -100,14 +98,16 @@
 LOGIN、USER、應用程式角色、憑證、金鑰、認證、DBCC、RAISERROR、EXEC、BACKUP／RESTORE、`FOR XML`／`FOR JSON`，
 以及 DDL 觸發程序的事件（`ON DATABASE FOR`：事件依標頭而不同，寫完一項仍回報 `TriggerEventEnd`）。
 分析器走訪清單、交出錨點，比對看錨點前的標頭。
-標頭本身的片語給第一項；逗號之後以每種第一項接逗號探測取聯集：用過的選項剖析器不收第二次。
-第一項只要接得了逗號，整句寫不寫得完不論（對稱金鑰的 WITH 清單之後還要寫 `ENCRYPTION BY`）。
+標頭的片語給第一項；逗號之後以每種第一項接逗號探測取聯集（用過的選項剖析器不收第二次），
+第一項接得了逗號就好，整句寫不寫得完不論（對稱金鑰之後還要寫 `ENCRYPTION BY`）。
 `()` 探測代入 `(a)`，對括號內容有要求的（RAISERROR）由 `Group` 指定。
 
 標頭夾著長度不定的一段（EXEC 的參數、BACKUP 的裝置清單）寫成 `EXEC ... WITH ,*`：尾巴的 `WITH`
 對上了才找動詞，探測代入 `Gap`。仍各佔一個位置的：
 
 - 括號清單：CREATE INDEX 的 `WITH (…)`，前面還夾著 `INCLUDE (…)` 與篩選 `WHERE`。標頭固定的括號清單
-  （資料表選項的 `WITH (`、`ALTER TABLE t SET (`、`SYSTEM_VERSIONING = ON (`）寫成 `(*` 片語。
+  （`ALTER TABLE t SET (`、`OPENROWSET (`）寫成 `(*` 片語。執行期分不出游標在 `(` 還是逗號之後，
+  字取兩者聯集：`OPENROWSET(` 接 `BULK`，`OPENROWSET(BULK 'x', ` 接選項。括號裡是子句的
+  （`WITHIN GROUP (ORDER BY …)`）寫 `Clause`，不取聯集。
 - 選項寫完還要回報位置（模組的 `AS`、觸發程序的 `FOR`）；`EXECUTE AS` 這類多字選項以位置為鍵，掛到共用位置會漏進每一份清單。
 - 不以逗號分隔：游標選項、序列選項（`SequenceOption`，`START WITH 1` 這種一項可以帶值）。

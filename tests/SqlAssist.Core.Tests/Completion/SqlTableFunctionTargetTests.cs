@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Linq;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Snippets;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Completion;
@@ -17,6 +19,8 @@ public sealed class SqlTableFunctionTargetTests
 {
     private static SqlSuggestion Suggestion(SuggestionKind kind, string name) =>
         new(name, name, string.Empty, string.Empty, kind, schemaName: "dbo");
+
+    private static readonly IReadOnlyList<SqlSuggestion> BuiltIn = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty);
 
     private static readonly SqlSuggestion[] Candidates =
     {
@@ -65,6 +69,39 @@ public sealed class SqlTableFunctionTargetTests
             SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Target);
 
         Assert.Equal(new[] { "fn_LoansByReader" }, Filter(textBeforeCaret));
+    }
+
+    /// <remarks>
+    /// 資料列集函式不在中繼資料裡：關鍵字的 <c>OPENROWSET</c>、<c>OPENXML</c> 與函式目錄的 <c>OPENJSON</c>
+    /// 由位置旗標認出來。曾經整份被目標擋掉，<c>FROM </c> 之後一個都列不出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM ")]
+    [InlineData("SELECT * FROM dbo.Loan l CROSS APPLY ")]
+    public void 資料來源與APPLY列得出資料列集函式(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+        var names = SuggestionContextFilter.Filter(BuiltIn, context).Select(item => item.DisplayText).ToArray();
+
+        Assert.Contains("OPENROWSET", names);
+        Assert.Contains("OPENXML", names);
+        Assert.Contains("OPENJSON", names);
+
+        // 其餘的關鍵字與純量內建函式照樣擋掉。
+        Assert.DoesNotContain("SELECT", names);
+        Assert.DoesNotContain("COUNT", names);
+    }
+
+    [Theory]
+    [InlineData("SELECT ")]
+    [InlineData("SELECT * FROM dbo.")]
+    public void 資料列集函式不在運算式與限定字之後(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+        var names = SuggestionContextFilter.Filter(BuiltIn, context).Select(item => item.DisplayText).ToArray();
+
+        Assert.DoesNotContain("OPENJSON", names);
+        Assert.DoesNotContain("OPENROWSET", names);
     }
 
     /// <remarks>兩種函式都改得動也刪得掉，DDL 位置不能少列一種。</remarks>

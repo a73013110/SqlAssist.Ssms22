@@ -18,10 +18,11 @@ namespace SqlAssist.Core.Keywords;
 /// 收進來會讓它只剩運算式位置，<c>LEFT JOIN</c> 就從清單裡消失了。
 /// 少一個函式只是少一個補字，少一個 <c>JOIN</c> 是使用者打不出來。
 ///
-/// 位置一律是運算式位置：語句開頭、資料來源位置與 DDL 物件位置不該冒出
+/// 位置是運算式位置：語句開頭、資料來源位置與 DDL 物件位置不該冒出
 /// <c>COUNT</c>。游標落在括號或運算子後面時分析器回報
 /// <see cref="SqlKeywordPosition.Any"/>，交集仍然成立，
-/// 所以 <c>SELECT COUNT(</c> 裡面照樣列得出來。
+/// 所以 <c>SELECT COUNT(</c> 裡面照樣列得出來。資料列集函式反過來只在資料來源位置，
+/// 見 <see cref="RowsetFunctions"/>。
 /// </remarks>
 public static class SqlFunctionCatalog
 {
@@ -34,6 +35,15 @@ public static class SqlFunctionCatalog
         | SqlKeywordPosition.OrderByTail
         | SqlKeywordPosition.CaseArm
         | SqlKeywordPosition.CaseBody;
+
+    /// <summary>
+    /// 回傳一份資料列的函式，只寫在資料來源的位置（<c>FROM OPENJSON(@j)</c>、<c>CROSS APPLY OPENJSON(a.Doc)</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 同類的 <c>OPENROWSET</c>、<c>OPENXML</c> 是關鍵字，位置由產生器探出；<c>OPENJSON</c> 在 ScriptDom 眼中
+    /// 只是識別字，位置只能寫在這裡。放在運算式位置的話 <c>SELECT OPENJSON(</c> 列得出來、<c>FROM </c> 之後反而沒有。
+    /// </remarks>
+    private static readonly HashSet<string> RowsetFunctions = new(StringComparer.OrdinalIgnoreCase) { "OPENJSON" };
 
     /// <summary>名稱與簽章；簽章同時當成清單右側的說明。</summary>
     private static readonly (string Name, string Signature)[] Definitions =
@@ -401,7 +411,7 @@ public static class SqlFunctionCatalog
                 signature,
                 signature,
                 SuggestionKind.BuiltInFunction,
-                positions: ExpressionPositions));
+                positions: RowsetFunctions.Contains(name) ? SqlKeywordPosition.DataSource : ExpressionPositions));
         }
 
         return suggestions;

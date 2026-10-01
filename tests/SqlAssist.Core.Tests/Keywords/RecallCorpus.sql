@@ -486,3 +486,15 @@ INSERT INTO dbo.Loan (CopyNo, ReaderId) VALUES (1, NULL)
 
 DECLARE @Fee int
 SET @Fee = IIF(@Fee IS NULL, NULL, 1)
+
+SELECT * FROM OPENROWSET(BULK 'Copy.csv', FORMAT = 'CSV', DATA_SOURCE = 'LibSource') AS c
+
+DECLARE @Doc nvarchar(max) = N'[]'
+SELECT * FROM OPENJSON(@Doc)
+
+DECLARE @Handle int
+SELECT * FROM OPENXML(@Handle, '/r')
+
+CREATE EXTERNAL TABLE dbo.LoanArchiveFile
+WITH (LOCATION = '/loan/', DATA_SOURCE = LibSource, FILE_FORMAT = LibFormat)
+AS SELECT LoanId FROM dbo.Loan

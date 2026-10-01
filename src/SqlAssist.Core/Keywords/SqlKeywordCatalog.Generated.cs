@@ -4205,6 +4205,28 @@ internal static class SqlKeywordCatalogData
             "KEEPNULLS", "KILOBYTES_PER_BATCH", "LASTROW", "MAXERRORS", "NO_TRIGGERS", "ORDER",
             "PARSER_VERSION", "ROWS_PER_BATCH", "ROWSET_OPTIONS", "ROWTERMINATOR", "TABLOCK",
         }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (", true, false, false, new string[]
+        {
+            "DATA_SOURCE", "DISTRIBUTION", "FILE_FORMAT", "LOCATION", "OBJECT_NAME",
+            "REJECT_SAMPLE_VALUE", "REJECT_TYPE", "REJECT_VALUE", "REJECTED_ROW_LOCATION",
+            "SCHEMA_NAME", "TABLE_OPTIONS",
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (", true, false, false, new string[]
+        {
+            "DATA_SOURCE", "DISTRIBUTION", "FILE_FORMAT", "LOCATION", "OBJECT_NAME",
+            "REJECT_SAMPLE_VALUE", "REJECT_TYPE", "REJECT_VALUE", "REJECTED_ROW_LOCATION",
+            "SCHEMA_NAME", "TABLE_OPTIONS",
+        }),
+        ("OPENROWSET (*", SqlKeywordPosition.DataSource, "SELECT * FROM OPENROWSET (", false, true, false, new string[]
+        {
+            "BULK", "CONNECTION", "CREDENTIAL", "OBJECT", "PROVIDER", "SERVER_CREDENTIAL",
+            "BATCHSIZE", "CODEPAGE", "DATA_COMPRESSION", "DATA_SOURCE", "DATAFILETYPE",
+            "ERRORFILE", "ERRORFILE_DATA_SOURCE", "ESCAPECHAR", "FIELDQUOTE", "FIELDTERMINATOR",
+            "FIRSTROW", "FORMAT", "FORMATFILE", "FORMATFILE_DATA_SOURCE", "HEADER_ROW",
+            "KILOBYTES_PER_BATCH", "LASTROW", "MAXERRORS", "ORDER", "PARSER_VERSION",
+            "ROWS_PER_BATCH", "ROWSET_OPTIONS", "ROWTERMINATOR", "SINGLE_BLOB", "SINGLE_CLOB",
+            "SINGLE_NCLOB", "NULL",
+        }),
         ("", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t ", true, false, true, new string[]
         {
             "AS", "CACHE", "CYCLE", "INCREMENT BY", "MAXVALUE", "MINVALUE", "NO", "START WITH",

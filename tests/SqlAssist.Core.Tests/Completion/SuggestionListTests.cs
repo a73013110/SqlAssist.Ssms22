@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Snippets;
 using Xunit;
@@ -139,7 +140,8 @@ public sealed class SuggestionListTests
     }
 
     /// <remarks>
-    /// 結構描述是名稱的第二段，也在這個位置；預存程序與片段不在。
+    /// 結構描述是名稱的第二段，也在這個位置；資料列集函式（<c>OPENROWSET</c>、<c>OPENJSON</c>）是內建的資料來源；
+    /// 預存程序、片段與其餘關鍵字不在。
     /// </remarks>
     [Fact]
     public void FROM之後只顯示資料來源與結構描述()
@@ -153,9 +155,10 @@ public sealed class SuggestionListTests
             SqlCompletionContextAnalyzer.Analyze("SELECT * FROM "));
 
         Assert.NotEmpty(ranked);
-        Assert.All(ranked, item => Assert.Contains(
-            item.Item.Kind,
-            new[] { SuggestionKind.Table, SuggestionKind.Schema }));
+        Assert.All(ranked, item => Assert.True(
+            item.Item.Kind is SuggestionKind.Table or SuggestionKind.Schema ||
+            (item.Item.Positions & SqlKeywordPosition.DataSource) != SqlKeywordPosition.None,
+            item.Item.DisplayText));
     }
 
     [Fact]

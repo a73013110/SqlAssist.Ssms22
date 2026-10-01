@@ -1355,7 +1355,8 @@ Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 #   {name}   一個名稱單位，可以含點號與方括號；保留字（ALTER INDEX ALL、ALTER DATABASE CURRENT）與變數也算
 #   {value}  一個數值、字串、變數，或一整組括號
 #   ()       一整組括號；探測代入 (a)，剖析器對括號裡的內容有要求時（RAISERROR 要訊息、嚴重性、狀態）由 Group 指定
-#   (*       還沒關上的左括號清單，游標在左括號或逗號之後；只能是最後一項
+#   (*       還沒關上的左括號清單，游標在左括號或逗號之後；只能是最後一項。字是左括號之後與「第一項的每一種寫法接逗號」
+#            之後的聯集（執行期分不出是哪一格）；括號裡是一個子句、逗號屬於子句的（WITHIN GROUP (ORDER BY …)）寫 Clause = $true
 #   ,*       標頭開的逗號清單，游標在逗號之後；只能是最後一項，前面那段是標頭，以字面字結尾。
 #            標頭本身也立成片語，給第一項的字；逗號之後的字以「第一項的每一種寫法接逗號」探測取聯集。
 #            清單由位置分析走訪（OptionItem），哪些敘述有這種清單只在這裡說。選項寫完之後還有位置要回報
@@ -1478,6 +1479,9 @@ $ClausePhrases = @(
     @{ Pattern = 'ALTER TABLE {name} SET (*' }
     @{ Pattern = 'SYSTEM_VERSIONING = ON (*'; Lead = 'CREATE TABLE t (a int) WITH (' }
     @{ Pattern = 'BULK INSERT {name} FROM {value} WITH (*' }
+    @{ Pattern = 'CREATE EXTERNAL TABLE {name} () WITH (*'; Group = '(a int)' }
+    @{ Pattern = 'CREATE EXTERNAL TABLE {name} WITH (*' }
+    @{ Pattern = 'OPENROWSET (*'; After = @('DataSource') }
 
     # 序列的選項不以逗號分隔、順序不限，會重複的格子寫成位置；NO 之後的 CYCLE 往下一層。
     # START 後面非接 WITH 值不可，逐字探測接不上續尾，整段是證據。
@@ -1558,7 +1562,7 @@ $ClausePhrases = @(
     # 有序集合彙總：STRING_AGG、PERCENTILE_CONT 的呼叫之後是 WITHIN GROUP (ORDER BY …)。剖析器要看到 GROUP
     # 才收 WITHIN，WITHIN 由整段證據補到函式呼叫之後；WITHIN GROUP 之後只接左括號。
     @{ Pattern = 'WITHIN GROUP'; After = @('FunctionCallTail') }
-    @{ Pattern = 'WITHIN GROUP (*'; After = @('FunctionCallTail') }
+    @{ Pattern = 'WITHIN GROUP (*'; After = @('FunctionCallTail'); Clause = $true }
 
     # UPDATE、DELETE 的 WHERE CURRENT OF 資料指標：CURRENT 之後只有 OF，OF 之後是資料指標名稱或 GLOBAL。
     # SELECT 的 WHERE 寫不出來，所以用 DELETE 的樣板。
@@ -1895,24 +1899,19 @@ function Add-ClausePhrase {
     }
 }
 
-# 清單片語（,*）：標頭本身那個片語給第一項的字，逗號之後的字另探。第一項的寫法不只一種，
+# 清單裡逗號之後的字：標頭本身那個片語給第一項的字，逗號之後的字另探。第一項的寫法不只一種，
 # 用過的選項剖析器不收第二次（ALTER LOGIN l WITH NAME = n, 之後沒有 NAME），所以每一種第一項各接一個逗號探一次，
 # 取聯集；第一項受限的（CREATE LOGIN 只能先寫 PASSWORD）也因此只探那一種，之後的字不含它。
-function Add-ListPhrase {
-    param([string]$Pattern, [string]$Head, [string]$After)
-
-    $headKey = "$After`t$($Pattern -replace ' ,\*$', '')"
-
-    if (-not $script:phrases.Contains($headKey)) {
-        Add-ClausePhrase -Pattern ($Pattern -replace ' ,\*$', '') -Probe $Head -After $After
-    }
+# 第一項沒有一種寫得完時 Probe 是 null。
+function Get-ListItemWords {
+    param([string]$Head, [object[]]$Firsts)
 
     $words = [System.Collections.Generic.List[string]]::new()
     $probe = $null
     $closed = $true
     $takesVariable = $false
 
-    foreach ($first in @($script:phrases[$headKey].Words)) {
+    foreach ($first in $Firsts) {
         # 第一項寫完、接得了逗號就好，整句寫不寫得完不論：對稱金鑰的 WITH 清單之後還要寫 ENCRYPTION BY。
         $ending = $PhraseContinuations | Where-Object {
             [SqlAssistPhraseProber]::FirstRejection("$Head$first$_, ") -gt "$Head$first$_".Length
@@ -1935,19 +1934,52 @@ function Add-ListPhrase {
         }
     }
 
-    if ($null -eq $probe) {
+    return @{ Probe = $probe; Closed = $closed; TakesVariable = $takesVariable; Words = $words }
+}
+
+# 清單片語（,*）：第一項由標頭的片語給，這一條只說逗號之後。
+function Add-ListPhrase {
+    param([string]$Pattern, [string]$Head, [string]$After)
+
+    $headKey = "$After`t$($Pattern -replace ' ,\*$', '')"
+
+    if (-not $script:phrases.Contains($headKey)) {
+        Add-ClausePhrase -Pattern ($Pattern -replace ' ,\*$', '') -Probe $Head -After $After
+    }
+
+    $items = Get-ListItemWords -Head $Head -Firsts @($script:phrases[$headKey].Words)
+
+    if ($null -eq $items.Probe) {
         throw "清單片語「$Pattern」的第一項沒有一種寫得完，探不出逗號之後的字（第一項：$(@($script:phrases[$headKey].Words) -join ', ')）。"
     }
 
     $script:phrases["$After`t$Pattern"] = @{
         Pattern       = $Pattern
         After         = $After
-        Probe         = $probe
-        Closed        = $closed
-        TakesVariable = $takesVariable
+        Probe         = $items.Probe
+        Closed        = $items.Closed
+        TakesVariable = $items.TakesVariable
         EndsStatement = $false
-        Words         = @($words)
+        Words         = @($items.Words)
     }
+}
+
+# 括號清單（(*）在左括號與逗號之後都比對得上，執行期分不出是哪一個，所以字是兩者的聯集：
+# OPENROWSET( 之後是 BULK，OPENROWSET(BULK 'x', 之後是 FORMAT、DATA_SOURCE。選項清單的兩份本來就相同。
+# 括號裡是一個子句的（WITHIN GROUP (ORDER BY a, b)）逗號屬於子句，由 Clause 宣告不探：聯集會讓左括號之後也列出運算式的字。
+function Add-OpenListItems {
+    param([string]$Key)
+
+    $phrase = $script:phrases[$Key]
+    $items = Get-ListItemWords -Head $phrase.Probe -Firsts @($phrase.Words)
+
+    if ($null -eq $items.Probe) {
+        return
+    }
+
+    $phrase.Words = @($phrase.Words) + @($items.Words | Where-Object { @($phrase.Words) -notcontains $_ })
+    $phrase.Closed = $phrase.Closed -and $items.Closed
+    $phrase.TakesVariable = $phrase.TakesVariable -or $items.TakesVariable
 }
 
 # 帶 After 的片語以那個位置的第一個樣板探測（Template 另外指定的除外）：它是那個位置的代表寫法，而且是完整的語句，
@@ -1980,6 +2012,11 @@ foreach ($entry in $ClausePhrases) {
         }
 
         Add-ClausePhrase @common -Probe (Get-PhraseProbe -Lead $entry['Lead'] -Pattern $pattern -Group $entry['Group'] -Gap $entry['Gap']) -After 'Any'
+
+        if ($pattern -match ' \(\*$' -and -not $entry['Clause'] -and $phrases.Contains("Any`t$pattern")) {
+            Add-OpenListItems -Key "Any`t$pattern"
+        }
+
         continue
     }
 
@@ -2000,6 +2037,10 @@ foreach ($entry in $ClausePhrases) {
         }
 
         Add-ClausePhrase @common -Probe $probe -After $position
+
+        if ($pattern -match ' \(\*$' -and -not $entry['Clause'] -and $phrases.Contains("$position`t$pattern")) {
+            Add-OpenListItems -Key "$position`t$pattern"
+        }
     }
 }
 

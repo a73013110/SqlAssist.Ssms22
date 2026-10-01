@@ -61,7 +61,7 @@ public static class SuggestionContextFilter
 
         return (!context.Bracketed || IsBracketable(suggestion.Kind)) &&
                (IsProvenPhraseWord(suggestion) || phraseSnippet || phraseVariable || typeAs ||
-                IsAllowedForTarget(suggestion.Kind, context.Target)) &&
+                IsAllowedForTarget(suggestion, context.Target)) &&
                (phraseSnippet || phraseVariable || typeAs || IsAllowedForPosition(suggestion, context)) &&
                IsAllowedForSchema(suggestion, context) &&
                IsAllowedSystemSchema(suggestion, context);
@@ -192,8 +192,10 @@ public static class SuggestionContextFilter
                !SqlSystemSchemas.IsSystem(suggestion.DisplayText);
     }
 
-    private static bool IsAllowedForTarget(SuggestionKind kind, CompletionTarget target)
+    private static bool IsAllowedForTarget(SqlSuggestion suggestion, CompletionTarget target)
     {
+        var kind = suggestion.Kind;
+
         // 資料庫與連結伺服器是多段式名稱的第一段，不是某一種物件。凡是寫得出
         // 多段式名稱的位置就該有它們，而那是由「這個位置接不接得住一個物件」
         // 決定的，不是由目標的名字決定的——逐個目標補的話，漏掉的那一個
@@ -222,7 +224,8 @@ public static class SuggestionContextFilter
             CompletionTarget.DataSource => kind is SuggestionKind.Table
                 or SuggestionKind.View
                 or SuggestionKind.TableFunction
-                or SuggestionKind.ScriptDataSource,
+                or SuggestionKind.ScriptDataSource ||
+                IsRowsetFunction(suggestion),
             CompletionTarget.Procedure => kind == SuggestionKind.Procedure,
 
             // ALTER／DROP FUNCTION 兩種函式都改得動也刪得掉。
@@ -230,7 +233,8 @@ public static class SuggestionContextFilter
                 or SuggestionKind.TableFunction,
 
             // APPLY 之後只有資料表值函式接得上；別名是 a.Doc.nodes('…') 的開頭。
-            CompletionTarget.TableFunction => kind is SuggestionKind.TableFunction or SuggestionKind.Alias,
+            CompletionTarget.TableFunction => kind is SuggestionKind.TableFunction or SuggestionKind.Alias ||
+                IsRowsetFunction(suggestion),
             CompletionTarget.Column => kind == SuggestionKind.Column,
             CompletionTarget.Database => kind == SuggestionKind.Database,
 
@@ -280,6 +284,21 @@ public static class SuggestionContextFilter
                 or SuggestionKind.InstanceListValueInUse
                 or SuggestionKind.Cursor)
         };
+    }
+
+    /// <summary>
+    /// 內建的資料列集函式：<c>OPENROWSET</c>、<c>OPENJSON</c>、<c>OPENXML</c>、<c>CONTAINSTABLE</c> 這一類。
+    /// </summary>
+    /// <remarks>
+    /// 它們是不在中繼資料裡的資料表值函式，接得上資料表值函式的兩個目標（資料來源與 <c>APPLY</c>）都列。
+    /// 認的是位置旗標而不是名單：關鍵字目錄裡只有它們帶著 <see cref="SqlKeywordPosition.DataSource"/>，
+    /// 不是關鍵字的 <c>OPENJSON</c> 在函式目錄裡也只帶那一個位置。少了這一條，關鍵字照目標整份擋掉，
+    /// <c>FROM </c> 之後一個都列不出來。
+    /// </remarks>
+    private static bool IsRowsetFunction(SqlSuggestion suggestion)
+    {
+        return suggestion.Kind is SuggestionKind.Keyword or SuggestionKind.BuiltInFunction &&
+            (suggestion.Positions & SqlKeywordPosition.DataSource) != SqlKeywordPosition.None;
     }
 
     /// <summary>
