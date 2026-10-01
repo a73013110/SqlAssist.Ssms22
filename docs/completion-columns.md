@@ -89,3 +89,12 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 
 `#Loan`、`@rows` 等指令碼自己宣告的資料表怎麼解析欄位，
 見[指令碼宣告的資料表](script-tables.md)。
+
+## inserted 與 deleted
+
+兩個限定字，欄位是它們指的那張表的（`Parsing/SqlChangeTables`）：DML 觸發程序的主體裡指父資料表，
+OUTPUT 子句裡指那句 DML 的目標，目標寫成別名時看別名的來源；兩種都在時看最內層。DDL 與登入觸發程序沒有它們。
+
+- 和別名同一份清單（`SqlStatementScope.ChangeTables`）。觸發程序裡要寫在 FROM 才算數，但選取清單
+  寫在 FROM 之前，所以整個主體都列。不併進沒寫限定字的來源：OUTPUT 的欄位一定要寫限定字。
+- 觸發程序裡 `FROM ` 之後列成資料來源；寫出來的 `FROM inserted i` 換成父資料表，`i.` 才有欄位。

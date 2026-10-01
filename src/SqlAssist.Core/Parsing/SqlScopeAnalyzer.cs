@@ -110,15 +110,49 @@ public static class SqlScopeAnalyzer
         }
 
         var boundaries = new SqlStatementBoundaries(sql, tokens, caretPosition);
-        return AnalyzeAt(boundaries, FindCaretTokenIndex(tokens, caretPosition), caretPosition);
+        var caret = FindCaretTokenIndex(tokens, caretPosition);
+        var triggerTable = SqlChangeTables.FindTriggerTable(tokens, caret);
+        var scope = AnalyzeAt(boundaries, caret, caretPosition, triggerTable);
+
+        // OUTPUT 子句在觸發程序裡時看最內層：那句 DML 的目標。
+        var owner = SqlChangeTables.FindOutputTarget(boundaries, caret) is { } target
+            ? ResolveTarget(target, scope)
+            : triggerTable;
+
+        if (owner is null)
+        {
+            return scope;
+        }
+
+        var changeTables = new SqlTableReference[SqlChangeTables.Names.Count];
+
+        for (var index = 0; index < changeTables.Length; index++)
+        {
+            changeTables[index] = Rename(owner, SqlChangeTables.Names[index], owner.Start, owner.End);
+        }
+
+        return new SqlStatementScope(scope.Tables, scope.Start, scope.End, scope.Outer, changeTables, triggerTable);
     }
 
+    /// <summary>DML 的目標寫成別名時（<c>UPDATE l SET … OUTPUT … FROM dbo.Loan l</c>），換成別名指的來源。</summary>
+    private static SqlTableReference ResolveTarget(SqlTableReference target, SqlStatementScope scope) =>
+        target.Path is { SchemaName: null, DatabaseName: null, ServerName: null } &&
+        string.IsNullOrEmpty(target.Alias) &&
+        scope.TryResolve(target.ObjectName, out var aliased)
+            ? aliased
+            : target;
+
     /// <summary><paramref name="last"/> 這個詞元所在的範圍，連同包住它的外層。</summary>
-    private static SqlStatementScope AnalyzeAt(SqlStatementBoundaries boundaries, int last, int caretPosition)
+    /// <param name="triggerTable">游標在 DML 觸發程序裡時的父資料表：FROM 寫的 inserted、deleted 指它。</param>
+    private static SqlStatementScope AnalyzeAt(
+        SqlStatementBoundaries boundaries,
+        int last,
+        int caretPosition,
+        SqlTableReference? triggerTable)
     {
         var tokens = boundaries.Tokens;
         var start = FindScopeStart(boundaries, last);
-        var outer = AnalyzeEnclosing(boundaries, start);
+        var outer = AnalyzeEnclosing(boundaries, start, triggerTable);
 
         // 範圍起點可能落在最後一個詞法單元之後，例如剛輸入 "FROM (" 的當下。
         if (start >= tokens.Count)
@@ -129,12 +163,52 @@ public static class SqlScopeAnalyzer
         var end = FindStatementEnd(boundaries, start);
         var tables = ExtractSources(boundaries, start, end);
 
+        if (triggerTable is not null)
+        {
+            tables = RenameChangeTables(tables, triggerTable);
+        }
+
         return new SqlStatementScope(
             tables,
             tokens[start].Start,
             end > start ? tokens[end - 1].End : tokens[start].Start,
             outer);
     }
+
+    /// <summary>
+    /// FROM 寫的 <c>inserted</c>／<c>deleted</c> 換成觸發程序的父資料表，限定字照舊。
+    /// </summary>
+    /// <remarks>
+    /// 中繼資料裡沒有叫這兩個名字的表：不換的話 <c>i.</c> 查一張不存在的表，沒寫限定字的欄位也少一份。
+    /// 沒取別名的以名字當別名，<c>inserted.</c> 才解析得回來，別名清單也列得出它。
+    /// </remarks>
+    private static IReadOnlyList<SqlTableReference> RenameChangeTables(
+        IReadOnlyList<SqlTableReference> tables,
+        SqlTableReference triggerTable)
+    {
+        List<SqlTableReference>? renamed = null;
+
+        for (var index = 0; index < tables.Count; index++)
+        {
+            var table = tables[index];
+
+            if (!SqlChangeTables.IsChangeTable(table))
+            {
+                continue;
+            }
+
+            renamed ??= new List<SqlTableReference>(tables);
+            renamed[index] = Rename(triggerTable, table.Alias ?? table.ObjectName, table.Start, table.End);
+        }
+
+        return (IReadOnlyList<SqlTableReference>?)renamed ?? tables;
+    }
+
+    /// <summary><paramref name="table"/> 這張表，以 <paramref name="alias"/> 限定。</summary>
+    private static SqlTableReference Rename(SqlTableReference table, string alias, int start, int end) =>
+        table.Path is { } path
+            ? new SqlTableReference(path, alias, start, end)
+            : new SqlTableReference(table.ObjectName, alias, start, end, table.ColumnNames);
 
     /// <summary>
     /// 從 <paramref name="start"/> 開始的範圍是子查詢時，括號外面那一層。
@@ -144,7 +218,10 @@ public static class SqlScopeAnalyzer
     /// 分號與 GO 之後的起點前面不是左括號。外層從括號前一個詞元再找一次，
     /// 每一層都比上一層短，遞迴深度就是子查詢的巢狀層數。
     /// </remarks>
-    private static SqlStatementScope? AnalyzeEnclosing(SqlStatementBoundaries boundaries, int start)
+    private static SqlStatementScope? AnalyzeEnclosing(
+        SqlStatementBoundaries boundaries,
+        int start,
+        SqlTableReference? triggerTable)
     {
         var tokens = boundaries.Tokens;
         var open = start - 1;
@@ -154,7 +231,7 @@ public static class SqlScopeAnalyzer
             return null;
         }
 
-        return AnalyzeAt(boundaries, open - 1, tokens[open].Start);
+        return AnalyzeAt(boundaries, open - 1, tokens[open].Start, triggerTable);
     }
 
     /// <summary>最後一個起點在游標之前的詞法單元。</summary>

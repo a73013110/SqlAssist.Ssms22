@@ -36,9 +36,14 @@ public static class SqlScriptObjectSuggestions
     /// 中繼資料的名稱如果只補一個字，使用者還是得自己把每一個欄位打一遍。
     /// <c>SELECT … INTO</c> 那一種的資料行是延後算的，這裡只會付到名稱的成本。
     /// </param>
+    /// <param name="triggerTable">
+    /// 游標在 DML 觸發程序裡時的父資料表（<see cref="SqlStatementScope.TriggerTable"/>）：
+    /// <c>inserted</c>、<c>deleted</c> 也是只在這份指令碼裡才有的資料來源。
+    /// </param>
     public static IReadOnlyList<SqlSuggestion> DataSources(
         IReadOnlyList<SqlToken> tokens,
-        SqlColumnSourceResolver resolver)
+        SqlColumnSourceResolver resolver,
+        SqlTableReference? triggerTable = null)
     {
         if (tokens is null)
         {
@@ -52,6 +57,20 @@ public static class SqlScriptObjectSuggestions
 
         List<SqlSuggestion>? suggestions = null;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (triggerTable?.Path is { } parent)
+        {
+            foreach (var name in SqlChangeTables.Names)
+            {
+                seen.Add(name);
+                (suggestions ??= new List<SqlSuggestion>()).Add(new SqlSuggestion(
+                    name,
+                    name,
+                    SqlKindText.Alias,
+                    ScriptSuggestionText.AliasOf(name, parent.ToString()),
+                    SuggestionKind.ScriptDataSource));
+            }
+        }
 
         foreach (var name in resolver.CommonTableExpressionNames)
         {

@@ -13,12 +13,16 @@ public sealed class SqlStatementScope
         IReadOnlyList<SqlTableReference> tables,
         int start,
         int end,
-        SqlStatementScope? outer = null)
+        SqlStatementScope? outer = null,
+        IReadOnlyList<SqlTableReference>? changeTables = null,
+        SqlTableReference? triggerTable = null)
     {
         Tables = tables;
         Start = start;
         End = end;
         Outer = outer;
+        ChangeTables = changeTables ?? Array.Empty<SqlTableReference>();
+        TriggerTable = triggerTable;
     }
 
     /// <summary>此範圍內的資料來源，依出現順序排列。</summary>
@@ -42,6 +46,22 @@ public sealed class SqlStatementScope
     public SqlStatementScope? Outer { get; }
 
     /// <summary>
+    /// 游標那一格引用得到的 <c>inserted</c>／<c>deleted</c>，別名就是那兩個名字：OUTPUT 子句裡指那句 DML 的目標，
+    /// DML 觸發程序的主體裡指父資料表；其餘位置是空的。
+    /// </summary>
+    /// <remarks>
+    /// 觸發程序裡它們要寫在 FROM 才算數，但選取清單寫在 FROM 之前：<c>SELECT inserted.| FROM inserted</c>
+    /// 還沒寫到 FROM 時也要列得出來。
+    ///
+    /// 不併進 <see cref="Tables"/>：那一份是「沒寫限定字的欄位屬於誰」，OUTPUT 的欄位一定要寫
+    /// <c>inserted.</c>，併進去的話 <c>OUTPUT </c> 之後同一份欄位列兩次。
+    /// </remarks>
+    public IReadOnlyList<SqlTableReference> ChangeTables { get; }
+
+    /// <summary>游標在 DML 觸發程序的主體裡時，觸發程序的父資料表；FROM 之後列得出 inserted、deleted。</summary>
+    public SqlTableReference? TriggerTable { get; }
+
+    /// <summary>
     /// 把限定字解析成資料來源。
     /// </summary>
     /// <remarks>
@@ -58,6 +78,16 @@ public sealed class SqlStatementScope
         if (string.IsNullOrEmpty(qualifier))
         {
             return false;
+        }
+
+        // OUTPUT 子句裡的 inserted 一定是那句 DML 的，同一句 FROM 寫的 inserted 遮不住它。
+        foreach (var candidate in ChangeTables)
+        {
+            if (string.Equals(candidate.Alias, qualifier, StringComparison.OrdinalIgnoreCase))
+            {
+                reference = candidate;
+                return true;
+            }
         }
 
         for (var scope = this; scope is not null; scope = scope.Outer)

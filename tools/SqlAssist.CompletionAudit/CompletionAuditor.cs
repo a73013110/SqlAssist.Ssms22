@@ -409,6 +409,12 @@ public sealed class CompletionAuditor
                 return new Shape(token.Text);
             }
 
+            // 觸發程序與 OUTPUT 子句的 inserted／deleted：不是誰取的名字，形狀寫出字面、不遮，自成一群。
+            if (!afterDot && _definitions.IsChangeTable(token.Value, token.Start))
+            {
+                return new Shape(AuditText.Normalize(token.Value), AuditTokenClass.ScriptName);
+            }
+
             // 守大寫慣例的語料看寫法；其餘看語法樹：站在資料行或多段名稱位置上的 name、type 是名稱，不是字。
             if (!_definitions.IsDefinition(token.Start) &&
                 !token.IsQuoted &&

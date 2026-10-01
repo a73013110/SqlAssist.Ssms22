@@ -20,6 +20,8 @@
   「字大寫、名稱大小寫混合」，看寫法；其餘語料看語法樹上的角色，欄位 `name`、`type` 不當成字。
   點號之後還要限定字、或別名指的資料表認得出來：名稱索引只比名字，別的資料庫的表碰巧有同名欄位不算漏；
   別名的來源寫了資料庫時，那個資料庫也要在連線的伺服器上；暫存資料表是 `SELECT * INTO` 一張表時看那張表。
+- `inserted`／`deleted` 在 DML 觸發程序那一句（指父資料表）與 OUTPUT 子句（指 DML 的目標）裡算指令碼的名稱，
+  形狀寫字面大寫、不遮，自成一群；範圍外的同名詞照一般名稱判斷。
 - 只在漏的位置問 SSMS 的 `Resolver.FindCompletions` 當第二意見：沒有繫結時一項都不回，繫結後只列名稱、
   不列關鍵字，所以只問名稱。「SSMS 有、我們沒有」是強訊號，「兩邊都沒有」待判。
 
@@ -77,7 +79,8 @@
    ```
 
 3. 稽核自己的誤判改 `tools/SqlAssist.CompletionAudit` 的判定，不標 `ignore`。判定新認得的名稱會讓召回語料
-   轉紅時（`inserted`／`deleted`），與補上它的產品修正放同一批。
+   轉紅時，與補上它的產品修正放同一批：認得 `inserted`／`deleted` 讓語料的 `OUTPUT inserted.CopyNo`
+   轉紅，同一個 commit 裡產品在 OUTPUT 子句與觸發程序列出它們。
 4. 修好之後 `-Cluster <識別>` 重驗，仍漏 0 才改成 `fixed`。在 worktree 裡修時，
    `artifacts/` 不進版控：先把主工作區的 `artifacts\completion-audit` 以 junction 連到同一個位置，
    `-Cluster` 才找得到原始紀錄，`state.json` 也才改到同一份。

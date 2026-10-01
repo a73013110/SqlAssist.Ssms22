@@ -22,6 +22,9 @@ namespace SqlAssist.CompletionAudit;
 /// 哪一張表，與資料庫的欄位同一類（<see cref="IAuditNameIndex"/>），只看名字相同會認錯——
 /// <c>CREATE TABLE Loan (CopyNo int REFERENCES Copy (CopyNo))</c> 的第二個 CopyNo 是 Copy 的欄位。
 ///
+/// <c>inserted</c>／<c>deleted</c> 不是誰取的名字，卻在兩種範圍裡引用得到：DML 觸發程序的整句（指父資料表）
+/// 與 OUTPUT 子句（指那句 DML 的目標）。範圍外的同名詞照一般名稱判斷。
+///
 /// 剖析失敗時只認得到剖析出來的那一部分；認不出來的名稱在稽核裡歸成不明，不算漏。
 /// </remarks>
 public sealed class AuditDefinitions
@@ -38,6 +41,7 @@ public sealed class AuditDefinitions
     private readonly Dictionary<int, (string Name, string? Database)> _aliasSources = new();
     private readonly Dictionary<string, (string Name, string? Database)> _starSources = new(StringComparer.Ordinal);
     private readonly HashSet<int> _tableNames = new();
+    private readonly List<(int Start, int End, SchemaObjectName? Owner)> _changeTables = new();
     private int _batchEnd;
 
     private AuditDefinitions()
@@ -157,11 +161,84 @@ public sealed class AuditDefinitions
     /// 暫存資料表是 <c>SELECT * INTO #Loan FROM Other.dbo.Loan</c> 時看的是那張表：欄位只能從它攤平，
     /// 名字是指令碼取的不代表欄位認得出來。
     /// </remarks>
-    public (string Name, string? Database)? SourceOf(string alias, int start) =>
-        Nearest(alias, start, qualified: false) is { } definition &&
-        _aliasSources.TryGetValue(definition.DefinedAt, out var source)
-            ? _starSources.TryGetValue(AuditText.Normalize(source.Name), out var projected) ? projected : source
-            : null;
+    public (string Name, string? Database)? SourceOf(string alias, int start)
+    {
+        if (IsChangeTable(alias, start))
+        {
+            return ChangeTableOwner(start);
+        }
+
+        if (Nearest(alias, start, qualified: false) is not { } definition ||
+            !_aliasSources.TryGetValue(definition.DefinedAt, out var source))
+        {
+            return null;
+        }
+
+        // FROM inserted i 的 i 指的是觸發程序的父資料表。
+        if (source.Database is null && IsChangeTable(source.Name, definition.DefinedAt))
+        {
+            return ChangeTableOwner(definition.DefinedAt);
+        }
+
+        return _starSources.TryGetValue(AuditText.Normalize(source.Name), out var projected) ? projected : source;
+    }
+
+    /// <summary>
+    /// <paramref name="name"/> 是 <paramref name="start"/> 這裡引用得到的 <c>inserted</c>／<c>deleted</c>：
+    /// 在 DML 觸發程序那一句裡，或在 OUTPUT 子句裡。
+    /// </summary>
+    public bool IsChangeTable(string name, int start) =>
+        AuditText.Normalize(name) is "INSERTED" or "DELETED" && InnermostChangeRange(start) is not null;
+
+    /// <summary>
+    /// <paramref name="start"/> 這裡的 <c>inserted</c>／<c>deleted</c> 指的資料表；目標不是具名資料表時是 null。
+    /// </summary>
+    /// <remarks>
+    /// OUTPUT 在觸發程序裡時看最內層：那句 DML 的 OUTPUT 指它自己的目標。目標寫成別名
+    /// （<c>UPDATE l SET … OUTPUT … FROM Loan l</c>）時看同一句裡取那個別名的資料表。
+    /// </remarks>
+    private (string Name, string? Database)? ChangeTableOwner(int start)
+    {
+        if (InnermostChangeRange(start) is not { Owner: { BaseIdentifier.Value: { } name } owner })
+        {
+            return null;
+        }
+
+        if (owner.SchemaIdentifier is null &&
+            owner.DatabaseIdentifier is null &&
+            _scoped.TryGetValue(AuditText.Normalize(name), out var definitions) &&
+            InnermostRange(_statements, start) is { } statement)
+        {
+            foreach (var definition in definitions)
+            {
+                if (definition.DefinedAt >= statement.Start &&
+                    definition.DefinedAt < statement.End &&
+                    _aliasSources.TryGetValue(definition.DefinedAt, out var aliased))
+                {
+                    return aliased;
+                }
+            }
+        }
+
+        return (name, owner.DatabaseIdentifier?.Value);
+    }
+
+    private (int Start, int End, SchemaObjectName? Owner)? InnermostChangeRange(int offset)
+    {
+        (int Start, int End, SchemaObjectName? Owner)? innermost = null;
+
+        foreach (var range in _changeTables)
+        {
+            if (range.Start <= offset &&
+                offset < range.End &&
+                (innermost is not { } current || range.End - range.Start < current.End - current.Start))
+            {
+                innermost = range;
+            }
+        }
+
+        return innermost;
+    }
 
     /// <summary>
     /// <paramref name="qualifier"/> 在 <paramref name="start"/> 指的是 CTE 的名稱：當限定字要這個查詢的 FROM 寫出它，
@@ -367,6 +444,29 @@ public sealed class AuditDefinitions
         {
             _owner.Add(node.TableAlias, Scope.Statement);
             _owner.AddSource(node.TableAlias, node.Target);
+        }
+
+        /// <summary>DML 觸發程序：整句裡 <c>inserted</c>／<c>deleted</c> 指父資料表。DDL 與登入觸發程序沒有它們。</summary>
+        public override void Visit(TriggerStatementBody node)
+        {
+            if (node.TriggerObject is { TriggerScope: TriggerScope.Normal } trigger)
+            {
+                _owner._changeTables.Add((node.StartOffset, node.StartOffset + node.FragmentLength, trigger.Name));
+            }
+        }
+
+        /// <summary>OUTPUT 子句裡 <c>inserted</c>／<c>deleted</c> 指那句 DML 的目標。</summary>
+        public override void Visit(DataModificationSpecification node)
+        {
+            var target = (node.Target as NamedTableReference)?.SchemaObject;
+
+            foreach (var clause in new TSqlFragment?[] { node.OutputClause, node.OutputIntoClause })
+            {
+                if (clause is { StartOffset: >= 0 })
+                {
+                    _owner._changeTables.Add((clause.StartOffset, clause.StartOffset + clause.FragmentLength, target));
+                }
+            }
         }
 
         public override void Visit(SelectScalarExpression node) => _owner.Add(node.ColumnName?.Identifier, Scope.OrderBy);

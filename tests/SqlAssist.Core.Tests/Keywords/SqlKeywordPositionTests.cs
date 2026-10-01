@@ -1033,6 +1033,25 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
+    /// DML 的 OUTPUT 清單是一份選取清單：一項寫完接 AS、INTO 與那句 DML 本來接得了的字，逗號之後是運算式。
+    /// </summary>
+    /// <remarks>
+    /// 只認子句錨點時 UPDATE 的 OUTPUT 借到 SET：一項寫完沒有 AS、INTO，逗號之後還當成指派。
+    /// 參數的 OUTPUT（<c>@a int OUTPUT</c>、<c>EXEC p @x = @y OUTPUT</c>）不是。
+    /// </remarks>
+    [Theory]
+    [InlineData("UPDATE t SET a = 1 OUTPUT inserted.a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
+    [InlineData("UPDATE t SET a = 1 OUTPUT inserted.a, ", SqlKeywordPosition.SelectList)]
+    [InlineData("UPDATE t SET a = 1 OUTPUT inserted.a INTO @t ", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
+    [InlineData("INSERT INTO t (a) OUTPUT inserted.a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail)]
+    [InlineData("UPDATE t SET a = 1 OUTPUT inserted.a FROM s ", SqlKeywordPosition.TableSourceTail)]
+    [InlineData("EXEC p @x = @y OUTPUT, ", SqlKeywordPosition.Any)]
+    public void DML的OUTPUT清單(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
     /// SET 選項的值寫完，這一句就結束了。
     /// </summary>
     /// <remarks>

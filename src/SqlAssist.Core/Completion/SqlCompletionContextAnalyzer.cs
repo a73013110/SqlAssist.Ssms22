@@ -313,7 +313,7 @@ public static class SqlCompletionContextAnalyzer
             return context.Target switch
             {
                 CompletionTarget.DataSource =>
-                    withScope.WithScriptSources(SqlScriptObjectSuggestions.DataSources(tokens, resolver)),
+                    withScope.WithScriptSources(SqlScriptObjectSuggestions.DataSources(tokens, resolver, scope.TriggerTable)),
                 CompletionTarget.Procedure =>
                     withScope.WithScriptSources(SqlScriptObjectSuggestions.Procedures(tokens)),
                 CompletionTarget.Any or CompletionTarget.TableFunction =>

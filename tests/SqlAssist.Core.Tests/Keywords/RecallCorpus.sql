@@ -84,6 +84,10 @@ UPDATE l SET l.CopyNo = c.CopyNo FROM dbo.Loan l JOIN dbo.Copy c ON c.CopyNo = l
 
 UPDATE dbo.Loan SET CopyNo = 1 OUTPUT deleted.CopyNo WHERE CURRENT OF c
 
+UPDATE dbo.Loan SET CopyNo = 1 OUTPUT inserted.CopyNo AS NewCopyNo, deleted.CopyNo INTO @Changes WHERE ReaderId = 2
+
+UPDATE l SET CopyNo = 1 OUTPUT inserted.CopyNo AS NewCopyNo INTO @Changes FROM dbo.Loan l
+
 DELETE FROM dbo.Loan WHERE CURRENT OF GLOBAL c
 
 UPDATE STATISTICS dbo.Loan
@@ -94,11 +98,17 @@ DELETE TOP (5) FROM dbo.Loan
 
 DELETE dbo.Loan OUTPUT deleted.CopyNo
 
+DELETE dbo.Loan OUTPUT deleted.CopyNo AS OldCopyNo INTO @Changes WHERE ReaderId = 2
+
+DELETE dbo.Loan OUTPUT deleted.CopyNo, COMPRESS(deleted.CopyNo) AS Packed
+
 DELETE l FROM dbo.Loan l JOIN dbo.Copy c ON c.CopyNo = l.CopyNo
 
 TRUNCATE TABLE dbo.Loan
 
 MERGE INTO dbo.Loan AS t USING dbo.Copy AS s ON t.CopyNo = s.CopyNo WHEN MATCHED AND t.ReaderId = 1 THEN UPDATE SET CopyNo = s.CopyNo WHEN NOT MATCHED BY TARGET THEN INSERT (CopyNo) VALUES (s.CopyNo) WHEN NOT MATCHED BY SOURCE THEN DELETE OUTPUT $action;
+
+MERGE dbo.Loan AS t USING dbo.Copy AS s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN DELETE OUTPUT $action, deleted.CopyNo, s.CopyNo INTO @Changes;
 
 MERGE dbo.Loan t USING dbo.Copy s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN DELETE;
 
@@ -176,6 +186,12 @@ CREATE FUNCTION dbo.fn_LoansByCopy (@CopyNo int) RETURNS TABLE AS RETURN SELECT 
 CREATE FUNCTION dbo.fn_Copies () RETURNS @t TABLE (CopyNo int) AS BEGIN INSERT INTO @t (CopyNo) VALUES (1) RETURN END
 
 CREATE TRIGGER dbo.tr_Loan ON dbo.Loan AFTER INSERT, UPDATE AS SET NOCOUNT ON
+
+CREATE TRIGGER dbo.tr_Loan ON dbo.Loan AFTER INSERT AS INSERT INTO dbo.LoanDetail (CopyNo) SELECT inserted.CopyNo FROM inserted
+
+CREATE TRIGGER dbo.tr_Loan ON dbo.Loan AFTER UPDATE AS UPDATE l SET ReaderId = i.ReaderId FROM dbo.Loan l JOIN inserted i ON i.CopyNo = l.CopyNo WHERE EXISTS (SELECT 1 FROM deleted d WHERE d.CopyNo = i.CopyNo)
+
+ALTER TRIGGER dbo.tr_Loan ON dbo.Loan AFTER DELETE AS IF EXISTS (SELECT * FROM deleted) DELETE dbo.LoanDetail FROM dbo.LoanDetail JOIN deleted ON deleted.CopyNo = LoanDetail.CopyNo
 
 SET LANGUAGE us_english
 

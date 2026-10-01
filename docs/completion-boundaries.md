@@ -11,14 +11,15 @@
   `FROM (SELECT … ON a = b) d ` 撈到內層的 `ON` 就打不出 `WHERE`。
   配對不起來時放行成 `Any`。
 - **寫完的 `CASE … END` 也是運算元**，後面照外層位置。還沒寫完的 CASE 是游標
-  所在的那一層：`CASE WHEN a = 1 THEN b ` 之後接 `WHEN`、`ELSE`、`END`。
+  那一層：`CASE WHEN a = 1 THEN b ` 之後接 `WHEN`、`ELSE`、`END`。
 - **逗號代表清單再來一項**，位置回到清單的**起點**：`SELECT a, ` 與 `SELECT ` 同一個位置；
   判成尾端的話 `CASE` 不見。
-- **TOP 子句不是選取清單的一項**：`SELECT TOP 10 `、`TOP (10) `、`TOP 10 PERCENT `
+- **TOP 子句不是選取清單的一項**：`SELECT TOP 10 `、`TOP 10 PERCENT `
   之後仍是起點，另接 `PERCENT`、`WITH TIES`。
 - **`ON` 的述詞寫完之後是兩個位置的聯集**：述詞尾端（`AND`、`OR`）與資料來源尾端
   （`WHERE`、`JOIN`、`GROUP`）。
 - **`SET` 子句寫完之後也是**：`UPDATE t SET a = 1 ` 另接 `WHERE`、`FROM`、`OUTPUT`。
+  DML 的 `OUTPUT` 一項寫完接 `AS`、`INTO`。
 - **其餘的 `SET` 帶出選項**（含 `ALTER DATABASE x SET`）。名稱寫完
   （`SET NOCOUNT `）只列 `ON`、`OFF` 這類值；停在關鍵字上是還沒寫完（`SET IDENTITY_INSERT `
   要資料表）。**值寫完這一句就結束**；否則 `SET ANSI_NULLS ON⏎G` 的
@@ -26,7 +27,7 @@
   與名稱分不開，換行才補語句開頭。
 - **`NOT` 也是聯集**：`WHERE NOT ` 開一個述詞，`a.Big5Code NOT ` 之後接 `IN`、`LIKE`。
 - **`IF`、`WHILE` 是錨點**：條件寫完是主體的開頭，也接 `AND`、`OR`；括號沒關上時只算條件。
-  IF 只有一句的主體寫完另接 `ELSE`（`IfBodyEnd`）。
+  IF 的單句主體寫完另接 `ELSE`（`IfBodyEnd`）。
 - **區塊邊界之後是下一句**：`BEGIN TRY`、`END CATCH`、IF 的 `ELSE`。`BEGIN … END` 的 END
   另接 `ELSE`、`TRY`、`CATCH`（`BlockEnd`）；CASE 的 ELSE 與 END 不算。
 
@@ -88,7 +89,7 @@
 借上一句的話，`WHERE b = 1⏎EXEC p @x ` 打不出 `OUTPUT`。
 
 **語句開頭**是能開始一句的關鍵字，而且前一格是界線。這種字也寫在句中（`WITH (NOLOCK)`、
-`DROP TABLE IF`、`THEN UPDATE`、`INSERT … SELECT`），分開它們的就是前一格：
+`DROP TABLE IF`、`THEN UPDATE`），分開它們的是前一格：
 
 - **明確的**：前一格含語句開頭、區塊開頭或區塊的 END——`;`、GO、`BEGIN`、`ELSE`、模組標頭的
   `AS`、IF 的條件、SET 選項的值、寫完一整句的字（`BREAK`）。

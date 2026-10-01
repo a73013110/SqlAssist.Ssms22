@@ -2265,6 +2265,14 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 return anchors[tokens[index - 1].IsKeyword("ORDER") ? OrderBy : GroupBy];
             }
 
+            if (IsDmlOutput(index))
+            {
+                var output = anchors == ClauseAnchors
+                    ? SqlKeywordPosition.SelectListTail | FindClausePosition(index - 1)
+                    : SqlKeywordPosition.SelectList;
+                return insideGroup ? output & ~SqlKeywordPosition.StatementStart : output;
+            }
+
             if (anchors.TryGetValue(token.Value, out var position) &&
                 ((position & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None || IsStatementHead(index)))
             {
@@ -2313,8 +2321,93 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return SqlKeywordPosition.SelectIntoTail;
         }
 
+        // OUTPUT … INTO @t 寫完之後回到那句 DML：UPDATE 還接得了 FROM、WHERE。
+        if (clauseEnd && token.IsKeyword("INTO") && FindDmlOutput(anchor - 1) is var output and >= 0)
+        {
+            return SqlKeywordPosition.TableSourceTail | FindClausePosition(output - 1);
+        }
+
         return null;
     }
+
+    /// <summary>
+    /// <paramref name="index"/> 是 DML 的 <c>OUTPUT</c> 子句：所屬的動詞是 INSERT、UPDATE（含它的 SET）、
+    /// DELETE 或 MERGE。
+    /// </summary>
+    /// <remarks>
+    /// 同一個字也是參數的修飾（<c>@Count int OUTPUT</c>、<c>EXEC p @x = @y OUTPUT</c>），那裡的動詞是
+    /// CREATE、ALTER、EXEC，後面不是選取清單。
+    ///
+    /// OUTPUT 的清單是一份選取清單：開頭與逗號之後是運算式，一項寫完接 <c>AS</c>、<c>INTO</c>，以及那句 DML
+    /// 在 OUTPUT 之前就接得了的字（UPDATE 的 FROM、WHERE，INSERT 的 VALUES）。只認子句錨點的話，
+    /// UPDATE 的 OUTPUT 清單借到 SET：一項寫完沒有 AS、INTO，逗號之後還當成指派、只列目標的資料行。
+    /// </remarks>
+    private bool IsDmlOutput(int index)
+    {
+        if (!tokens[index].IsKeyword("OUTPUT") || !IsBareKeyword(index) || FindVerb(index - 1) is not (var verb and >= 0))
+        {
+            return false;
+        }
+
+        var token = tokens[verb];
+
+        return token.IsKeyword("INSERT") ||
+            token.IsKeyword("UPDATE") ||
+            token.IsKeyword("DELETE") ||
+            token.IsKeyword("MERGE") ||
+            (token.IsKeyword("SET") && !IntroducesOptions(verb));
+    }
+
+    /// <summary>
+    /// 往回、同一層裡 <paramref name="from"/> 所屬的 DML <c>OUTPUT</c>；遇到動詞或 OUTPUT 之後的子句之前沒有就是 -1。
+    /// </summary>
+    /// <remarks>
+    /// OUTPUT 子句寫完之後接的子句（UPDATE、DELETE 的 FROM、WHERE、OPTION，INSERT 的 VALUES、DEFAULT VALUES）
+    /// 不屬於它：<c>UPDATE … OUTPUT … FROM </c> 之後的 inserted 不是 OUTPUT 那一份。
+    /// </remarks>
+    internal int FindDmlOutput(int from)
+    {
+        for (var index = from; index >= 0; index--)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation(")"))
+            {
+                index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
+
+                if (index < 0)
+                {
+                    return -1;
+                }
+
+                continue;
+            }
+
+            // 沒關上的函式括號還在清單裡（OUTPUT COMPRESS(deleted.|），開啟查詢的才是別的範圍。
+            if (token.IsPunctuation(";") ||
+                (token.IsPunctuation("(") && SqlTokenNavigator.OpensQuery(tokens, index)) ||
+                IsVerbCandidate(index) ||
+                EndsOutputClause(index))
+            {
+                return -1;
+            }
+
+            if (IsDmlOutput(index))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private bool EndsOutputClause(int index) =>
+        IsBareKeyword(index) &&
+        (tokens[index].IsKeyword("FROM") ||
+            tokens[index].IsKeyword("WHERE") ||
+            tokens[index].IsKeyword("OPTION") ||
+            tokens[index].IsKeyword("VALUES") ||
+            tokens[index].IsKeyword("DEFAULT"));
 
     /// <summary><paramref name="order"/> 的 ORDER 在視窗 <c>OVER (</c> 裡。</summary>
     private bool OrdersWindow(int order)

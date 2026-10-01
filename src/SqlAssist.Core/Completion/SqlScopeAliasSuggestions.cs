@@ -38,6 +38,13 @@ public static class SqlScopeAliasSuggestions
         List<SqlSuggestion>? suggestions = null;
         HashSet<string>? seen = null;
 
+        // OUTPUT 子句裡的 inserted、deleted 不寫在 FROM，解析時也排在最前面。
+        foreach (var table in scope.ChangeTables)
+        {
+            (seen ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase)).Add(table.Alias!);
+            (suggestions ??= new List<SqlSuggestion>()).Add(Create(table.Alias!, table));
+        }
+
         // 由內往外：內層的別名遮住外層同名的那一個，與 TryResolve 解析的順序相同。
         for (var level = scope; level is not null; level = level.Outer)
         {

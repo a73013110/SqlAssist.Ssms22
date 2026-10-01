@@ -63,6 +63,15 @@ internal sealed class SqlStatementBoundaries
     /// <summary><paramref name="from"/> 的 FROM 是 <c>FETCH … FROM</c>，後面是游標名稱。</summary>
     public bool IntroducesCursor(int from) => analyzer.IntroducesCursor(Map(from));
 
+    /// <summary>
+    /// 往回、同一層裡 <paramref name="from"/> 所屬的 DML <c>OUTPUT</c> 子句的那個字；不在 OUTPUT 子句裡是 -1。
+    /// </summary>
+    public int FindDmlOutput(int from)
+    {
+        var output = analyzer.FindDmlOutput(Map(from));
+        return output > operand ? output - 1 : output;
+    }
+
     private int Map(int index) => index >= operand ? index + 1 : index;
 
     /// <summary>游標處要補運算元時，它在分析用詞元裡的索引；不補就是 <see cref="int.MaxValue"/>。</summary>
