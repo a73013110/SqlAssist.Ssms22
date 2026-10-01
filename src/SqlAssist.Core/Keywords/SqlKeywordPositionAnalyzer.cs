@@ -2176,7 +2176,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <remarks>
     /// 途中遇到右括號一律跳到配對的左括號之前：那一整組是一個運算元，
     /// 裡面的子句屬於它自己。配不起來的左括號（使用者才剛打開、還沒關上的那個）
-    /// 則照樣穿過去——<c>SELECT COUNT(a, </c> 的位置仍然由外層的 SELECT 決定。
+    /// 則照樣穿過去——<c>SELECT COUNT(a </c> 的位置仍然由外層的 SELECT 決定。清單的下一項例外：
+    /// 那個左括號就是清單的起點，見 <see cref="ListAnchors"/> 那一條。
     ///
     /// 跳過的括號兩兩不重疊，所以整趟仍然是線性的，不會因為括號多就退化。
     ///
@@ -2228,6 +2229,14 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
             if (token.Kind != SqlTokenKind.Identifier || token.IsQuoted)
             {
+                // 清單的下一項回到清單的起點，而沒關上的左括號本身就是一份清單的起點（引數、
+                // VALUES 的一列、IN 的值）：穿出去借外層子句的清單，VALUES (1, 會拿到 INTO 的資料來源、
+                // SET @a = IIF(x, 會拿到指派目標，兩邊都列不出 NULL。
+                if (anchors == ListAnchors && token.IsPunctuation("("))
+                {
+                    return KeywordsAfter(index);
+                }
+
                 insideGroup |= token.IsPunctuation("(");
                 continue;
             }

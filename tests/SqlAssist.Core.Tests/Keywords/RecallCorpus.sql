@@ -479,3 +479,8 @@ SELECT 2
 
 SELECT CopyNo -- the copy.
 FROM dbo.Copy
+
+INSERT INTO dbo.Loan (CopyNo, ReaderId) VALUES (1, NULL)
+
+DECLARE @Fee int
+SET @Fee = IIF(@Fee IS NULL, NULL, 1)

@@ -485,7 +485,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT CASE WHEN a = 1 THEN CASE WHEN b = 2 THEN 3 END ", SqlKeywordPosition.CaseBody)]
     [InlineData("SELECT CASE WHEN a = 1 THEN 2 END ", SqlKeywordPosition.SelectListTail)]
     [InlineData("SELECT * FROM t WHERE x = CASE WHEN a = 1 THEN 2 END ", SqlKeywordPosition.ExpressionTail)]
-    [InlineData("SELECT CASE WHEN a IN (1, ", SqlKeywordPosition.SelectList)]
+    [InlineData("SELECT CASE WHEN a IN (1, ", SqlKeywordPosition.Any)]
     [InlineData("BEGIN SELECT 1 END ", SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart)]
     [InlineData("IF @a = 1 PRINT 'x' ELSE PRINT 'y' ", SqlKeywordPosition.Any)]
     public void CASE的位置(string textBeforeToken, SqlKeywordPosition expected)
@@ -658,12 +658,20 @@ public sealed class SqlKeywordPositionTests
     /// <remarks>
     /// 判成尾端的話 <c>SELECT a, </c> 列的是 FROM、INTO、ORDER 這些接在整份選取清單
     /// 之後的字，而 CASE、CONVERT 這些真的能寫在那裡的反而不見。
+    ///
+    /// 沒關上的左括號也是清單的起點，逗號之後與它之後同一格，不穿出去借外層子句：
+    /// 借到 INTO 的資料來源或 SET 的指派目標時列不出 NULL。
     /// </remarks>
     [Theory]
     [InlineData("SELECT a, ", SqlKeywordPosition.SelectList)]
     [InlineData("SELECT * FROM t1, ", SqlKeywordPosition.DataSource)]
-    [InlineData("SELECT * FROM t WHERE a IN (1, ", SqlKeywordPosition.Predicate)]
     [InlineData("SELECT * FROM t ORDER BY a, ", SqlKeywordPosition.OrderByColumn)]
+    [InlineData("SELECT * FROM t WHERE a IN (1, ", SqlKeywordPosition.Any)]
+    [InlineData("SELECT COUNT(a, ", SqlKeywordPosition.Any)]
+    [InlineData("INSERT INTO dbo.Loan (CopyNo, ReaderId) VALUES (1, ", SqlKeywordPosition.Any)]
+    [InlineData("SET @a = IIF(@a IS NULL, ", SqlKeywordPosition.Any)]
+    [InlineData("SELECT * FROM dbo.fn_LoansByCopy(1, ", SqlKeywordPosition.Any)]
+    [InlineData("SELECT * FROM t WHERE a IN (SELECT b, ", SqlKeywordPosition.SelectList)]
     public void 逗號回到清單起點(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);

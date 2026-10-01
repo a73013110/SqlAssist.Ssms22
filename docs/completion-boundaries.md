@@ -5,19 +5,17 @@
 
 ## 往回找子句關鍵字時要認得的結構
 
-「最近的子句關鍵字」不是往回數詞元就找得到的：
-
 - **括號群組是一個運算元**，往回走時整組跳過；走進
   `FROM (SELECT … ON a = b) d ` 撈到內層的 `ON` 就打不出 `WHERE`。
   配對不起來時放行成 `Any`。
 - **寫完的 `CASE … END` 也是運算元**，後面照外層位置。還沒寫完的 CASE 是游標
   那一層：`CASE WHEN a = 1 THEN b ` 之後接 `WHEN`、`ELSE`、`END`。
 - **逗號代表清單再來一項**，位置回到清單的**起點**：`SELECT a, ` 與 `SELECT ` 同一個位置；
-  判成尾端的話 `CASE` 不見。
-- **TOP 子句不是選取清單的一項**：`SELECT TOP 10 `、`TOP 10 PERCENT `
-  之後仍是起點，另接 `PERCENT`、`WITH TIES`。
+  判成尾端的話 `CASE` 不見。沒關上的左括號也是起點（引數、`VALUES` 的一列），
+  不借外層：`VALUES (1, ` 才列得出 `NULL`。
+- **TOP 子句不是選取清單的一項**：`SELECT TOP 10 ` 之後仍是起點，另接 `PERCENT`、`WITH TIES`。
 - **`ON` 的述詞寫完之後是兩個位置的聯集**：述詞尾端（`AND`、`OR`）與資料來源尾端
-  （`WHERE`、`JOIN`、`GROUP`）。
+  （`WHERE`、`JOIN`）。
 - **`SET` 子句寫完之後也是**：`UPDATE t SET a = 1 ` 另接 `WHERE`、`FROM`、`OUTPUT`。
   DML 的 `OUTPUT` 一項寫完接 `AS`、`INTO`。
 - **其餘的 `SET` 帶出選項**（含 `ALTER DATABASE x SET`）。名稱寫完
@@ -25,7 +23,7 @@
   要資料表）。**值寫完這一句就結束**；否則 `SET ANSI_NULLS ON⏎G` 的
   `ON` 被當成 JOIN 的，`GO` 變成 `GROUPING`。識別字的值（`SET DATEFORMAT dmy`）
   與名稱分不開，換行才補語句開頭。
-- **`NOT` 也是聯集**：`WHERE NOT ` 開一個述詞，`a.Big5Code NOT ` 之後接 `IN`、`LIKE`。
+- **`NOT` 也是聯集**：`WHERE NOT ` 開一個述詞，`a NOT ` 之後接 `IN`、`LIKE`。
 - **`IF`、`WHILE` 是錨點**：條件寫完是主體的開頭，也接 `AND`、`OR`；括號沒關上時只算條件。
   IF 的單句主體寫完另接 `ELSE`（`IfBodyEnd`）。
 - **區塊邊界之後是下一句**：`BEGIN TRY`、`END CATCH`、IF 的 `ELSE`。`BEGIN … END` 的 END
