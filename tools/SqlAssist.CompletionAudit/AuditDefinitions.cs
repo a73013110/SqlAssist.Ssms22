@@ -27,8 +27,10 @@ namespace SqlAssist.CompletionAudit;
 /// <c>inserted</c>／<c>deleted</c> 不是誰取的名字，卻在兩種範圍裡引用得到：DML 觸發程序的整句（指父資料表）
 /// 與 OUTPUT 子句（指那句 DML 的目標）。範圍外的同名詞照一般名稱判斷。
 ///
-/// 資料行清單（INSERT／MERGE 的資料行、索引、條件約束與統計資料的欄位）記下它屬於哪一張表：名稱索引只比名字，
-/// 那張表查不到時，碰巧同名的欄位不算列得出來（<see cref="ColumnListOwner"/>）。
+/// 欄位要知道屬於哪一張表（<see cref="ColumnOwners"/>）：資料行清單（INSERT／MERGE 的資料行、索引、條件約束與
+/// 統計資料的欄位）屬於它指定的那張表，查詢裡沒寫限定字的欄位屬於範圍內的資料來源。名稱索引只比名字，
+/// 那些表全都查不到時，碰巧同名的欄位不算列得出來。資料表定義（<c>CREATE TABLE</c>、資料表變數、資料表型別）
+/// 自己的條件約束與索引清單例外：資料行就定義在同一份括號裡，在那幾份清單裡引用得到。
 ///
 /// 剖析不過的那一句（<see cref="IsUnparsed"/>）挖成空白再剖析，其餘的句子照常認；那一句裡的名稱認不出來，
 /// 在稽核裡歸成不明，不算漏。
@@ -47,7 +49,11 @@ public sealed class AuditDefinitions
     private readonly Dictionary<int, int> _fromStarts = new();
     private readonly Dictionary<int, (string Name, string? Database)> _aliasSources = new();
     private readonly Dictionary<string, (string Name, string? Database)> _starSources = new(StringComparer.Ordinal);
-    private readonly Dictionary<int, (string Name, string? Database)> _columnOwners = new();
+    private readonly Dictionary<int, IReadOnlyList<(string Name, string? Database)>> _columnOwners = new();
+    private readonly List<(int Start, int End, List<(string Name, string? Database)?> Sources)> _sourceScopes = new();
+    private readonly List<(int Start, int End, int Scope)> _barriers = new();
+    private readonly List<Identifier> _columnReferences = new();
+    private readonly List<(int Start, int End, SchemaObjectName Name, IList<ColumnDefinition> Columns)> _createdTables = new();
     private readonly HashSet<int> _tableNames = new();
     private readonly List<(int Start, int End, SchemaObjectName? Owner)> _changeTables = new();
     private int _batchEnd;
@@ -195,7 +201,7 @@ public sealed class AuditDefinitions
             return ChangeTableOwner(definition.DefinedAt);
         }
 
-        return _starSources.TryGetValue(AuditText.Normalize(source.Name), out var projected) ? projected : source;
+        return Project(source);
     }
 
     /// <summary>
@@ -206,23 +212,21 @@ public sealed class AuditDefinitions
         AuditText.Normalize(name) is "INSERTED" or "DELETED" && InnermostChangeRange(start) is not null;
 
     /// <summary>
-    /// <paramref name="start"/> 起頭的名稱在一份資料行清單裡時，那份清單屬於的資料表（最後一段）與寫出來的資料庫；
-    /// 不在清單裡、或清單屬於的不是具名資料表（資料表變數）時是 null。
+    /// <paramref name="start"/> 起頭的欄位可能屬於的資料表（最後一段）與寫出來的資料庫；說不出來時是 null。
     /// </summary>
     /// <remarks>
-    /// <c>INSERT INTO Other.dbo.Loan (CopyNo)</c>、<c>CREATE INDEX … ON Copy (CopyNo)</c> 的 CopyNo 是那張表的欄位；
-    /// 那張表查不到時，別的表碰巧有 CopyNo 也不代表列得出來。暫存資料表與 <see cref="SourceOf"/> 一樣看
-    /// <c>SELECT * INTO</c> 的那張表。
+    /// <c>INSERT INTO Other.dbo.Loan (CopyNo)</c>、<c>CREATE INDEX … ON Copy (CopyNo)</c> 的 CopyNo 只屬於那一張表；
+    /// <c>SELECT … FROM Other.dbo.Loan GROUP BY CopyNo</c> 的 CopyNo 屬於這個查詢與外層查詢的來源——衍生資料表
+    /// 看不到它所在那一層的來源（APPLY 右邊除外）。來源裡有一個不是具名資料表（衍生資料表、函式、資料表變數、
+    /// <c>inserted</c>）就說不出來；指令碼取過的名稱（別名、CTE 的資料行）不是資料庫的欄位，也不在此列。
+    /// 暫存資料表與 <see cref="SourceOf"/> 一樣看 <c>SELECT * INTO</c> 的那張表。
     /// </remarks>
-    public (string Name, string? Database)? ColumnListOwner(int start)
-    {
-        if (!_columnOwners.TryGetValue(start, out var owner))
-        {
-            return null;
-        }
+    public IReadOnlyList<(string Name, string? Database)>? ColumnOwners(int start) =>
+        _columnOwners.TryGetValue(start, out var owners) ? owners.Select(Project).ToArray() : null;
 
-        return _starSources.TryGetValue(AuditText.Normalize(owner.Name), out var projected) ? projected : owner;
-    }
+    /// <summary>暫存資料表是 <c>SELECT * INTO</c> 一張表時換成那張表。</summary>
+    private (string Name, string? Database) Project((string Name, string? Database) table) =>
+        _starSources.TryGetValue(AuditText.Normalize(table.Name), out var projected) ? projected : table;
 
     /// <summary>
     /// <paramref name="start"/> 這裡的 <c>inserted</c>／<c>deleted</c> 指的資料表；目標不是具名資料表時是 null。
@@ -418,29 +422,188 @@ public sealed class AuditDefinitions
         }
     }
 
-    /// <summary>記下資料行清單裡每一個欄位屬於 <paramref name="owner"/>；擁有者不是具名資料表時不記。</summary>
-    private void AddColumns(IEnumerable<TSqlFragment>? columns, SchemaObjectName? owner)
+    /// <summary>
+    /// 記下資料行清單裡每一個欄位屬於 <paramref name="owner"/>；擁有者不是具名資料表時不記。
+    /// 清單在定義那張表的 <c>CREATE TABLE</c> 裡時（指回自己的外部索引鍵），改成讓那份定義的資料行在清單裡引用得到。
+    /// </summary>
+    private void AddColumns(IEnumerable<TSqlFragment?>? columns, SchemaObjectName? owner)
     {
-        if (owner is not { BaseIdentifier.Value: { } name })
+        var identifiers = ColumnIdentifiers(columns);
+
+        if (owner is not { BaseIdentifier.Value: { } name } || identifiers.Count == 0)
         {
             return;
         }
 
-        foreach (var column in columns ?? Array.Empty<TSqlFragment>())
+        if (DefinitionOf(owner, identifiers[0].StartOffset) is { } definition)
         {
-            var last = column switch
+            AddDefinedColumns(identifiers, definition);
+            return;
+        }
+
+        var owners = new[] { (name, owner.DatabaseIdentifier?.Value) };
+
+        foreach (var identifier in identifiers)
+        {
+            _columnOwners[identifier.StartOffset] = owners;
+        }
+    }
+
+    /// <summary>讓 <paramref name="definition"/> 的資料行在這份清單裡引用得到。</summary>
+    private void AddDefinedColumns(IReadOnlyList<Identifier> identifiers, IList<ColumnDefinition> definition)
+    {
+        if (identifiers.Count == 0)
+        {
+            return;
+        }
+
+        var last = identifiers[identifiers.Count - 1];
+
+        foreach (var column in definition)
+        {
+            if (column.ColumnIdentifier is { StartOffset: >= 0 } defined)
+            {
+                AddVisibility(defined, identifiers[0].StartOffset, last.StartOffset + last.FragmentLength);
+            }
+        }
+    }
+
+    private static IReadOnlyList<Identifier> ColumnIdentifiers(IEnumerable<TSqlFragment?>? columns) =>
+        (columns ?? Array.Empty<TSqlFragment?>())
+            .Select(column => column switch
             {
                 Identifier identifier => identifier,
                 ColumnReferenceExpression reference => reference.MultiPartIdentifier?.Identifiers.LastOrDefault(),
                 ColumnWithSortOrder sorted => sorted.Column?.MultiPartIdentifier?.Identifiers.LastOrDefault(),
                 _ => null
-            };
+            })
+            .OfType<Identifier>()
+            .Where(identifier => identifier.StartOffset >= 0)
+            .ToList();
 
-            if (last is { StartOffset: >= 0 })
+    /// <summary><paramref name="offset"/> 在定義 <paramref name="table"/> 的 <c>CREATE TABLE</c> 裡時，那份定義的資料行。</summary>
+    private IList<ColumnDefinition>? DefinitionOf(SchemaObjectName table, int offset)
+    {
+        foreach (var created in _createdTables)
+        {
+            if (created.Start <= offset &&
+                offset < created.End &&
+                AuditText.Normalize(created.Name.BaseIdentifier.Value) == AuditText.Normalize(table.BaseIdentifier.Value) &&
+                (created.Name.SchemaIdentifier is null ||
+                    table.SchemaIdentifier is null ||
+                    AuditText.Normalize(created.Name.SchemaIdentifier.Value) == AuditText.Normalize(table.SchemaIdentifier.Value)))
             {
-                _columnOwners[last.StartOffset] = (name, owner.DatabaseIdentifier?.Value);
+                return created.Columns;
             }
         }
+
+        return null;
+    }
+
+    private void AddVisibility(Identifier name, int from, int to)
+    {
+        var key = AuditText.Normalize(name.Value);
+
+        if (!_scoped.TryGetValue(key, out var list))
+        {
+            _scoped[key] = list = new List<Visibility>();
+        }
+
+        list.Add(new Visibility(name.StartOffset, from, to, qualifiable: false));
+    }
+
+    /// <summary>
+    /// 一個查詢（或 UPDATE、DELETE、MERGE）引用得到的資料來源；衍生資料表在它那一層畫一道牆，裡面看不到這一層的來源。
+    /// </summary>
+    private void AddSourceScope(TSqlFragment node, IEnumerable<TableReference?> references)
+    {
+        if (node.StartOffset < 0)
+        {
+            return;
+        }
+
+        var sources = new List<(string Name, string? Database)?>();
+        var scope = _sourceScopes.Count;
+        _sourceScopes.Add((node.StartOffset, node.StartOffset + node.FragmentLength, sources));
+
+        foreach (var reference in references)
+        {
+            AddSources(reference, sources, scope, wall: true);
+        }
+    }
+
+    private void AddSources(TableReference? reference, List<(string Name, string? Database)?> sources, int scope, bool wall)
+    {
+        switch (reference)
+        {
+            case null:
+                return;
+            case JoinParenthesisTableReference group:
+                AddSources(group.Join, sources, scope, wall);
+                return;
+            case QualifiedJoin join:
+                AddSources(join.FirstTableReference, sources, scope, wall);
+                AddSources(join.SecondTableReference, sources, scope, wall);
+                return;
+            case UnqualifiedJoin join:
+                AddSources(join.FirstTableReference, sources, scope, wall);
+
+                // APPLY 右邊看得到左邊的來源。
+                AddSources(
+                    join.SecondTableReference,
+                    sources,
+                    scope,
+                    wall && join.UnqualifiedJoinType is not (UnqualifiedJoinType.CrossApply or UnqualifiedJoinType.OuterApply));
+                return;
+            case NamedTableReference { SchemaObject: { BaseIdentifier.Value: { } name } path }
+                when AuditText.Normalize(name) is not ("INSERTED" or "DELETED"):
+                sources.Add((name, path.DatabaseIdentifier?.Value));
+                return;
+            default:
+                sources.Add(null);
+
+                if (wall && reference is QueryDerivedTable { StartOffset: >= 0 } derived)
+                {
+                    _barriers.Add((derived.StartOffset, derived.StartOffset + derived.FragmentLength, scope));
+                }
+
+                return;
+        }
+    }
+
+    /// <summary>
+    /// <paramref name="offset"/> 這裡沒寫限定字的欄位可能屬於的資料表：最內層查詢往外每一層的來源，
+    /// 被衍生資料表擋住的那一層不算；有一個說不出是哪張表、或一個來源都沒有時是 null。
+    /// </summary>
+    private IReadOnlyList<(string Name, string? Database)>? VisibleSources(int offset)
+    {
+        var enclosing = Enumerable.Range(0, _sourceScopes.Count)
+            .Where(scope => _sourceScopes[scope].Start <= offset && offset < _sourceScopes[scope].End)
+            .OrderBy(scope => _sourceScopes[scope].End - _sourceScopes[scope].Start)
+            .ToList();
+        var owners = new List<(string Name, string? Database)>();
+
+        for (var level = 0; level < enclosing.Count; level++)
+        {
+            var scope = enclosing[level];
+
+            if (level > 0 && _barriers.Any(wall => wall.Scope == scope && wall.Start <= offset && offset < wall.End))
+            {
+                continue;
+            }
+
+            foreach (var source in _sourceScopes[scope].Sources)
+            {
+                if (source is not { } named)
+                {
+                    return null;
+                }
+
+                owners.Add(named);
+            }
+        }
+
+        return owners.Count == 0 ? null : owners;
     }
 
     private void Add(IEnumerable<Identifier>? names, Scope scope, bool qualifiable = false)
@@ -497,6 +660,19 @@ public sealed class AuditDefinitions
 
             list.Add(new Visibility(start, scopeStart, end, qualifiable));
         }
+
+        // 範圍要先建好：指令碼取過的名稱（選取清單的別名、CTE 的資料行）不是資料庫的欄位。
+        foreach (var reference in _columnReferences)
+        {
+            var start = reference.StartOffset;
+
+            if (!_columnOwners.ContainsKey(start) &&
+                Nearest(reference.Value, start, qualified: false) is null &&
+                VisibleSources(start) is { } owners)
+            {
+                _columnOwners[start] = owners;
+            }
+        }
     }
 
     private static (int Start, int End)? InnermostRange(List<(int Start, int End)> ranges, int offset)
@@ -528,6 +704,7 @@ public sealed class AuditDefinitions
         public override void Visit(QuerySpecification node)
         {
             _owner._queries.Add((node.StartOffset, node.StartOffset + node.FragmentLength));
+            _owner.AddSourceScope(node, node.FromClause?.TableReferences ?? (IList<TableReference>)Array.Empty<TableReference>());
 
             if (node.FromClause is { StartOffset: >= 0 } from)
             {
@@ -570,6 +747,7 @@ public sealed class AuditDefinitions
         {
             _owner.Add(node.TableAlias, Scope.Statement);
             _owner.AddSource(node.TableAlias, node.Target);
+            _owner.AddSourceScope(node, new[] { node.Target, node.TableReference });
 
             foreach (var clause in node.ActionClauses)
             {
@@ -577,6 +755,19 @@ public sealed class AuditDefinitions
                 {
                     _owner.AddColumns(insert.Columns, (node.Target as NamedTableReference)?.SchemaObject);
                 }
+            }
+        }
+
+        public override void Visit(UpdateSpecification node) => _owner.AddSourceScope(node, WithTarget(node.Target, node.FromClause));
+
+        public override void Visit(DeleteSpecification node) => _owner.AddSourceScope(node, WithTarget(node.Target, node.FromClause));
+
+        /// <summary>沒寫限定字的一段名稱：之後在 <see cref="Resolve"/> 依範圍內的來源判斷屬於哪些表。</summary>
+        public override void Visit(ColumnReferenceExpression node)
+        {
+            if (node.ColumnType == ColumnType.Regular && node.MultiPartIdentifier is { Count: 1 } path && path.Identifiers[0].StartOffset >= 0)
+            {
+                _owner._columnReferences.Add(path.Identifiers[0]);
             }
         }
 
@@ -597,37 +788,76 @@ public sealed class AuditDefinitions
 
         public override void Visit(CreateStatisticsStatement node) => _owner.AddColumns(node.Columns, node.OnName);
 
-        public override void Visit(CreateTableStatement node) => AddTableElements(node.Definition, node.SchemaObjectName);
+        /// <summary>記下正在定義的表：指回自己的外部索引鍵引用的是這一份的資料行。</summary>
+        public override void Visit(CreateTableStatement node)
+        {
+            if (node.SchemaObjectName is { BaseIdentifier: not null } name && node.Definition is { } definition)
+            {
+                _owner._createdTables.Add((node.StartOffset, node.StartOffset + node.FragmentLength, name, definition.ColumnDefinitions));
+            }
+        }
 
-        public override void Visit(AlterTableAddTableElementStatement node) => AddTableElements(node.Definition, node.SchemaObjectName);
+        /// <summary>
+        /// 資料表定義（<c>CREATE TABLE</c>、<c>DECLARE @t TABLE</c>、<c>CREATE TYPE … AS TABLE</c>）自己的條件約束與
+        /// 索引清單引用得到它的資料行，資料表或資料行層級都算。
+        /// </summary>
+        public override void Visit(TableDefinition node)
+        {
+            foreach (var list in ElementLists(node))
+            {
+                _owner.AddDefinedColumns(ColumnIdentifiers(list), node.ColumnDefinitions);
+            }
+        }
 
-        /// <summary>參考的那一邊屬於被參考的資料表；自己這一邊由所在的 CREATE／ALTER TABLE 記。</summary>
+        /// <summary><c>ALTER TABLE t ADD</c> 的條件約束清單屬於 <c>t</c>。</summary>
+        public override void Visit(AlterTableAddTableElementStatement node)
+        {
+            foreach (var list in ElementLists(node.Definition))
+            {
+                _owner.AddColumns(list, node.SchemaObjectName);
+            }
+        }
+
+        /// <summary>參考的那一邊屬於被參考的資料表；自己這一邊由所在的定義記。</summary>
         public override void Visit(ForeignKeyConstraintDefinition node) =>
             _owner.AddColumns(node.ReferencedTableColumns, node.ReferenceTableName);
 
-        /// <summary>資料表層級的條件約束與索引，欄位屬於所在的那張表。</summary>
-        private void AddTableElements(TableDefinition? definition, SchemaObjectName? table)
+        private static IEnumerable<TableReference?> WithTarget(TableReference? target, FromClause? from) =>
+            new[] { target }.Concat(from?.TableReferences ?? (IList<TableReference>)Array.Empty<TableReference>());
+
+        /// <summary>定義裡寫資料行名稱的清單：條件約束、索引與 <c>PERIOD FOR SYSTEM_TIME</c>，資料表與資料行層級都算。</summary>
+        private static IEnumerable<IEnumerable<TSqlFragment?>> ElementLists(TableDefinition? definition)
         {
-            foreach (var constraint in definition?.TableConstraints ?? (IList<ConstraintDefinition>)Array.Empty<ConstraintDefinition>())
+            if (definition is null)
+            {
+                yield break;
+            }
+
+            foreach (var constraint in definition.TableConstraints.Concat(definition.ColumnDefinitions.SelectMany(column => column.Constraints)))
             {
                 switch (constraint)
                 {
                     case UniqueConstraintDefinition unique:
-                        _owner.AddColumns(unique.Columns, table);
+                        yield return unique.Columns;
                         break;
                     case ForeignKeyConstraintDefinition foreignKey:
-                        _owner.AddColumns(foreignKey.Columns, table);
+                        yield return foreignKey.Columns;
                         break;
                     case DefaultConstraintDefinition { Column: { } column }:
-                        _owner.AddColumns(new[] { column }, table);
+                        yield return new[] { column };
                         break;
                 }
             }
 
-            foreach (var index in definition?.Indexes ?? (IList<IndexDefinition>)Array.Empty<IndexDefinition>())
+            foreach (var index in definition.Indexes.Concat(definition.ColumnDefinitions.Select(column => column.Index).OfType<IndexDefinition>()))
             {
-                _owner.AddColumns(index.Columns, table);
-                _owner.AddColumns(index.IncludeColumns, table);
+                yield return index.Columns;
+                yield return index.IncludeColumns;
+            }
+
+            if (definition.SystemTimePeriod is { } period)
+            {
+                yield return new TSqlFragment?[] { period.StartTimeColumn, period.EndTimeColumn };
             }
         }
 

@@ -93,6 +93,118 @@ public static class SqlScriptTableCollector
     }
 
     /// <summary>
+    /// 游標所在的資料表定義（<see cref="FindDefinitionName"/>）定義的是 <paramref name="target"/> 時，那份定義寫出來的資料行；
+    /// 不在定義裡、定義的是別張表或一欄都還沒寫時是 null。
+    /// </summary>
+    /// <remarks>
+    /// <c>PRIMARY KEY (|</c>、<c>INDEX ix (|</c> 與指回自己的 <c>REFERENCES t (|</c> 要的是同一份括號裡的資料行：
+    /// 一般資料表那時還不存在，或中繼資料還是改之前的樣子；暫存資料表的括號沒關上前也不在名冊裡。
+    /// 括號關上時整份都算（主索引鍵可以寫在資料行前面），還開著就只讀到游標為止——後面的文字屬於別的語句。
+    /// </remarks>
+    /// <param name="position">游標位置。</param>
+    public static SqlScriptTable? FindDefinition(IReadOnlyList<SqlToken> tokens, int position, SqlTableReference target)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        if (target is null)
+        {
+            throw new ArgumentNullException(nameof(target));
+        }
+
+        var before = -1;
+
+        while (before + 1 < tokens.Count && tokens[before + 1].Start < position)
+        {
+            before++;
+        }
+
+        for (var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, before);
+             open >= 2;
+             open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, open - 1))
+        {
+            if (FindDefinitionName(tokens, open) is not { } name)
+            {
+                continue;
+            }
+
+            if (!SqlScopeAnalyzer.TryParseTableReference(tokens, name.Start, name.End, out var defined, out _) ||
+                !IsSameTable(defined, target))
+            {
+                return null;
+            }
+
+            var close = SqlTokenNavigator.FindClosingParenthesis(tokens, open, tokens.Count);
+            var end = close >= 0 ? close : before + 1;
+            var columns = ReadColumns(tokens, open + 1, end);
+
+            return columns.Count == 0
+                ? null
+                : new SqlScriptTable(defined.ObjectName, columns, tokens[name.Start].Start, tokens[end - 1].End);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// <paramref name="open"/> 這個左括號是一份資料表定義的資料行清單時，定義的名稱所在的詞元範圍（不含 End）；不是時是 null。
+    /// </summary>
+    /// <remarks>
+    /// 三種寫法的括號裡是同一套文法：<c>CREATE TABLE t (</c>、<c>@t [AS] TABLE (</c>（<c>DECLARE</c> 與
+    /// <c>RETURNS</c>）、<c>CREATE TYPE t AS TABLE (</c>。
+    /// </remarks>
+    public static (int Start, int End)? FindDefinitionName(IReadOnlyList<SqlToken> tokens, int open)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        if (open < 2 || !tokens[open].IsPunctuation("("))
+        {
+            return null;
+        }
+
+        if (tokens[open - 1].IsKeyword("TABLE"))
+        {
+            var name = tokens[open - 2].IsKeyword("AS") ? open - 3 : open - 2;
+
+            if (name >= 0 && tokens[name].Kind == SqlTokenKind.Variable)
+            {
+                return (name, name + 1);
+            }
+
+            if (name < 0 || name == open - 2)
+            {
+                return null;
+            }
+
+            var typeStart = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, name);
+
+            return typeStart >= 2 && tokens[typeStart - 1].IsKeyword("TYPE") && tokens[typeStart - 2].IsKeyword("CREATE")
+                ? (typeStart, name + 1)
+                : null;
+        }
+
+        var start = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, open - 1);
+
+        return start >= 2 && tokens[start - 1].IsKeyword("TABLE") && tokens[start - 2].IsKeyword("CREATE")
+            ? (start, open)
+            : null;
+    }
+
+    /// <summary>名稱相同、寫出來的結構描述與資料庫不衝突。</summary>
+    private static bool IsSameTable(SqlTableReference defined, SqlTableReference target) =>
+        string.Equals(defined.ObjectName, target.ObjectName, StringComparison.OrdinalIgnoreCase) &&
+        Agrees(defined.SchemaName, target.SchemaName) &&
+        Agrees(defined.DatabaseName, target.DatabaseName);
+
+    private static bool Agrees(string? left, string? right) =>
+        left is null || right is null || string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// <paramref name="index"/> 是不是一份資料表宣告的開頭。
     /// </summary>
     /// <param name="listStart">資料行清單的左括號位置。</param>

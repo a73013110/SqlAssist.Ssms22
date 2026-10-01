@@ -19,11 +19,15 @@ namespace SqlAssist.Core.Completion;
 /// <item>索引鍵清單 <c>CREATE INDEX ix ON t (|</c>、<c>CREATE STATISTICS s ON t (|</c> 與
 /// <c>INCLUDE (|</c>；外部索引鍵的 <c>REFERENCES u (|</c>。</item>
 /// <item><c>ALTER TABLE t ALTER COLUMN |</c>、<c>DROP COLUMN |</c>。</item>
+/// <item>資料表元素的資料行清單：<c>PRIMARY KEY (|</c>、<c>UNIQUE (|</c>、<c>FOREIGN KEY (|</c>、
+/// <c>INDEX ix (|</c> 與它的 <c>INCLUDE (|</c>、<c>PERIOD FOR SYSTEM_TIME (|</c>，屬於所在的資料表定義
+/// （<c>CREATE TABLE t (</c>、<c>@t [AS] TABLE (</c>、<c>CREATE TYPE t AS TABLE (</c>，資料表或資料行層級都算）
+/// 或 <c>ALTER TABLE t ADD</c> 的 <c>t</c>。定義裡的資料行由全文分析從同一份定義讀
+/// （<see cref="SqlScriptTableCollector.FindDefinition"/>）。</item>
 /// </list>
 ///
 /// 不在裡面的都有理由：<c>ORDER BY |</c>、<c>GROUP BY |</c> 接得了運算式與序號；
-/// <c>EXEC p |</c> 的位置引數可以直接寫常值，<c>WITH</c> 也接在那裡（打 <c>@</c> 就列參數）；
-/// <c>CREATE TABLE</c> 的條件約束清單屬於一張還不存在的表。
+/// <c>EXEC p |</c> 的位置引數可以直接寫常值，<c>WITH</c> 也接在那裡（打 <c>@</c> 就列參數）。
 ///
 /// 只讀游標前的詞元，回報的是寫在那裡的名稱。<c>UPDATE l SET … FROM dbo.Loan l</c>
 /// 的 <c>l</c> 是別名，要到看得見游標後方的全文分析才解得開。
@@ -139,10 +143,114 @@ internal static class SqlColumnOwner
                 ? SqlTokenNavigator.FindOpeningParenthesis(tokens, open - 2)
                 : -1;
 
-            return keys < 0 ? null : FindNamedListOwner(tokens, keys);
+            return keys < 0 ? null : FindElementTable(tokens, keys) ?? FindNamedListOwner(tokens, keys);
         }
 
-        return FindNamedListOwner(tokens, open);
+        return FindElementTable(tokens, open) ?? FindNamedListOwner(tokens, open);
+    }
+
+    /// <summary>
+    /// 左括號是資料表元素的資料行清單時，元素所在的那張表：資料表定義（<see cref="SqlScriptTableCollector.FindDefinitionName"/>）
+    /// 的名稱，或 <c>ALTER TABLE t [WITH CHECK|NOCHECK] ADD</c> 的 <c>t</c>。
+    /// </summary>
+    /// <remarks>
+    /// <c>ALTER TABLE t ADD c int, CONSTRAINT pk PRIMARY KEY (|</c> 這種同一句先加資料行的不認：
+    /// 逗號前面沒有還開著的括號，回頭找 ADD 要另外維護一套跳過資料行定義的規則，而這種寫法少見。
+    /// </remarks>
+    private static SqlTableReference? FindElementTable(IReadOnlyList<SqlToken> tokens, int open)
+    {
+        var head = FindElementHead(tokens, open - 1);
+
+        if (head < 0)
+        {
+            return null;
+        }
+
+        if (head >= 2 && tokens[head - 2].IsKeyword("CONSTRAINT"))
+        {
+            head -= 2;
+        }
+
+        var before = head - 1;
+
+        if (before < 0)
+        {
+            return null;
+        }
+
+        if (tokens[before].IsKeyword("ADD"))
+        {
+            return FindAlterTableAddTarget(tokens, before - 1);
+        }
+
+        // 資料行層級（a int PRIMARY KEY (…）與資料表層級（, PRIMARY KEY (…）都在定義的括號裡。
+        var list = SqlTokenNavigator.FindUnclosedParenthesis(tokens, before);
+
+        return list >= 0 && SqlScriptTableCollector.FindDefinitionName(tokens, list) is { } name
+            ? Read(tokens, name.Start, name.End)
+            : null;
+    }
+
+    /// <summary>
+    /// 從清單左括號前一個詞元往回認元素的開頭：<c>PRIMARY KEY</c>／<c>FOREIGN KEY</c>／<c>UNIQUE</c>
+    /// （可接 <c>CLUSTERED</c>、<c>NONCLUSTERED</c>）、<c>INDEX ix [UNIQUE] [NONCLUSTERED] [COLUMNSTORE]</c>、
+    /// <c>PERIOD FOR SYSTEM_TIME</c>；不是時回傳 -1。
+    /// </summary>
+    private static int FindElementHead(IReadOnlyList<SqlToken> tokens, int index)
+    {
+        if (index >= 0 && tokens[index].IsKeyword("COLUMNSTORE"))
+        {
+            index--;
+        }
+
+        if (index >= 0 && (tokens[index].IsKeyword("CLUSTERED") || tokens[index].IsKeyword("NONCLUSTERED")))
+        {
+            index--;
+        }
+
+        if (index < 1)
+        {
+            return -1;
+        }
+
+        if (tokens[index].IsKeyword("KEY"))
+        {
+            return tokens[index - 1].IsKeyword("PRIMARY") || tokens[index - 1].IsKeyword("FOREIGN") ? index - 1 : -1;
+        }
+
+        if (tokens[index].IsKeyword("UNIQUE"))
+        {
+            return index >= 2 && tokens[index - 2].IsKeyword("INDEX") ? index - 2 : index;
+        }
+
+        if (tokens[index].IsKeyword("SYSTEM_TIME"))
+        {
+            return index >= 2 && tokens[index - 1].IsKeyword("FOR") && tokens[index - 2].IsKeyword("PERIOD") ? index - 2 : -1;
+        }
+
+        return tokens[index].Kind == SqlTokenKind.Identifier && tokens[index - 1].IsKeyword("INDEX") ? index - 1 : -1;
+    }
+
+    /// <summary><c>ALTER TABLE t [WITH CHECK|NOCHECK] ADD</c> 的 <c>t</c>；<paramref name="nameEnd"/> 是 ADD 前一個詞元。</summary>
+    private static SqlTableReference? FindAlterTableAddTarget(IReadOnlyList<SqlToken> tokens, int nameEnd)
+    {
+        if (nameEnd >= 1 &&
+            (tokens[nameEnd].IsKeyword("CHECK") || tokens[nameEnd].IsKeyword("NOCHECK")) &&
+            tokens[nameEnd - 1].IsKeyword("WITH"))
+        {
+            nameEnd -= 2;
+        }
+
+        if (nameEnd < 2)
+        {
+            return null;
+        }
+
+        var nameStart = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, nameEnd);
+
+        return nameStart >= 2 && tokens[nameStart - 1].IsKeyword("TABLE") && tokens[nameStart - 2].IsKeyword("ALTER")
+            ? Read(tokens, nameStart, nameEnd + 1)
+            : null;
     }
 
     /// <summary>左括號緊接在資料表名稱後面，而名稱前面是指定那張表的字。</summary>

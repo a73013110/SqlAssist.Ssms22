@@ -92,6 +92,46 @@ public sealed class CompletionAuditorTests
     }
 
     [Theory]
+    [InlineData("SELECT 1 FROM LibArchive.dbo.Lib_Reader GROUP BY ReaderId, PUBL_CODE")]
+    [InlineData("SELECT 1 FROM Lib_Reader r JOIN (SELECT 1 AS n FROM Lib_Tag GROUP BY ReaderId, PUBL_CODE) d ON 1 = 1")]
+    public async Task 查詢的來源全都查不到_沒寫限定字的同名欄位不算漏(string sql)
+    {
+        var catalog = new FakeCatalog(
+            ("ReaderId", AuditTokenClass.Column),
+            ("PUBL_CODE", AuditTokenClass.Column),
+            ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync(sql, catalog);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word is "ReaderId" or "PUBL_CODE");
+        Assert.True(result.Tally.Excluded[AuditExclusion.Unresolved] >= 2);
+    }
+
+    [Fact]
+    public async Task 外層查詢的來源認得_子查詢裡的欄位照常稽核()
+    {
+        var catalog = new FakeCatalog(("PUBL_CODE", AuditTokenClass.Column), ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync("SELECT 1 FROM Lib_Reader WHERE EXISTS (SELECT 1 FROM Lib_Tag WHERE PUBL_CODE = 1)", catalog);
+
+        Assert.Contains(result.Misses, miss => miss.TokenClass == AuditTokenClass.Column && miss.Word == "PUBL_CODE");
+    }
+
+    [Theory]
+    [InlineData("CREATE TABLE Lib_Tag (ReaderId int,\n    PUBL_CODE int,\n    PRIMARY KEY (ReaderId,\n    PUBL_CODE))")]
+    [InlineData("CREATE TABLE Lib_Tag (ReaderId int,\n    PUBL_CODE int NOT NULL -- 出版者\n    PRIMARY KEY (ReaderId,\n    PUBL_CODE))")]
+    [InlineData("DECLARE @Tag TABLE (ReaderId int, PUBL_CODE int, UNIQUE (ReaderId, PUBL_CODE))")]
+    public async Task 資料表定義的條件約束清單引用同一份定義的資料行_產品列得出來(string sql)
+    {
+        var catalog = new FakeCatalog(("ReaderId", AuditTokenClass.Column), ("PUBL_CODE", AuditTokenClass.Column));
+
+        var result = await AuditAsync(sql, catalog);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word is "ReaderId" or "PUBL_CODE");
+        Assert.False(result.Tally.Excluded.ContainsKey(AuditExclusion.Unresolved));
+    }
+
+    [Theory]
     [InlineData("INSERT INTO Lib_Reader (ReaderId, PUBL_CODE) VALUES (1, 2)")]
     [InlineData("CREATE INDEX IX_Reader ON Lib_Reader (ReaderId, PUBL_CODE)")]
     [InlineData("MERGE Lib_Reader t USING Lib_Tag s ON 1 = 1 WHEN NOT MATCHED THEN INSERT (ReaderId, PUBL_CODE) VALUES (1, 2);")]

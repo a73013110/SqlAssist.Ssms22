@@ -51,6 +51,54 @@ public sealed class SqlColumnOwnerTests
     }
 
     [Theory]
+    [InlineData("ALTER TABLE dbo.Loan ADD CONSTRAINT pk PRIMARY KEY CLUSTERED (|")]
+    [InlineData("ALTER TABLE dbo.Loan ADD UNIQUE (CopyNo, |")]
+    [InlineData("ALTER TABLE dbo.Loan WITH NOCHECK ADD CONSTRAINT fk FOREIGN KEY (|")]
+    public void ALTER_TABLE_ADD的條件約束清單列那張表的資料行(string sqlWithCaret)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(CompletionTarget.Column, context.Target);
+        Assert.Equal("Loan", Assert.Single(context.ColumnSources!).Table?.ObjectName);
+        Assert.True(SqlCompletionPolicy.IsClosed(context));
+    }
+
+    /// <summary>
+    /// 資料表定義（CREATE TABLE、資料表變數、資料表型別）的條件約束與索引清單列同一份定義寫出來的資料行：中繼資料查不到。
+    /// </summary>
+    [Theory]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, Branch int, PRIMARY KEY (|")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, Branch int, CONSTRAINT pk PRIMARY KEY NONCLUSTERED (CopyNo, |")]
+    [InlineData("CREATE TABLE #Loan (CopyNo int,\n    Branch int NOT NULL,\n    UNIQUE (|")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, Branch int, INDEX ix_Loan NONCLUSTERED (|")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, Branch int, INDEX ix_Loan (CopyNo) INCLUDE (|")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, Branch int, FOREIGN KEY (|")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, Branch int REFERENCES dbo.Loan (|")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo datetime2, Branch datetime2, PERIOD FOR SYSTEM_TIME (|")]
+    [InlineData("CREATE TABLE dbo.Loan (PRIMARY KEY (|), CopyNo int, Branch int)")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, Branch int NOT NULL -- 分館\n    PRIMARY KEY (CopyNo, |")]
+    [InlineData("DECLARE @Loan TABLE (CopyNo int, Branch int, PRIMARY KEY (|")]
+    [InlineData("CREATE FUNCTION dbo.fn_Loan() RETURNS @Loan TABLE (CopyNo int, Branch int UNIQUE (|")]
+    [InlineData("CREATE TYPE dbo.LoanList AS TABLE (CopyNo int, Branch int, INDEX ix (|")]
+    public void 資料表定義的條件約束清單列同一份定義的資料行(string sqlWithCaret)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(CompletionTarget.Column, context.Target);
+        Assert.Equal(new[] { "CopyNo", "Branch" }, Assert.Single(context.ColumnSources!).Names);
+        Assert.True(SqlCompletionPolicy.IsClosed(context));
+    }
+
+    [Theory]
+    [InlineData("CREATE TABLE dbo.Loan (|")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, |")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, PRIMARY KEY (CopyNo) WITH (|")]
+    public void CREATE_TABLE的資料行定義是新名字(string sqlWithCaret)
+    {
+        Assert.Null(Analyze(sqlWithCaret).ColumnOwner);
+    }
+
+    [Theory]
     [InlineData("SET |")]
     [InlineData("SET ANSI_NULLS, |")]
     [InlineData("SELECT 1\nSET |")]

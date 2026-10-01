@@ -473,7 +473,7 @@ public sealed class CompletionAuditor
         }
 
         /// <summary>
-        /// 名稱存在還不夠：點號之後要限定字（或別名指的資料表）也認得出來，資料行清單要它屬於的資料表認得出來，
+        /// 名稱存在還不夠：點號之後要限定字（或別名指的資料表）也認得出來，欄位要它可能屬於的資料表至少認得一張，
         /// 選取清單裡要資料來源已經寫出來。
         /// 形狀照舊，只加排除：簽章與範例要跟沒排除時一樣，後面的詞才留在原來那一群。
         /// </summary>
@@ -501,8 +501,9 @@ public sealed class CompletionAuditor
 
             var token = Tokens[position];
 
-            // INSERT INTO Other.dbo.Loan (CopyNo)：名稱索引只比名字，那張表查不到時碰巧同名的欄位不算列得出來。
-            if (_definitions.ColumnListOwner(token.Start) is { } owner && IsUnresolved(owner, token.Start))
+            // INSERT INTO Other.dbo.Loan (CopyNo)、FROM Other.dbo.Loan GROUP BY CopyNo：名稱索引只比名字，
+            // 欄位可能屬於的表全都查不到時，碰巧同名的欄位不算列得出來。
+            if (_definitions.ColumnOwners(token.Start) is { } owners && owners.All(owner => IsUnresolved(owner, token.Start)))
             {
                 return shape.Excluded(AuditExclusion.Unresolved);
             }

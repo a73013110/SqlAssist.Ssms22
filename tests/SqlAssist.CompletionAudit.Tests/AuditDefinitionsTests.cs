@@ -1,3 +1,4 @@
+using System.Linq;
 using Xunit;
 
 namespace SqlAssist.CompletionAudit.Tests;
@@ -71,24 +72,64 @@ public sealed class AuditDefinitionsTests
     [InlineData("INSERT INTO LibArchive.dbo.Loan (CopyNo) VALUES (1)", "Loan", "LibArchive")]
     [InlineData("CREATE INDEX IX_Copy ON dbo.Copy (Branch, CopyNo) INCLUDE (Loan)", "Copy", null)]
     [InlineData("CREATE TABLE Loan (Branch int, CONSTRAINT FK_Copy FOREIGN KEY (Branch) REFERENCES Copy (CopyNo))", "Copy", null)]
-    [InlineData("CREATE TABLE Loan (Branch int, CopyNo int, PRIMARY KEY (Branch, CopyNo))", "Loan", null)]
+    [InlineData("ALTER TABLE Loan ADD PRIMARY KEY (Branch, CopyNo)", "Loan", null)]
     [InlineData("MERGE Loan t USING Copy s ON 1 = 1 WHEN NOT MATCHED THEN INSERT (Branch, CopyNo) VALUES (1, 2);", "Loan", null)]
     [InlineData("SELECT * INTO #Loan FROM LibArchive.dbo.Loan; INSERT INTO #Loan (CopyNo) VALUES (1)", "Loan", "LibArchive")]
-    public void 資料行清單帶出它屬於的資料表(string sql, string table, string? database)
+    public void 資料行清單的欄位只屬於清單指定的那張表(string sql, string table, string? database)
     {
-        var owner = AuditDefinitions.Collect(sql).ColumnListOwner(sql.LastIndexOf("CopyNo", System.StringComparison.Ordinal));
+        var owners = AuditDefinitions.Collect(sql).ColumnOwners(sql.LastIndexOf("CopyNo", System.StringComparison.Ordinal));
 
-        Assert.Equal((table, database), owner);
+        Assert.Equal(new[] { (table, database) }, owners);
+    }
+
+    [Theory]
+    [InlineData("SELECT 1 FROM LibArchive.dbo.Loan GROUP BY CopyNo", "Loan")]
+    [InlineData("SELECT 1 FROM Copy c JOIN (SELECT 1 AS n FROM LibArchive.dbo.Loan GROUP BY CopyNo) d ON 1 = 1", "Loan")]
+    [InlineData("SELECT 1 FROM Copy c WHERE EXISTS (SELECT 1 FROM LibArchive.dbo.Loan WHERE CopyNo = 1)", "Loan,Copy")]
+    [InlineData("UPDATE Copy SET Branch = 1 FROM Copy JOIN LibArchive.dbo.Loan l ON 1 = 1 WHERE CopyNo = 1", "Copy,Copy,Loan")]
+    public void 查詢裡沒寫限定字的欄位屬於範圍內的來源_衍生資料表看不到它那一層(string sql, string tables)
+    {
+        var owners = AuditDefinitions.Collect(sql).ColumnOwners(sql.LastIndexOf("CopyNo", System.StringComparison.Ordinal));
+
+        Assert.Equal(tables.Split(','), owners!.Select(owner => owner.Name));
+    }
+
+    [Theory]
+    [InlineData("SELECT 1 FROM Loan JOIN (SELECT 1 AS a) d ON 1 = 1 WHERE CopyNo = 1")]
+    [InlineData("DECLARE @t TABLE (CopyNo int); SELECT 1 FROM @t WHERE CopyNo = 1")]
+    [InlineData("SELECT CopyNo = 1 FROM Loan ORDER BY CopyNo")]
+    [InlineData("DECLARE @t TABLE (CopyNo int); INSERT INTO @t (CopyNo) VALUES (1)")]
+    [InlineData("SELECT CopyNo")]
+    public void 說不出屬於哪張表時沒有擁有者(string sql)
+    {
+        Assert.Null(AuditDefinitions.Collect(sql).ColumnOwners(sql.LastIndexOf("CopyNo", System.StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [InlineData("CREATE TABLE Loan (Branch int, CopyNo int, PRIMARY KEY (Branch, CopyNo))")]
+    [InlineData("CREATE TABLE dbo.Loan (Branch int, CopyNo int, INDEX ix (Branch) INCLUDE (CopyNo))")]
+    [InlineData("CREATE TABLE Loan (CopyNo int, Branch int REFERENCES Loan (CopyNo))")]
+    [InlineData("CREATE TABLE #Loan (CopyNo int, CONSTRAINT uq UNIQUE NONCLUSTERED (CopyNo))")]
+    [InlineData("CREATE TABLE Loan (Branch int, CopyNo int NOT NULL PRIMARY KEY (Branch, CopyNo))")]
+    [InlineData("DECLARE @Loan TABLE (Branch int, CopyNo int, PRIMARY KEY (Branch, CopyNo))")]
+    [InlineData("CREATE TYPE dbo.LoanList AS TABLE (CopyNo int, INDEX ix (CopyNo))")]
+    public void 資料表定義自己的條件約束清單引用得到同一份定義的資料行(string sql)
+    {
+        var definitions = AuditDefinitions.Collect(sql);
+        var reference = sql.LastIndexOf("CopyNo", System.StringComparison.Ordinal);
+
+        Assert.True(definitions.IsDefinedBefore("CopyNo", reference));
+        Assert.Null(definitions.ColumnOwners(reference));
     }
 
     [Fact]
-    public void 資料表變數與清單外的名稱沒有擁有者()
+    public void 資料行定義只在自己那幾份清單裡引用得到()
     {
-        const string sql = "DECLARE @t TABLE (CopyNo int); INSERT INTO @t (CopyNo) SELECT CopyNo FROM Copy";
+        const string sql = "CREATE TABLE Loan (CopyNo int, PRIMARY KEY (CopyNo), CHECK (CopyNo > 0))\nSELECT CopyNo FROM Copy";
         var definitions = AuditDefinitions.Collect(sql);
 
-        Assert.Null(definitions.ColumnListOwner(At(sql, "CopyNo", 2)));
-        Assert.Null(definitions.ColumnListOwner(At(sql, "CopyNo", 3)));
+        Assert.False(definitions.IsDefinedBefore("CopyNo", At(sql, "CopyNo", 3)));
+        Assert.False(definitions.IsDefinedBefore("CopyNo", At(sql, "CopyNo", 4)));
     }
 
     [Fact]

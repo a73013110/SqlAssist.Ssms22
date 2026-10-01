@@ -299,7 +299,8 @@ public static class SqlCompletionContextAnalyzer
         var resolver = new SqlColumnSourceResolver(sql, tokens);
         var withScope = context.WithScopeSources(resolver.ResolveAvailable(scope.Tables));
 
-        if (context.ColumnOwner is { } owner && ResolveColumnOwner(owner, scope, resolver) is { } ownerColumns)
+        if (context.ColumnOwner is { } owner &&
+            ResolveColumnOwner(owner, scope, resolver, tokens, caretPosition) is { } ownerColumns)
         {
             return withScope.AsColumnsOf(ownerColumns);
         }
@@ -359,13 +360,21 @@ public static class SqlCompletionContextAnalyzer
     /// </summary>
     /// <remarks>
     /// 與限定字同一條解法：單段的名稱先當別名問敘述範圍（<c>UPDATE l SET … FROM dbo.Loan l</c>），
-    /// 問不到才是它自己。
+    /// 問不到才是它自己。游標在那張表自己的定義（<c>CREATE TABLE</c>、資料表變數、資料表型別）裡時，
+    /// 答案是那份定義：表還不存在，或中繼資料還是改之前的樣子。
     /// </remarks>
     private static IReadOnlyList<SqlColumnSource>? ResolveColumnOwner(
         SqlTableReference owner,
         SqlStatementScope scope,
-        SqlColumnSourceResolver resolver)
+        SqlColumnSourceResolver resolver,
+        IReadOnlyList<SqlToken> tokens,
+        int caretPosition)
     {
+        if (SqlScriptTableCollector.FindDefinition(tokens, caretPosition, owner) is { } defined)
+        {
+            return new[] { SqlColumnSource.FromNames(defined.ColumnNames, qualifier: null, defined.Name) };
+        }
+
         var table = owner.SchemaName is null &&
             owner.DatabaseName is null &&
             owner.ServerName is null &&
