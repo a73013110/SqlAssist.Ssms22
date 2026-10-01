@@ -18,7 +18,8 @@ DECLARE @rows TABLE (Id INT, CopyNo NVARCHAR(20));
 
 只認**帶著資料行定義**的兩種寫法。`SELECT … INTO #Loan` 不在這一份名冊裡：
 那裡沒有型別，而少了型別的 `INSERT` 骨架會替使用者猜錯字面值。
-`RETURNS @rows TABLE (…)` 則免費一起認得，因為認的是「變數 `TABLE (`」這個形狀。
+`RETURNS @rows TABLE (…)` 則免費一起認得，因為認的是「變數 `[AS] TABLE (`」這個形狀。
+`AS` 與 `DECLARE @n AS INT` 一樣可有可無，少認它的症狀是那張表的別名一個欄位都沒有。
 
 `CREATE TABLE` 這兩個字是必要條件而不是修飾：`INSERT INTO #Loan (CopyNo, ReaderId)`
 的形狀與資料行清單一模一樣，少了前綴就會把使用者剛寫的 `INSERT` 讀成一份宣告，

@@ -9,7 +9,7 @@ namespace SqlAssist.Core.Parsing;
 /// </summary>
 /// <remarks>
 /// 只認<b>帶著資料行定義</b>的兩種寫法：<c>CREATE TABLE #tmp (…)</c> 與
-/// <c>DECLARE @tmp TABLE (…)</c>（函式的 <c>RETURNS @tmp TABLE (…)</c> 是同一個
+/// <c>DECLARE @tmp [AS] TABLE (…)</c>（函式的 <c>RETURNS @tmp TABLE (…)</c> 是同一個
 /// 形狀，因此免費一起認得）。<c>SELECT … INTO #tmp</c> 不在這一份裡：它的資料行
 /// 要把整段選取清單遞迴攤平，而這裡是一趟走完的線性掃描，收得起來的只有形狀就看
 /// 得出來的東西。那一種由 <see cref="SqlColumnSourceResolver.FindScriptTable"/>
@@ -114,15 +114,18 @@ public static class SqlScriptTableCollector
             return tokens[index + 2].Value;
         }
 
-        // DECLARE @tmp TABLE ( … ) 與 RETURNS @tmp TABLE ( … )。認的是
-        // 「變數 TABLE (」這個形狀本身：前面那個字不改變它宣告了什麼，
+        // DECLARE @tmp [AS] TABLE ( … ) 與 RETURNS @tmp TABLE ( … )。認的是
+        // 「變數 [AS] TABLE (」這個形狀本身：前面那個字不改變它宣告了什麼，
         // 而 DECLARE @t dbo.MyType READONLY 這種資料表型別參數沒有這個形狀。
+        // AS 與純量變數的 DECLARE @n AS INT 一樣可有可無，少認它的症狀是那張表的別名一個欄位都沒有。
+        var table = index + 1 < tokens.Count && tokens[index + 1].IsKeyword("AS") ? index + 2 : index + 1;
+
         if (tokens[index].Kind == SqlTokenKind.Variable &&
-            index + 2 < tokens.Count &&
-            tokens[index + 1].IsKeyword("TABLE") &&
-            tokens[index + 2].IsPunctuation("("))
+            table + 1 < tokens.Count &&
+            tokens[table].IsKeyword("TABLE") &&
+            tokens[table + 1].IsPunctuation("("))
         {
-            listStart = index + 2;
+            listStart = table + 1;
             return tokens[index].Value;
         }
 

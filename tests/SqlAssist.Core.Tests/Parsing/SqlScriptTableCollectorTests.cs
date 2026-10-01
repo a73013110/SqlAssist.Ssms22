@@ -97,11 +97,12 @@ public sealed class SqlScriptTableCollectorTests
 
     /// <summary>資料表變數的宣告形狀與暫存資料表不同，讀出來的東西一樣。</summary>
     /// <remarks>
-    /// 認的是「變數 TABLE (」這個形狀本身，因此函式的
+    /// 認的是「變數 [AS] TABLE (」這個形狀本身，因此函式的
     /// <c>RETURNS @rows TABLE (…)</c> 免費一起認得。
     /// </remarks>
     [Theory]
     [InlineData("DECLARE @Loan TABLE (Id INT IDENTITY(1,1), CopyNo NVARCHAR(20) NOT NULL);")]
+    [InlineData("DECLARE @Loan AS TABLE (Id INT IDENTITY(1,1), CopyNo NVARCHAR(20) NOT NULL);")]
     [InlineData("CREATE FUNCTION dbo.fnLoans() RETURNS @Loan TABLE " +
         "(Id INT IDENTITY(1,1), CopyNo NVARCHAR(20) NOT NULL) AS BEGIN RETURN END")]
     public void 讀出資料表變數(string sql)

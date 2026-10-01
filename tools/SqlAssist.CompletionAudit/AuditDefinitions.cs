@@ -36,6 +36,7 @@ public sealed class AuditDefinitions
     private readonly List<(int Start, int End)> _orderBys = new();
     private readonly Dictionary<int, int> _fromStarts = new();
     private readonly Dictionary<int, (string Name, string? Database)> _aliasSources = new();
+    private readonly Dictionary<string, (string Name, string? Database)> _starSources = new(StringComparer.Ordinal);
     private readonly HashSet<int> _tableNames = new();
     private int _batchEnd;
 
@@ -104,12 +105,46 @@ public sealed class AuditDefinitions
     public bool IsColumnDefinedBefore(string name, int start) => Nearest(name, start, qualified: true) is not null;
 
     /// <summary>
-    /// <paramref name="name"/> 在同一個範圍裡、<paramref name="start"/> 之後才取：截斷的地方還沒寫到，
+    /// <paramref name="name"/> 在 <paramref name="start"/> 指的是之後才取的那一次：截斷的地方還沒寫到，
     /// 產品與 SSMS 都不可能認得（<c>SELECT r.ReaderId FROM Lib_Reader r</c> 的 r）。
     /// </summary>
-    public bool IsDefinedLater(string name, int start) =>
-        _scoped.TryGetValue(AuditText.Normalize(name), out var definitions) &&
-        definitions.Any(definition => definition.DefinedAt > start && definition.From <= start && start < definition.To);
+    /// <remarks>
+    /// 指的是範圍最內層的那一次，不是之前最近的那一次：<c>FROM #Loan a JOIN (SELECT a.CopyNo FROM Copy a)</c>
+    /// 的 <c>a.</c> 是子查詢之後才取的 Copy，外層的 #Loan 被它遮住。只看「之前取過」的話，截斷處認得的外層
+    /// 那一個會讓 Copy 的欄位看起來該列。
+    /// </remarks>
+    /// <param name="qualified">這個名稱接在點號之後。</param>
+    public bool IsDefinedLater(string name, int start, bool qualified = false)
+    {
+        if (!_scoped.TryGetValue(AuditText.Normalize(name), out var definitions))
+        {
+            return false;
+        }
+
+        Visibility? innermost = null;
+
+        foreach (var definition in definitions)
+        {
+            if (definition.From > start ||
+                start >= definition.To ||
+                qualified && !definition.Qualifiable)
+            {
+                continue;
+            }
+
+            // 同一層取兩次寫不出來；真的遇到時以之前那一次為準，維持「取過」的原判。
+            var length = definition.To - definition.From;
+
+            if (innermost is not { } current ||
+                length < current.To - current.From ||
+                length == current.To - current.From && definition.DefinedAt < current.DefinedAt)
+            {
+                innermost = definition;
+            }
+        }
+
+        return innermost is { } found && found.DefinedAt > start;
+    }
 
     /// <summary>
     /// 別名 <paramref name="alias"/> 在 <paramref name="start"/> 指的資料表名稱（最後一段）與寫出來的資料庫；
@@ -118,11 +153,14 @@ public sealed class AuditDefinitions
     /// <remarks>
     /// 資料庫也要帶出來：名稱索引只比名字，<c>Other.dbo.Loan</c> 在連線的伺服器上沒有那個資料庫時，
     /// 碰巧同名的 Loan 會讓欄位看起來列得出來。
+    ///
+    /// 暫存資料表是 <c>SELECT * INTO #Loan FROM Other.dbo.Loan</c> 時看的是那張表：欄位只能從它攤平，
+    /// 名字是指令碼取的不代表欄位認得出來。
     /// </remarks>
     public (string Name, string? Database)? SourceOf(string alias, int start) =>
         Nearest(alias, start, qualified: false) is { } definition &&
         _aliasSources.TryGetValue(definition.DefinedAt, out var source)
-            ? source
+            ? _starSources.TryGetValue(AuditText.Normalize(source.Name), out var projected) ? projected : source
             : null;
 
     /// <summary>
@@ -357,8 +395,20 @@ public sealed class AuditDefinitions
 
         public override void Visit(DeclareCursorStatement node) => _owner.Add(node.Name, Scope.Batch);
 
-        public override void Visit(SelectStatement node) =>
-            _owner.Add(node.Into?.BaseIdentifier, IsTemporary(node.Into?.BaseIdentifier) ? Scope.Batch : Scope.None);
+        public override void Visit(SelectStatement node)
+        {
+            var into = node.Into?.BaseIdentifier;
+            _owner.Add(into, IsTemporary(into) ? Scope.Batch : Scope.None);
+
+            // 選取清單只有 * 而來源是一張表：暫存資料表的欄位全從那張表來。
+            if (IsTemporary(into) &&
+                node.QueryExpression is QuerySpecification { FromClause.TableReferences: { Count: 1 } references } query &&
+                query.SelectElements.All(element => element is SelectStarExpression) &&
+                references[0] is NamedTableReference { SchemaObject: { BaseIdentifier.Value: { } name } path })
+            {
+                _owner._starSources[AuditText.Normalize(into!.Value)] = (name, path.DatabaseIdentifier?.Value);
+            }
+        }
 
         public override void Visit(BeginTransactionStatement node) => _owner.Add(node.Name?.Identifier, Scope.None);
 

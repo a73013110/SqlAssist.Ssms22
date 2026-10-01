@@ -339,6 +339,17 @@ public sealed class SqlColumnCompletionTests
         Assert.Equal(new[] { "Code", "Name" }, Columns(Analyze(sqlWithCaret)));
     }
 
+    /// <summary>衍生資料表的選取項用字串命名時仍然攤得開。</summary>
+    /// <remarks>三種命名寫法的名稱都可以是字串；只認識別字時一項叫不出名字，<c>d.</c> 一個欄位都沒有。</remarks>
+    [Theory]
+    [InlineData("SELECT * FROM (SELECT ROW_NUMBER() OVER (ORDER BY c.CopyNo) AS 'Seq', c.Title FROM dbo.Copy c) d WHERE d.|")]
+    [InlineData("SELECT * FROM (SELECT 'Seq' = ROW_NUMBER() OVER (ORDER BY c.CopyNo), c.Title FROM dbo.Copy c) d WHERE d.|")]
+    [InlineData("SELECT * FROM (SELECT c.CopyNo 'Seq', c.Title FROM dbo.Copy c) d WHERE d.|")]
+    public void 衍生資料表的字串別名攤得開(string sqlWithCaret)
+    {
+        Assert.Equal(new[] { "Seq", "Title" }, Columns(Analyze(sqlWithCaret)));
+    }
+
     /// <summary>資料表提示後面的來源仍然解析得出來。</summary>
     /// <remarks>提示沒有整段跳完的話，逗號之後那張表就不在範圍裡，<c>c.</c> 什麼都列不出來。</remarks>
     [Theory]

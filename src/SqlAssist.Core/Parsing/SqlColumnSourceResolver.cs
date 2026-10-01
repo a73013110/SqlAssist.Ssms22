@@ -847,6 +847,9 @@ public sealed class SqlColumnSourceResolver
     /// T-SQL 有三種命名寫法，順序不能顛倒：<c>AS 名稱</c>、<c>名稱 = 運算式</c>、
     /// 直接把名稱接在運算式後面。都沒有時才退回「這一項本身就是欄位參照」，
     /// 取它的最後一段。
+    ///
+    /// 三種寫法的名稱都可以是字串（<c>AS 'Seq'</c>）。只認識別字的症狀是整個衍生資料表
+    /// 攤不開：一項叫不出名字，外層的別名就一個欄位都沒有。
     /// </remarks>
     private bool TryGetOutputName(int start, int end, out string name)
     {
@@ -860,33 +863,36 @@ public sealed class SqlColumnSourceResolver
         var last = _tokens[end - 1];
 
         // expr AS 名稱
-        if (end - start >= 3 && _tokens[end - 2].IsKeyword("AS") && last.Kind == SqlTokenKind.Identifier)
+        if (end - start >= 3 && _tokens[end - 2].IsKeyword("AS") && TryReadAlias(last, out name))
         {
-            name = last.Value;
             return true;
         }
 
         // 名稱 = expr
         if (end - start >= 3 &&
-            _tokens[start].Kind == SqlTokenKind.Identifier &&
             _tokens[start + 1].Kind == SqlTokenKind.Operator &&
-            _tokens[start + 1].Value == "=")
+            _tokens[start + 1].Value == "=" &&
+            TryReadAlias(_tokens[start], out name))
         {
-            name = _tokens[start].Value;
             return true;
         }
 
         // expr 名稱（省略 AS）。前一個詞法單元決定最後那個識別字是別名還是
-        // 運算式的一部分：ISNULL(a, 0) x 是別名，a.b 的 b 不是。
-        if (end - start >= 2 && last.Kind == SqlTokenKind.Identifier && IsAliasFollower(_tokens[end - 2]))
+        // 運算式的一部分：ISNULL(a, 0) x 是別名，a.b 的 b 不是。字串接在識別字
+        // 後面只可能是別名：運算式裡兩者之間一定隔著運算子。
+        if (end - start >= 2 &&
+            (IsAliasFollower(_tokens[end - 2]) ||
+                last.Kind == SqlTokenKind.String && _tokens[end - 2].Kind == SqlTokenKind.Identifier))
         {
-            if (!last.IsQuoted && SelectListTerminators.Contains(last.Value))
+            if (last.Kind == SqlTokenKind.Identifier && !last.IsQuoted && SelectListTerminators.Contains(last.Value))
             {
                 return false;
             }
 
-            name = last.Value;
-            return true;
+            if (TryReadAlias(last, out name))
+            {
+                return true;
+            }
         }
 
         // 單純的欄位參照：Id、a.Id、dbo.t.Id
@@ -905,6 +911,27 @@ public sealed class SqlColumnSourceResolver
 
         name = last.Value;
         return true;
+    }
+
+    /// <summary>欄位別名：識別字，或單引號字串（<c>'Seq'</c>，不含 <c>N</c> 前綴）。</summary>
+    private static bool TryReadAlias(SqlToken token, out string name)
+    {
+        if (token.Kind == SqlTokenKind.Identifier)
+        {
+            name = token.Value;
+            return true;
+        }
+
+        var text = token.Text;
+
+        if (token.Kind == SqlTokenKind.String && text.Length >= 2 && text[0] == '\'' && text[text.Length - 1] == '\'')
+        {
+            name = text.Substring(1, text.Length - 2).Replace("''", "'");
+            return name.Length > 0;
+        }
+
+        name = string.Empty;
+        return false;
     }
 
     /// <summary>前面接著這種詞法單元的識別字，是省略了 <c>AS</c> 的別名。</summary>

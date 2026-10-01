@@ -439,7 +439,10 @@ public sealed class CompletionAuditor
 
             if (_definitions.IsDefinedBefore(token.Text, token.Start, qualified))
             {
-                return Name(AuditTokenClass.ScriptName);
+                // 外層取過同名的，這裡指的卻是內層之後才取的那一個：形狀照舊，只加排除。
+                return _definitions.IsDefinedLater(token.Text, token.Start, qualified)
+                    ? Name(AuditTokenClass.ScriptName).Excluded(AuditExclusion.Truncated)
+                    : Name(AuditTokenClass.ScriptName);
             }
 
             // 名稱索引以名稱查，不分段：a.Id 的 Id 是欄位，dbo.Loan 的 Loan 是物件。

@@ -27,6 +27,9 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 ;WITH c AS (SELECT Id FROM dbo.Copy) SELECT x.| FROM c x
 ```
 
+選取項的名字可以是字串（`AS 'Seq'`、`'Seq' = …`）：一項叫不出名字，整個衍生資料表就攤不開，
+別名一個欄位都沒有。
+
 別名後面寫出來的資料行清單（`AS T (ID, Name)`）覆寫主體算出來的名稱，與 CTE 的
 `WITH c (a, b)` 同一份實作；`(VALUES …)` 不是 `SELECT`，只有這條路。文法只讓
 **衍生資料表與 `OPENROWSET` 那族**收得下：`dbo.fn(x) f (NOLOCK)` 形狀一樣卻是提示，

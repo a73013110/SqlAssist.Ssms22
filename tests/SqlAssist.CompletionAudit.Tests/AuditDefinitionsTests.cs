@@ -68,6 +68,35 @@ public sealed class AuditDefinitionsTests
     }
 
     [Fact]
+    public void 暫存資料表是SELECT星號INTO一張表時_來源是那張表()
+    {
+        const string sql = "SELECT * INTO #Loan FROM LibArchive.dbo.Loan; SELECT 1 FROM #Loan l WHERE l.CopyNo = 1";
+
+        Assert.Equal(("Loan", "LibArchive"), AuditDefinitions.Collect(sql).SourceOf("l", At(sql, "l.", 1)));
+    }
+
+    [Fact]
+    public void 內層之後才取的同名別名遮住外層_歸截斷盲點()
+    {
+        const string sql = "SELECT 1 FROM #Loan a JOIN (SELECT a.Title FROM Copy a) b ON b.Title = a.CopyNo";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.True(definitions.IsDefinedBefore("a", At(sql, "a.Title", 1)));
+        Assert.True(definitions.IsDefinedLater("a", At(sql, "a.Title", 1)));
+        Assert.False(definitions.IsDefinedLater("a", At(sql, "a.CopyNo", 1)));
+    }
+
+    [Fact]
+    public void 之後才取的看最內層_外層之後才取的同名別名不算()
+    {
+        const string sql = "SELECT (SELECT a.Title FROM Copy a WHERE a.CopyNo = 1) FROM Loan a";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.True(definitions.IsDefinedLater("a", At(sql, "a.Title", 1)));
+        Assert.False(definitions.IsDefinedLater("a", At(sql, "a.CopyNo", 1)));
+    }
+
+    [Fact]
     public void 資料行定義不讓同名的欄位引用變成指令碼名稱()
     {
         const string sql = "CREATE TABLE Loan (CopyNo int REFERENCES Copy (CopyNo))";

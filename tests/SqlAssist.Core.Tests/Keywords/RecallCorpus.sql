@@ -116,6 +116,9 @@ SELECT CASE WHEN l.CopyNo IS NULL THEN 0 ELSE 1 END FROM dbo.Loan l LEFT JOIN db
 DECLARE @AsOf datetime2 = SYSDATETIME();
 SELECT a.CopyNo FROM dbo.LoanArchive FOR SYSTEM_TIME AS OF @AsOf AS a JOIN dbo.Copy AS b ON a.CopyNo = b.CopyNo
 
+DECLARE @Loan AS TABLE (LoanId int, CopyNo int);
+SELECT c.CopyNo FROM dbo.Copy c JOIN @Loan l ON l.CopyNo = c.CopyNo
+
 CREATE TABLE dbo.Loan (LoanId int IDENTITY(1, 1) NOT NULL PRIMARY KEY CLUSTERED, CopyNo int NULL CONSTRAINT FK_Loan_Copy FOREIGN KEY REFERENCES dbo.Copy (CopyNo) ON DELETE CASCADE ON UPDATE NO ACTION, ReaderId int DEFAULT 0, CONSTRAINT UQ_Loan UNIQUE NONCLUSTERED (CopyNo), CHECK (ReaderId > 0))
 
 CREATE TABLE #Loan (CopyNo int, INDEX IX_Loan (CopyNo))
