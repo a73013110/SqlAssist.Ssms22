@@ -23,7 +23,7 @@ namespace SqlAssist.CompletionAudit;
 /// </list>
 /// 答案要在篩完、排名之後<b>看得到</b>的那一份裡（<see cref="SuggestionList"/> 有上限）；這一格根本不開清單也算漏。
 ///
-/// 字面值、新取的名稱與查不到存在的名稱分類排除（<see cref="AuditExclusion"/>）。比對不分大小寫、去方括號；
+/// 字面值、新取的名稱、查不到存在的名稱與剖析不過的句子分類排除（<see cref="AuditExclusion"/>）。比對不分大小寫、去方括號；
 /// 多字的建議項在第一個字的起點列出就算（<c>GROUPING SETS</c>），多段名稱比最後一段。
 /// </remarks>
 public sealed class CompletionAuditor
@@ -68,6 +68,7 @@ public sealed class CompletionAuditor
             cancellationToken.ThrowIfCancellationRequested();
             var batch = await Batch.CreateAsync(this, fragment, start, fragment.Text.Substring(start, length), catalog, cancellationToken)
                 .ConfigureAwait(false);
+            tally.Unparse(batch.UnparsedStatements);
 
             for (var index = 0; index < batch.Tokens.Count; index++)
             {
@@ -84,10 +85,12 @@ public sealed class CompletionAuditor
     }
 
     /// <summary>重驗一段語料裡的一個位置；還漏就回傳那一筆，列得出來或已經不算答案時回傳 null。</summary>
+    /// <param name="tally">那一個位置的計數；不算答案時 <see cref="AuditTally.Excluded"/> 記著為什麼。</param>
     public async Task<AuditMiss?> RecheckAsync(
         AuditFragment fragment,
         int offset,
         IAuditCatalog catalog,
+        AuditTally tally,
         CancellationToken cancellationToken)
     {
         if (fragment is null)
@@ -98,6 +101,11 @@ public sealed class CompletionAuditor
         if (catalog is null)
         {
             throw new ArgumentNullException(nameof(catalog));
+        }
+
+        if (tally is null)
+        {
+            throw new ArgumentNullException(nameof(tally));
         }
 
         foreach (var (start, length) in Batches(fragment.Text))
@@ -113,7 +121,7 @@ public sealed class CompletionAuditor
 
             return index < 0
                 ? null
-                : await batch.AuditAsync(index, new AuditTally(), cancellationToken).ConfigureAwait(false);
+                : await batch.AuditAsync(index, tally, cancellationToken).ConfigureAwait(false);
         }
 
         return null;
@@ -211,8 +219,8 @@ public sealed class CompletionAuditor
             _catalog = catalog;
             _index = index;
             Tokens = tokens;
-            _definitions = AuditDefinitions.Collect(text);
             _heads = SqlStatementHeads.Find(text, tokens);
+            _definitions = AuditDefinitions.Collect(text, tokens, _heads);
             _shapes = new Shape[tokens.Count];
             _placeholders = FindPlaceholders();
 
@@ -223,6 +231,9 @@ public sealed class CompletionAuditor
         }
 
         public IReadOnlyList<SqlToken> Tokens { get; }
+
+        /// <summary>剖析不過、從錯的那個詞起不稽核的句數。</summary>
+        public int UnparsedStatements => _definitions.UnparsedStatements;
 
         public static async Task<Batch> CreateAsync(
             CompletionAuditor owner,
@@ -475,6 +486,11 @@ public sealed class CompletionAuditor
             if (_placeholders[position])
             {
                 return shape.Excluded(AuditExclusion.Placeholder);
+            }
+
+            if (_definitions.IsUnparsed(Tokens[position].Start))
+            {
+                return shape.Excluded(AuditExclusion.Unparsed);
             }
 
             if (tokenClass is AuditTokenClass.Word or AuditTokenClass.GlobalVariable)

@@ -79,6 +79,7 @@ internal sealed class AuditCache
             tally.Exclude((AuditExclusion)Enum.Parse(typeof(AuditExclusion), pair.Key), Convert.ToInt32(pair.Value));
         }
 
+        tally.Unparse(entry.Int("unparsed"));
         var misses = entry.Array("misses").OfType<Dictionary<string, object>>().Select(miss => MissRecord.Read(miss).ToMiss(fragment)).ToArray();
         tally.Miss(misses.Length);
         result = new AuditResult(misses, tally);
@@ -92,6 +93,7 @@ internal sealed class AuditCache
             ["key"] = key,
             ["audited"] = result.Tally.Audited.ToDictionary(pair => pair.Key.ToString(), pair => (object)pair.Value),
             ["excluded"] = result.Tally.Excluded.ToDictionary(pair => pair.Key.ToString(), pair => (object)pair.Value),
+            ["unparsed"] = result.Tally.UnparsedStatements,
             ["misses"] = result.Misses.Select(miss => MissRecord.From(miss).Write()).ToArray(),
         });
 

@@ -100,6 +100,7 @@ internal sealed class AuditRun
 
         _summary.Tokens = tally.Audited.Values.Sum();
         _summary.Excluded = tally.Excluded.Values.Sum();
+        _summary.UnparsedStatements = tally.UnparsedStatements;
         _summary.Misses = all.Sum(result => result.Misses.Count);
         var asked = all.SelectMany(result => result.Misses).Where(miss => miss.SsmsLists is not null).ToList();
         _summary.SsmsAsked = asked.Count;
@@ -357,16 +358,20 @@ internal sealed class AuditRun
         {
             var fragment = fragments[fragmentId];
             var database = fragment.Database is { } name && _databases.TryGetValue(name, out var found) ? found : null;
+            var tally = new AuditTally();
             var again = await _auditor
-                .RecheckAsync(fragment, record.Offset, database?.Catalog ?? AuditCatalog.None, cancellationToken)
+                .RecheckAsync(fragment, record.Offset, database?.Catalog ?? AuditCatalog.None, tally, cancellationToken)
                 .ConfigureAwait(false);
+            var outcome = again is not null
+                ? again.Signature.Id == cluster ? "仍漏" : "換群 " + again.Signature.Id
+                : tally.Excluded.Count > 0 ? "排除 " + tally.Excluded.Keys.First() : "已列出";
 
             if (again is not null && again.Signature.Id == cluster)
             {
                 still++;
             }
 
-            Console.WriteLine($"{(again is null ? "已列出" : again.Signature.Id == cluster ? "仍漏" : "換群 " + again.Signature.Id)}｜{(_options.RawNames ? record.Example : record.Masked).Replace("\n", " ")}");
+            Console.WriteLine($"{outcome}｜{(_options.RawNames ? record.Example : record.Masked).Replace("\n", " ")}");
         }
 
         Console.WriteLine($"{cluster}：仍漏 {still}/{misses.Count}（{Path.GetFileName(Path.GetDirectoryName(raw))}）");

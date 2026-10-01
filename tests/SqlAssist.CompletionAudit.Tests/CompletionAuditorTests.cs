@@ -121,6 +121,27 @@ public sealed class CompletionAuditorTests
     }
 
     [Fact]
+    public async Task 剖析不過的語法片段不記漏_之後剖析得過的句子照常稽核()
+    {
+        var result = await AuditAsync("Lib_Reader (ReaderId INT, PUBL_CODE VARCHAR(10))\nSELECT 1", AuditCatalog.None);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word is "INT" or "VARCHAR");
+        Assert.Equal("SELECT", Assert.Single(result.Misses).Word);
+        Assert.Equal(1, result.Tally.UnparsedStatements);
+        Assert.True(result.Tally.Excluded[AuditExclusion.Unparsed] > 0);
+    }
+
+    [Fact]
+    public async Task 剖析得過的照常稽核_不記剖析失敗()
+    {
+        var result = await AuditAsync("SELECT ReaderId FROM Lib_Reader WHERE ReaderId = 1", AuditCatalog.None);
+
+        Assert.Equal(0, result.Tally.UnparsedStatements);
+        Assert.False(result.Tally.Excluded.ContainsKey(AuditExclusion.Unparsed));
+        Assert.Equal(new[] { "SELECT", "FROM", "WHERE" }, result.Misses.Select(miss => miss.Word));
+    }
+
+    [Fact]
     public async Task 新取的名稱與常值不稽核()
     {
         var result = await AuditAsync("DECLARE @n int = 5", AuditCatalog.None);
@@ -157,7 +178,7 @@ public sealed class CompletionAuditorTests
         var auditor = new CompletionAuditor(new SqlAssistSettings(), Array.Empty<SqlSuggestion>(), AuditMask.None);
         var fragment = new AuditFragment("test", "t", "SELECT 1 FROM t");
 
-        var miss = await auditor.RecheckAsync(fragment, "SELECT 1 ".Length, AuditCatalog.None, CancellationToken.None);
+        var miss = await auditor.RecheckAsync(fragment, "SELECT 1 ".Length, AuditCatalog.None, new AuditTally(), CancellationToken.None);
 
         Assert.Equal("FROM", miss?.Word);
     }

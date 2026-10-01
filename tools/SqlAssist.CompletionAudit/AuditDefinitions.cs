@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
+using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.CompletionAudit;
 
@@ -25,13 +27,15 @@ namespace SqlAssist.CompletionAudit;
 /// <c>inserted</c>／<c>deleted</c> 不是誰取的名字，卻在兩種範圍裡引用得到：DML 觸發程序的整句（指父資料表）
 /// 與 OUTPUT 子句（指那句 DML 的目標）。範圍外的同名詞照一般名稱判斷。
 ///
-/// 剖析失敗時只認得到剖析出來的那一部分；認不出來的名稱在稽核裡歸成不明，不算漏。
+/// 剖析不過的那一句（<see cref="IsUnparsed"/>）挖成空白再剖析，其餘的句子照常認；那一句裡的名稱認不出來，
+/// 在稽核裡歸成不明，不算漏。
 /// </remarks>
 public sealed class AuditDefinitions
 {
     private readonly HashSet<int> _starts = new();
     private readonly HashSet<int> _nameReferences = new();
     private readonly HashSet<int> _notNames = new();
+    private readonly HashSet<int> _unparsed = new();
     private readonly Dictionary<string, List<Visibility>> _scoped = new(StringComparer.Ordinal);
     private readonly List<(TSqlFragment Name, Scope Scope, bool Qualifiable)> _pending = new();
     private readonly List<(int Start, int End)> _queries = new();
@@ -88,8 +92,15 @@ public sealed class AuditDefinitions
         public bool Qualifiable { get; }
     }
 
-    /// <summary>剖析出錯（整段或其中一句）。</summary>
-    public bool HasErrors { get; private set; }
+    /// <summary>剖析不過、從錯的那個詞起不稽核的句數。</summary>
+    public int UnparsedStatements { get; private set; }
+
+    /// <summary>
+    /// <paramref name="start"/> 起頭的詞元在剖析不過的那一句裡、錯的那個詞或它之後：作者寫的不是 T-SQL，
+    /// 下一個詞不是這一格的答案。錯之前的詞照常稽核——剖析器停在第一個接不下去的詞，那之前的每一格都還是
+    /// 合法語句的開頭，寫到一半的指令碼也照樣稽核。
+    /// </summary>
+    public bool IsUnparsed(int start) => _unparsed.Contains(start);
 
     /// <summary><paramref name="start"/> 起頭的那個名稱是新取的。</summary>
     public bool IsDefinition(int start) => _starts.Contains(start);
@@ -284,13 +295,80 @@ public sealed class AuditDefinitions
 
     public static AuditDefinitions Collect(string batch)
     {
+        var tokens = SqlTokenizer.Tokenize(batch);
+        return Collect(batch, tokens, SqlStatementHeads.Find(batch, tokens));
+    }
+
+    /// <param name="tokens"><paramref name="batch"/> 的詞元。</param>
+    /// <param name="heads">每一句第一個詞元的索引（<see cref="SqlStatementHeads.Find"/>）。</param>
+    public static AuditDefinitions Collect(string batch, IReadOnlyList<SqlToken> tokens, IReadOnlyList<int> heads)
+    {
         var definitions = new AuditDefinitions { _batchEnd = batch.Length + 1 };
-        var fragment = new TSql170Parser(initialQuotedIdentifiers: true).Parse(new StringReader(batch), out var errors);
-        definitions.HasErrors = errors.Count > 0;
+        var parsed = batch;
+        TSqlFragment? fragment;
+
+        // ScriptDom 停在第一個錯、不回報之後的；挖掉那一句再剖析，才找得到下一句的錯，也才認得到之後的名稱。
+        while (true)
+        {
+            fragment = new TSql170Parser(initialQuotedIdentifiers: true).Parse(new StringReader(parsed), out var errors);
+
+            if (errors.Count == 0 || !definitions.SkipStatement(ref parsed, errors.Min(error => error.Offset), tokens, heads))
+            {
+                break;
+            }
+        }
+
         fragment?.Accept(new Collector(definitions));
         definitions._nameReferences.ExceptWith(definitions._notNames);
         definitions.Resolve();
         return definitions;
+    }
+
+    /// <summary>
+    /// 記下 <paramref name="offset"/> 那個錯起到那一句結束的詞元，並把那一句整句挖成空白（位置不變）；
+    /// 錯在最後一個詞或結尾（寫到一半）時沒有要記的，回傳 false。
+    /// </summary>
+    /// <remarks>
+    /// 截斷的指令碼，剖析器常在最後一個詞就報錯、不等到結尾（<c>IN (</c> 報在 <c>(</c>）；那是還沒寫完，
+    /// 不是寫錯。錯的後面還有詞才算剖析不過。
+    /// </remarks>
+    private bool SkipStatement(ref string parsed, int offset, IReadOnlyList<SqlToken> tokens, IReadOnlyList<int> heads)
+    {
+        var position = 0;
+
+        while (position < tokens.Count && tokens[position].End <= offset)
+        {
+            position++;
+        }
+
+        // 已經挖掉的位置不會再報錯；真的遇到就停，不重複剖析同一段。
+        if (position >= tokens.Count - 1 || char.IsWhiteSpace(parsed[tokens[position].Start]))
+        {
+            return false;
+        }
+
+        var head = heads.LastOrDefault(index => index <= position);
+        var next = heads.Where(index => index > position).DefaultIfEmpty(tokens.Count).First();
+
+        for (var index = position; index < next; index++)
+        {
+            _unparsed.Add(tokens[index].Start);
+        }
+
+        UnparsedStatements++;
+        var end = next < tokens.Count ? tokens[next].Start : parsed.Length;
+        var blanked = parsed.ToCharArray();
+
+        for (var index = tokens[head].Start; index < end; index++)
+        {
+            if (blanked[index] is not ('\r' or '\n'))
+            {
+                blanked[index] = ' ';
+            }
+        }
+
+        parsed = new string(blanked);
+        return true;
     }
 
     private void Add(TSqlFragment? name, Scope scope, bool qualifiable = false)

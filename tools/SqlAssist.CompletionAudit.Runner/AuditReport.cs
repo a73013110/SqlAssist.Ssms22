@@ -232,6 +232,8 @@ internal sealed class AuditRunSummary
 
     public int Excluded { get; set; }
 
+    public int UnparsedStatements { get; set; }
+
     public int Misses { get; set; }
 
     public int Clusters { get; set; }
@@ -269,6 +271,7 @@ internal sealed class AuditRunSummary
         }
 
         line.Append("）｜稽核 ").Append(Tokens).Append(" 詞、排除 ").Append(Excluded)
+            .Append("（剖析失敗 ").Append(UnparsedStatements).Append(" 句）")
             .Append("｜漏 ").Append(Misses).Append(" 次 / ").Append(Clusters).Append(" 群")
             .Append("｜新 ").Append(NewClusters).Append("｜退化 ").Append(Regressions)
             .Append("｜已知 gap ").Append(KnownGaps).Append("｜忽略 ").Append(Ignored)

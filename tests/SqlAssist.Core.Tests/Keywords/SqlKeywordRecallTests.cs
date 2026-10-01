@@ -34,13 +34,21 @@ public sealed class SqlKeywordRecallTests
             BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current),
             AuditMask.None);
         var misses = new List<AuditMiss>();
+        var unparsed = new List<string>();
 
         foreach (var fragment in new RecallCorpusSource(DataPath("RecallCorpus.sql")).Read(CancellationToken.None))
         {
             var result = await auditor.AuditAsync(fragment, AuditCatalog.None, CancellationToken.None);
             misses.AddRange(result.Misses);
+
+            if (result.Tally.UnparsedStatements > 0)
+            {
+                unparsed.Add(fragment.Id);
+            }
         }
 
+        // 剖析不過的句子不稽核：語料要是合法的 T-SQL，否則零漏守不到那一句。
+        Assert.True(unparsed.Count == 0, "剖析不過的段：" + string.Join("、", unparsed));
         Assert.True(
             misses.Count == 0,
             "列不出來的詞：" + Environment.NewLine + string.Join(

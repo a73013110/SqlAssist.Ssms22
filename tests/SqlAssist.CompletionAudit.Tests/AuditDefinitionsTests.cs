@@ -136,6 +136,48 @@ public sealed class AuditDefinitionsTests
         Assert.Equal(isName, AuditDefinitions.Collect(sql).IsNameReference(At(sql, word, 1)));
     }
 
+    [Fact]
+    public void 剖析不過的那一句從錯的詞起到句尾_之前的詞與之後的句子不算()
+    {
+        const string sql = "DECLARE @n int\nSELECT ReaderId, FROM Lib_Reader WHERE ReaderId = @n\nSELECT @n";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.Equal(1, definitions.UnparsedStatements);
+        Assert.False(definitions.IsUnparsed(At(sql, "ReaderId", 1)));
+        Assert.True(definitions.IsUnparsed(At(sql, "FROM", 1)));
+        Assert.True(definitions.IsUnparsed(At(sql, "@n", 2)));
+        Assert.False(definitions.IsUnparsed(At(sql, "SELECT", 2)));
+    }
+
+    [Fact]
+    public void 挖掉剖析不過的那一句_之後的句子照樣認得名稱()
+    {
+        const string sql = "SELECT a, FROM Loan\nDECLARE @n int\nSELECT @n";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.True(definitions.IsDefinition(At(sql, "@n", 1)));
+        Assert.True(definitions.IsDefinedBefore("@n", At(sql, "@n", 2)));
+    }
+
+    [Fact]
+    public void 每一句的錯各算一次()
+    {
+        const string sql = "SELECT a, FROM Loan\nSELECT 1\nUPDATE SET x = 1\nSELECT 2";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.Equal(2, definitions.UnparsedStatements);
+        Assert.False(definitions.IsUnparsed(At(sql, "SELECT", 2)));
+        Assert.False(definitions.IsUnparsed(At(sql, "SELECT", 3)));
+    }
+
+    [Theory]
+    [InlineData("SELECT ReaderId FROM Lib_Reader WHERE")]
+    [InlineData("IF 1 = 1\nBEGIN\n    SELECT 1 FROM Loan WHERE CopyNo IN (")]
+    public void 寫到一半的指令碼錯在結尾_每一格照常稽核(string sql)
+    {
+        Assert.Equal(0, AuditDefinitions.Collect(sql).UnparsedStatements);
+    }
+
     /// <summary><paramref name="text"/> 在 <paramref name="sql"/> 裡第 <paramref name="occurrence"/> 次出現的位置。</summary>
     private static int At(string sql, string text, int occurrence)
     {

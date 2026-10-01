@@ -81,11 +81,16 @@ public sealed class AuditTally
 
     public int Misses { get; private set; }
 
+    /// <summary>剖析不過的句數；那些詞元記在 <see cref="AuditExclusion.Unparsed"/>。</summary>
+    public int UnparsedStatements { get; private set; }
+
     public void Audit(AuditTokenClass tokenClass, int count = 1) => _audited[tokenClass] = Get(_audited, tokenClass) + count;
 
     public void Exclude(AuditExclusion exclusion, int count = 1) => _excluded[exclusion] = Get(_excluded, exclusion) + count;
 
     public void Miss(int count = 1) => Misses += count;
+
+    public void Unparse(int statements) => UnparsedStatements += statements;
 
     public void Add(AuditTally other)
     {
@@ -105,6 +110,7 @@ public sealed class AuditTally
         }
 
         Misses += other.Misses;
+        UnparsedStatements += other.UnparsedStatements;
     }
 
     private static int Get<TKey>(Dictionary<TKey, int> counts, TKey key) =>

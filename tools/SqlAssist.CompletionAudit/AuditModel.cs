@@ -98,6 +98,12 @@ public enum AuditExclusion
     /// 產品把 <c>&lt;</c> 讀成比較運算子，之後的位置都不算數。
     /// </summary>
     Placeholder,
+
+    /// <summary>
+    /// 剖析不過的那一句，從剖析器停下的那個詞起到那一句結束（<see cref="AuditDefinitions.IsUnparsed"/>）：
+    /// 不是 T-SQL（文件裡的語法片段、打錯的指令碼），產品判斷不了那裡要什麼，硬列就是猜。
+    /// </summary>
+    Unparsed,
 }
 
 /// <summary>漏的樣子。</summary>
