@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using SqlAssist.KeywordGenerator.Data;
 using Xunit;
 
@@ -14,6 +15,8 @@ public sealed class PhraseExplorerTests : IDisposable
     private static readonly Dictionary<string, string[]> Templates = new(StringComparer.OrdinalIgnoreCase)
     {
         ["StatementStart"] = ["", "SELECT 1; "],
+        ["DataSource"] = ["SELECT * FROM "],
+        ["SelectListTail"] = ["SELECT a "],
     };
 
     private readonly string _cachePath = Path.Combine(Path.GetTempPath(), "SqlAssist.KeywordGenerator.Tests." + Guid.NewGuid() + ".cache");
@@ -108,6 +111,27 @@ public sealed class PhraseExplorerTests : IDisposable
 
         Assert.Contains("OR", explorer.Phrases[ProbedPhrase.Key("StatementStart", "CREATE")].Words);
         Assert.Equal(["ALTER"], explorer.Phrases[ProbedPhrase.Key("StatementStart", "CREATE OR")].Words);
+    }
+
+    /// <summary>
+    /// 附加片語只收別的來源列不出的字：剖析器當名稱讀的（VECTOR_SEARCH 與 fn( 同形）由函式目錄列，
+    /// 判不出位置時別的位置已經收了的（AT）一定已經列出。
+    /// </summary>
+    [Fact]
+    public void 附加片語不收別的來源列得出的字()
+    {
+        var explorer = Create();
+
+        explorer.AddEvidence([
+            new("VECTOR_SEARCH (*") { After = ["DataSource"] },
+            new("AT TIME") { Lead = "SELECT a " },
+            new("AT TIME") { After = ["SelectListTail"] },
+            new("GENERATED ALWAYS AS ROW START HIDDEN") { Lead = "CREATE TABLE t (a datetime2 " },
+        ]);
+
+        Assert.Equal(["None:GENERATED", "SelectListTail:AT"], explorer.Additive
+            .SelectMany(additive => additive.Words.Select(word => additive.After + ":" + word))
+            .OrderBy(entry => entry, StringComparer.Ordinal));
     }
 
     [Fact]

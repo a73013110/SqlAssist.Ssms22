@@ -7574,10 +7574,9 @@ internal static class SqlKeywordCatalogData
     internal static readonly (SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
         (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE" }),
-        (SqlKeywordPosition.None, "CREATE TABLE t (a datetime2 ", new string[] { "GENERATED", "AT" }),
+        (SqlKeywordPosition.None, "CREATE TABLE t (a datetime2 ", new string[] { "GENERATED" }),
         (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD" }),
         (SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD" }),
-        (SqlKeywordPosition.DataSource, "SELECT * FROM ", new string[] { "VECTOR_SEARCH" }),
         (SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),
         (SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN" }),
     };

@@ -199,6 +199,8 @@ internal sealed class PhraseExplorer
     /// （函式 WITH 之後的 RETURNS、CALLED），沒有的由關鍵字目錄給。目錄也不給的（AT、ENABLE 不是
     /// 關鍵字）收進那個位置的附加片語：只加字、比對永遠是「可能」，那一格其餘的字照樣由目錄給——
     /// 立成一般的只認位置片語的話，比對確定時整份目錄讓給它，選取清單尾端只剩 AT。
+    /// 附加片語只收在它比對得上的每一格都沒有別的來源列得出的字，見 <see cref="NameReading"/> 與
+    /// <see cref="DropUnpositionedDuplicates"/>：多收的字在執行期不是被照目標濾掉，就是與另一份重複。
     /// </remarks>
     public void AddEvidence(IReadOnlyList<PhraseDeclaration> declarations)
     {
@@ -235,7 +237,7 @@ internal sealed class PhraseExplorer
                     // Lead 那一段已經有片語列得出的（索引鍵之後的 INCLUDE）不必。
                     if (lead != null && index == 0)
                     {
-                        if (!_keywords.Contains(word) && !Listed(leadText, word))
+                        if (!_keywords.Contains(word) && !Listed(leadText, word) && !NameReading(leadText, declaration, items))
                         {
                             AddAdditive("None", leadText, word);
                         }
@@ -258,7 +260,7 @@ internal sealed class PhraseExplorer
                     {
                         var allowed = _keywordPositions.TryGetValue(word, out var positions) && positions.Contains(position, IgnoreCase);
 
-                        if (!allowed && !Listed(prefixProbe, word))
+                        if (!allowed && !Listed(prefixProbe, word) && !NameReading(leadText, declaration, items))
                         {
                             AddAdditive(position, prefixProbe, word);
                         }
@@ -294,6 +296,35 @@ internal sealed class PhraseExplorer
                     }
                 }
             }
+        }
+
+        DropUnpositionedDuplicates();
+    }
+
+    // 第一個字換成普通名稱整段照樣剖析得過，剖析器在那一格讀的是名稱：FROM VECTOR_SEARCH ( 與 FROM fn( 同形。
+    // 名稱由函式目錄與中繼資料列，附加片語再列一次的話，照目標過濾時被濾掉，判不出位置時與函式目錄重複。
+    // 普通名稱過不了而它過得了才算，與探測候選字同一條規則；SELECT a AT 的 AT 換成名稱是別名，接 TIME 就報錯。
+    private bool NameReading(string lead, PhraseDeclaration declaration, string[] items)
+    {
+        var renamed = Continuations.PlainName + (items.Length > 1 ? " " + string.Join(" ", items, 1, items.Length - 1) : string.Empty);
+        return PatternAccepted(ProbeText(lead, renamed, declaration.Group, declaration.Gap, items: declaration.Items));
+    }
+
+    // None 的附加片語只在判不出位置時比對得上，那時每一個附加片語都算（只加字、取聯集）：
+    // 別的位置已經收了的字（SelectListTail 的 AT）在那裡一定已經列出。
+    private void DropUnpositionedDuplicates()
+    {
+        if (!_additiveByPosition.TryGetValue("None", out var unpositioned))
+        {
+            return;
+        }
+
+        unpositioned.Words.RemoveAll(word => Additive.Any(other => other != unpositioned && other.Words.Contains(word, IgnoreCase)));
+
+        if (unpositioned.Words.Count == 0)
+        {
+            _additiveByPosition.Remove("None");
+            Additive.Remove(unpositioned);
         }
     }
 

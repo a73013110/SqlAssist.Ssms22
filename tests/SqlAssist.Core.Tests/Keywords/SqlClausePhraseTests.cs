@@ -85,6 +85,38 @@ public sealed class SqlClausePhraseTests
         Assert.All(additive.Words, word => Assert.Contains(word, match.Phrase.Words));
     }
 
+    /// <summary>
+    /// 附加片語的字在自己那一格只由它列出一次。
+    /// </summary>
+    /// <remarks>
+    /// 別的來源（關鍵字目錄、函式目錄、別的片語）已經列得出的字，照目標過濾時被濾掉，判不出位置時重複：
+    /// <c>FROM </c> 之後的 <c>VECTOR_SEARCH</c> 由函式目錄列。<c>None</c> 只在判不出位置時比對得上，
+    /// 那時每一個附加片語都算，所以它的字也不在別的附加片語裡。
+    /// </remarks>
+    [Theory]
+    [MemberData(nameof(AdditiveProbes))]
+    public void 附加片語的字只由它列出(string probe)
+    {
+        var additive = SqlClausePhraseCatalog.All.Single(phrase => phrase.IsAdditive && phrase.Probe == probe);
+        var context = SqlCompletionContextAnalyzer.Analyze(probe);
+        var candidates = BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current)
+            .Concat(context.ClausePhrase?.Suggestions ?? Enumerable.Empty<SqlSuggestion>());
+        var offered = SuggestionContextFilter.Filter(candidates, context)
+            .Where(suggestion => suggestion.Kind is SuggestionKind.Keyword or SuggestionKind.BuiltInFunction)
+            .ToArray();
+
+        foreach (var word in additive.Words)
+        {
+            var source = Assert.Single(offered, suggestion => string.Equals(suggestion.DisplayText, word, StringComparison.OrdinalIgnoreCase));
+            Assert.True(source.Tag is SqlClausePhrase { IsAdditive: true }, $"{probe}| 的 {word} 不是附加片語列的");
+
+            if (additive.After == SqlKeywordPosition.None)
+            {
+                Assert.DoesNotContain(SqlClausePhraseCatalog.All, phrase => phrase.IsAdditive && !ReferenceEquals(phrase, additive) && phrase.Words.Contains(word));
+            }
+        }
+    }
+
     [Fact]
     public void 片語的字不重複()
     {
@@ -268,6 +300,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (", "ORDER")]
     [InlineData("SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY Fee) ", "OVER")]
     [InlineData("SELECT Branch FROM dbo.Copy ORDER BY STRING_AGG(Title, ', ') ", "WITHIN")]
+    [InlineData("PRINT @a ", "AT", "GENERATED", "VECTOR_SEARCH")]
     [InlineData("DELETE FROM dbo.Loan WHERE ", "CURRENT")]
     [InlineData("DELETE FROM dbo.Loan WHERE CURRENT ", "OF")]
     [InlineData("UPDATE dbo.Loan SET Fee = 0 WHERE CURRENT ", "OF")]

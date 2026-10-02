@@ -297,7 +297,6 @@ public static class SuggestionContextFilter
     private static bool IsRowsetFunction(SqlSuggestion suggestion)
     {
         return suggestion.Kind is SuggestionKind.Keyword or SuggestionKind.BuiltInFunction &&
-            suggestion.Tag is not SqlClausePhrase &&
             SqlFunctionCatalog.IsRowsetFunction(suggestion.DisplayText);
     }
 
