@@ -91,10 +91,10 @@
 
 - **明確的**：前一格含語句開頭、區塊開頭或區塊的 END——`;`、GO、`BEGIN`、`ELSE`、模組標頭的
   `AS`、IF 的條件、SET 選項的值、寫完一整句的字（`BREAK`）。
-- **隱含的**：子句尾端又換了行（下一節），或前一句判不出位置而寫到一個運算元。
+- **隱含的**：子句尾端又換了行（下一節），或前一句判不出位置而寫到一個運算元（換了行時那一格就是語句開頭，片語比對得確定）。
   但剖析器不看換行：前一句的[片語](completion-phrases.md)確定接得上的字仍屬於前一句
   （`OFFSET 0 ROWS⏎FETCH`、`ALTER DATABASE d⏎SET`）。
-- `WITH` 只認明確的：CTE 前一句必須以分號結束，`CREATE VIEW v⏎WITH SCHEMABINDING` 是選項。
+- `WITH` 只認明確的：CTE 前一句必須以分號結束。
 
 子句屬於哪個**動詞**另問往回第一個能開始一句的字（`FindVerb`，`UPDATE t⏎SET` 的 SET 屬於 UPDATE）；
 權限清單的一項（`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式，`CASE … END` 整組跳過。
@@ -105,8 +105,7 @@
 
 ### 沒有分號時，換行就是界線
 
-`WHERE a = 1` 之後換行寫 `SELECT` 或 `AND`，詞元分不出差別；只給子句尾端會濾光下一句的片段
-（`ssf`…）。所以**子句已到尾端又換了行**就補上 `StatementStart`，同一行不補。
+`WHERE a = 1` 之後換行寫 `SELECT` 或 `AND`，詞元分不出差別；只給子句尾端會濾光下一句的片段。所以**子句已到尾端又換了行**就補上 `StatementStart`，同一行不補。
 
 補的是旗標聯集，續寫的 `FROM`、`AND` 照樣在；括號還沒關、名字那一格前面不補。
 認的尾端見 `StatementEndPositions`，含選取清單：`SELECT dbo.fn_Fee('')` 不需要 `FROM`。

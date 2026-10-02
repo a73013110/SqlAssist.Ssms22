@@ -38,7 +38,7 @@ internal static class SqlKeywordCatalogData
         new("BREAK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("BROWSE", SqlKeywordPosition.None),
         new("BULK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause | SqlKeywordPosition.InsertTarget),
-        new("BY", SqlKeywordPosition.ByAnchor),
+        new("BY", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.ByAnchor),
         new("CASCADE", SqlKeywordPosition.None),
         new("CASE", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("CATCH", SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd),
@@ -241,10 +241,13 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (ONLINE = ON, "),
         new(SqlKeywordPosition.PermissionList, "GRANT SELECT (a) "),
         new(SqlKeywordPosition.PermissionList, "REVOKE SELECT (a) "),
+        new(SqlKeywordPosition.PermissionList, "ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT "),
         new(SqlKeywordPosition.PermissionOn, "GRANT SELECT ON "),
         new(SqlKeywordPosition.PermissionOn, "REVOKE SELECT ON "),
+        new(SqlKeywordPosition.PermissionOn, "ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT ON "),
         new(SqlKeywordPosition.PermissionTarget, "GRANT SELECT ON t "),
         new(SqlKeywordPosition.PermissionTarget, "REVOKE SELECT ON t "),
+        new(SqlKeywordPosition.PermissionTarget, "ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT ON t "),
         new(SqlKeywordPosition.TableSampleTail, "SELECT * FROM t TABLESAMPLE (10 "),
         new(SqlKeywordPosition.PivotClause, "SELECT * FROM t PIVOT (COUNT(a) "),
         new(SqlKeywordPosition.PivotClause, "SELECT * FROM t PIVOT (COUNT(a) FOR b "),
@@ -700,7 +703,8 @@ internal static class SqlKeywordCatalogData
             "ROLE", "ROUTE", "RULE", "SCHEMA", "SEARCH", "SECURITY POLICY",
             "SELECTIVE XML INDEX", "SEQUENCE", "SERVER", "SERVICE", "STATISTICS",
             "SYMMETRIC KEY", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "UNIQUE", "USER", "VIEW",
-            "WORKLOAD", "OR ALTER", "COLUMNSTORE INDEX", "VECTOR INDEX",
+            "WORKLOAD", "OR ALTER", "XML", "AVAILABILITY GROUP", "COLUMNSTORE INDEX",
+            "VECTOR INDEX", "SPATIAL INDEX",
         }),
         ("CREATE AGGREGATE", SqlKeywordPosition.StatementStart, "CREATE AGGREGATE ", false, false, false, new string[]
         {
@@ -1334,7 +1338,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE WORKLOAD GROUP {name}", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t ", true, false, true, new string[]
         {
-            "USING",
+            "USING", "WITH",
         }),
         ("CREATE OR ALTER", SqlKeywordPosition.StatementStart, "CREATE OR ALTER ", true, false, false, new string[]
         {
@@ -1382,7 +1386,8 @@ internal static class SqlKeywordCatalogData
             "FUNCTION", "INDEX", "LOGIN", "MASTER KEY", "MATERIALIZED VIEW", "MESSAGE TYPE",
             "PARTITION", "PROC", "PROCEDURE", "QUEUE", "REMOTE", "RESOURCE", "ROLE", "ROUTE",
             "SCHEMA", "SEARCH", "SECURITY POLICY", "SEQUENCE", "SERVER", "SERVICE MASTER",
-            "SYMMETRIC KEY", "TABLE", "TRIGGER", "USER", "VIEW",
+            "SYMMETRIC KEY", "TABLE", "TRIGGER", "USER", "VIEW", "XML SCHEMA COLLECTION",
+            "AVAILABILITY GROUP", "WORKLOAD GROUP",
         }),
         ("ALTER APPLICATION", SqlKeywordPosition.StatementStart, "ALTER APPLICATION ", true, false, false, new string[]
         {
@@ -1415,9 +1420,10 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER AUTHORIZATION ON", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON ", false, false, false, new string[]
         {
-            "ASSEMBLY TO", "CERTIFICATE TO", "CONTRACT TO", "DATABASE", "ENDPOINT TO",
-            "LOGIN TO", "OBJECT TO", "ROLE TO", "ROUTE TO", "SCHEMA", "SERVER", "SERVICE TO",
-            "TYPE TO", "USER",
+            "ASSEMBLY", "CERTIFICATE", "CONTRACT", "DATABASE", "ENDPOINT", "LOGIN", "OBJECT",
+            "ROLE", "ROUTE", "SCHEMA", "SERVER", "SERVICE", "TYPE", "USER", "APPLICATION",
+            "ASYMMETRIC", "EXTERNAL MODEL", "FULLTEXT", "MESSAGE", "REMOTE", "SEARCH",
+            "SYMMETRIC", "XML", "AVAILABILITY",
         }),
         ("ALTER AUTHORIZATION ON {name}", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON t ", true, false, false, new string[]
         {
@@ -1517,7 +1523,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER CREDENTIAL {name}", SqlKeywordPosition.StatementStart, "ALTER CREDENTIAL t ", true, false, false, new string[]
         {
-            "WITH",
+            "WITH IDENTITY",
         }),
         ("ALTER CRYPTOGRAPHIC", SqlKeywordPosition.StatementStart, "ALTER CRYPTOGRAPHIC ", true, false, false, new string[]
         {
@@ -2021,6 +2027,7 @@ internal static class SqlKeywordCatalogData
             "RESOURCE POOL", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEARCH", "SECURITY POLICY",
             "SENSITIVITY", "SEQUENCE", "SERVER", "SERVICE", "SIGNATURE FROM", "STATISTICS",
             "SYMMETRIC KEY", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "USER", "VIEW", "WORKLOAD",
+            "XML SCHEMA COLLECTION", "AVAILABILITY GROUP",
         }),
         ("DROP AGGREGATE", SqlKeywordPosition.StatementStart, "DROP AGGREGATE ", false, false, false, new string[]
         {
@@ -2492,7 +2499,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("DROP SIGNATURE FROM", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM ", false, false, false, new string[]
         {
-            "ASSEMBLY BY", "DATABASE", "OBJECT BY",
+            "ASSEMBLY", "DATABASE", "OBJECT",
         }),
         ("DROP SIGNATURE FROM {name}", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t ", true, false, false, new string[]
         {
@@ -2672,6 +2679,31 @@ internal static class SqlKeywordCatalogData
         ("DROP PERIOD FOR", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP PERIOD FOR ", true, false, false, new string[]
         {
             "SYSTEM_TIME",
+        }),
+        ("CREATE XML SCHEMA COLLECTION {name} AS", SqlKeywordPosition.StatementStart, "CREATE XML SCHEMA COLLECTION t AS ", false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("ALTER XML SCHEMA COLLECTION {name}", SqlKeywordPosition.StatementStart, "ALTER XML SCHEMA COLLECTION t ", true, false, false, new string[]
+        {
+            "ADD",
+        }),
+        ("DROP XML SCHEMA COLLECTION {name}", SqlKeywordPosition.StatementStart, "DROP XML SCHEMA COLLECTION t ", true, false, true, new string[]
+        {
+        }),
+        ("CREATE AVAILABILITY GROUP {name}", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t ", true, false, false, new string[]
+        {
+            "FOR", "WITH",
+        }),
+        ("ALTER AVAILABILITY GROUP {name}", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ", true, false, false, new string[]
+        {
+            "ADD", "FAILOVER", "FORCE_FAILOVER_ALLOW_DATA_LOSS", "JOIN", "MODIFY", "OFFLINE",
+            "ONLINE", "REMOVE", "SET",
+        }),
+        ("DROP AVAILABILITY GROUP {name}", SqlKeywordPosition.StatementStart, "DROP AVAILABILITY GROUP t ", true, false, true, new string[]
+        {
         }),
         ("ALTER DATABASE {name} SET", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ", true, false, false, new string[]
         {
@@ -3912,6 +3944,110 @@ internal static class SqlKeywordCatalogData
         ("ALTER EXTERNAL RESOURCE POOL {name} WITH (* MAX_PROCESSES", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t WITH (MAX_PROCESSES ", true, false, false, new string[]
         {
         }),
+        ("CREATE WORKLOAD GROUP {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (", true, false, false, new string[]
+        {
+            "CAP_PERCENTAGE_RESOURCE", "GROUP_MAX_REQUESTS", "GROUP_MIN_MEMORY_PERCENT",
+            "IMPORTANCE", "MAX_DOP", "MIN_PERCENTAGE_RESOURCE", "QUERY_EXECUTION_TIMEOUT_SEC",
+            "REQUEST_MAX_CPU_TIME_SEC", "REQUEST_MAX_MEMORY_GRANT_PERCENT",
+            "REQUEST_MAX_RESOURCE_GRANT_PERCENT", "REQUEST_MEMORY_GRANT_TIMEOUT_SEC",
+            "REQUEST_MIN_RESOURCE_GRANT_PERCENT",
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* CAP_PERCENTAGE_RESOURCE", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (CAP_PERCENTAGE_RESOURCE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* GROUP_MAX_REQUESTS", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (GROUP_MAX_REQUESTS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* GROUP_MIN_MEMORY_PERCENT", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (GROUP_MIN_MEMORY_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* IMPORTANCE", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (IMPORTANCE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* IMPORTANCE =", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (IMPORTANCE = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* MAX_DOP", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (MAX_DOP ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* MIN_PERCENTAGE_RESOURCE", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (MIN_PERCENTAGE_RESOURCE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* QUERY_EXECUTION_TIMEOUT_SEC", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (QUERY_EXECUTION_TIMEOUT_SEC ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* REQUEST_MAX_CPU_TIME_SEC", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (REQUEST_MAX_CPU_TIME_SEC ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* REQUEST_MAX_MEMORY_GRANT_PERCENT", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (REQUEST_MAX_MEMORY_GRANT_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* REQUEST_MAX_RESOURCE_GRANT_PERCENT", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (REQUEST_MAX_RESOURCE_GRANT_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* REQUEST_MEMORY_GRANT_TIMEOUT_SEC", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (REQUEST_MEMORY_GRANT_TIMEOUT_SEC ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH (* REQUEST_MIN_RESOURCE_GRANT_PERCENT", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (REQUEST_MIN_RESOURCE_GRANT_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (*", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (", true, false, false, new string[]
+        {
+            "CAP_PERCENTAGE_RESOURCE", "GROUP_MAX_REQUESTS", "GROUP_MIN_MEMORY_PERCENT",
+            "IMPORTANCE", "MAX_DOP", "MIN_PERCENTAGE_RESOURCE", "QUERY_EXECUTION_TIMEOUT_SEC",
+            "REQUEST_MAX_CPU_TIME_SEC", "REQUEST_MAX_MEMORY_GRANT_PERCENT",
+            "REQUEST_MAX_RESOURCE_GRANT_PERCENT", "REQUEST_MEMORY_GRANT_TIMEOUT_SEC",
+            "REQUEST_MIN_RESOURCE_GRANT_PERCENT",
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* CAP_PERCENTAGE_RESOURCE", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (CAP_PERCENTAGE_RESOURCE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* GROUP_MAX_REQUESTS", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (GROUP_MAX_REQUESTS ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* GROUP_MIN_MEMORY_PERCENT", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (GROUP_MIN_MEMORY_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* IMPORTANCE", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (IMPORTANCE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* IMPORTANCE =", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (IMPORTANCE = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* MAX_DOP", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (MAX_DOP ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* MIN_PERCENTAGE_RESOURCE", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (MIN_PERCENTAGE_RESOURCE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* QUERY_EXECUTION_TIMEOUT_SEC", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (QUERY_EXECUTION_TIMEOUT_SEC ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* REQUEST_MAX_CPU_TIME_SEC", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (REQUEST_MAX_CPU_TIME_SEC ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* REQUEST_MAX_MEMORY_GRANT_PERCENT", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (REQUEST_MAX_MEMORY_GRANT_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* REQUEST_MAX_RESOURCE_GRANT_PERCENT", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (REQUEST_MAX_RESOURCE_GRANT_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* REQUEST_MEMORY_GRANT_TIMEOUT_SEC", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (REQUEST_MEMORY_GRANT_TIMEOUT_SEC ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH (* REQUEST_MIN_RESOURCE_GRANT_PERCENT", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (REQUEST_MIN_RESOURCE_GRANT_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH ()", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (IMPORTANCE = HIGH) ", true, false, true, new string[]
+        {
+            "USING",
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH ()", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (IMPORTANCE = HIGH) ", true, false, true, new string[]
+        {
+            "USING",
+        }),
         ("BACKUP", SqlKeywordPosition.StatementStart, "BACKUP ", true, false, false, new string[]
         {
             "CERTIFICATE", "DATABASE", "LOG", "SERVICE", "MASTER KEY TO FILE",
@@ -4461,6 +4597,1130 @@ internal static class SqlKeywordCatalogData
             "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) ", true, false, true, new string[]
+        {
+            "ON", "USING", "WITH",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () ON", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) ON ", false, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING ", true, false, false, new string[]
+        {
+            "GEOGRAPHY_AUTO_GRID", "GEOGRAPHY_GRID", "GEOMETRY_AUTO_GRID", "GEOMETRY_GRID",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (*", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BOUNDING_BOX", "BUCKET_COUNT",
+            "CELLS_PER_OBJECT", "COMPRESS_ALL_ROW_GROUPS", "COMPRESSION_DELAY",
+            "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON", "FILLFACTOR", "GRIDS",
+            "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP", "METRIC", "ONLINE",
+            "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY", "ORDER", "PAD_INDEX",
+            "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL", "STATISTICS_NORECOMPUTE",
+            "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* ALLOW_PAGE_LOCKS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (ALLOW_PAGE_LOCKS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* ALLOW_ROW_LOCKS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (ALLOW_ROW_LOCKS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* BOUNDING_BOX", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (BOUNDING_BOX ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* BUCKET_COUNT", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (BUCKET_COUNT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* CELLS_PER_OBJECT", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (CELLS_PER_OBJECT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* COMPRESS_ALL_ROW_GROUPS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (COMPRESS_ALL_ROW_GROUPS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* COMPRESSION_DELAY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (COMPRESSION_DELAY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* DATA_COMPRESSION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (DATA_COMPRESSION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* DATA_COMPRESSION =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (DATA_COMPRESSION = ", true, false, false, new string[]
+        {
+            "NONE", "PAGE", "ROW",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* DATA_COMPRESSION = {name}", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (DATA_COMPRESSION = NONE ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* DROP_EXISTING", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (DROP_EXISTING ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* DROP_EXISTING =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (DROP_EXISTING = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* FILESTREAM_ON", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (FILESTREAM_ON ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* FILLFACTOR", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (FILLFACTOR ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* IGNORE_DUP_KEY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (IGNORE_DUP_KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (IGNORE_DUP_KEY = ", true, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* LOB_COMPACTION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (LOB_COMPACTION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* MAX_DURATION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (MAX_DURATION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* MAXDOP", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (MAXDOP ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* METRIC", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (METRIC ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* ONLINE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (ONLINE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (ONLINE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* ORDER", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (ORDER ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* PAD_INDEX", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (PAD_INDEX ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* PAD_INDEX =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (PAD_INDEX = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* RESUMABLE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (RESUMABLE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* SORT_IN_TEMPDB", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (SORT_IN_TEMPDB ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (SORT_IN_TEMPDB = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* STATISTICS_INCREMENTAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (STATISTICS_INCREMENTAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* STATISTICS_NORECOMPUTE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (STATISTICS_NORECOMPUTE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* TYPE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (TYPE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* WAIT_AT_LOW_PRIORITY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (WAIT_AT_LOW_PRIORITY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* XML_COMPRESSION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (XML_COMPRESSION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (*", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LEVEL_1", "LEVEL_2", "LEVEL_3", "LEVEL_4",
+            "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* ABOVE_NORMAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (ABOVE_NORMAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* BELOW_NORMAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (BELOW_NORMAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* HIGH", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (HIGH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* LEVEL_1", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (LEVEL_1 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* LEVEL_1 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (LEVEL_1 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* LEVEL_2", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (LEVEL_2 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* LEVEL_2 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (LEVEL_2 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* LEVEL_3", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (LEVEL_3 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* LEVEL_3 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (LEVEL_3 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* LEVEL_4", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (LEVEL_4 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* LEVEL_4 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (LEVEL_4 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* LOW", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (LOW ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* MEDIUM", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (MEDIUM ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (* NORMAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) WITH (GRIDS = (NORMAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (*", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BOUNDING_BOX", "BUCKET_COUNT",
+            "CELLS_PER_OBJECT", "COMPRESS_ALL_ROW_GROUPS", "COMPRESSION_DELAY",
+            "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON", "FILLFACTOR", "GRIDS",
+            "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP", "METRIC", "ONLINE",
+            "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY", "ORDER", "PAD_INDEX",
+            "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL", "STATISTICS_NORECOMPUTE",
+            "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* ALLOW_PAGE_LOCKS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (ALLOW_PAGE_LOCKS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (ALLOW_PAGE_LOCKS = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* ALLOW_ROW_LOCKS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (ALLOW_ROW_LOCKS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (ALLOW_ROW_LOCKS = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* BOUNDING_BOX", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (BOUNDING_BOX ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* BUCKET_COUNT", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (BUCKET_COUNT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* CELLS_PER_OBJECT", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (CELLS_PER_OBJECT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* COMPRESS_ALL_ROW_GROUPS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (COMPRESS_ALL_ROW_GROUPS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* COMPRESSION_DELAY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (COMPRESSION_DELAY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* DATA_COMPRESSION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (DATA_COMPRESSION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* DATA_COMPRESSION =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (DATA_COMPRESSION = ", true, false, false, new string[]
+        {
+            "NONE", "PAGE", "ROW",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* DATA_COMPRESSION = {name}", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (DATA_COMPRESSION = NONE ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* DROP_EXISTING", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (DROP_EXISTING ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* DROP_EXISTING =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (DROP_EXISTING = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* FILESTREAM_ON", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (FILESTREAM_ON ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* FILLFACTOR", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (FILLFACTOR ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* IGNORE_DUP_KEY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (IGNORE_DUP_KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (IGNORE_DUP_KEY = ", true, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* LOB_COMPACTION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (LOB_COMPACTION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* MAX_DURATION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (MAX_DURATION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* MAXDOP", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (MAXDOP ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* METRIC", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (METRIC ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* ONLINE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (ONLINE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (ONLINE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* OPTIMIZE_FOR_ARRAY_SEARCH", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (OPTIMIZE_FOR_ARRAY_SEARCH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* ORDER", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (ORDER ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* PAD_INDEX", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (PAD_INDEX ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* PAD_INDEX =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (PAD_INDEX = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* RESUMABLE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (RESUMABLE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* SORT_IN_TEMPDB", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (SORT_IN_TEMPDB ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (SORT_IN_TEMPDB = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* STATISTICS_INCREMENTAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (STATISTICS_INCREMENTAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (STATISTICS_INCREMENTAL = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* STATISTICS_NORECOMPUTE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (STATISTICS_NORECOMPUTE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (STATISTICS_NORECOMPUTE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* TYPE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (TYPE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* WAIT_AT_LOW_PRIORITY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (WAIT_AT_LOW_PRIORITY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* XML_COMPRESSION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (XML_COMPRESSION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (*", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LEVEL_1", "LEVEL_2", "LEVEL_3", "LEVEL_4",
+            "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* ABOVE_NORMAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (ABOVE_NORMAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* BELOW_NORMAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (BELOW_NORMAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* HIGH", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (HIGH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* LEVEL_1", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (LEVEL_1 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* LEVEL_1 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (LEVEL_1 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* LEVEL_2", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (LEVEL_2 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* LEVEL_2 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (LEVEL_2 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* LEVEL_3", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (LEVEL_3 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* LEVEL_3 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (LEVEL_3 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* LEVEL_4", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (LEVEL_4 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* LEVEL_4 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (LEVEL_4 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* LOW", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (LOW ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* MEDIUM", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (MEDIUM ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (* NORMAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID WITH (GRIDS = (NORMAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (*", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BOUNDING_BOX", "BUCKET_COUNT",
+            "CELLS_PER_OBJECT", "COMPRESS_ALL_ROW_GROUPS", "COMPRESSION_DELAY",
+            "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON", "FILLFACTOR", "GRIDS",
+            "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP", "METRIC", "ONLINE",
+            "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY", "ORDER", "PAD_INDEX",
+            "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL", "STATISTICS_NORECOMPUTE",
+            "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* ALLOW_PAGE_LOCKS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (ALLOW_PAGE_LOCKS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (ALLOW_PAGE_LOCKS = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* ALLOW_ROW_LOCKS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (ALLOW_ROW_LOCKS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (ALLOW_ROW_LOCKS = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* BOUNDING_BOX", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (BOUNDING_BOX ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* BOUNDING_BOX =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (BOUNDING_BOX = ", true, false, false, new string[]
+        {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* BOUNDING_BOX = {name}", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (BOUNDING_BOX = ADD ", true, false, false, new string[]
+        {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* BOUNDING_BOX = {value}", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (BOUNDING_BOX = 1 ", true, false, false, new string[]
+        {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* BUCKET_COUNT", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (BUCKET_COUNT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* CELLS_PER_OBJECT", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (CELLS_PER_OBJECT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* COMPRESS_ALL_ROW_GROUPS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (COMPRESS_ALL_ROW_GROUPS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* COMPRESSION_DELAY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (COMPRESSION_DELAY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* DATA_COMPRESSION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (DATA_COMPRESSION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* DATA_COMPRESSION =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (DATA_COMPRESSION = ", true, false, false, new string[]
+        {
+            "NONE", "PAGE", "ROW",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* DATA_COMPRESSION = {name}", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (DATA_COMPRESSION = NONE ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* DROP_EXISTING", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (DROP_EXISTING ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* DROP_EXISTING =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (DROP_EXISTING = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* FILESTREAM_ON", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (FILESTREAM_ON ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* FILLFACTOR", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (FILLFACTOR ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* IGNORE_DUP_KEY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (IGNORE_DUP_KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (IGNORE_DUP_KEY = ", true, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* LOB_COMPACTION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (LOB_COMPACTION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* MAX_DURATION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (MAX_DURATION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* MAXDOP", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (MAXDOP ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* METRIC", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (METRIC ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* ONLINE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (ONLINE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (ONLINE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* OPTIMIZE_FOR_ARRAY_SEARCH", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (OPTIMIZE_FOR_ARRAY_SEARCH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* ORDER", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (ORDER ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* PAD_INDEX", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (PAD_INDEX ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* PAD_INDEX =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (PAD_INDEX = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* RESUMABLE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (RESUMABLE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* SORT_IN_TEMPDB", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (SORT_IN_TEMPDB ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (SORT_IN_TEMPDB = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* STATISTICS_INCREMENTAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (STATISTICS_INCREMENTAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (STATISTICS_INCREMENTAL = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* STATISTICS_NORECOMPUTE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (STATISTICS_NORECOMPUTE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (STATISTICS_NORECOMPUTE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* TYPE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (TYPE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* WAIT_AT_LOW_PRIORITY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (WAIT_AT_LOW_PRIORITY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* XML_COMPRESSION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (XML_COMPRESSION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (*", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LEVEL_1", "LEVEL_2", "LEVEL_3", "LEVEL_4",
+            "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* ABOVE_NORMAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (ABOVE_NORMAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* BELOW_NORMAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (BELOW_NORMAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* HIGH", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (HIGH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* LEVEL_1", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (LEVEL_1 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* LEVEL_1 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (LEVEL_1 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* LEVEL_2", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (LEVEL_2 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* LEVEL_2 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (LEVEL_2 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* LEVEL_3", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (LEVEL_3 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* LEVEL_3 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (LEVEL_3 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* LEVEL_4", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (LEVEL_4 ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* LEVEL_4 =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (LEVEL_4 = ", true, false, false, new string[]
+        {
+            "ABOVE_NORMAL", "BELOW_NORMAL", "HIGH", "LOW", "MEDIUM", "NORMAL",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* LOW", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (LOW ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* MEDIUM", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (MEDIUM ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (* NORMAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID WITH (GRIDS = (NORMAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (*", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BOUNDING_BOX", "BUCKET_COUNT",
+            "CELLS_PER_OBJECT", "COMPRESS_ALL_ROW_GROUPS", "COMPRESSION_DELAY",
+            "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON", "FILLFACTOR", "GRIDS",
+            "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP", "METRIC", "ONLINE",
+            "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY", "ORDER", "PAD_INDEX",
+            "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL", "STATISTICS_NORECOMPUTE",
+            "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* ALLOW_PAGE_LOCKS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (ALLOW_PAGE_LOCKS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (ALLOW_PAGE_LOCKS = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* ALLOW_ROW_LOCKS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (ALLOW_ROW_LOCKS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (ALLOW_ROW_LOCKS = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* BOUNDING_BOX", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (BOUNDING_BOX ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* BUCKET_COUNT", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (BUCKET_COUNT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* CELLS_PER_OBJECT", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (CELLS_PER_OBJECT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* COMPRESS_ALL_ROW_GROUPS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (COMPRESS_ALL_ROW_GROUPS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* COMPRESSION_DELAY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (COMPRESSION_DELAY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* DATA_COMPRESSION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (DATA_COMPRESSION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* DATA_COMPRESSION =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (DATA_COMPRESSION = ", true, false, false, new string[]
+        {
+            "NONE", "PAGE", "ROW",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* DATA_COMPRESSION = {name}", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (DATA_COMPRESSION = NONE ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* DROP_EXISTING", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (DROP_EXISTING ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* DROP_EXISTING =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (DROP_EXISTING = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* FILESTREAM_ON", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (FILESTREAM_ON ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* FILLFACTOR", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (FILLFACTOR ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* GRIDS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (GRIDS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* IGNORE_DUP_KEY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (IGNORE_DUP_KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (IGNORE_DUP_KEY = ", true, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* LOB_COMPACTION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (LOB_COMPACTION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* MAX_DURATION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (MAX_DURATION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* MAXDOP", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (MAXDOP ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* METRIC", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (METRIC ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* ONLINE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (ONLINE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (ONLINE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* OPTIMIZE_FOR_ARRAY_SEARCH", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (OPTIMIZE_FOR_ARRAY_SEARCH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* ORDER", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (ORDER ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* PAD_INDEX", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (PAD_INDEX ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* PAD_INDEX =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (PAD_INDEX = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* RESUMABLE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (RESUMABLE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* SORT_IN_TEMPDB", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (SORT_IN_TEMPDB ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (SORT_IN_TEMPDB = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* STATISTICS_INCREMENTAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (STATISTICS_INCREMENTAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (STATISTICS_INCREMENTAL = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* STATISTICS_NORECOMPUTE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (STATISTICS_NORECOMPUTE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (STATISTICS_NORECOMPUTE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* TYPE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (TYPE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* WAIT_AT_LOW_PRIORITY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (WAIT_AT_LOW_PRIORITY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (* XML_COMPRESSION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID WITH (XML_COMPRESSION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (*", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BOUNDING_BOX", "BUCKET_COUNT",
+            "CELLS_PER_OBJECT", "COMPRESS_ALL_ROW_GROUPS", "COMPRESSION_DELAY",
+            "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON", "FILLFACTOR", "GRIDS",
+            "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP", "METRIC", "ONLINE",
+            "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY", "ORDER", "PAD_INDEX",
+            "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL", "STATISTICS_NORECOMPUTE",
+            "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* ALLOW_PAGE_LOCKS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (ALLOW_PAGE_LOCKS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (ALLOW_PAGE_LOCKS = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* ALLOW_ROW_LOCKS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (ALLOW_ROW_LOCKS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (ALLOW_ROW_LOCKS = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* BOUNDING_BOX", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (BOUNDING_BOX ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* BUCKET_COUNT", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (BUCKET_COUNT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* CELLS_PER_OBJECT", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (CELLS_PER_OBJECT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* COMPRESS_ALL_ROW_GROUPS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (COMPRESS_ALL_ROW_GROUPS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* COMPRESSION_DELAY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (COMPRESSION_DELAY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* DATA_COMPRESSION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (DATA_COMPRESSION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* DATA_COMPRESSION =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (DATA_COMPRESSION = ", true, false, false, new string[]
+        {
+            "NONE", "PAGE", "ROW",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* DATA_COMPRESSION = {name}", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (DATA_COMPRESSION = NONE ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* DROP_EXISTING", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (DROP_EXISTING ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* DROP_EXISTING =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (DROP_EXISTING = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* FILESTREAM_ON", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (FILESTREAM_ON ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* FILLFACTOR", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (FILLFACTOR ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* GRIDS", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (GRIDS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* IGNORE_DUP_KEY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (IGNORE_DUP_KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (IGNORE_DUP_KEY = ", true, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* LOB_COMPACTION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (LOB_COMPACTION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* MAX_DURATION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (MAX_DURATION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* MAXDOP", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (MAXDOP ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* METRIC", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (METRIC ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* ONLINE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (ONLINE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (ONLINE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* OPTIMIZE_FOR_ARRAY_SEARCH", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (OPTIMIZE_FOR_ARRAY_SEARCH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* ORDER", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (ORDER ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* PAD_INDEX", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (PAD_INDEX ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* PAD_INDEX =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (PAD_INDEX = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* RESUMABLE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (RESUMABLE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* SORT_IN_TEMPDB", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (SORT_IN_TEMPDB ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (SORT_IN_TEMPDB = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* STATISTICS_INCREMENTAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (STATISTICS_INCREMENTAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (STATISTICS_INCREMENTAL = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* STATISTICS_NORECOMPUTE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (STATISTICS_NORECOMPUTE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (STATISTICS_NORECOMPUTE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* TYPE", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (TYPE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* WAIT_AT_LOW_PRIORITY", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (WAIT_AT_LOW_PRIORITY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (* XML_COMPRESSION", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID WITH (XML_COMPRESSION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) ", true, false, false, new string[]
+        {
+            "KEY INDEX",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY ", true, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX ", false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ", true, false, true, new string[]
+        {
+            "ON", "WITH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON ", false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH ", true, false, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING ", true, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING = ", true, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH ", true, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST ", false, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = ", false, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, ", true, false, false, new string[]
+        {
+            "NO", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY LIST = ", false, false, false, new string[]
+        {
+            "OFF",
+        }),
+        (", SEARCH PROPERTY LIST =", SqlKeywordPosition.Any, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF, SEARCH PROPERTY LIST = ", false, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (", true, false, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST", "NO",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (CHANGE_TRACKING ", true, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* CHANGE_TRACKING AUTO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (CHANGE_TRACKING AUTO ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* CHANGE_TRACKING MANUAL", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (CHANGE_TRACKING MANUAL ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* CHANGE_TRACKING OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (CHANGE_TRACKING OFF ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (CHANGE_TRACKING = ", true, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (SEARCH ", true, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (SEARCH PROPERTY ", true, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (STOPLIST ", false, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* STOPLIST OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (STOPLIST OFF ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (STOPLIST = ", false, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (SEARCH PROPERTY LIST = ", false, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET ", true, false, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET CHANGE_TRACKING ", true, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET CHANGE_TRACKING = ", true, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH ", true, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY ", true, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST ", false, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST =", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST = ", false, false, false, new string[]
+        {
+            "OFF",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST ", false, false, false, new string[]
+        {
+            "OFF",
         }),
         ("", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t ", true, false, false, new string[]
         {
@@ -5806,7 +7066,7 @@ internal static class SqlKeywordCatalogData
         {
             "STATE",
         }),
-        ("ADD (*", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s ADD (", true, false, false, new string[]
+        ("ADD (*", SqlKeywordPosition.Any, "ALTER DATABASE AUDIT SPECIFICATION s ADD (", true, false, false, new string[]
         {
             "APPLICATION_ROLE_CHANGE_PASSWORD_GROUP", "AUDIT_CHANGE_GROUP",
             "BACKUP_RESTORE_GROUP", "BATCH_COMPLETED_GROUP", "BATCH_STARTED_GROUP",
@@ -5828,9 +7088,10 @@ internal static class SqlKeywordCatalogData
             "STATEMENT_ROLLBACK_GROUP", "SUCCESSFUL_DATABASE_AUTHENTICATION_GROUP",
             "SUCCESSFUL_LOGIN_GROUP", "TRACE_CHANGE_GROUP", "TRANSACTION_BEGIN_GROUP",
             "TRANSACTION_COMMIT_GROUP", "TRANSACTION_GROUP", "TRANSACTION_ROLLBACK_GROUP",
-            "USER_CHANGE_PASSWORD_GROUP", "USER_DEFINED_AUDIT_GROUP", "ADD", "DROP",
+            "USER_CHANGE_PASSWORD_GROUP", "USER_DEFINED_AUDIT_GROUP", "ADD", "DROP", "DELETE",
+            "EXECUTE", "INSERT", "RECEIVE", "REFERENCES", "SELECT", "UPDATE",
         }),
-        ("DROP (*", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s DROP (", true, false, false, new string[]
+        ("DROP (*", SqlKeywordPosition.Any, "ALTER DATABASE AUDIT SPECIFICATION s DROP (", true, false, false, new string[]
         {
             "APPLICATION_ROLE_CHANGE_PASSWORD_GROUP", "AUDIT_CHANGE_GROUP",
             "BACKUP_RESTORE_GROUP", "BATCH_COMPLETED_GROUP", "BATCH_STARTED_GROUP",
@@ -5852,7 +7113,8 @@ internal static class SqlKeywordCatalogData
             "STATEMENT_ROLLBACK_GROUP", "SUCCESSFUL_DATABASE_AUTHENTICATION_GROUP",
             "SUCCESSFUL_LOGIN_GROUP", "TRACE_CHANGE_GROUP", "TRANSACTION_BEGIN_GROUP",
             "TRANSACTION_COMMIT_GROUP", "TRANSACTION_GROUP", "TRANSACTION_ROLLBACK_GROUP",
-            "USER_CHANGE_PASSWORD_GROUP", "USER_DEFINED_AUDIT_GROUP", "ADD", "DROP",
+            "USER_CHANGE_PASSWORD_GROUP", "USER_DEFINED_AUDIT_GROUP", "ADD", "DROP", "DELETE",
+            "EXECUTE", "INSERT", "RECEIVE", "REFERENCES", "SELECT", "UPDATE",
         }),
         ("ADD () ,", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s ADD (SCHEMA_OBJECT_ACCESS_GROUP) , ", true, false, false, new string[]
         {
@@ -6058,6 +7320,93 @@ internal static class SqlKeywordCatalogData
         (", ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (*", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE WITH (", true, false, false, new string[]
         {
             "SCHEMABINDING", "STATE",
+        }),
+        ("BLOCK PREDICATE {name} () ON {name}", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t ", true, false, true, new string[]
+        {
+            "AFTER", "BEFORE",
+        }),
+        ("BLOCK PREDICATE {name} () ON {name} AFTER", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER ", true, false, false, new string[]
+        {
+            "INSERT", "UPDATE",
+        }),
+        ("BLOCK PREDICATE ON {name}", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t DROP BLOCK PREDICATE ON t ", true, false, true, new string[]
+        {
+            "AFTER", "BEFORE",
+        }),
+        ("BLOCK PREDICATE ON {name} AFTER", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t DROP BLOCK PREDICATE ON t AFTER ", true, false, false, new string[]
+        {
+            "INSERT", "UPDATE",
+        }),
+        ("PREDICATE {name} () ON {name} ,", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE t (a) ON t , ", true, false, false, new string[]
+        {
+            "ADD", "ALTER", "DROP",
+        }),
+        ("PREDICATE ON {name} ,", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t DROP FILTER PREDICATE ON t , ", true, false, false, new string[]
+        {
+            "ADD", "ALTER", "DROP",
+        }),
+        ("PREDICATE {name} () ON {name} AFTER {name} ,", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER INSERT , ", true, false, false, new string[]
+        {
+            "ADD", "ALTER", "DROP",
+        }),
+        ("PREDICATE {name} () ON {name} BEFORE {name} ,", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE , ", true, false, false, new string[]
+        {
+            "ADD", "ALTER", "DROP",
+        }),
+        ("PREDICATE ON {name} AFTER {name} ,", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t DROP BLOCK PREDICATE ON t AFTER INSERT , ", true, false, false, new string[]
+        {
+            "ADD", "ALTER", "DROP",
+        }),
+        ("PREDICATE ON {name} BEFORE {name} ,", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t DROP BLOCK PREDICATE ON t BEFORE DELETE , ", true, false, false, new string[]
+        {
+            "ADD", "ALTER", "DROP",
+        }),
+        (", ALTER", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, ALTER ", true, false, false, new string[]
+        {
+            "BLOCK PREDICATE", "FILTER PREDICATE",
+        }),
+        (", ALTER BLOCK", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, ALTER BLOCK ", true, false, false, new string[]
+        {
+            "PREDICATE",
+        }),
+        (", ALTER BLOCK PREDICATE", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, ALTER BLOCK PREDICATE ", true, false, false, new string[]
+        {
+        }),
+        (", ALTER FILTER", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, ALTER FILTER ", true, false, false, new string[]
+        {
+            "PREDICATE",
+        }),
+        (", ALTER FILTER PREDICATE", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, ALTER FILTER PREDICATE ", true, false, false, new string[]
+        {
+        }),
+        (", DROP", SqlKeywordPosition.Any, "ALTER EVENT SESSION t ON SERVER DROP EVENT t.t, DROP ", true, false, false, new string[]
+        {
+            "BLOCK PREDICATE ON", "FILTER PREDICATE ON", "EVENT",
+        }),
+        (", DROP BLOCK", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, DROP BLOCK ", true, false, false, new string[]
+        {
+            "PREDICATE ON",
+        }),
+        (", DROP BLOCK PREDICATE", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, DROP BLOCK PREDICATE ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        (", DROP BLOCK PREDICATE ON", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, DROP BLOCK PREDICATE ON ", false, false, false, new string[]
+        {
+        }),
+        (", DROP FILTER", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, DROP FILTER ", true, false, false, new string[]
+        {
+            "PREDICATE ON",
+        }),
+        (", DROP FILTER PREDICATE", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, DROP FILTER PREDICATE ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        (", DROP FILTER PREDICATE ON", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, DROP FILTER PREDICATE ON ", false, false, false, new string[]
+        {
+        }),
+        (", DROP EVENT", SqlKeywordPosition.Any, "ALTER EVENT SESSION t ON SERVER DROP EVENT t.t, DROP EVENT ", true, false, false, new string[]
+        {
         }),
         ("CREATE EXTERNAL MODEL {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t WITH (", true, false, false, new string[]
         {
@@ -7434,11 +8783,27 @@ internal static class SqlKeywordCatalogData
         {
             "SECRET",
         }),
+        ("ALTER CREDENTIAL {name} WITH", SqlKeywordPosition.StatementStart, "ALTER CREDENTIAL t WITH ", true, false, false, new string[]
+        {
+            "IDENTITY",
+        }),
+        ("ALTER CREDENTIAL {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER CREDENTIAL t WITH IDENTITY = 'x', ", true, false, false, new string[]
+        {
+            "SECRET",
+        }),
         ("CREATE DATABASE SCOPED CREDENTIAL {name} WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE SCOPED CREDENTIAL t WITH ", true, false, false, new string[]
         {
             "IDENTITY",
         }),
         ("CREATE DATABASE SCOPED CREDENTIAL {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE DATABASE SCOPED CREDENTIAL t WITH IDENTITY = 'x', ", true, false, false, new string[]
+        {
+            "SECRET",
+        }),
+        ("ALTER DATABASE SCOPED CREDENTIAL {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CREDENTIAL t WITH ", true, false, false, new string[]
+        {
+            "IDENTITY",
+        }),
+        ("ALTER DATABASE SCOPED CREDENTIAL {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CREDENTIAL t WITH IDENTITY = 'x', ", true, false, false, new string[]
         {
             "SECRET",
         }),
@@ -7792,15 +9157,49 @@ internal static class SqlKeywordCatalogData
         ("", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON ", false, false, false, new string[]
         {
             "ASSEMBLY", "CERTIFICATE", "CONTRACT", "DATABASE", "ENDPOINT", "LOGIN", "OBJECT",
-            "ROLE", "ROUTE", "SCHEMA", "SERVER", "SERVICE", "TYPE", "USER",
+            "ROLE", "ROUTE", "SCHEMA", "SERVER", "SERVICE", "TYPE", "USER", "APPLICATION",
+            "ASYMMETRIC", "EXTERNAL MODEL", "FULLTEXT", "MESSAGE", "REMOTE", "SEARCH",
+            "SYMMETRIC", "XML", "AVAILABILITY",
+        }),
+        ("TO SCHEMA", SqlKeywordPosition.Any, "ALTER AUTHORIZATION ON OBJECT::t TO SCHEMA ", true, false, false, new string[]
+        {
+            "OWNER",
         }),
         ("CREATE USER {name} FOR", SqlKeywordPosition.StatementStart, "CREATE USER t FOR ", true, false, false, new string[]
         {
-            "ASYMMETRIC", "CERTIFICATE", "EXTERNAL", "LOGIN",
+            "ASYMMETRIC KEY", "CERTIFICATE", "EXTERNAL PROVIDER", "LOGIN",
+        }),
+        ("CREATE USER {name} FOR ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE USER t FOR ASYMMETRIC ", true, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE USER {name} FOR CERTIFICATE", SqlKeywordPosition.StatementStart, "CREATE USER t FOR CERTIFICATE ", false, false, false, new string[]
+        {
+        }),
+        ("CREATE USER {name} FOR EXTERNAL", SqlKeywordPosition.StatementStart, "CREATE USER t FOR EXTERNAL ", true, false, false, new string[]
+        {
+            "PROVIDER",
+        }),
+        ("CREATE USER {name} FOR LOGIN", SqlKeywordPosition.StatementStart, "CREATE USER t FOR LOGIN ", false, false, false, new string[]
+        {
         }),
         ("CREATE USER {name} FROM", SqlKeywordPosition.StatementStart, "CREATE USER t FROM ", true, false, false, new string[]
         {
-            "ASYMMETRIC", "CERTIFICATE", "EXTERNAL", "LOGIN",
+            "ASYMMETRIC KEY", "CERTIFICATE", "EXTERNAL PROVIDER", "LOGIN",
+        }),
+        ("CREATE USER {name} FROM ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE USER t FROM ASYMMETRIC ", true, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE USER {name} FROM CERTIFICATE", SqlKeywordPosition.StatementStart, "CREATE USER t FROM CERTIFICATE ", false, false, false, new string[]
+        {
+        }),
+        ("CREATE USER {name} FROM EXTERNAL", SqlKeywordPosition.StatementStart, "CREATE USER t FROM EXTERNAL ", true, false, false, new string[]
+        {
+            "PROVIDER",
+        }),
+        ("CREATE USER {name} FROM LOGIN", SqlKeywordPosition.StatementStart, "CREATE USER t FROM LOGIN ", false, false, false, new string[]
+        {
         }),
         ("CREATE USER {name} WITHOUT", SqlKeywordPosition.StatementStart, "CREATE USER t WITHOUT ", true, false, false, new string[]
         {
@@ -7808,11 +9207,25 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE LOGIN {name} FROM", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM ", true, false, false, new string[]
         {
-            "ASYMMETRIC", "CERTIFICATE", "EXTERNAL", "WINDOWS",
+            "ASYMMETRIC KEY", "CERTIFICATE", "EXTERNAL PROVIDER", "WINDOWS",
+        }),
+        ("CREATE LOGIN {name} FROM ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM ASYMMETRIC ", true, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE LOGIN {name} FROM CERTIFICATE", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM CERTIFICATE ", false, false, false, new string[]
+        {
+        }),
+        ("CREATE LOGIN {name} FROM EXTERNAL", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM EXTERNAL ", true, false, false, new string[]
+        {
+            "PROVIDER",
         }),
         ("CREATE LOGIN {name} WITH", SqlKeywordPosition.StatementStart, "CREATE LOGIN t WITH ", true, false, false, new string[]
         {
             "PASSWORD",
+        }),
+        ("CREATE LOGIN {name} WITH PASSWORD", SqlKeywordPosition.StatementStart, "CREATE LOGIN t WITH PASSWORD ", true, false, false, new string[]
+        {
         }),
         ("CREATE LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE LOGIN t WITH PASSWORD = 'x', ", true, false, false, new string[]
         {
@@ -7991,6 +9404,46 @@ internal static class SqlKeywordCatalogData
         {
             "ALTER",
         }),
+        ("CREATE XML", SqlKeywordPosition.StatementStart, "CREATE XML ", true, false, false, new string[]
+        {
+            "INDEX", "SCHEMA COLLECTION",
+        }),
+        ("CREATE XML SCHEMA", SqlKeywordPosition.StatementStart, "CREATE XML SCHEMA ", true, false, false, new string[]
+        {
+            "COLLECTION",
+        }),
+        ("CREATE XML SCHEMA COLLECTION {name}", SqlKeywordPosition.StatementStart, "CREATE XML SCHEMA COLLECTION t ", true, false, false, new string[]
+        {
+            "AS",
+        }),
+        ("ALTER XML", SqlKeywordPosition.StatementStart, "ALTER XML ", true, false, false, new string[]
+        {
+            "SCHEMA COLLECTION",
+        }),
+        ("ALTER XML SCHEMA", SqlKeywordPosition.StatementStart, "ALTER XML SCHEMA ", true, false, false, new string[]
+        {
+            "COLLECTION",
+        }),
+        ("DROP XML", SqlKeywordPosition.StatementStart, "DROP XML ", true, false, false, new string[]
+        {
+            "SCHEMA COLLECTION",
+        }),
+        ("DROP XML SCHEMA", SqlKeywordPosition.StatementStart, "DROP XML SCHEMA ", true, false, false, new string[]
+        {
+            "COLLECTION",
+        }),
+        ("CREATE AVAILABILITY", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY ", true, false, false, new string[]
+        {
+            "GROUP",
+        }),
+        ("ALTER AVAILABILITY", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY ", true, false, false, new string[]
+        {
+            "GROUP",
+        }),
+        ("DROP AVAILABILITY", SqlKeywordPosition.StatementStart, "DROP AVAILABILITY ", true, false, false, new string[]
+        {
+            "GROUP",
+        }),
         ("ALTER DATABASE SCOPED", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED ", true, false, false, new string[]
         {
             "ADD", "COLLATE", "CONFIGURATION", "CREDENTIAL", "MODIFY", "PERFORM_CUTOVER",
@@ -8043,6 +9496,14 @@ internal static class SqlKeywordCatalogData
         ("ALTER EXTERNAL RESOURCE POOL {name}", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t ", true, false, true, new string[]
         {
             "WITH",
+        }),
+        ("ALTER WORKLOAD", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD ", true, false, false, new string[]
+        {
+            "GROUP",
+        }),
+        ("ALTER WORKLOAD GROUP {name}", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t ", true, false, true, new string[]
+        {
+            "USING", "WITH",
         }),
         ("ALTER INDEX {name} ON {name} REBUILD", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD ", true, false, true, new string[]
         {
@@ -8175,6 +9636,38 @@ internal static class SqlKeywordCatalogData
         ("CREATE VECTOR INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ", true, false, false, new string[]
         {
             "ON",
+        }),
+        ("CREATE SPATIAL", SqlKeywordPosition.StatementStart, "CREATE SPATIAL ", true, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE SPATIAL INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_GRID ", true, false, true, new string[]
+        {
+            "ON", "WITH",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_GRID ", true, false, true, new string[]
+        {
+            "ON", "WITH",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOMETRY_AUTO_GRID ", true, false, true, new string[]
+        {
+            "ON", "WITH",
+        }),
+        ("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID", SqlKeywordPosition.StatementStart, "CREATE SPATIAL INDEX t ON t (a) USING GEOGRAPHY_AUTO_GRID ", true, false, true, new string[]
+        {
+            "ON", "WITH",
+        }),
+        (", SEARCH", SqlKeywordPosition.Any, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF, SEARCH ", true, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        (", SEARCH PROPERTY", SqlKeywordPosition.Any, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF, SEARCH PROPERTY ", true, false, false, new string[]
+        {
+            "LIST",
         }),
         ("TRIGGER {name} ON DATABASE", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON DATABASE ", true, false, false, new string[]
         {
@@ -8739,6 +10232,10 @@ internal static class SqlKeywordCatalogData
         {
             "WITH IDENTITY",
         }),
+        ("ALTER DATABASE SCOPED CREDENTIAL {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CREDENTIAL t ", true, false, false, new string[]
+        {
+            "WITH IDENTITY",
+        }),
         ("NEXT VALUE", SqlKeywordPosition.Any, "SELECT NEXT VALUE ", true, false, false, new string[]
         {
             "FOR",
@@ -8804,6 +10301,114 @@ internal static class SqlKeywordCatalogData
         ("RANGE BETWEEN UNBOUNDED", SqlKeywordPosition.WindowOrderTail, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN UNBOUNDED ", true, false, false, new string[]
         {
             "FOLLOWING", "PRECEDING AND",
+        }),
+        ("APPLICATION", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON APPLICATION ", true, false, false, new string[]
+        {
+            "ROLE", "TO",
+        }),
+        ("ASYMMETRIC", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON ASYMMETRIC ", true, false, false, new string[]
+        {
+            "KEY", "TO",
+        }),
+        ("EXTERNAL", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON EXTERNAL ", true, false, false, new string[]
+        {
+            "MODEL",
+        }),
+        ("FULLTEXT", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON FULLTEXT ", true, false, false, new string[]
+        {
+            "CATALOG", "STOPLIST", "TO",
+        }),
+        ("MESSAGE", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON MESSAGE ", true, false, false, new string[]
+        {
+            "TO", "TYPE",
+        }),
+        ("REMOTE", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON REMOTE ", true, false, false, new string[]
+        {
+            "TO", "SERVICE BINDING",
+        }),
+        ("REMOTE SERVICE", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON REMOTE SERVICE ", true, false, false, new string[]
+        {
+            "BINDING",
+        }),
+        ("SEARCH", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON SEARCH ", true, false, false, new string[]
+        {
+            "TO", "PROPERTY LIST",
+        }),
+        ("SEARCH PROPERTY", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON SEARCH PROPERTY ", true, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("SERVER", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON SERVER ", true, false, false, new string[]
+        {
+            "ROLE", "TO",
+        }),
+        ("SYMMETRIC", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON SYMMETRIC ", true, false, false, new string[]
+        {
+            "KEY", "TO",
+        }),
+        ("XML", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON XML ", true, false, false, new string[]
+        {
+            "TO", "SCHEMA COLLECTION",
+        }),
+        ("XML SCHEMA", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON XML SCHEMA ", true, false, false, new string[]
+        {
+            "COLLECTION",
+        }),
+        ("AVAILABILITY", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON AVAILABILITY ", true, false, false, new string[]
+        {
+            "GROUP", "TO",
+        }),
+        ("ALTER AUTHORIZATION ON APPLICATION", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON APPLICATION ", true, false, false, new string[]
+        {
+            "ROLE", "TO",
+        }),
+        ("ALTER AUTHORIZATION ON ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON ASYMMETRIC ", true, false, false, new string[]
+        {
+            "KEY", "TO",
+        }),
+        ("ALTER AUTHORIZATION ON EXTERNAL", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON EXTERNAL ", true, false, false, new string[]
+        {
+            "MODEL",
+        }),
+        ("ALTER AUTHORIZATION ON FULLTEXT", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON FULLTEXT ", true, false, false, new string[]
+        {
+            "CATALOG", "STOPLIST", "TO",
+        }),
+        ("ALTER AUTHORIZATION ON MESSAGE", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON MESSAGE ", true, false, false, new string[]
+        {
+            "TO", "TYPE",
+        }),
+        ("ALTER AUTHORIZATION ON REMOTE", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON REMOTE ", true, false, false, new string[]
+        {
+            "TO", "SERVICE BINDING",
+        }),
+        ("ALTER AUTHORIZATION ON REMOTE SERVICE", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON REMOTE SERVICE ", true, false, false, new string[]
+        {
+            "BINDING",
+        }),
+        ("ALTER AUTHORIZATION ON SEARCH", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON SEARCH ", true, false, false, new string[]
+        {
+            "TO", "PROPERTY LIST",
+        }),
+        ("ALTER AUTHORIZATION ON SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON SEARCH PROPERTY ", true, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("ALTER AUTHORIZATION ON SYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON SYMMETRIC ", true, false, false, new string[]
+        {
+            "KEY", "TO",
+        }),
+        ("ALTER AUTHORIZATION ON XML", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON XML ", true, false, false, new string[]
+        {
+            "TO", "SCHEMA COLLECTION",
+        }),
+        ("ALTER AUTHORIZATION ON XML SCHEMA", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON XML SCHEMA ", true, false, false, new string[]
+        {
+            "COLLECTION",
+        }),
+        ("ALTER AUTHORIZATION ON AVAILABILITY", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON AVAILABILITY ", true, false, false, new string[]
+        {
+            "GROUP", "TO",
         }),
         ("DBCC CHECKDB (*", SqlKeywordPosition.StatementStart, "DBCC CHECKDB (", false, true, false, new string[]
         {
@@ -8930,5 +10535,15 @@ internal static class SqlKeywordCatalogData
         ("OR ALTER PROCEDURE", false, true),
         ("OR ALTER TRIGGER", false, true),
         ("OR ALTER VIEW", false, true),
+        ("XML SCHEMA COLLECTION", false, true),
+        ("AVAILABILITY GROUP", false, false),
+        ("CLUSTERED COLUMNSTORE INDEX", false, false),
+        ("NONCLUSTERED COLUMNSTORE INDEX", false, false),
+        ("COLUMNSTORE INDEX", false, false),
+        ("VECTOR INDEX", false, false),
+        ("SPATIAL INDEX", false, false),
+        ("SERVER AUDIT", true, false),
+        ("DATABASE AUDIT SPECIFICATION", false, false),
+        ("DATABASE SCOPED CREDENTIAL", false, false),
     };
 }

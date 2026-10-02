@@ -171,6 +171,9 @@ internal sealed class PhraseExplorer
 
         foreach (var declaration in declarations)
         {
+            // 墊幾種文字的 Lead 片語鍵相同，每墊一種就覆蓋一次：先記下來，最後取聯集。
+            var leads = new List<ProbedPhrase>();
+
             foreach (var (position, lead) in Anchors(declaration))
             {
                 var probe = ProbeText(lead, declaration.Pattern, declaration.Group, declaration.Gap, items: declaration.Items);
@@ -191,6 +194,19 @@ internal sealed class PhraseExplorer
                 {
                     AddOpenListItems(key, declaration.Endings);
                 }
+
+                if (declaration.Lead != null && Phrases.TryGet(key, out var probed))
+                {
+                    leads.Add(probed);
+                }
+            }
+
+            if (leads.Count > 1)
+            {
+                var last = leads[leads.Count - 1];
+                last.Words = leads.SelectMany(phrase => phrase.Words).Distinct(IgnoreCase).ToList();
+                last.Closed = leads.All(phrase => phrase.Closed);
+                last.TakesVariable = leads.Any(phrase => phrase.TakesVariable);
             }
         }
     }
@@ -216,7 +232,7 @@ internal sealed class PhraseExplorer
     /// </remarks>
     public void AddEvidence(IReadOnlyList<PhraseDeclaration> declarations)
     {
-        foreach (var declaration in declarations)
+        foreach (var declaration in declarations.Concat(declarations.Where(declaration => declaration.Classes).SelectMany(ClassEvidence)))
         {
             var items = declaration.Pattern.Split([' '], StringSplitOptions.RemoveEmptyEntries);
             var lead = declaration.Lead;
@@ -234,6 +250,8 @@ internal sealed class PhraseExplorer
                 {
                     throw new InvalidOperationException($"片語「{declaration.Pattern}」整段剖析不過（{wholeProbe}），拿它補前面那段的字沒有根據。");
                 }
+
+                AddDeclaredKind(declaration, items);
 
                 for (var index = 0; index < items.Length; index++)
                 {
@@ -311,6 +329,61 @@ internal sealed class PhraseExplorer
         }
 
         DropUnpositionedDuplicates();
+    }
+
+    private void AddCreatedKind(string kind, string probe)
+    {
+        if (CreatedKinds.Contains(kind, IgnoreCase))
+        {
+            return;
+        }
+
+        CreatedKinds.Add(kind);
+
+        // 兩段式名稱撐過點號之後那一段：CREATE INDEX s.ix 在點號就報錯。
+        var qualified = probe + Continuations.PlainName + ".";
+
+        if (_prober.FirstRejection(qualified + Continuations.PlainName + " x") > qualified.Length)
+        {
+            SchemaQualifiedKinds.Add(kind);
+        }
+    }
+
+    // 剖析器要看到整段才收的種類（CREATE XML SCHEMA COLLECTION、CREATE SPATIAL INDEX）CREATE 的展開探不到，
+    // 宣告從 CREATE 寫到名稱的整段剖析得過，那幾個字就是建立的種類；ON、AUTHORIZATION 之後的名稱是既有的物件。
+    private void AddDeclaredKind(PhraseDeclaration declaration, string[] items)
+    {
+        var name = Array.IndexOf(items, "{name}");
+
+        if (declaration.Lead != null || declaration.After != null || name < 2 || !IgnoreCase.Equals(items[0], "CREATE") ||
+            items.Skip(1).Take(name - 1).Any(item => !StartsWord.IsMatch(item)))
+        {
+            return;
+        }
+
+        var kind = string.Join(" ", items, 1, name - 1);
+        var probe = ProbeText(string.Empty, "CREATE " + kind);
+
+        if (!ExistingObject.IsMatch("CREATE " + kind) && TakesName(probe, name + 1 < items.Length ? items[name + 1] : null))
+        {
+            AddCreatedKind(kind, probe);
+        }
+    }
+
+    // 安全性實體的類別：CREATE 展開探到的多字物件種類接在那一格之後，整段剖析得過的（ON SEARCH PROPERTY LIST）是證據。
+    // 單一個字的種類由探測列；剖析不過的種類（GRANT 收不了的 EXTERNAL DATA SOURCE）不算。
+    private IEnumerable<PhraseDeclaration> ClassEvidence(PhraseDeclaration declaration)
+    {
+        foreach (var kind in CreatedKinds.Where(kind => kind.Contains(' ')).ToList())
+        {
+            var pattern = declaration.Pattern.Length > 0 ? declaration.Pattern + " " + kind : kind;
+            var evidence = declaration with { Pattern = pattern, Classes = false };
+
+            if (Anchors(evidence).All(anchor => PatternAccepted(ProbeText(anchor.Lead, pattern))))
+            {
+                yield return evidence;
+            }
+        }
     }
 
     // 第一個字換成普通名稱整段照樣剖析得過，剖析器在那一格讀的是名稱：FROM VECTOR_SEARCH ( 與 FROM fn( 同形。
@@ -414,7 +487,7 @@ internal sealed class PhraseExplorer
     private IEnumerable<(string Position, string Lead)> Anchors(PhraseDeclaration declaration)
     {
         return declaration.Lead != null
-            ? [("Any", declaration.Lead)]
+            ? [("Any", declaration.Lead), .. (declaration.AlsoLeads ?? []).Select(lead => ("Any", lead))]
             : declaration.Positions.Select(position => (position, _templates[position][declaration.Template]));
     }
 
@@ -473,16 +546,7 @@ internal sealed class PhraseExplorer
         // CREATE SCHEMA AUTHORIZATION u），不是這一句建立的名字。
         if (kinds == ObjectKinds.New && takesName && !ExistingObject.IsMatch(pattern))
         {
-            var kind = pattern.Substring("CREATE ".Length);
-            CreatedKinds.Add(kind);
-
-            // 兩段式名稱撐過點號之後那一段：CREATE INDEX s.ix 在點號就報錯。
-            var qualified = probe + Continuations.PlainName + ".";
-
-            if (_prober.FirstRejection(qualified + Continuations.PlainName + " x") > qualified.Length)
-            {
-                SchemaQualifiedKinds.Add(kind);
-            }
+            AddCreatedKind(pattern.Substring("CREATE ".Length), probe);
         }
 
         if (!silent)
@@ -497,7 +561,9 @@ internal sealed class PhraseExplorer
                 TakesVariable = _prober.AcceptsName(probe, Continuations.PlainVariable, _continuations),
                 EndsStatement = endsStatement,
                 // 括號也是一個運算元：CREATE DATABASE d ON 之後是 PRIMARY 或 (，不能併成 ON PRIMARY。
-                TakesOperand = takesName || sample != null || _prober.FirstRejection(probe + "(") > probe.Length,
+                // 類別之後的 :: 也是：ALTER AUTHORIZATION ON ASSEMBLY 之後是 ::，ASSEMBLY TO 只是名叫 ASSEMBLY 的物件。
+                TakesOperand = takesName || sample != null || _prober.FirstRejection(probe + "(") > probe.Length ||
+                    _prober.FirstRejection(probe + "::") > probe.Length,
             });
         }
 

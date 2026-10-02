@@ -14,8 +14,8 @@ internal static class SecurityPhrases
 
         // 稽核規格：FOR SERVER AUDIT 之後是 ADD、DROP 動作群組，以逗號分隔，最後是 WITH (STATE = …)。ADD、DROP 能開始一句，
         // 位置分析把它們當成動詞、判不出前一格，以尾巴認。稽核名稱與規格名稱之後的語句已經完整，ADD、DROP、WITH 被當成
-        // 下一句的開頭扣掉，手寫補回。伺服器稽核規格收的動作群組涵蓋資料庫層級的，取它探；資料庫稽核規格括號裡的
-        // 動作 ON 物件 BY 主體沒有收。
+        // 下一句的開頭扣掉，手寫補回。括號裡伺服器稽核規格只收伺服器層級的群組，資料庫稽核規格收資料庫層級的群組與
+        // SELECT ON 物件 BY 主體這種動作，執行期分不出是哪一種：兩種都墊、字取聯集。動作之後的 ON、BY 與權限同一種寫法，由位置分析給。
         new("CREATE SERVER AUDIT SPECIFICATION {name}") { Expand = 3 },
         new("CREATE DATABASE AUDIT SPECIFICATION {name}") { Expand = 3 },
         new("CREATE SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name}") { Values = ["ADD", "WITH"] },
@@ -30,8 +30,8 @@ internal static class SecurityPhrases
         new("ALTER DATABASE AUDIT SPECIFICATION {name} WITH (*"),
         new("ALTER SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (*"),
         new("ALTER DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (*"),
-        new("ADD (*") { Lead = "ALTER SERVER AUDIT SPECIFICATION s " },
-        new("DROP (*") { Lead = "ALTER SERVER AUDIT SPECIFICATION s " },
+        new("ADD (*") { Lead = "ALTER SERVER AUDIT SPECIFICATION s ", AlsoLeads = ["ALTER DATABASE AUDIT SPECIFICATION s "] },
+        new("DROP (*") { Lead = "ALTER SERVER AUDIT SPECIFICATION s ", AlsoLeads = ["ALTER DATABASE AUDIT SPECIFICATION s "] },
         new("ADD () ,") { Lead = "ALTER SERVER AUDIT SPECIFICATION s ", Group = "(SCHEMA_OBJECT_ACCESS_GROUP)" },
         new("DROP () ,") { Lead = "ALTER SERVER AUDIT SPECIFICATION s ", Group = "(SCHEMA_OBJECT_ACCESS_GROUP)" },
         new("ADD () WITH (*") { Lead = "ALTER SERVER AUDIT SPECIFICATION s ", Group = "(SCHEMA_OBJECT_ACCESS_GROUP)" },
@@ -65,6 +65,26 @@ internal static class SecurityPhrases
         new(", ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE WITH (*") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },
         new(", ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE WITH (*") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },
         new(", ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (*") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },
+
+        // ALTER SECURITY POLICY 一次加、改、刪幾個述詞（ADD、ALTER、DROP），以逗號分隔；DROP 不寫函式，BLOCK 述詞可以帶作業。
+        // 動詞都能開始一句，判不出前一格：從 BLOCK 或 PREDICATE 寫起，以尾巴認，ADD 與 ALTER 的寫法相同。
+        // Lead 的名稱寫成 t，與 ALTER SECURITY POLICY {name} 展開出來的探測文字相同，前面那段的字補進同一個片語。
+        // 逗號之後的動詞從逗號寫起：ADD 由 CREATE 那一組給，DROP 也接擴充事件的 DROP EVENT、DROP TARGET，兩種都墊。
+        new("BLOCK PREDICATE {name} () ON {name}") { Lead = "ALTER SECURITY POLICY t ADD ", Expand = 1 },
+        new("BLOCK PREDICATE ON {name}") { Lead = "ALTER SECURITY POLICY t DROP ", Expand = 1 },
+        new("PREDICATE {name} () ON {name} ,") { Lead = "ALTER SECURITY POLICY t ADD FILTER " },
+        new("PREDICATE ON {name} ,") { Lead = "ALTER SECURITY POLICY t DROP FILTER " },
+        new("PREDICATE {name} () ON {name} AFTER {name} ,") { Lead = "ALTER SECURITY POLICY t ADD BLOCK " },
+        new("PREDICATE {name} () ON {name} BEFORE {name} ,") { Lead = "ALTER SECURITY POLICY t ADD BLOCK " },
+        new("PREDICATE ON {name} AFTER {name} ,") { Lead = "ALTER SECURITY POLICY t DROP BLOCK " },
+        new("PREDICATE ON {name} BEFORE {name} ,") { Lead = "ALTER SECURITY POLICY t DROP BLOCK " },
+        new(", ALTER") { Lead = "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t", Expand = 2 },
+        new(", DROP")
+        {
+            Lead = "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t",
+            AlsoLeads = ["ALTER EVENT SESSION t ON SERVER DROP EVENT t.t"],
+            Expand = 3,
+        },
     ];
 
     internal static readonly PhraseDeclaration[] Keys =
@@ -146,18 +166,25 @@ internal static class SecurityPhrases
         new("CREATE CERTIFICATE {name} ENCRYPTION BY PASSWORD = {value} WITH ,*"),
         new("CREATE SYMMETRIC KEY {name} WITH ,*"),
         new("CREATE CREDENTIAL {name} WITH ,*"),
+        new("ALTER CREDENTIAL {name} WITH ,*"),
         new("CREATE DATABASE SCOPED CREDENTIAL {name} WITH ,*"),
+        new("ALTER DATABASE SCOPED CREDENTIAL {name} WITH ,*"),
     ];
 
     internal static readonly PhraseDeclaration[] Principals =
     [
         // 權限 ON 之後的類別多半不是關鍵字（OBJECT、TYPE）；那一格也可以直接寫目標名稱，由人宣告不封閉。
-        new("") { After = ["PermissionOn"], Closed = false },
+        // 多字的類別（SEARCH PROPERTY LIST）由 Classes 補。ALTER AUTHORIZATION ON 的類別相同，那一格由 ALTER 的展開立，
+        // 在這裡補多字的類別，名稱照收；擁有者可以寫 SCHEMA OWNER，交還給結構描述的擁有者。
+        new("") { After = ["PermissionOn"], Closed = false, Classes = true },
+        new("ALTER AUTHORIZATION ON") { Closed = false, Classes = true },
+        new("TO SCHEMA") { Lead = "ALTER AUTHORIZATION ON OBJECT::t " },
 
         // CREATE USER 寫完名稱已經是完整的一句，之後的 FOR、WITHOUT 各自接 LOGIN；CREATE LOGIN 之後是 WITH PASSWORD 或 FROM。
+        // FROM EXTERNAL 之後是 PROVIDER（Microsoft Entra 的主體）。
         // 只認 CREATE：ALTER USER、ALTER LOGIN 接的是別的字（ENABLE、WITH NAME）。
-        new("CREATE USER {name}") { Expand = 1 },
-        new("CREATE LOGIN {name}") { Expand = 1 },
+        new("CREATE USER {name}") { Expand = 2 },
+        new("CREATE LOGIN {name}") { Expand = 2 },
 
         // 登入與使用者的 WITH 選項清單：四種敘述接的選項各不相同（CREATE LOGIN 第一項只能是 PASSWORD、
         // ALTER LOGIN 另有 NAME、NO CREDENTIAL，USER 才有 DEFAULT_SCHEMA），由標頭分開；應用程式角色同理。

@@ -45,9 +45,10 @@ internal static class PositionTemplates
         // 目標寫完之後是 TO、FROM。
         // 權限名稱是一串識別字（VIEW DEFINITION），GRANT SELECT 之後什麼非保留字都接得上；
         // 樣板以資料行清單收掉權限，探到的才只有權限之後的字。
-        new("PermissionList", "GRANT SELECT (a) ", "REVOKE SELECT (a) "),
-        new("PermissionOn", "GRANT SELECT ON ", "REVOKE SELECT ON "),
-        new("PermissionTarget", "GRANT SELECT ON t ", "REVOKE SELECT ON t "),
+        // 資料庫稽核規格括號裡的動作（SELECT ON t BY u）與權限同一種寫法，目標之後是 BY。
+        new("PermissionList", "GRANT SELECT (a) ", "REVOKE SELECT (a) ", "ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT "),
+        new("PermissionOn", "GRANT SELECT ON ", "REVOKE SELECT ON ", "ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT ON "),
+        new("PermissionTarget", "GRANT SELECT ON t ", "REVOKE SELECT ON t ", "ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT ON t "),
 
         // 資料表之後的 TABLESAMPLE (10 是 PERCENT、ROWS；PIVOT 的彙總與 UNPIVOT 的值之後是 FOR，FOR 的資料行之後是 IN。
         new("TableSampleTail", "SELECT * FROM t TABLESAMPLE (10 "),

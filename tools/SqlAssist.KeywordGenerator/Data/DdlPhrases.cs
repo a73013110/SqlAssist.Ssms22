@@ -36,6 +36,14 @@ internal static class DdlPhrases
         new("DELETE"),
         new("MERGE") { Closed = false },
         new("DROP") { After = ["AlterTableAction"], Expand = 2 },
+        // XML 結構描述集合與可用性群組：XML、AVAILABILITY 剖析器要看到整段才收，CREATE、ALTER、DROP 的展開探不出來，整段是證據。
+        // 從 CREATE 寫到名稱的宣告也把種類交給 CreatedKinds，權限 ON 之後的類別（XML SCHEMA COLLECTION::）由它探。
+        new("CREATE XML SCHEMA COLLECTION {name} AS"),
+        new("ALTER XML SCHEMA COLLECTION {name}"),
+        new("DROP XML SCHEMA COLLECTION {name}"),
+        new("CREATE AVAILABILITY GROUP {name}"),
+        new("ALTER AVAILABILITY GROUP {name}"),
+        new("DROP AVAILABILITY GROUP {name}"),
         new("ALTER DATABASE {name}"),
         new("ALTER DATABASE {name} SET") { Expand = 1 },
 

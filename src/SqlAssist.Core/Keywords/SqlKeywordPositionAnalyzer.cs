@@ -326,6 +326,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
         var before = KeywordsBefore(index);
         var position = AddStatementEnd(before, index - 1, tokens[index].Start);
 
+        // 前一句判不出位置（清單片語寫完一項：CREATE CREDENTIAL c WITH IDENTITY = 'x'），換了行又寫一句的開頭，
+        // 這一格就是語句開頭：只回 Any 的話這一句的片語永遠只比對到可能，CREATE CREDENTIAL c WITH 之後的清單也認不出來。
+        if (before == SqlKeywordPosition.Any)
+        {
+            return IsStatementHead(index) && StartsOnNewLine(tokens[index - 1].End, tokens[index].Start, textBeforeToken)
+                ? SqlKeywordPosition.StatementStart
+                : position;
+        }
+
         // 換行只說下一句「可能」從這裡開始；這個字自己是不是開頭，問語句開頭的判準。
         // UPDATE t⏎SET 的 SET 是資料行指派，當成開頭的話片語會列出 NOCOUNT 這些工作階段選項。
         return (before & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None &&

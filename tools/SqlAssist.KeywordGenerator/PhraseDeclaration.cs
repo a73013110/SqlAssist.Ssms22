@@ -41,6 +41,9 @@ public enum ObjectKinds
 //          兩個都不寫就是 StatementStart：沒有 Lead 的片語都從一句的開頭寫起。
 //   Lead   位置分析判不出前一格、而尾巴本身就認得出意思時，探測要墊的文字；執行期不看前一格。
 //          判得出來的一律寫 After：同一件事只由位置分析說一次。
+//   AlsoLeads  同一條尾巴在別的敘述裡也判不出前一格、接的字卻不同時，另外要墊的文字，字取聯集：
+//          伺服器稽核規格的 ADD ( 接伺服器層級的動作群組，資料庫稽核規格的接資料庫層級的群組與 SELECT 這類動作，
+//          執行期分不出是哪一種。各寫一條的話鍵相同，後寫的蓋掉先寫的。
 // Template 是 After 位置的第幾個樣板（從 0 起），預設第一個：同一個位置的樣板接得上的字不一定相同
 // （WHEN MATCHED THEN 之後寫不出 INSERT）。
 // Expand 往下再探幾層：每個接得上的字接在片語後面成為新的片語，直到那個字寫完語句為止。
@@ -50,6 +53,9 @@ public enum ObjectKinds
 // Closed 由人宣告那一格只有這幾個值。
 // Endings 是只有這條片語用得上的續尾（VECTOR_SEARCH 的 METRIC 只收 'cosine' 這種距離名稱、ABORT_AFTER_WAIT 的值
 // 之後要關兩層括號）：探這條片語與它的清單項時接在共用續尾之後。共用續尾一變，每個片語的探測都要重剖。
+// Classes 宣告這一格寫的是安全性實體的類別（GRANT … ON OBJECT::、ALTER AUTHORIZATION ON SCHEMA::）：多字的類別
+// （SEARCH PROPERTY LIST、EXTERNAL MODEL）剖析器要看到整段才收，在第一個字就報錯，逐字探不出來。產生器拿 CREATE 展開
+// 探到的多字物件種類一一代入，整段剖析得過的就是證據，每一個字由它前面那段列出（見 PhraseExplorer 的證據那一段）。
 // 同一條尾巴、同一個位置後寫的覆蓋先寫的，所以 Expand 展開出來的片語可以在後面補 Values。
 
 /// <summary>一條子句片語的宣告：手寫的只有這些，接得上的字全由剖析器決定。寫法見上方註解。</summary>
@@ -58,6 +64,8 @@ public sealed record PhraseDeclaration(string Pattern)
     public string[]? After { get; init; }
 
     public string? Lead { get; init; }
+
+    public string[]? AlsoLeads { get; init; }
 
     public int Template { get; init; }
 
@@ -78,6 +86,8 @@ public sealed record PhraseDeclaration(string Pattern)
     public string? Items { get; init; }
 
     public bool Clause { get; init; }
+
+    public bool Classes { get; init; }
 
     internal bool IsList => Pattern.EndsWith(" ,*", StringComparison.Ordinal);
 
@@ -142,6 +152,11 @@ public sealed record PhraseDeclaration(string Pattern)
         if (Clause && !IsOpenList)
         {
             yield return $"片語「{Pattern}」寫了 Clause，卻不是以 (* 結尾的括號清單。";
+        }
+
+        if (AlsoLeads != null && Lead == null)
+        {
+            yield return $"片語「{Pattern}」寫了 AlsoLeads，卻沒有 Lead：位置判得出來的由 After 分開。";
         }
 
         if (Lead != null)

@@ -77,5 +77,31 @@ internal static class IndexPhrases
 
         // 向量索引：METRIC、TYPE 的值是字串，METRIC 只收距離的名稱。
         new("CREATE VECTOR INDEX {name} ON {name} () WITH (*") { Endings = [" = 'cosine'"] },
+
+        // 空間索引：SPATIAL 要看到整段才收，CREATE 的展開探不出來，整段是證據。USING 之後是四種鑲嵌配置，
+        // 格線配置的 WITH (…) 多出 GRIDS = (LEVEL_1 = HIGH, …) 或 GRIDS = (HIGH, LOW, …)；幾何格線另有 BOUNDING_BOX。
+        // 鑲嵌配置換成名稱剖析不過，各寫一條。
+        new("CREATE SPATIAL INDEX {name} ON {name} ()") { Expand = 1 },
+        new("CREATE SPATIAL INDEX {name} ON {name} () WITH (*") { Expand = 2 },
+        new("CREATE SPATIAL INDEX {name} ON {name} () WITH (* GRIDS = (*") { Expand = 2 },
+        new("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (*") { Expand = 2 },
+        new("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_GRID WITH (* GRIDS = (*") { Expand = 2 },
+        new("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (*") { Expand = 2 },
+        new("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_GRID WITH (* GRIDS = (*") { Expand = 2 },
+        new("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (*") { Expand = 2 },
+        new("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (*") { Expand = 2 },
+
+        // 全文檢索索引：資料行清單之後是 KEY INDEX，再來是 ON 目錄與 WITH 選項，WITH 可以帶括號也可以不帶。
+        // SEARCH PROPERTY LIST 剖析器要看到整段才收，整段是證據；不帶括號的清單逗號之後由尾巴認。
+        new("CREATE FULLTEXT INDEX ON {name} ()") { Expand = 2 },
+        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name}") { Expand = 1 },
+        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH") { Expand = 2 },
+        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,*"),
+        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH PROPERTY LIST ="),
+        new(", SEARCH PROPERTY LIST =") { Lead = "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF" },
+        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (*") { Expand = 2 },
+        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* SEARCH PROPERTY LIST ="),
+        new("ALTER FULLTEXT INDEX ON {name} SET") { Expand = 2 },
+        new("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST"),
     ];
 }

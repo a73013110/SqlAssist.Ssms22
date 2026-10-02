@@ -62,5 +62,12 @@ internal static class DatabasePhrases
         new("ALTER RESOURCE POOL {name} WITH (*") { Expand = 2 },
         new("CREATE EXTERNAL RESOURCE POOL {name} WITH (*") { Expand = 2 },
         new("ALTER EXTERNAL RESOURCE POOL {name} WITH (*") { Expand = 2 },
+
+        // 工作負載群組的 WITH (…)：IMPORTANCE 之後是 LOW、MEDIUM、HIGH，括號之後是 USING 資源集區。
+        // 群組名稱之後的語句已經完整，WITH 被當成 CTE 的開頭扣掉，由整段的證據補回。
+        new("CREATE WORKLOAD GROUP {name} WITH (*") { Expand = 2 },
+        new("ALTER WORKLOAD GROUP {name} WITH (*") { Expand = 2 },
+        new("CREATE WORKLOAD GROUP {name} WITH ()") { Group = "(IMPORTANCE = HIGH)" },
+        new("ALTER WORKLOAD GROUP {name} WITH ()") { Group = "(IMPORTANCE = HIGH)" },
     ];
 }

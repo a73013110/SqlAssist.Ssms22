@@ -83,6 +83,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         // GRANT|DENY|REVOKE SELECT, UPDATE (a, b), VIEW DEFINITION：權限寫完之後是 ON、TO、FROM。
         // 權限之後的逗號與 GRANT 本身之後由目錄與片語給，這裡不回位置。WITH GRANT OPTION 的 GRANT 不是開頭。
+        // 資料庫稽核規格括號裡的動作（ADD (SELECT, INSERT ON t BY u)）是同一種寫法，ON 之後同樣是類別或目標。
         new(
             isAnchor: (analyzer, index) => analyzer.OpensPermissionList(index),
             isPart: (analyzer, index) => analyzer.IsPermissionPart(index),
@@ -91,13 +92,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
             skipsGroups: true),
 
         // GRANT … ON [SCHEMA::]dbo.Loan：ON 之後是類別或目標，目標寫完之後是 TO、FROM。
+        // ALTER AUTHORIZATION ON 的類別與目標寫法相同。類別可以是幾個字（SEARCH PROPERTY LIST::），第一個字可以是保留字。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("ON"),
             isPart: (analyzer, index) => analyzer.IsPlainWord(index) ||
                 analyzer.tokens[index].IsPunctuation(".") || analyzer.tokens[index].IsPunctuation("::") ||
-                (index + 1 < analyzer.tokens.Count && analyzer.tokens[index + 1].IsPunctuation("::")),
+                analyzer.NamesClass(index),
             endsItem: (analyzer, index) => analyzer.IsPlainWord(index),
-            header: (analyzer, on) => on >= 1 && analyzer.FindStatementSlot(on - 1) == SqlKeywordPosition.PermissionList
+            header: (analyzer, on) => on >= 1 && (analyzer.FindStatementSlot(on - 1) == SqlKeywordPosition.PermissionList ||
+                    (on >= 2 && analyzer.tokens[on - 1].IsKeyword("AUTHORIZATION") && analyzer.tokens[on - 2].IsKeyword("ALTER")))
                 ? new OptionSlots(SqlKeywordPosition.PermissionOn, SqlKeywordPosition.PermissionTarget)
                 : null,
             separatedByCommas: false),
@@ -510,9 +513,62 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
     /// <summary>GRANT、DENY、REVOKE 開始權限清單；<c>WITH GRANT OPTION</c> 的 GRANT 不是。</summary>
     private bool OpensPermissionList(int index) =>
-        IsBareKeyword(index) &&
-        (tokens[index].IsKeyword("GRANT") || tokens[index].IsKeyword("DENY") || tokens[index].IsKeyword("REVOKE")) &&
-        !(index >= 1 && tokens[index - 1].IsKeyword("WITH"));
+        (IsBareKeyword(index) &&
+         (tokens[index].IsKeyword("GRANT") || tokens[index].IsKeyword("DENY") || tokens[index].IsKeyword("REVOKE")) &&
+         !(index >= 1 && tokens[index - 1].IsKeyword("WITH"))) ||
+        OpensAuditActions(index);
+
+    /// <summary>
+    /// <paramref name="index"/> 是資料庫稽核規格 <c>ADD (</c>、<c>DROP (</c> 的左括號：裡面是動作群組，
+    /// 或 <c>SELECT, INSERT ON t BY u</c> 這種動作。
+    /// </summary>
+    /// <remarks>伺服器稽核規格的括號裡只有動作群組，寫完就關上括號，不是權限的寫法。</remarks>
+    private bool OpensAuditActions(int index)
+    {
+        if (index < 1 || !tokens[index].IsPunctuation("(") ||
+            !(tokens[index - 1].IsKeyword("ADD") || tokens[index - 1].IsKeyword("DROP")))
+        {
+            return false;
+        }
+
+        // ADD、DROP 能開始一句，語句開頭會停在它們上；稽核規格的標頭在逗號隔開的上一組之前。
+        for (var verb = index - 2; verb >= 2; verb--)
+        {
+            if (tokens[verb].IsKeyword("SPECIFICATION"))
+            {
+                return tokens[verb - 1].IsKeyword("AUDIT") && tokens[verb - 2].IsKeyword("DATABASE");
+            }
+
+            if (tokens[verb].IsPunctuation(";") || tokens[verb].IsKeyword("GO"))
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// <paramref name="index"/> 是 <c>::</c> 之前的類別裡的一個字：<c>OBJECT::</c>、<c>SEARCH PROPERTY LIST::</c>、
+    /// <c>EXTERNAL MODEL::</c>（第一個字是保留字）。
+    /// </summary>
+    private bool NamesClass(int index)
+    {
+        for (var next = index; next < tokens.Count; next++)
+        {
+            if (tokens[next].IsPunctuation("::"))
+            {
+                return next > index;
+            }
+
+            if (tokens[next].Kind != SqlTokenKind.Identifier || tokens[next].IsQuoted)
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// 權限寫得出這個詞元：<c>SELECT</c>、<c>VIEW DEFINITION</c>、<c>ALTER ANY USER</c> 這些字；
