@@ -166,6 +166,30 @@ public sealed class CompletionAuditorTests
     }
 
     [Fact]
+    public async Task UPDATE_的目標是FROM才取的別名_SET的欄位歸截斷盲點()
+    {
+        var catalog = new FakeCatalog(
+            ("ReaderId", AuditTokenClass.Column),
+            ("PUBL_CODE", AuditTokenClass.Column),
+            ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync("UPDATE r SET ReaderId = @Id, PUBL_CODE = @Code FROM Lib_Reader r", catalog);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.TokenClass == AuditTokenClass.Column);
+        Assert.Equal(3, result.Tally.Excluded[AuditExclusion.Truncated]);
+    }
+
+    [Fact]
+    public async Task UPDATE_的目標是資料表名稱_SET的欄位照常稽核()
+    {
+        var catalog = new FakeCatalog(("ReaderId", AuditTokenClass.Column), ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync("UPDATE Lib_Reader SET ReaderId = @Id FROM Lib_Reader JOIN Lib_Tag t ON 1 = 1", catalog);
+
+        Assert.Contains(result.Misses, miss => miss.TokenClass == AuditTokenClass.Column && miss.Word == "ReaderId");
+    }
+
+    [Fact]
     public async Task FROM_之後的欄位照常稽核()
     {
         var catalog = new FakeCatalog(("ReaderId", AuditTokenClass.Column), ("Lib_Reader", AuditTokenClass.Object));

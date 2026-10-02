@@ -20,11 +20,11 @@ token 列舉裡根本沒有它——任何工具在這一塊都只能自己維�
 
 清單裡**照樣寫著** `LEFT`、`RIGHT`、`CONVERT`、`COALESCE`、`NULLIF`、`TRY_CONVERT`
 ——它們就是內建函式，只是同時也是 ScriptDom 認得的關鍵字。哪些該讓開交給比對決定，
-換一版 SSMS 之後這一組就會自己變。目前 194 個名稱裡有 6 個因此讓給關鍵字，
-清單上剩 188 個。
+換一版 SSMS 之後這一組就會自己變。
 
 位置與關鍵字走同一套分層，是運算式位置：語句開頭、資料來源位置與 DDL 物件
-位置不該冒出 `COUNT`。`OPENJSON` 反過來只在資料來源位置，見[物件種類](completion-object-kinds.md)。`ALTER FUNCTION` 之後也不列——內建函式沒有定義可以改，
+位置不該冒出 `COUNT`。運算式位置不手寫，取產生器量到的 `COALESCE` 位置——函式呼叫與它同形；
+手寫那份漏了 `OrderByColumn`，`ORDER BY DATEPART(` 與視窗的 `ORDER BY` 都列不出函式。`OPENJSON` 反過來只在資料來源位置，見[物件種類](completion-object-kinds.md)。`ALTER FUNCTION` 之後也不列——內建函式沒有定義可以改，
 出現在那裡只會讓使用者選到一個改不了的東西。
 
 自動大寫涵蓋內建函式，但**只在打出左括號時**：`max(` 得到 `MAX(`，`sum(`、

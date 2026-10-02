@@ -740,4 +740,39 @@ public sealed class SqlScopeAnalyzerTests
     {
         Assert.Contains(Analyze(sqlWithCaret).Tables, table => table.ObjectName == "Loan");
     }
+
+    /// <summary>APPLY 右邊是為了逐列引用左邊而寫的：沒寫限定字的欄位也屬於左邊的來源，<c>*</c> 仍只屬於這一層。</summary>
+    [Fact]
+    public void APPLY右邊的衍生資料表看得到左邊的來源()
+    {
+        var scope = Analyze("SELECT x.Big FROM (VALUES (1)) d (Seq) CROSS APPLY dbo.fn_Loans(1) f CROSS APPLY (SELECT CAST(| AS bigint) AS Big FROM dbo.Copy c) x");
+
+        Assert.Equal(new[] { "c" }, scope.Tables.Select(table => table.EffectiveName));
+        Assert.Equal(new[] { "d", "f" }, scope.Lateral.Select(table => table.EffectiveName));
+        Assert.Equal(new[] { "c", "d", "f" }, scope.ColumnTables.Select(table => table.EffectiveName));
+    }
+
+    [Theory]
+    [InlineData("SELECT * FROM dbo.Loan l WHERE EXISTS (SELECT | FROM dbo.Copy c)")]
+    [InlineData("SELECT * FROM dbo.Loan l JOIN (SELECT | FROM dbo.Copy c) x ON 1 = 1")]
+    public void 其餘子查詢沒寫限定字的欄位只屬於這一層(string sqlWithCaret)
+    {
+        var scope = Analyze(sqlWithCaret);
+
+        Assert.Empty(scope.Lateral);
+        Assert.Equal(new[] { "c" }, scope.ColumnTables.Select(table => table.EffectiveName));
+    }
+
+    /// <summary>PIVOT 轉出來的是新來源，之後以它的別名引用；轉之前的來源照樣留著，PIVOT 括號裡引用的是它。</summary>
+    [Theory]
+    [InlineData("SELECT | FROM (SELECT Branch, Fee FROM dbo.Loan) s PIVOT (MAX(Fee) FOR Branch IN ([0], [1])) P")]
+    [InlineData("SELECT | FROM dbo.Loan s UNPIVOT (Fee FOR Branch IN (Fee0, Fee1)) AS P JOIN dbo.Copy c ON 1 = 1")]
+    public void PIVOT的別名是資料來源(string sqlWithCaret)
+    {
+        var scope = Analyze(sqlWithCaret);
+
+        Assert.True(scope.TryResolve("P", out var pivot));
+        Assert.True(pivot.IsDerived);
+        Assert.True(scope.TryResolve("s", out _));
+    }
 }

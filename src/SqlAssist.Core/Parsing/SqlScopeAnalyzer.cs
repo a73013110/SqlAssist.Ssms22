@@ -131,7 +131,7 @@ public static class SqlScopeAnalyzer
             changeTables[index] = Rename(owner, SqlChangeTables.Names[index], owner.Start, owner.End);
         }
 
-        return new SqlStatementScope(scope.Tables, scope.Start, scope.End, scope.Outer, changeTables, triggerTable);
+        return new SqlStatementScope(scope.Tables, scope.Start, scope.End, scope.Outer, changeTables, triggerTable, scope.Lateral);
     }
 
     /// <summary>DML 的目標寫成別名時（<c>UPDATE l SET … OUTPUT … FROM dbo.Loan l</c>），換成別名指的來源。</summary>
@@ -172,7 +172,39 @@ public static class SqlScopeAnalyzer
             tables,
             tokens[start].Start,
             end > start ? tokens[end - 1].End : tokens[start].Start,
-            outer);
+            outer,
+            lateral: FindLateral(tokens, start, outer));
+    }
+
+    /// <summary>
+    /// 從 <paramref name="start"/> 開始的範圍是 APPLY 右邊的衍生資料表時，外層寫在 APPLY 左邊的來源。
+    /// </summary>
+    /// <remarks>
+    /// 外層的來源也包含右邊這個衍生資料表自己（它的別名寫在右括號之後），以位置排除：只收在左括號之前結束的。
+    /// </remarks>
+    private static IReadOnlyList<SqlTableReference>? FindLateral(
+        IReadOnlyList<SqlToken> tokens,
+        int start,
+        SqlStatementScope? outer)
+    {
+        var open = start - 1;
+
+        if (outer is null || open < 1 || !tokens[open].IsPunctuation("(") || !tokens[open - 1].IsKeyword("APPLY"))
+        {
+            return null;
+        }
+
+        var left = new List<SqlTableReference>();
+
+        foreach (var table in outer.Tables)
+        {
+            if (table.End <= tokens[open].Start)
+            {
+                left.Add(table);
+            }
+        }
+
+        return left;
     }
 
     /// <summary>
@@ -468,6 +500,16 @@ public static class SqlScopeAnalyzer
 
                 index = next;
 
+                while (TryParsePivot(tokens, index, end, out var pivot, out next))
+                {
+                    if (collects)
+                    {
+                        references.Add(pivot);
+                    }
+
+                    index = next;
+                }
+
                 if (!allowsList || index >= end || !tokens[index].IsPunctuation(","))
                 {
                     break;
@@ -555,6 +597,45 @@ public static class SqlScopeAnalyzer
             reference.DatabaseName is null &&
             reference.ServerName is null &&
             aliases.Contains(reference.ObjectName));
+    }
+
+    /// <summary>
+    /// 從 <paramref name="index"/> 讀一段 <c>PIVOT (…) 別名</c> 或 <c>UNPIVOT (…) 別名</c>：前一個來源轉出來的新來源。
+    /// </summary>
+    /// <remarks>
+    /// 之後的子句以它的別名引用（<c>PIVOT (…) P CROSS APPLY (SELECT P.[0])</c>），不收的話 <c>P</c> 不是別名，
+    /// <c>P.</c> 退回結構描述的解讀。轉出來的資料行要從前一個來源扣掉彙總與 FOR 的資料行、再加上 IN 的值，
+    /// 這裡不算：當成解析不出欄位的來源，<c>SELECT *</c> 就不展開，而不是展開成轉之前那張表的欄位。
+    /// 前一個來源照樣留著：PIVOT 括號裡的彙總與 FOR 引用的正是它的資料行。
+    /// </remarks>
+    private static bool TryParsePivot(
+        IReadOnlyList<SqlToken> tokens,
+        int index,
+        int end,
+        out SqlTableReference pivot,
+        out int next)
+    {
+        pivot = null!;
+        next = index;
+
+        if (index + 1 >= end ||
+            !(tokens[index].IsKeyword("PIVOT") || tokens[index].IsKeyword("UNPIVOT")) ||
+            !tokens[index + 1].IsPunctuation("("))
+        {
+            return false;
+        }
+
+        var cursor = SqlTokenNavigator.SkipParenthesised(tokens, index + 1, end);
+        var alias = TryReadAlias(tokens, ref cursor, end);
+
+        if (alias is null)
+        {
+            return false;
+        }
+
+        pivot = new SqlTableReference(string.Empty, alias, tokens[index].Start, tokens[cursor - 1].End);
+        next = cursor;
+        return true;
     }
 
     /// <summary>從 <paramref name="index"/> 讀一個資料來源：名稱或括號、別名與後面的提示，讀到 <paramref name="end"/> 為止。</summary>

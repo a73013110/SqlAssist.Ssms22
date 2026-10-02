@@ -670,6 +670,15 @@
     "examples.with-alias.title": "Table alias and distance",
     "examples.with-alias.sql": "SELECT c.CopyNo, s.distance\nFROM VECTOR_SEARCH(\n    TABLE = dbo.Copy AS c,\n    COLUMN = Embedding,\n    SIMILAR_TO = @Probe,\n    METRIC = 'cosine',\n    TOP_N = 10) AS s   -- 10 nearest copies"
   },
+  "AI_GENERATE_CHUNKS": {
+    "summary": "Splits text into fixed-size chunks; used after FROM or APPLY",
+    "examples.basic.title": "Basic usage"
+  },
+  "AI_GENERATE_EMBEDDINGS": {
+    "summary": "Text to vector via a model from CREATE EXTERNAL MODEL",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT AI_GENERATE_EMBEDDINGS(N'Loan history' USE MODEL LibModel)"
+  },
   "ACOS": {
     "summary": "Arccosine, argument in range -1 to 1, returns radians",
     "examples.basic.title": "Basic usage"

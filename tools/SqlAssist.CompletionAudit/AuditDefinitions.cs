@@ -47,6 +47,7 @@ public sealed class AuditDefinitions
     private readonly List<(int Start, int End)> _statements = new();
     private readonly List<(int Start, int End)> _orderBys = new();
     private readonly Dictionary<int, int> _fromStarts = new();
+    private readonly List<(int Start, int From)> _aliasedTargets = new();
     private readonly Dictionary<int, (string Name, string? Database)> _aliasSources = new();
     private readonly Dictionary<string, (string Name, string? Database)> _starSources = new(StringComparer.Ordinal);
     private readonly Dictionary<int, IReadOnlyList<(string Name, string? Database)>> _columnOwners = new();
@@ -289,10 +290,20 @@ public sealed class AuditDefinitions
     /// <paramref name="start"/> 在一個查詢的選取清單裡，而那個查詢的 FROM 寫在它後面：截斷之後
     /// 資料來源還沒出現，欄位誰都列不出來。
     /// </summary>
+    /// <remarks>
+    /// UPDATE 的目標是 FROM 才取的別名（<c>UPDATE l SET Fee = 1, CopyNo = 2 FROM Loan l</c>）時同理：截斷處只有
+    /// 一個叫 <c>l</c> 的名字，SET 到 FROM 之間的欄位不知道屬於哪一張表。
+    /// </remarks>
     public bool NeedsLaterFrom(int start)
     {
         (int Start, int End)? query = InnermostRange(_queries, start);
-        return query is { } range && _fromStarts.TryGetValue(range.Start, out var from) && start < from;
+
+        if (query is { } range)
+        {
+            return _fromStarts.TryGetValue(range.Start, out var from) && start < from;
+        }
+
+        return _aliasedTargets.Exists(target => target.Start <= start && start < target.From);
     }
 
     /// <summary>範圍內、<paramref name="start"/> 之前最近的那一次取名。</summary>
@@ -692,6 +703,20 @@ public sealed class AuditDefinitions
         return innermost;
     }
 
+    /// <summary>一段語法樹裡取過的資料來源別名。</summary>
+    private sealed class AliasCollector : TSqlFragmentVisitor
+    {
+        public HashSet<string> Names { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public override void Visit(TableReferenceWithAlias node)
+        {
+            if (node.Alias?.Value is { } alias)
+            {
+                Names.Add(alias);
+            }
+        }
+    }
+
     private sealed class Collector : TSqlFragmentVisitor
     {
         private readonly AuditDefinitions _owner;
@@ -758,7 +783,15 @@ public sealed class AuditDefinitions
             }
         }
 
-        public override void Visit(UpdateSpecification node) => _owner.AddSourceScope(node, WithTarget(node.Target, node.FromClause));
+        public override void Visit(UpdateSpecification node)
+        {
+            _owner.AddSourceScope(node, WithTarget(node.Target, node.FromClause));
+
+            if (node.FromClause is { StartOffset: >= 0 } from && NamesAlias(node.Target, from))
+            {
+                _owner._aliasedTargets.Add((node.StartOffset, from.StartOffset));
+            }
+        }
 
         public override void Visit(DeleteSpecification node) => _owner.AddSourceScope(node, WithTarget(node.Target, node.FromClause));
 
@@ -821,6 +854,19 @@ public sealed class AuditDefinitions
         /// <summary>參考的那一邊屬於被參考的資料表；自己這一邊由所在的定義記。</summary>
         public override void Visit(ForeignKeyConstraintDefinition node) =>
             _owner.AddColumns(node.ReferencedTableColumns, node.ReferenceTableName);
+
+        /// <summary>DML 的目標是一段沒有別名的名稱，而 FROM 有一個來源以它當別名。</summary>
+        private static bool NamesAlias(TableReference? target, FromClause from)
+        {
+            if (target is not NamedTableReference { Alias: null, SchemaObject: { Count: 1, BaseIdentifier.Value: { } name } })
+            {
+                return false;
+            }
+
+            var aliases = new AliasCollector();
+            from.Accept(aliases);
+            return aliases.Names.Contains(name);
+        }
 
         private static IEnumerable<TableReference?> WithTarget(TableReference? target, FromClause? from) =>
             new[] { target }.Concat(from?.TableReferences ?? (IList<TableReference>)Array.Empty<TableReference>());

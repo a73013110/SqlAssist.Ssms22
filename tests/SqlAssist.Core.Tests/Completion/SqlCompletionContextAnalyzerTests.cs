@@ -1,3 +1,4 @@
+using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Snippets;
@@ -35,12 +36,25 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("DROP FUNCTION ", CompletionTarget.Function)]
     [InlineData("USE ", CompletionTarget.Database)]
     [InlineData("GO\nUSE ", CompletionTarget.Database)]
+    [InlineData("SELECT 1\nUSE ", CompletionTarget.Database)]
     public void 依前導關鍵字決定建議目標(string textBeforeCaret, CompletionTarget expected)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
         Assert.True(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
         Assert.Equal(expected, context.Target);
+    }
+
+    /// <summary>函式引數裡的 USE 不開始一句，接的是片語的 MODEL，不是資料庫。</summary>
+    [Theory]
+    [InlineData("SELECT AI_GENERATE_EMBEDDINGS(N'x' USE ")]
+    [InlineData("SELECT AI_GENERATE_EMBEDDINGS(c.Title USE ")]
+    public void 函式引數裡的USE不接資料庫(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(CompletionTarget.ClauseKeyword, context.Target);
+        Assert.Equal(new[] { "MODEL" }, context.ClausePhrase!.Suggestions.Select(item => item.DisplayText));
     }
 
     /// <summary>

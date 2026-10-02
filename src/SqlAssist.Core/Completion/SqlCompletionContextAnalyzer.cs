@@ -304,7 +304,7 @@ public static class SqlCompletionContextAnalyzer
 
         var scope = SqlScopeAnalyzer.Analyze(sql, tokens, caretPosition);
         var resolver = new SqlColumnSourceResolver(sql, tokens);
-        var withScope = context.WithScopeSources(resolver.ResolveAvailable(scope.Tables));
+        var withScope = context.WithScopeSources(resolver.ResolveAvailable(scope.ColumnTables));
 
         if (context.ColumnOwner is { } owner &&
             ResolveColumnOwner(owner, scope, resolver, tokens, caretPosition) is { } ownerColumns)
@@ -705,9 +705,17 @@ public static class SqlCompletionContextAnalyzer
             return CompletionTarget.Sequence;
         }
 
+        // USE 開始一句才接資料庫；函式引數裡的 USE（AI_GENERATE_EMBEDDINGS(x USE MODEL m)）接的是片語的字，
+        // 判準與位置分析同一條（SqlStatementBoundaries.IsStatementHead）。
         if (EndsWithKeyword(text, "USE", out keywordStart))
         {
-            return CompletionTarget.Database;
+            if (StartsStatementAt(tokens, textBeforeToken, keywordStart))
+            {
+                return CompletionTarget.Database;
+            }
+
+            keywordStart = -1;
+            return CompletionTarget.Any;
         }
 
         // CROSS／OUTER APPLY 之後文法上只接得了資料表值函式與衍生資料表，資料表
@@ -756,6 +764,15 @@ public static class SqlCompletionContextAnalyzer
 
         // 文字與詞元對不起來（關鍵字寫在尾端的註解裡），照舊當成資料來源。
         return index < 0 || new SqlStatementBoundaries(textBeforeToken, tokens).IntroducesDataSource(index);
+    }
+
+    /// <summary>從 <paramref name="keywordStart"/> 開始的關鍵字是一句的開頭。</summary>
+    private static bool StartsStatementAt(IReadOnlyList<SqlToken> tokens, string textBeforeToken, int keywordStart)
+    {
+        var index = FindTokenAt(tokens, keywordStart);
+
+        // 文字與詞元對不起來（關鍵字寫在尾端的註解裡），照舊當成一句的開頭。
+        return index < 0 || new SqlStatementBoundaries(textBeforeToken, tokens).IsStatementHead(index);
     }
 
     /// <summary>從 <paramref name="tokenStart"/> 開始的詞元之後是游標名稱。</summary>

@@ -173,6 +173,28 @@ public sealed class SqlFunctionCatalogTests
         Assert.DoesNotContain(afterFrom, item => item.DisplayText == "COUNT");
     }
 
+    /// <summary>運算式能起頭的地方都列得出函式：查詢與視窗的 ORDER BY、GROUP BY 也是。</summary>
+    [Theory]
+    [InlineData("SELECT CopyNo FROM dbo.Copy ORDER BY ")]
+    [InlineData("SELECT CopyNo FROM dbo.Copy ORDER BY CopyNo, ")]
+    [InlineData("SELECT SUM(Fee) OVER (PARTITION BY BranchId ORDER BY ")]
+    [InlineData("SELECT COUNT(*) FROM dbo.Loan GROUP BY ")]
+    public void ORDER_BY之後列得出函式(string text)
+    {
+        var catalog = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty);
+
+        var filtered = SuggestionContextFilter.Filter(catalog, SqlCompletionContextAnalyzer.Analyze(text));
+
+        Assert.Contains(filtered, item => item.DisplayText == "DATEPART");
+    }
+
+    [Fact]
+    public void AI_GENERATE_CHUNKS只在資料來源位置()
+    {
+        Assert.Equal(SqlKeywordPosition.DataSource, Get("AI_GENERATE_CHUNKS").Positions);
+        Assert.NotEqual(SqlKeywordPosition.None, Get("AI_GENERATE_EMBEDDINGS").Positions & SqlKeywordPosition.SelectList);
+    }
+
     /// <summary>
     /// ALTER FUNCTION 之後只列得出資料庫裡的函式。
     /// </summary>

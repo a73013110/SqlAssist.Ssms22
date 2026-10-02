@@ -134,6 +134,22 @@ public sealed class PhraseExplorerTests : IDisposable
             .OrderBy(entry => entry, StringComparer.Ordinal));
     }
 
+    /// <summary>
+    /// 內建函式由函式目錄列：引數自有文法的（AI_GENERATE_EMBEDDINGS(x USE MODEL m)）換成普通名稱剖析不過，
+    /// 只靠名稱讀法判的話會另立附加片語，與函式目錄重複。
+    /// </summary>
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(false, "None:AI_GENERATE_EMBEDDINGS")]
+    public void 內建函式不收進附加片語(bool listed, string expected)
+    {
+        var explorer = Create(listed ? ["AI_GENERATE_EMBEDDINGS"] : []);
+
+        explorer.AddEvidence([new("AI_GENERATE_EMBEDDINGS (* {value} USE MODEL") { Lead = "SELECT " }]);
+
+        Assert.Equal(expected, string.Join(",", explorer.Additive.SelectMany(additive => additive.Words.Select(word => additive.After + ":" + word))));
+    }
+
     [Fact]
     public void 整段剖析不過的片語不當證據()
     {
@@ -151,10 +167,13 @@ public sealed class PhraseExplorerTests : IDisposable
         Assert.Contains("SELECT FROM", exception.Message);
     }
 
-    private PhraseExplorer Create()
+    private PhraseExplorer Create(string[]? functions = null)
     {
         var prober = new KeywordProber(KeywordProberTests.Rejecting, _cachePath, loadCache: false);
         return new PhraseExplorer(prober, Pool, ["ALTER", "OR", "PROCEDURE", "SELECT", "TABLE", "ON", "OFF"], Pool,
-            new Dictionary<string, List<string>>(), Templates, Continuations.Phrases);
+            new Dictionary<string, List<string>>(), Templates, Continuations.Phrases)
+        {
+            BuiltInFunctions = functions ?? [],
+        };
     }
 }

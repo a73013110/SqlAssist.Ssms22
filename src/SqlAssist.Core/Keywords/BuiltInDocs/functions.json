@@ -2086,6 +2086,32 @@
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/vector-search-transact-sql"
     },
     {
+      "name": "AI_GENERATE_CHUNKS",
+      "kind": "function",
+      "summary": "把文字切成固定長度的片段，一段一列（chunk、chunk_order…）；寫在 FROM 或 APPLY 之後。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT * FROM AI_GENERATE_CHUNKS(SOURCE = @Text, CHUNK_TYPE = FIXED, CHUNK_SIZE = 100)"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/ai-generate-chunks-transact-sql"
+    },
+    {
+      "name": "AI_GENERATE_EMBEDDINGS",
+      "kind": "function",
+      "summary": "以 CREATE EXTERNAL MODEL 建的模型把文字轉成向量；模型寫在 USE MODEL 之後。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT AI_GENERATE_EMBEDDINGS(N'借閱紀錄' USE MODEL LibModel)"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/ai-generate-embeddings-transact-sql"
+    },
+    {
       "name": "ACOS",
       "kind": "function",
       "summary": "反餘弦，引數要在 -1 到 1 之間，回傳弧度。",

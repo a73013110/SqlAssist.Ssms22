@@ -69,6 +69,7 @@ $options = [SqlAssist.KeywordGenerator.GeneratorOptions]@{
     CachePath         = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($CachePath)
     UseCache          = -not $NoCache
     StatementDocsPath = Join-Path $PSScriptRoot '..\src\SqlAssist.Core\Keywords\BuiltInDocs\statements.json'
+    FunctionDocsPath  = Join-Path $PSScriptRoot '..\src\SqlAssist.Core\Keywords\BuiltInDocs\functions.json'
 }
 
 $log = [SqlAssist.KeywordGenerator.GeneratorLog]::new(

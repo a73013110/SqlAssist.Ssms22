@@ -36,6 +36,10 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 （`dbo.fn(x) f (NOLOCK)`、`dbo.fn(x) AS s (CopyNo)`），只有它看內容：每一項都以資料表提示開頭才是提示。
 整份當清單會讓 `SELECT * INTO #Temp` 的結構變成一個叫 NOLOCK 的假欄位。
 
+`PIVOT (…) P`、`UNPIVOT (…) P` 是前一個來源轉出來的新來源，之後的子句以 `P` 引用（`CROSS APPLY (SELECT P.[0])`）。
+轉出來的資料行要扣掉彙總與 FOR 的資料行、再加上 IN 的值，這裡不算：`P` 是攤不開的來源，`SELECT *` 不展開，
+而不是展開成轉之前那張表。前一個來源照樣留著，PIVOT 括號裡引用的正是它的資料行。
+
 暫存資料表與資料表變數走的是同一條路：欄位的中繼資料一列都查不到——資料表變數
 不是 `sys.objects` 裡的物件，暫存資料表在 tempdb 裡——但那些欄位就寫在使用者眼前的
 `CREATE TABLE #Loan (…)` 與 `DECLARE @rows TABLE (…)` 括號裡，

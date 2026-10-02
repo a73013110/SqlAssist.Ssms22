@@ -24,6 +24,10 @@ internal static class QueryPhrases
         // VECTOR_SEARCH 的具名引數順序固定（TABLE、COLUMN、SIMILAR_TO、METRIC、TOP_N），清單一項一項往下探。
         // METRIC 只收距離的名稱，共用續尾寫不完那一項就探不到後面的 TOP_N。
         new("VECTOR_SEARCH (*") { After = ["DataSource"], Endings = [" = 'cosine'"] },
+        // AI_GENERATE_CHUNKS 的具名引數：SOURCE、CHUNK_TYPE 之後是選用的 CHUNK_SIZE、OVERLAP、ENABLE_CHUNK_SET_ID。
+        // CHUNK_TYPE 的值剖析器當名稱讀，只收 FIXED。
+        new("AI_GENERATE_CHUNKS (*") { After = ["DataSource"], Endings = [" = FIXED"] },
+        new("AI_GENERATE_CHUNKS (* CHUNK_TYPE =") { After = ["DataSource"], Items = "SOURCE = 'x', ", Values = ["FIXED"], Closed = true },
     ];
 
     internal static readonly PhraseDeclaration[] Clauses =
@@ -48,6 +52,13 @@ internal static class QueryPhrases
         new("DEFAULT {value} FOR") { Lead = "ALTER TABLE t ADD " },
         new("AT TIME") { Lead = "SELECT a " },
         new("AT TIME") { After = ["SelectListTail"] },
+
+        // AI_GENERATE_EMBEDDINGS 的來源之後是 USE MODEL 與模型名稱，再來是選用的 PARAMETERS。來源寫成常值或資料行；
+        // 函式引數裡判不出位置，從呼叫寫起。
+        new("AI_GENERATE_EMBEDDINGS (* {value} USE") { Lead = "SELECT " },
+        new("AI_GENERATE_EMBEDDINGS (* {name} USE") { Lead = "SELECT " },
+        new("AI_GENERATE_EMBEDDINGS (* {value} USE MODEL {name}") { Lead = "SELECT " },
+        new("AI_GENERATE_EMBEDDINGS (* {name} USE MODEL {name}") { Lead = "SELECT " },
 
         // 有序集合彙總：STRING_AGG、PERCENTILE_CONT 的呼叫之後是 WITHIN GROUP (ORDER BY …)。剖析器要看到 GROUP
         // 才收 WITHIN，WITHIN 由整段證據補到函式呼叫之後；WITHIN GROUP 之後只接左括號。

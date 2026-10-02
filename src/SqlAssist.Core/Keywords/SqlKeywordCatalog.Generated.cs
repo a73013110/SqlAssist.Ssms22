@@ -4545,6 +4545,14 @@ internal static class SqlKeywordCatalogData
         {
             "TABLE", "COLUMN", "SIMILAR_TO", "METRIC", "TOP_N",
         }),
+        ("AI_GENERATE_CHUNKS (*", SqlKeywordPosition.DataSource, "SELECT * FROM AI_GENERATE_CHUNKS (", true, false, false, new string[]
+        {
+            "SOURCE", "CHUNK_TYPE", "CHUNK_SIZE", "OVERLAP", "ENABLE_CHUNK_SET_ID",
+        }),
+        ("AI_GENERATE_CHUNKS (* CHUNK_TYPE =", SqlKeywordPosition.DataSource, "SELECT * FROM AI_GENERATE_CHUNKS (SOURCE = 'x', CHUNK_TYPE = ", true, false, false, new string[]
+        {
+            "FIXED",
+        }),
         ("CREATE EXTERNAL DATA SOURCE {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL DATA SOURCE t WITH (", true, false, false, new string[]
         {
             "CONNECTION_OPTIONS", "CREDENTIAL", "DATABASE_NAME", "LOCATION", "PUSHDOWN",
@@ -6470,6 +6478,22 @@ internal static class SqlKeywordCatalogData
         ("AT TIME", SqlKeywordPosition.Any | SqlKeywordPosition.SelectListTail, "SELECT a AT TIME ", true, false, false, new string[]
         {
             "ZONE",
+        }),
+        ("AI_GENERATE_EMBEDDINGS (* {value} USE", SqlKeywordPosition.Any, "SELECT AI_GENERATE_EMBEDDINGS (1 USE ", true, false, false, new string[]
+        {
+            "MODEL",
+        }),
+        ("AI_GENERATE_EMBEDDINGS (* {name} USE", SqlKeywordPosition.Any, "SELECT AI_GENERATE_EMBEDDINGS (t USE ", true, false, false, new string[]
+        {
+            "MODEL",
+        }),
+        ("AI_GENERATE_EMBEDDINGS (* {value} USE MODEL {name}", SqlKeywordPosition.Any, "SELECT AI_GENERATE_EMBEDDINGS (1 USE MODEL t ", true, false, false, new string[]
+        {
+            "PARAMETERS",
+        }),
+        ("AI_GENERATE_EMBEDDINGS (* {name} USE MODEL {name}", SqlKeywordPosition.Any, "SELECT AI_GENERATE_EMBEDDINGS (t USE MODEL t ", true, false, false, new string[]
+        {
+            "PARAMETERS",
         }),
         ("WITHIN GROUP", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP ", true, false, false, new string[]
         {

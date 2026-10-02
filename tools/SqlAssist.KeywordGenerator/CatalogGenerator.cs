@@ -28,6 +28,9 @@ public sealed class GeneratorOptions
 
     /// <summary>Core 的 statements.json：語句說明是片語的證據。</summary>
     public string StatementDocsPath { get; set; } = string.Empty;
+
+    /// <summary>Core 的 functions.json：內建函式的名稱由函式目錄列，附加片語不收。</summary>
+    public string FunctionDocsPath { get; set; } = string.Empty;
 }
 
 /// <summary>產生器的輸出管道；啟動器接到 Write-Host、Write-Warning、Write-Progress。progress 收到 null 是探測結束。</summary>
@@ -87,6 +90,7 @@ public static class CatalogGenerator
         var templates = PositionTemplates.All.ToDictionary(position => position.Position, position => position.Templates, IgnoreCase);
         PhraseDeclaration.Validate(ClausePhrases.All, templates);
         var docs = StatementDocs.Load(options.StatementDocsPath);
+        var functions = FunctionDocs.LoadNames(options.FunctionDocsPath);
 
         var prober = new KeywordProber(RejectingErrorNumbers(assembly, log), options.CachePath, options.UseCache);
         log.Info($"ScriptDom {prober.ScriptDomVersion}（{prober.ParserName}）");
@@ -94,7 +98,7 @@ public static class CatalogGenerator
         // 中途失敗（驗證不過之類）也把算過的結果存回去，下次從這裡接著算。Ctrl+C 攔不到，靠探測器每兩分鐘一次的檢查點。
         try
         {
-            var catalog = Generate(prober, assembly, templates, docs, log);
+            var catalog = Generate(prober, assembly, templates, docs, functions, log);
             var output = Path.GetFullPath(options.OutputPath);
             File.WriteAllText(output, CatalogWriter.Write(catalog), new UTF8Encoding(false));
             log.Info($"已寫出 {output}");
@@ -110,7 +114,8 @@ public static class CatalogGenerator
     }
 
     private static CatalogData Generate(
-        KeywordProber prober, Assembly assembly, IReadOnlyDictionary<string, string[]> templates, StatementDocs docs, GeneratorLog log)
+        KeywordProber prober, Assembly assembly, IReadOnlyDictionary<string, string[]> templates, StatementDocs docs,
+        IReadOnlyCollection<string> functions, GeneratorLog log)
     {
         // ---------------------------------------------------------------- 一、取字面值
 
@@ -206,7 +211,10 @@ public static class CatalogGenerator
         var pool = SortUnique(keywords.Concat(supporterWords)).ToArray();
         log.Info($"子句片語候選字：{pool.Length} 個");
 
-        var explorer = new PhraseExplorer(prober, pool, reservedArray, keywords, positions, templates, Continuations.Phrases, log.Progress);
+        var explorer = new PhraseExplorer(prober, pool, reservedArray, keywords, positions, templates, Continuations.Phrases, log.Progress)
+        {
+            BuiltInFunctions = functions,
+        };
         explorer.Explore(ClausePhrases.All);
         explorer.AddEvidence(ClausePhrases.All);
         explorer.AddStatementEvidence(docs.StatementNames, log.Info);

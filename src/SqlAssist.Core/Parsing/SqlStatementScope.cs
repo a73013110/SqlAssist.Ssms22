@@ -15,7 +15,8 @@ public sealed class SqlStatementScope
         int end,
         SqlStatementScope? outer = null,
         IReadOnlyList<SqlTableReference>? changeTables = null,
-        SqlTableReference? triggerTable = null)
+        SqlTableReference? triggerTable = null,
+        IReadOnlyList<SqlTableReference>? lateral = null)
     {
         Tables = tables;
         Start = start;
@@ -23,6 +24,8 @@ public sealed class SqlStatementScope
         Outer = outer;
         ChangeTables = changeTables ?? Array.Empty<SqlTableReference>();
         TriggerTable = triggerTable;
+        Lateral = lateral ?? Array.Empty<SqlTableReference>();
+        ColumnTables = Lateral.Count == 0 ? tables : Concat(tables, Lateral);
     }
 
     /// <summary>此範圍內的資料來源，依出現順序排列。</summary>
@@ -31,6 +34,19 @@ public sealed class SqlStatementScope
     /// 外層的來源由 <see cref="Outer"/> 一層一層往外接。
     /// </remarks>
     public IReadOnlyList<SqlTableReference> Tables { get; }
+
+    /// <summary>
+    /// 這一層是 APPLY 右邊的衍生資料表時，APPLY 左邊的來源；其餘是空的。
+    /// </summary>
+    /// <remarks>
+    /// 子查詢切開的是未限定的那一半，APPLY 右邊例外：它就是為了逐列引用左邊而寫的，沒寫限定字的欄位
+    /// 也引用得到左邊（<c>FROM (VALUES (1)) d (Seq) CROSS APPLY (SELECT CAST(Seq AS bigint) AS Big) x</c>）。
+    /// 不併進 <see cref="Tables"/>：右邊查詢的 <c>SELECT *</c> 只展開它自己的 FROM。
+    /// </remarks>
+    public IReadOnlyList<SqlTableReference> Lateral { get; }
+
+    /// <summary>沒寫限定字的欄位可能屬於的來源：<see cref="Tables"/> 在前，<see cref="Lateral"/> 在後。</summary>
+    public IReadOnlyList<SqlTableReference> ColumnTables { get; }
 
     /// <summary>範圍在原始文字中的起訖位置。</summary>
     public int Start { get; }
@@ -125,5 +141,15 @@ public sealed class SqlStatementScope
 
         reference = null!;
         return false;
+    }
+
+    private static IReadOnlyList<SqlTableReference> Concat(
+        IReadOnlyList<SqlTableReference> first,
+        IReadOnlyList<SqlTableReference> second)
+    {
+        var all = new List<SqlTableReference>(first.Count + second.Count);
+        all.AddRange(first);
+        all.AddRange(second);
+        return all;
     }
 }

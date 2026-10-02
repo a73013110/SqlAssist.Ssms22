@@ -70,6 +70,9 @@ internal sealed class PhraseExplorer
 
     public PhraseTable Phrases { get; } = new();
 
+    /// <summary>內建函式的名稱：函式目錄列得出，附加片語不收（見 <see cref="NameReading"/>）。</summary>
+    public IReadOnlyCollection<string> BuiltInFunctions { get; init; } = new HashSet<string>(IgnoreCase);
+
     /// <summary>附加片語，照第一次加入的順序。</summary>
     public List<AdditivePhrase> Additive { get; } = [];
 
@@ -304,8 +307,15 @@ internal sealed class PhraseExplorer
     // 第一個字換成普通名稱整段照樣剖析得過，剖析器在那一格讀的是名稱：FROM VECTOR_SEARCH ( 與 FROM fn( 同形。
     // 名稱由函式目錄與中繼資料列，附加片語再列一次的話，照目標過濾時被濾掉，判不出位置時與函式目錄重複。
     // 普通名稱過不了而它過得了才算，與探測候選字同一條規則；SELECT a AT 的 AT 換成名稱是別名，接 TIME 就報錯。
+    // 內建函式不靠這一條：引數有自己文法的（AI_GENERATE_EMBEDDINGS(x USE MODEL m)）換成名稱就剖析不過，
+    // 但函式目錄照樣列它。
     private bool NameReading(string lead, PhraseDeclaration declaration, string[] items)
     {
+        if (BuiltInFunctions.Contains(items[0], IgnoreCase))
+        {
+            return true;
+        }
+
         var renamed = Continuations.PlainName + (items.Length > 1 ? " " + string.Join(" ", items, 1, items.Length - 1) : string.Empty);
         return PatternAccepted(ProbeText(lead, renamed, declaration.Group, declaration.Gap, items: declaration.Items));
     }

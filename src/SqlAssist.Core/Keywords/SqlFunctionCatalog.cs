@@ -26,24 +26,22 @@ namespace SqlAssist.Core.Keywords;
 /// </remarks>
 public static class SqlFunctionCatalog
 {
-    /// <summary>函式可以出現的位置。</summary>
-    private const SqlKeywordPosition ExpressionPositions =
-        SqlKeywordPosition.SelectList
-        | SqlKeywordPosition.SelectListTail
-        | SqlKeywordPosition.Predicate
-        | SqlKeywordPosition.ExpressionTail
-        | SqlKeywordPosition.OrderByTail
-        | SqlKeywordPosition.CaseArm
-        | SqlKeywordPosition.CaseBody;
+    /// <summary>函式可以出現的位置：運算式能起頭的地方。</summary>
+    /// <remarks>
+    /// 不手寫：函式呼叫在文法上與 <c>COALESCE(</c> 同一種形狀，而 <c>COALESCE</c> 是關鍵字，位置由產生器
+    /// 塞進每個樣板剖析量出來。手寫的那一份漏了 <c>OrderByColumn</c>，<c>ORDER BY DATEPART(</c> 與視窗的
+    /// <c>ORDER BY</c> 都列不出函式；運算式起點換了樣板或多了位置，這裡跟著產生器走。
+    /// </remarks>
+    private static SqlKeywordPosition ExpressionPositions => SqlKeywordCatalog.GetPositions("COALESCE");
 
     /// <summary>
     /// 回傳一份資料列的函式，只寫在資料來源的位置（<c>FROM OPENJSON(@j)</c>、<c>CROSS APPLY OPENJSON(a.Doc)</c>）。
     /// </summary>
     /// <remarks>
-    /// 同類的 <c>OPENROWSET</c>、<c>OPENXML</c> 是關鍵字，位置由產生器探出；<c>OPENJSON</c>、<c>VECTOR_SEARCH</c>
-    /// 在 ScriptDom 眼中只是識別字，位置只能寫在這裡。放在運算式位置的話 <c>SELECT OPENJSON(</c> 列得出來、<c>FROM </c> 之後反而沒有。
+    /// 同類的 <c>OPENROWSET</c>、<c>OPENXML</c> 是關鍵字，位置由產生器探出；<c>OPENJSON</c>、<c>VECTOR_SEARCH</c>、
+    /// <c>AI_GENERATE_CHUNKS</c> 在 ScriptDom 眼中只是識別字，位置只能寫在這裡。放在運算式位置的話 <c>SELECT OPENJSON(</c> 列得出來、<c>FROM </c> 之後反而沒有。
     /// </remarks>
-    private static readonly HashSet<string> RowsetFunctions = new(StringComparer.OrdinalIgnoreCase) { "OPENJSON", "VECTOR_SEARCH" };
+    private static readonly HashSet<string> RowsetFunctions = new(StringComparer.OrdinalIgnoreCase) { "OPENJSON", "VECTOR_SEARCH", "AI_GENERATE_CHUNKS" };
 
     /// <summary>名稱與簽章；簽章同時當成清單右側的說明。</summary>
     private static readonly (string Name, string Signature)[] Definitions =
@@ -265,6 +263,10 @@ public static class SqlFunctionCatalog
         ("JSON_QUERY", "JSON_QUERY(json [, path])"),
         ("JSON_VALUE", "JSON_VALUE(json, path)"),
         ("OPENJSON", "OPENJSON(json [, path])"),
+
+        // AI
+        ("AI_GENERATE_CHUNKS", "AI_GENERATE_CHUNKS(SOURCE = text, CHUNK_TYPE = FIXED, CHUNK_SIZE = n [, OVERLAP = n])"),
+        ("AI_GENERATE_EMBEDDINGS", "AI_GENERATE_EMBEDDINGS(source USE MODEL model [PARAMETERS json])"),
 
         // 向量
         ("VECTOR_SEARCH", "VECTOR_SEARCH(TABLE = table AS alias, COLUMN = column, SIMILAR_TO = vector, METRIC = 'cosine', TOP_N = n)")

@@ -242,7 +242,7 @@ public sealed class SqlObjectLookup
 
         Candidate? found = null;
 
-        foreach (var table in _scope.Tables)
+        foreach (var table in _scope.ColumnTables)
         {
             var (_, detail, isScript) = ResolveSource(table, snapshot, peekSnapshot, peekDetail);
 
@@ -298,7 +298,7 @@ public sealed class SqlObjectLookup
         var sources = new List<SqlObjectInfo>();
         var seen = new HashSet<SqlObjectInfo>();
 
-        foreach (var table in _scope.Tables)
+        foreach (var table in _scope.ColumnTables)
         {
             // 與欄位判斷共用來源解析，避免 CTE 與同名資料庫物件各走一套規則。
             var (owner, _, isScript) = ResolveSource(table, snapshot, peekSnapshot, peekDetail: null);
@@ -324,7 +324,7 @@ public sealed class SqlObjectLookup
     {
         List<SqlObjectPath>? paths = null;
 
-        foreach (var table in _scope.Tables)
+        foreach (var table in _scope.ColumnTables)
         {
             if (table.IsDerived || table.IsLocal || table.Path is not { } path)
             {
@@ -415,12 +415,12 @@ public sealed class SqlObjectLookup
     /// <summary>游標底下這個名稱有沒有可能是這條敘述某個來源的欄位。</summary>
     private bool IsColumnPosition()
     {
-        if (Reference.Qualifier is not null || _scope.Tables.Count == 0 || !IsColumnShapedName())
+        if (Reference.Qualifier is not null || _scope.ColumnTables.Count == 0 || !IsColumnShapedName())
         {
             return false;
         }
 
-        foreach (var table in _scope.Tables)
+        foreach (var table in _scope.ColumnTables)
         {
             // 游標停在 FROM／JOIN／UPDATE／INSERT INTO 的那一段名稱上時，它是資料來源
             // 本身，不是誰的欄位——那一段留給後面的物件解析。

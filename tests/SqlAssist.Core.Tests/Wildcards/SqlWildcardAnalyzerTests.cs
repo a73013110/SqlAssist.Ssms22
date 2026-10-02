@@ -65,6 +65,13 @@ public sealed class SqlWildcardAnalyzerTests
         Assert.Equal(new[] { "o:表 Loans", "c:表 Publisher" }, Names(target));
     }
 
+    /// <summary>PIVOT 轉出來的資料行算不出來：不展開，而不是展開成轉之前那張表的欄位。</summary>
+    [Fact]
+    public void PIVOT之後的萬用字元不展開()
+    {
+        Assert.Null(Analyze("SELECT *| FROM (SELECT Branch, Fee FROM dbo.Loan) s PIVOT (MAX(Fee) FOR Branch IN ([0], [1])) P"));
+    }
+
     [Fact]
     public void 限定過的萬用字元只展開該來源()
     {

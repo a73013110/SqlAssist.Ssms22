@@ -81,7 +81,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
 | `EXEC`、`EXECUTE` | Procedure | 展開具名參數清單 |
 | `CREATE`／`ALTER`／`DROP INDEX`／`STATISTICS`／`TRIGGER` 之後的 `ON` | Table、View | 插入名稱 |
-| `USE` | 這台伺服器上的資料庫 | 插入名稱 |
+| 開始一句的 `USE`（函式引數裡的 `USE MODEL` 不是） | 這台伺服器上的資料庫 | 插入名稱 |
 | `OPEN`、`CLOSE`、`DEALLOCATE`、`FETCH [… FROM]`、`WHERE CURRENT OF`，可夾 `GLOBAL` | 指令碼 `DECLARE c CURSOR` 宣告的資料指標，另列片語的字（`FETCH ` 的方向、`OPEN `／`CLOSE ` 的金鑰） | 插入名稱 |
 | `COLLATE`、`SET LANGUAGE`、`DEFAULT_LANGUAGE =`、`AT TIME ZONE` | [執行個體名單](completion-instance-lists.md)與指令碼已用值 | 依名單的寫法 |
 | `FROM a, `、`FROM a, LibArchive.` | 同 `FROM` 那一列 | 插入名稱 |
