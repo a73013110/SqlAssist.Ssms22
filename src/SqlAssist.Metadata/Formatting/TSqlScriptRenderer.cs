@@ -1247,7 +1247,9 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
                 script.Scale,
                 options.QuoteDataTypes,
                 options.SpaceBeforeTypeArguments,
-                options.SpaceAfterArgumentComma);
+                options.SpaceAfterArgumentComma,
+                script.VectorDimensions,
+                script.VectorBaseType);
     }
 
     private static string ReferencedName(SqlForeignKeyInfo foreignKey, SqlScriptOptions options) =>

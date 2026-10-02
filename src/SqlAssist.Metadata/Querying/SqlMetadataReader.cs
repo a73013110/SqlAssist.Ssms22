@@ -69,11 +69,16 @@ public static class SqlMetadataReader
             throw new ArgumentNullException(nameof(record));
         }
 
+        var vectorDimensions = ReadOptionalInt32(record, 22);
+        var vectorBaseType = ReadOptionalString(record, 23);
+
         var dataType = SqlTypeFormatter.Format(
             record.GetString(2),
             record.GetInt16(3),
             record.GetByte(4),
-            record.GetByte(5));
+            record.GetByte(5),
+            vectorDimensions,
+            vectorBaseType);
 
         var script = new SqlColumnScriptDetail(
             record.GetString(2),
@@ -87,7 +92,9 @@ public static class SqlMetadataReader
             ReadOptionalBoolean(record, 17),
             ReadOptionalBoolean(record, 18),
             record.FieldCount > 19 && record.GetBoolean(19),
-            record.FieldCount > 20 && record.GetBoolean(20));
+            record.FieldCount > 20 && record.GetBoolean(20),
+            vectorDimensions,
+            vectorBaseType);
 
         return new SqlColumnInfo(
             record.GetInt32(0),
@@ -112,6 +119,9 @@ public static class SqlMetadataReader
     /// </remarks>
     private static string? ReadOptionalString(IDataRecord record, int ordinal) =>
         record.FieldCount > ordinal && !record.IsDBNull(ordinal) ? record.GetString(ordinal) : null;
+
+    private static int? ReadOptionalInt32(IDataRecord record, int ordinal) =>
+        record.FieldCount > ordinal && !record.IsDBNull(ordinal) ? record.GetInt32(ordinal) : null;
 
     /// <param name="fallback">
     /// 讀不到時的值。預設是 ON 的選項（<c>ALLOW_ROW_LOCKS</c>、
@@ -332,7 +342,9 @@ public static class SqlMetadataReader
             record.GetString(2),
             record.GetInt16(3),
             record.GetByte(4),
-            record.GetByte(5));
+            record.GetByte(5),
+            ReadOptionalInt32(record, 7),
+            ReadOptionalString(record, 8));
 
         // 純量函式的傳回值在 sys.parameters 中名稱為空字串，不是 NULL。
         var name = record.IsDBNull(1) ? string.Empty : record.GetString(1);

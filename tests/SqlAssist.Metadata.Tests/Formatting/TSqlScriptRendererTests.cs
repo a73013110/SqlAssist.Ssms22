@@ -270,6 +270,30 @@ public sealed class TSqlScriptRendererTests
     }
 
     [Fact]
+    public void vector資料行寫出維度與非預設的基底型別()
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(1, "dbo", "Lib_Tag", SqlObjectKind.Table),
+                new[]
+                {
+                    new SqlColumnInfo(
+                        1, "Embedding", "vector(3)", true,
+                        script: new SqlColumnScriptDetail(
+                            "vector", 20, 0, 0, vectorDimensions: 3, vectorBaseType: "float32")),
+                    new SqlColumnInfo(
+                        2, "Sketch", "vector(5,float16)", true,
+                        script: new SqlColumnScriptDetail(
+                            "vector", 18, 0, 0, vectorDimensions: 5, vectorBaseType: "float16"))
+                }));
+
+        var script = TSqlScriptRenderer.Default.Render(structure, Context(SqlScriptOptions.Fidelity));
+
+        Assert.Contains("[Embedding] [vector] (3) NULL", script);
+        Assert.Contains("[Sketch] [vector] (5, float16) NULL", script);
+    }
+
+    [Fact]
     public void 最大長度的型別寫成max()
     {
         Assert.Contains("[Remark] [nvarchar] (max)", Render(SqlScriptOptions.Fidelity));

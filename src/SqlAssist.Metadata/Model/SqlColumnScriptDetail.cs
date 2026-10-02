@@ -31,7 +31,9 @@ public sealed class SqlColumnScriptDetail
         bool defaultIsSystemNamed = false,
         bool isPersisted = false,
         bool isSparse = false,
-        bool isRowGuidCol = false)
+        bool isRowGuidCol = false,
+        int? vectorDimensions = null,
+        string? vectorBaseType = null)
     {
         TypeName = typeName ?? string.Empty;
         MaxLength = maxLength;
@@ -45,6 +47,8 @@ public sealed class SqlColumnScriptDetail
         IsPersisted = isPersisted;
         IsSparse = isSparse;
         IsRowGuidCol = isRowGuidCol;
+        VectorDimensions = vectorDimensions;
+        VectorBaseType = vectorBaseType;
     }
 
     /// <summary><c>sys.types.name</c>，沒有加長度也沒有加括號。</summary>
@@ -91,4 +95,10 @@ public sealed class SqlColumnScriptDetail
     public bool IsSparse { get; }
 
     public bool IsRowGuidCol { get; }
+
+    /// <summary><c>sys.columns.vector_dimensions</c>；SQL Server 2025 之前與非 vector 型別為 null。</summary>
+    public int? VectorDimensions { get; }
+
+    /// <summary><c>sys.columns.vector_base_type_desc</c>（<c>float32</c>、<c>float16</c>）。</summary>
+    public string? VectorBaseType { get; }
 }

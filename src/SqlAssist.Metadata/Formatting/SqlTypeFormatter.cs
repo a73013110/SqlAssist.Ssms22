@@ -19,6 +19,9 @@ public static class SqlTypeFormatter
     /// <summary>float 的預設精確度；等於預設值時 SQL Server 不會顯示括號。</summary>
     private const byte DefaultFloatPrecision = 53;
 
+    /// <summary>vector 的預設基底型別；等於預設值時只寫維度。</summary>
+    private const string DefaultVectorBaseType = "float32";
+
     /// <summary>
     /// 格式化型別，不加方括號也不留空格——建議清單與提示共用的緊湊寫法。
     /// </summary>
@@ -26,8 +29,16 @@ public static class SqlTypeFormatter
     /// <param name="maxLength">sys.columns.max_length，以位元組計；-1 代表 max。</param>
     /// <param name="precision">sys.columns.precision。</param>
     /// <param name="scale">sys.columns.scale。</param>
-    public static string Format(string typeName, short maxLength, byte precision, byte scale) =>
-        Format(typeName, maxLength, precision, scale, false, false, false);
+    /// <param name="vectorDimensions">sys.columns.vector_dimensions；SQL Server 2025 之前與非 vector 型別為 null。</param>
+    /// <param name="vectorBaseType">sys.columns.vector_base_type_desc（<c>float32</c>、<c>float16</c>）。</param>
+    public static string Format(
+        string typeName,
+        short maxLength,
+        byte precision,
+        byte scale,
+        int? vectorDimensions = null,
+        string? vectorBaseType = null) =>
+        Format(typeName, maxLength, precision, scale, false, false, false, vectorDimensions, vectorBaseType);
 
     /// <param name="quoteTypeName">型別名稱加方括號（<c>[nvarchar]</c>）。</param>
     /// <param name="spaceBeforeArguments">型別名稱與括號之間留空格（<c>[nvarchar] (200)</c>）。</param>
@@ -40,14 +51,17 @@ public static class SqlTypeFormatter
         byte scale,
         bool quoteTypeName,
         bool spaceBeforeArguments,
-        bool spaceAfterComma)
+        bool spaceAfterComma,
+        int? vectorDimensions = null,
+        string? vectorBaseType = null)
     {
         if (string.IsNullOrEmpty(typeName))
         {
             throw new ArgumentException("型別名稱不可為空。", nameof(typeName));
         }
 
-        var arguments = BuildArguments(typeName, maxLength, precision, scale, spaceAfterComma);
+        var arguments = BuildArguments(
+            typeName, maxLength, precision, scale, vectorDimensions, vectorBaseType, spaceAfterComma);
         var builder = new StringBuilder(typeName.Length + 16);
         builder.Append(quoteTypeName ? SqlIdentifier.Quote(typeName) : typeName);
 
@@ -70,6 +84,8 @@ public static class SqlTypeFormatter
         short maxLength,
         byte precision,
         byte scale,
+        int? vectorDimensions,
+        string? vectorBaseType,
         bool spaceAfterComma)
     {
         var separator = spaceAfterComma ? ", " : ",";
@@ -99,9 +115,27 @@ public static class SqlTypeFormatter
             case "float":
                 return precision == DefaultFloatPrecision ? string.Empty : Number(precision);
 
+            // 維度不能省，vector 不帶括號是語法錯誤；max_length 是位元組數，
+            // 同一個長度 float32 與 float16 各對到一種維度，反推不回來，只能讀目錄檢視那兩欄。
+            case "vector":
+                return FormatVector(vectorDimensions, vectorBaseType, separator);
+
             default:
                 return string.Empty;
         }
+    }
+
+    private static string FormatVector(int? dimensions, string? baseType, string separator)
+    {
+        if (dimensions is not { } count)
+        {
+            return string.Empty;
+        }
+
+        return string.IsNullOrEmpty(baseType) ||
+               string.Equals(baseType, DefaultVectorBaseType, StringComparison.OrdinalIgnoreCase)
+            ? Number(count)
+            : Number(count) + separator + baseType;
     }
 
     private static string FormatLength(short maxLength, bool halveLength)

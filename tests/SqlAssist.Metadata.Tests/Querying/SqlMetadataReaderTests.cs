@@ -455,6 +455,52 @@ public sealed class SqlMetadataReaderTests
         Assert.Equal("int", script.TypeName);
     }
 
+    /// <remarks>
+    /// 維度與基底型別接在第 22 欄之後；型別字串與指令碼細節都要帶到，
+    /// 否則 F12 指令碼寫出的 <c>vector</c> 不帶維度，那是語法錯誤。
+    /// </remarks>
+    [Fact]
+    public void 讀取vector資料行的維度與基底型別()
+    {
+        var record = new FakeDataRecord(
+            3, "Embedding", "vector", (short)18, (byte)0, (byte)0,
+            true, false, false, false, null, null, false,
+            null, null, null, null, false, false, false, false, null,
+            5, "float16");
+
+        var column = SqlMetadataReader.ReadColumn(record);
+
+        Assert.Equal("vector(5,float16)", column.DataType);
+        Assert.Equal(5, column.Script.VectorDimensions);
+        Assert.Equal("float16", column.Script.VectorBaseType);
+    }
+
+    [Fact]
+    public void 舊版讀成NULL的維度不影響其他型別()
+    {
+        var record = new FakeDataRecord(
+            1, "LoanId", "int", (short)4, (byte)10, (byte)0,
+            false, true, false, true, null, null, false,
+            null, "1", "1", null, false, false, false, false, null,
+            null, null);
+
+        var column = SqlMetadataReader.ReadColumn(record);
+
+        Assert.Equal("int", column.DataType);
+        Assert.Null(column.Script.VectorDimensions);
+        Assert.Null(column.Script.VectorBaseType);
+    }
+
+    [Fact]
+    public void 讀取vector參數的維度()
+    {
+        // parameter_id, name, type, max_length, precision, scale, is_output, vector_dimensions, vector_base_type_desc
+        var record = new FakeDataRecord(
+            1, "@Embedding", "vector", (short)24, (byte)0, (byte)0, false, 4, "float32");
+
+        Assert.Equal("@Embedding vector(4)", SqlMetadataReader.ReadParameter(record).ToScriptLine());
+    }
+
     [Fact]
     public void 系統配的預設值名稱看得出來是系統配的()
     {

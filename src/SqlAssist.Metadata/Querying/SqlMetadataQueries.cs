@@ -230,8 +230,10 @@ END CATCH;";
     /// <c>sys.extended_properties</c> 的鍵是 class＋major_id＋minor_id＋name，
     /// 四個都給定就最多接得到一列，多的只有一欄，不是多一輪來回。
     /// 值同樣在伺服器端 <c>CONVERT</c>——它也是 <c>sql_variant</c>。
+    ///
+    /// <c>vector</c> 的維度與基底型別讀法見 <see cref="NoVector"/>。
     /// </remarks>
-    public const string Columns = ColumnsHead + "sys.columns" + ColumnsTail;
+    public const string Columns = ColumnsHead + "sys.columns" + ColumnsMiddle + "sys.columns" + ColumnsTail;
 
     /// <summary>
     /// 第二層：系統物件的欄位。
@@ -246,7 +248,8 @@ END CATCH;";
     /// 反過來讓所有物件都走 <c>sys.all_columns</c> 也不行：那是一個聯集檢視，
     /// 而這一條在「使用者選了一張表」的路徑上，多付的是每一張使用者資料表。
     /// </remarks>
-    public const string SystemColumns = ColumnsHead + "sys.all_columns" + ColumnsTail;
+    public const string SystemColumns =
+        ColumnsHead + "sys.all_columns" + ColumnsMiddle + "sys.all_columns" + ColumnsTail;
 
     /// <summary>
     /// 某個結構描述底下的物件該問哪一條欄位查詢。
@@ -293,11 +296,42 @@ SELECT
         WHEN COLUMNPROPERTY(c.object_id, c.name, 'IsRowGuidCol') > 0 THEN 1
         ELSE 0
     END) AS is_row_guid_col,
-    CONVERT(nvarchar(max), ep.value) AS column_description
+    CONVERT(nvarchar(max), ep.value) AS column_description,
+    vec.vector_dimensions,
+    vec.vector_base_type_desc
 FROM ";
 
-    /// <summary>欄位查詢的後半段，從資料行的目錄檢視名稱之後接下去。</summary>
-    private const string ColumnsTail = @" AS c
+    /// <summary>
+    /// <c>vector</c> 維度與基底型別的退路：SQL Server 2025 之前那兩欄讀成 NULL。
+    /// </summary>
+    /// <remarks>
+    /// <c>sys.columns.vector_dimensions</c> 與 <c>vector_base_type_desc</c> 要 SQL Server 2025 才有，
+    /// 直接 SELECT 會讓整份欄位查詢在舊版上變成語法錯誤；<c>COLUMNPROPERTY</c> 沒有對應的屬性，
+    /// 依版本組字串則要先知道版本，而連結伺服器上那台的版本不是這條連線的版本。
+    ///
+    /// 所以靠子查詢的名稱解析：<c>OUTER APPLY</c> 裡不加限定字的欄位先在內層的目錄檢視找，
+    /// 找不到才往外層綁，而外層只有這張一列的衍生資料表有同名欄位。新版綁到目錄檢視、
+    /// 舊版綁到這裡的 NULL，同一個字串在兩邊都編譯得過。內層一加限定字（<c>v.vector_dimensions</c>）
+    /// 這條退路就斷了。基底型別讀 <c>_desc</c>：它的值就是 T-SQL 的寫法（<c>float16</c>），
+    /// 不必在這裡維護一份代碼對照。
+    /// </remarks>
+    private const string NoVector = @"(
+    SELECT
+        CONVERT(int, NULL) AS vector_dimensions,
+        CONVERT(nvarchar(10), NULL) AS vector_base_type_desc
+) AS no_vector";
+
+    /// <summary>欄位查詢的中段，兩個目錄檢視名稱之間；內層的名稱解析見 <see cref="NoVector"/>。</summary>
+    private const string ColumnsMiddle = @" AS c
+CROSS JOIN " + NoVector + @"
+OUTER APPLY (
+    SELECT vector_dimensions, vector_base_type_desc
+    FROM ";
+
+    /// <summary>欄位查詢的後半段，從第二個目錄檢視名稱之後接下去。</summary>
+    private const string ColumnsTail = @" AS v
+    WHERE v.object_id = c.object_id AND v.column_id = c.column_id
+) AS vec
 INNER JOIN sys.types AS t ON t.user_type_id = c.user_type_id
 LEFT JOIN sys.identity_columns AS ic
     ON ic.object_id = c.object_id AND ic.column_id = c.column_id
@@ -631,14 +665,16 @@ FROM (
 ORDER BY level, minor_id, target_name, property_name;";
 
     /// <summary>第二層：單一模組的參數。</summary>
-    public const string Parameters = ParametersHead + "sys.parameters" + ParametersTail;
+    /// <remarks><c>vector</c> 的維度與基底型別讀法見 <see cref="NoVector"/>。</remarks>
+    public const string Parameters = ParametersHead + "sys.parameters" + ParametersMiddle + "sys.parameters" + ParametersTail;
 
     /// <summary>第二層：系統模組的參數。</summary>
     /// <remarks>
     /// <c>sp_executesql</c> 這一類的參數只在 <c>sys.all_parameters</c> 上；兩條只差目錄檢視，
     /// 分開的理由與 <see cref="SystemColumns"/> 相同。
     /// </remarks>
-    public const string SystemParameters = ParametersHead + "sys.all_parameters" + ParametersTail;
+    public const string SystemParameters =
+        ParametersHead + "sys.all_parameters" + ParametersMiddle + "sys.all_parameters" + ParametersTail;
 
     /// <summary>某個結構描述底下的模組該問哪一條參數查詢；規則與 <see cref="ColumnsFor"/> 相同。</summary>
     public static string ParametersFor(string? schemaName)
@@ -654,10 +690,20 @@ SELECT
     p.max_length,
     p.precision,
     p.scale,
-    p.is_output
+    p.is_output,
+    vec.vector_dimensions,
+    vec.vector_base_type_desc
 FROM ";
 
-    private const string ParametersTail = @" AS p
+    private const string ParametersMiddle = @" AS p
+CROSS JOIN " + NoVector + @"
+OUTER APPLY (
+    SELECT vector_dimensions, vector_base_type_desc
+    FROM ";
+
+    private const string ParametersTail = @" AS v
+    WHERE v.object_id = p.object_id AND v.parameter_id = p.parameter_id
+) AS vec
 INNER JOIN sys.types AS t ON t.user_type_id = p.user_type_id
 WHERE p.object_id = @objectId
 ORDER BY p.parameter_id;";

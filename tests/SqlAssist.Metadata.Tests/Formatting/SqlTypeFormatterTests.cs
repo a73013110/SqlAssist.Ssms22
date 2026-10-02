@@ -85,6 +85,50 @@ public sealed class SqlTypeFormatterTests
     }
 
     /// <remarks>
+    /// vector 不寫維度是語法錯誤，而維度與基底型別只在目錄檢視的兩欄上，
+    /// max_length 反推不回來（同一個位元組數 float32 與 float16 各對到一種維度）。
+    /// 預設的 float32 不寫，與 float 的預設精確度同一條。
+    /// </remarks>
+    [Theory]
+    [InlineData(3, "float32", "vector(3)")]
+    [InlineData(3, "float16", "vector(3,float16)")]
+    [InlineData(1998, null, "vector(1998)")]
+    [InlineData(3, "FLOAT32", "vector(3)")]
+    public void vector依維度與基底型別寫出括號(int dimensions, string? baseType, string expected)
+    {
+        Assert.Equal(expected, SqlTypeFormatter.Format("vector", 20, 0, 0, dimensions, baseType));
+    }
+
+    [Theory]
+    [InlineData("float32", "[vector] (3)")]
+    [InlineData("float16", "[vector] (3, float16)")]
+    public void vector的基底型別跟著逗號排版(string baseType, string expected)
+    {
+        var formatted = SqlTypeFormatter.Format(
+            "vector", 20, 0, 0,
+            quoteTypeName: true, spaceBeforeArguments: true, spaceAfterComma: true,
+            vectorDimensions: 3, vectorBaseType: baseType);
+
+        Assert.Equal(expected, formatted);
+    }
+
+    /// <remarks>
+    /// 讀不到維度只會發生在 SQL Server 2025 之前，而那一版根本建不出 vector 欄位；
+    /// 沒有數字可寫時不猜一個。
+    /// </remarks>
+    [Fact]
+    public void 讀不到維度的vector只寫型別名稱()
+    {
+        Assert.Equal("vector", SqlTypeFormatter.Format("vector", 20, 0, 0));
+    }
+
+    [Fact]
+    public void 維度只套在vector上()
+    {
+        Assert.Equal("int", SqlTypeFormatter.Format("int", 4, 10, 0, 3, "float16"));
+    }
+
+    /// <remarks>
     /// 不加括號的呼叫端（建議清單、滑鼠停留提示）與原本的單參數多載必須逐字相同，
     /// 否則換一個排版選項會連提示的文字一起改掉。
     /// </remarks>
