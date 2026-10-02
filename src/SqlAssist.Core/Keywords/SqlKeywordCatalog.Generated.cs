@@ -673,15 +673,15 @@ internal static class SqlKeywordCatalogData
         ("CREATE", SqlKeywordPosition.StatementStart, "CREATE ", true, false, false, new string[]
         {
             "AGGREGATE", "APPLICATION ROLE", "ASSEMBLY", "ASYMMETRIC KEY", "BROKER PRIORITY",
-            "CERTIFICATE", "CLUSTERED INDEX", "COLUMN", "CONTRACT", "CREDENTIAL",
+            "CERTIFICATE", "CLUSTERED", "COLUMN", "CONTRACT", "CREDENTIAL",
             "CRYPTOGRAPHIC PROVIDER", "DATABASE", "DEFAULT", "ENDPOINT", "EVENT", "EXTERNAL",
             "FEDERATION", "FULLTEXT", "FUNCTION", "INDEX", "LOGIN", "MASTER KEY",
-            "MATERIALIZED VIEW", "MESSAGE TYPE", "NONCLUSTERED INDEX", "PARTITION",
+            "MATERIALIZED VIEW", "MESSAGE TYPE", "NONCLUSTERED", "PARTITION",
             "PRIMARY XML INDEX", "PROC", "PROCEDURE", "QUEUE", "REMOTE", "RESOURCE POOL",
             "ROLE", "ROUTE", "RULE", "SCHEMA", "SEARCH", "SECURITY POLICY",
             "SELECTIVE XML INDEX", "SEQUENCE", "SERVER", "SERVICE", "STATISTICS",
             "SYMMETRIC KEY", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "UNIQUE", "USER", "VIEW",
-            "WORKLOAD", "OR ALTER",
+            "WORKLOAD", "OR ALTER", "COLUMNSTORE INDEX", "VECTOR INDEX",
         }),
         ("CREATE AGGREGATE", SqlKeywordPosition.StatementStart, "CREATE AGGREGATE ", false, false, false, new string[]
         {
@@ -738,7 +738,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE CLUSTERED", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED ", true, false, false, new string[]
         {
-            "INDEX",
+            "INDEX", "COLUMNSTORE INDEX",
         }),
         ("CREATE CLUSTERED INDEX", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED INDEX ", false, false, false, new string[]
         {
@@ -800,7 +800,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE DATABASE", SqlKeywordPosition.StatementStart, "CREATE DATABASE ", false, false, false, new string[]
         {
-            "ENCRYPTION", "SCOPED",
+            "AUDIT", "ENCRYPTION", "SCOPED",
         }),
         ("CREATE DATABASE {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ", true, false, true, new string[]
         {
@@ -1004,7 +1004,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE NONCLUSTERED", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED ", true, false, false, new string[]
         {
-            "INDEX",
+            "INDEX", "COLUMNSTORE INDEX",
         }),
         ("CREATE NONCLUSTERED INDEX", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED INDEX ", false, false, false, new string[]
         {
@@ -1156,7 +1156,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE SECURITY POLICY {name}", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ", true, false, true, new string[]
         {
-            "NOT",
+            "NOT FOR REPLICATION", "ADD", "WITH",
         }),
         ("CREATE SELECTIVE", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE ", true, false, false, new string[]
         {
@@ -1473,7 +1473,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE t ", true, false, false, new string[]
         {
-            "REMOVE", "WITH",
+            "REMOVE PRIVATE KEY", "WITH PRIVATE",
         }),
         ("ALTER COLUMN", SqlKeywordPosition.StatementStart, "ALTER COLUMN ", false, false, false, new string[]
         {
@@ -1513,7 +1513,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER DATABASE", SqlKeywordPosition.StatementStart, "ALTER DATABASE ", false, false, false, new string[]
         {
-            "CURRENT", "ENCRYPTION", "SCOPED",
+            "CURRENT", "ENCRYPTION", "SCOPED", "AUDIT",
         }),
         ("ALTER DATABASE {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ", true, false, false, new string[]
         {
@@ -1927,7 +1927,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER SERVER AUDIT SPECIFICATION {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t ", true, false, true, new string[]
         {
-            "FOR",
+            "FOR", "ADD", "DROP", "WITH",
         }),
         ("ALTER SERVER ROLE", SqlKeywordPosition.StatementStart, "ALTER SERVER ROLE ", false, false, false, new string[]
         {
@@ -2953,7 +2953,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("BACKUP", SqlKeywordPosition.StatementStart, "BACKUP ", true, false, false, new string[]
         {
-            "CERTIFICATE", "DATABASE", "LOG", "SERVICE",
+            "CERTIFICATE", "DATABASE", "LOG", "SERVICE", "MASTER KEY TO FILE",
         }),
         ("BACKUP CERTIFICATE", SqlKeywordPosition.StatementStart, "BACKUP CERTIFICATE ", true, false, false, new string[]
         {
@@ -3013,15 +3013,15 @@ internal static class SqlKeywordCatalogData
         }),
         ("BACKUP SERVICE", SqlKeywordPosition.StatementStart, "BACKUP SERVICE ", true, false, false, new string[]
         {
-            "KEY TO",
+            "KEY TO", "MASTER",
         }),
         ("BACKUP SERVICE {name}", SqlKeywordPosition.StatementStart, "BACKUP SERVICE t ", true, false, false, new string[]
         {
-            "KEY TO",
+            "KEY TO FILE",
         }),
         ("BACKUP SERVICE {name} KEY", SqlKeywordPosition.StatementStart, "BACKUP SERVICE t KEY ", true, false, false, new string[]
         {
-            "TO",
+            "TO FILE",
         }),
         ("BACKUP SERVICE KEY", SqlKeywordPosition.StatementStart, "BACKUP SERVICE KEY ", true, false, false, new string[]
         {
@@ -3030,7 +3030,7 @@ internal static class SqlKeywordCatalogData
         ("RESTORE", SqlKeywordPosition.StatementStart, "RESTORE ", true, false, false, new string[]
         {
             "DATABASE", "FILELISTONLY", "HEADERONLY", "LABELONLY", "LOG", "REWINDONLY",
-            "SERVICE", "VERIFYONLY",
+            "SERVICE", "VERIFYONLY", "MASTER KEY FROM FILE",
         }),
         ("RESTORE DATABASE", SqlKeywordPosition.StatementStart, "RESTORE DATABASE ", false, true, false, new string[]
         {
@@ -3135,15 +3135,15 @@ internal static class SqlKeywordCatalogData
         }),
         ("RESTORE SERVICE", SqlKeywordPosition.StatementStart, "RESTORE SERVICE ", true, false, false, new string[]
         {
-            "KEY FROM",
+            "KEY FROM", "MASTER",
         }),
         ("RESTORE SERVICE {name}", SqlKeywordPosition.StatementStart, "RESTORE SERVICE t ", true, false, false, new string[]
         {
-            "KEY FROM",
+            "KEY FROM FILE",
         }),
         ("RESTORE SERVICE {name} KEY", SqlKeywordPosition.StatementStart, "RESTORE SERVICE t KEY ", true, false, false, new string[]
         {
-            "FROM",
+            "FROM FILE",
         }),
         ("RESTORE SERVICE KEY", SqlKeywordPosition.StatementStart, "RESTORE SERVICE KEY ", true, false, false, new string[]
         {
@@ -3274,6 +3274,195 @@ internal static class SqlKeywordCatalogData
         ("WAIT_AT_LOW_PRIORITY (* ABORT_AFTER_WAIT =", SqlKeywordPosition.Any, "ALTER TABLE t SWITCH TO t WITH (WAIT_AT_LOW_PRIORITY (MAX_DURATION = 1 MINUTES, ABORT_AFTER_WAIT = ", true, false, false, new string[]
         {
             "BLOCKERS", "NONE", "SELF",
+        }),
+        ("DROP INDEX ... WITH (*", SqlKeywordPosition.StatementStart, "DROP INDEX i ON t WITH (", true, false, false, new string[]
+        {
+            "DATA_COMPRESSION", "FILESTREAM_ON", "MAXDOP", "ONLINE", "WAIT_AT_LOW_PRIORITY",
+            "XML_COMPRESSION", "MOVE TO",
+        }),
+        ("DROP INDEX ... WITH (* MOVE TO", SqlKeywordPosition.StatementStart, "DROP INDEX i ON t WITH (MOVE TO ", false, false, false, new string[]
+        {
+        }),
+        ("DROP CONSTRAINT ... WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t DROP CONSTRAINT k WITH (", true, false, false, new string[]
+        {
+            "MAXDOP", "ONLINE", "WAIT_AT_LOW_PRIORITY",
+        }),
+        ("DROP COLUMN ... WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t DROP COLUMN a, CONSTRAINT k WITH (", true, false, false, new string[]
+        {
+            "MAXDOP", "ONLINE", "WAIT_AT_LOW_PRIORITY",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name}", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ", false, false, false, new string[]
+        {
+            "ADD", "DOUBLE", "DROP", "NATIONAL", "XML",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD ", true, false, false, new string[]
+        {
+            "HIDDEN", "NOT FOR REPLICATION", "PERSISTED", "SPARSE", "ROWGUIDCOL",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD NOT", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD NOT ", true, false, false, new string[]
+        {
+            "FOR REPLICATION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP ", true, false, false, new string[]
+        {
+            "HIDDEN", "MASKED", "NOT FOR REPLICATION", "PERSISTED", "SPARSE", "ROWGUIDCOL",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP NOT", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP NOT ", true, false, false, new string[]
+        {
+            "FOR REPLICATION",
+        }),
+        ("ALTER COLUMN ... WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ALTER COLUMN a int WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD PERSISTED WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD PERSISTED WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP PERSISTED WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP PERSISTED WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD SPARSE WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD SPARSE WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP SPARSE WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP SPARSE WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD ROWGUIDCOL WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD ROWGUIDCOL WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP ROWGUIDCOL WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP ROWGUIDCOL WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD NOT FOR REPLICATION WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD NOT FOR REPLICATION WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP NOT FOR REPLICATION WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP NOT FOR REPLICATION WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = {value} WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = 1 WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = {value} WITH (*", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = 1 WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (*", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE CLUSTERED COLUMNSTORE INDEX {name} ON {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE INDEX t ON t WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE NONCLUSTERED COLUMNSTORE INDEX {name} ON {name} () WITH (*", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE INDEX t ON t (a) WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE COLUMNSTORE INDEX {name} ON {name} () WITH (*", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE INDEX t ON t (a) WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (*", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
         ("", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t ", true, false, false, new string[]
         {
@@ -4410,6 +4599,851 @@ internal static class SqlKeywordCatalogData
         {
             "AUDIT_GUID", "ON_FAILURE", "OPERATOR_AUDIT", "QUEUE_DELAY",
         }),
+        ("CREATE SERVER AUDIT SPECIFICATION {name} FOR", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT SPECIFICATION t FOR ", true, false, false, new string[]
+        {
+            "SERVER AUDIT",
+        }),
+        ("CREATE SERVER AUDIT SPECIFICATION {name} FOR SERVER", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT SPECIFICATION t FOR SERVER ", true, false, false, new string[]
+        {
+            "AUDIT",
+        }),
+        ("CREATE SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT SPECIFICATION t FOR SERVER AUDIT ", false, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE AUDIT SPECIFICATION {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE AUDIT SPECIFICATION t ", true, false, false, new string[]
+        {
+            "FOR",
+        }),
+        ("CREATE DATABASE AUDIT SPECIFICATION {name} FOR", SqlKeywordPosition.StatementStart, "CREATE DATABASE AUDIT SPECIFICATION t FOR ", true, false, false, new string[]
+        {
+            "SERVER AUDIT",
+        }),
+        ("CREATE DATABASE AUDIT SPECIFICATION {name} FOR SERVER", SqlKeywordPosition.StatementStart, "CREATE DATABASE AUDIT SPECIFICATION t FOR SERVER ", true, false, false, new string[]
+        {
+            "AUDIT",
+        }),
+        ("CREATE DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT", SqlKeywordPosition.StatementStart, "CREATE DATABASE AUDIT SPECIFICATION t FOR SERVER AUDIT ", false, false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT SPECIFICATION t FOR SERVER AUDIT t ", true, false, true, new string[]
+        {
+            "ADD", "WITH",
+        }),
+        ("CREATE DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE AUDIT SPECIFICATION t FOR SERVER AUDIT t ", true, false, true, new string[]
+        {
+            "ADD", "WITH",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name} FOR", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t FOR ", true, false, false, new string[]
+        {
+            "SERVER AUDIT",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name} ADD", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t ADD ", true, false, false, new string[]
+        {
+            "COUNTER", "SENSITIVITY",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name} DROP", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t DROP ", true, false, false, new string[]
+        {
+            "AGGREGATE", "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "BROKER", "CERTIFICATE",
+            "COLUMN", "CONTRACT", "COUNTER", "CREDENTIAL", "CRYPTOGRAPHIC", "DATABASE",
+            "DEFAULT", "ENDPOINT", "EVENT", "EXTERNAL", "FEDERATION", "FULLTEXT", "FUNCTION",
+            "INDEX", "LOGIN", "MASTER", "MESSAGE", "PARTITION", "PROC", "PROCEDURE", "QUEUE",
+            "REMOTE", "RESOURCE", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEARCH", "SECURITY",
+            "SENSITIVITY", "SEQUENCE", "SERVER", "SERVICE", "SIGNATURE", "STATISTICS",
+            "SYMMETRIC", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "USER", "VIEW", "WORKLOAD",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name} WITH", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t WITH ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t ", true, false, true, new string[]
+        {
+            "FOR", "ADD", "DROP", "WITH",
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name} FOR", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t FOR ", true, false, false, new string[]
+        {
+            "SERVER AUDIT",
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name} ADD", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t ADD ", true, false, false, new string[]
+        {
+            "COUNTER", "SENSITIVITY",
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name} DROP", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t DROP ", true, false, false, new string[]
+        {
+            "AGGREGATE", "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "BROKER", "CERTIFICATE",
+            "COLUMN", "CONTRACT", "COUNTER", "CREDENTIAL", "CRYPTOGRAPHIC", "DATABASE",
+            "DEFAULT", "ENDPOINT", "EVENT", "EXTERNAL", "FEDERATION", "FULLTEXT", "FUNCTION",
+            "INDEX", "LOGIN", "MASTER", "MESSAGE", "PARTITION", "PROC", "PROCEDURE", "QUEUE",
+            "REMOTE", "RESOURCE", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEARCH", "SECURITY",
+            "SENSITIVITY", "SEQUENCE", "SERVER", "SERVICE", "SIGNATURE", "STATISTICS",
+            "SYMMETRIC", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "USER", "VIEW", "WORKLOAD",
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t WITH ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t FOR SERVER AUDIT t ", true, false, true, new string[]
+        {
+            "ADD", "DROP", "WITH",
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t FOR SERVER AUDIT t ", true, false, true, new string[]
+        {
+            "ADD", "DROP", "WITH",
+        }),
+        ("CREATE SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT SPECIFICATION t FOR SERVER AUDIT t WITH (", true, false, false, new string[]
+        {
+            "STATE",
+        }),
+        ("CREATE DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE AUDIT SPECIFICATION t FOR SERVER AUDIT t WITH (", true, false, false, new string[]
+        {
+            "STATE",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name} WITH (*", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t WITH (", true, false, false, new string[]
+        {
+            "STATE",
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name} WITH (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t WITH (", true, false, false, new string[]
+        {
+            "STATE",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (*", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t FOR SERVER AUDIT t WITH (", true, false, false, new string[]
+        {
+            "STATE",
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t FOR SERVER AUDIT t WITH (", true, false, false, new string[]
+        {
+            "STATE",
+        }),
+        ("ADD (*", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s ADD (", true, false, false, new string[]
+        {
+            "APPLICATION_ROLE_CHANGE_PASSWORD_GROUP", "AUDIT_CHANGE_GROUP",
+            "BACKUP_RESTORE_GROUP", "BATCH_COMPLETED_GROUP", "BATCH_STARTED_GROUP",
+            "BROKER_LOGIN_GROUP", "DATABASE_CHANGE_GROUP", "DATABASE_LOGOUT_GROUP",
+            "DATABASE_MIRRORING_LOGIN_GROUP", "DATABASE_OBJECT_ACCESS_GROUP",
+            "DATABASE_OBJECT_CHANGE_GROUP", "DATABASE_OBJECT_OWNERSHIP_CHANGE_GROUP",
+            "DATABASE_OBJECT_PERMISSION_CHANGE_GROUP", "DATABASE_OPERATION_GROUP",
+            "DATABASE_OWNERSHIP_CHANGE_GROUP", "DATABASE_PERMISSION_CHANGE_GROUP",
+            "DATABASE_PRINCIPAL_CHANGE_GROUP", "DATABASE_PRINCIPAL_IMPERSONATION_GROUP",
+            "DATABASE_ROLE_MEMBER_CHANGE_GROUP", "DBCC_GROUP",
+            "FAILED_DATABASE_AUTHENTICATION_GROUP", "FAILED_LOGIN_GROUP",
+            "LOGIN_CHANGE_PASSWORD_GROUP", "LOGOUT_GROUP", "SCHEMA_OBJECT_ACCESS_GROUP",
+            "SCHEMA_OBJECT_CHANGE_GROUP", "SCHEMA_OBJECT_OWNERSHIP_CHANGE_GROUP",
+            "SCHEMA_OBJECT_PERMISSION_CHANGE_GROUP", "SERVER_OBJECT_CHANGE_GROUP",
+            "SERVER_OBJECT_OWNERSHIP_CHANGE_GROUP", "SERVER_OBJECT_PERMISSION_CHANGE_GROUP",
+            "SERVER_OPERATION_GROUP", "SERVER_PERMISSION_CHANGE_GROUP",
+            "SERVER_PRINCIPAL_CHANGE_GROUP", "SERVER_PRINCIPAL_IMPERSONATION_GROUP",
+            "SERVER_ROLE_MEMBER_CHANGE_GROUP", "SERVER_STATE_CHANGE_GROUP",
+            "STATEMENT_ROLLBACK_GROUP", "SUCCESSFUL_DATABASE_AUTHENTICATION_GROUP",
+            "SUCCESSFUL_LOGIN_GROUP", "TRACE_CHANGE_GROUP", "TRANSACTION_BEGIN_GROUP",
+            "TRANSACTION_COMMIT_GROUP", "TRANSACTION_GROUP", "TRANSACTION_ROLLBACK_GROUP",
+            "USER_CHANGE_PASSWORD_GROUP", "USER_DEFINED_AUDIT_GROUP", "ADD", "DROP",
+        }),
+        ("DROP (*", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s DROP (", true, false, false, new string[]
+        {
+            "APPLICATION_ROLE_CHANGE_PASSWORD_GROUP", "AUDIT_CHANGE_GROUP",
+            "BACKUP_RESTORE_GROUP", "BATCH_COMPLETED_GROUP", "BATCH_STARTED_GROUP",
+            "BROKER_LOGIN_GROUP", "DATABASE_CHANGE_GROUP", "DATABASE_LOGOUT_GROUP",
+            "DATABASE_MIRRORING_LOGIN_GROUP", "DATABASE_OBJECT_ACCESS_GROUP",
+            "DATABASE_OBJECT_CHANGE_GROUP", "DATABASE_OBJECT_OWNERSHIP_CHANGE_GROUP",
+            "DATABASE_OBJECT_PERMISSION_CHANGE_GROUP", "DATABASE_OPERATION_GROUP",
+            "DATABASE_OWNERSHIP_CHANGE_GROUP", "DATABASE_PERMISSION_CHANGE_GROUP",
+            "DATABASE_PRINCIPAL_CHANGE_GROUP", "DATABASE_PRINCIPAL_IMPERSONATION_GROUP",
+            "DATABASE_ROLE_MEMBER_CHANGE_GROUP", "DBCC_GROUP",
+            "FAILED_DATABASE_AUTHENTICATION_GROUP", "FAILED_LOGIN_GROUP",
+            "LOGIN_CHANGE_PASSWORD_GROUP", "LOGOUT_GROUP", "SCHEMA_OBJECT_ACCESS_GROUP",
+            "SCHEMA_OBJECT_CHANGE_GROUP", "SCHEMA_OBJECT_OWNERSHIP_CHANGE_GROUP",
+            "SCHEMA_OBJECT_PERMISSION_CHANGE_GROUP", "SERVER_OBJECT_CHANGE_GROUP",
+            "SERVER_OBJECT_OWNERSHIP_CHANGE_GROUP", "SERVER_OBJECT_PERMISSION_CHANGE_GROUP",
+            "SERVER_OPERATION_GROUP", "SERVER_PERMISSION_CHANGE_GROUP",
+            "SERVER_PRINCIPAL_CHANGE_GROUP", "SERVER_PRINCIPAL_IMPERSONATION_GROUP",
+            "SERVER_ROLE_MEMBER_CHANGE_GROUP", "SERVER_STATE_CHANGE_GROUP",
+            "STATEMENT_ROLLBACK_GROUP", "SUCCESSFUL_DATABASE_AUTHENTICATION_GROUP",
+            "SUCCESSFUL_LOGIN_GROUP", "TRACE_CHANGE_GROUP", "TRANSACTION_BEGIN_GROUP",
+            "TRANSACTION_COMMIT_GROUP", "TRANSACTION_GROUP", "TRANSACTION_ROLLBACK_GROUP",
+            "USER_CHANGE_PASSWORD_GROUP", "USER_DEFINED_AUDIT_GROUP", "ADD", "DROP",
+        }),
+        ("ADD () ,", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s ADD (SCHEMA_OBJECT_ACCESS_GROUP) , ", true, false, false, new string[]
+        {
+            "ADD", "DROP",
+        }),
+        ("DROP () ,", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s DROP (SCHEMA_OBJECT_ACCESS_GROUP) , ", true, false, false, new string[]
+        {
+            "ADD", "DROP",
+        }),
+        ("ADD () WITH (*", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s ADD (SCHEMA_OBJECT_ACCESS_GROUP) WITH (", true, false, false, new string[]
+        {
+            "STATE",
+        }),
+        ("DROP () WITH (*", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s DROP (SCHEMA_OBJECT_ACCESS_GROUP) WITH (", true, false, false, new string[]
+        {
+            "STATE",
+        }),
+        ("CREATE SECURITY POLICY {name} NOT", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t NOT ", true, false, false, new string[]
+        {
+            "FOR REPLICATION",
+        }),
+        ("CREATE SECURITY POLICY {name} NOT FOR", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t NOT FOR ", true, false, false, new string[]
+        {
+            "REPLICATION",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD ", true, false, false, new string[]
+        {
+            "BLOCK PREDICATE", "FILTER PREDICATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK ", true, false, false, new string[]
+        {
+            "PREDICATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SECURITY POLICY {name} ADD FILTER", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD FILTER ", true, false, false, new string[]
+        {
+            "PREDICATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD FILTER PREDICATE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SECURITY POLICY {name} ADD", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ADD ", true, false, false, new string[]
+        {
+            "BLOCK PREDICATE", "FILTER PREDICATE", "NOT FOR REPLICATION",
+        }),
+        ("ALTER SECURITY POLICY {name} ADD BLOCK", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ADD BLOCK ", true, false, false, new string[]
+        {
+            "PREDICATE",
+        }),
+        ("ALTER SECURITY POLICY {name} ADD BLOCK PREDICATE", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ADD BLOCK PREDICATE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SECURITY POLICY {name} ADD FILTER", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ADD FILTER ", true, false, false, new string[]
+        {
+            "PREDICATE",
+        }),
+        ("ALTER SECURITY POLICY {name} ADD FILTER PREDICATE", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ADD FILTER PREDICATE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SECURITY POLICY {name} ADD NOT", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ADD NOT ", true, false, false, new string[]
+        {
+            "FOR REPLICATION",
+        }),
+        ("ALTER SECURITY POLICY {name} ADD NOT FOR", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ADD NOT FOR ", true, false, false, new string[]
+        {
+            "REPLICATION",
+        }),
+        ("ALTER SECURITY POLICY {name} ALTER", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ALTER ", true, false, false, new string[]
+        {
+            "BLOCK PREDICATE", "FILTER PREDICATE",
+        }),
+        ("ALTER SECURITY POLICY {name} ALTER BLOCK", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ALTER BLOCK ", true, false, false, new string[]
+        {
+            "PREDICATE",
+        }),
+        ("ALTER SECURITY POLICY {name} ALTER BLOCK PREDICATE", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ALTER BLOCK PREDICATE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SECURITY POLICY {name} ALTER FILTER", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ALTER FILTER ", true, false, false, new string[]
+        {
+            "PREDICATE",
+        }),
+        ("ALTER SECURITY POLICY {name} ALTER FILTER PREDICATE", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t ALTER FILTER PREDICATE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SECURITY POLICY {name} DROP", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t DROP ", true, false, false, new string[]
+        {
+            "BLOCK PREDICATE ON", "FILTER PREDICATE ON", "NOT FOR REPLICATION",
+        }),
+        ("ALTER SECURITY POLICY {name} DROP BLOCK", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t DROP BLOCK ", true, false, false, new string[]
+        {
+            "PREDICATE ON",
+        }),
+        ("ALTER SECURITY POLICY {name} DROP BLOCK PREDICATE", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t DROP BLOCK PREDICATE ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER SECURITY POLICY {name} DROP FILTER", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t DROP FILTER ", true, false, false, new string[]
+        {
+            "PREDICATE ON",
+        }),
+        ("ALTER SECURITY POLICY {name} DROP FILTER PREDICATE", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t DROP FILTER PREDICATE ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER SECURITY POLICY {name} DROP NOT", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t DROP NOT ", true, false, false, new string[]
+        {
+            "FOR REPLICATION",
+        }),
+        ("ALTER SECURITY POLICY {name} DROP NOT FOR", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t DROP NOT FOR ", true, false, false, new string[]
+        {
+            "REPLICATION",
+        }),
+        ("ALTER SECURITY POLICY {name} WITH", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t WITH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SECURITY POLICY {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        ("ALTER SECURITY POLICY {name} WITH (*", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t WITH (", true, false, false, new string[]
+        {
+            "STATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name}", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD FILTER PREDICATE t (a) ON t ", true, false, true, new string[]
+        {
+            "NOT", "WITH",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name} ,", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD FILTER PREDICATE t (a) ON t , ", true, false, false, new string[]
+        {
+            "ADD",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD FILTER PREDICATE t (a) ON t WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name}", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t ", true, false, true, new string[]
+        {
+            "AFTER", "NOT", "WITH", "BEFORE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} ,", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t , ", true, false, false, new string[]
+        {
+            "ADD",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (*", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER INSERT WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE WITH (*", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER UPDATE WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE WITH (*", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE UPDATE WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (*", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        (", ADD FILTER PREDICATE {name} () ON {name}", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD FILTER PREDICATE t (a) ON t ", true, false, true, new string[]
+        {
+            "NOT", "WITH",
+        }),
+        (", ADD FILTER PREDICATE {name} () ON {name} ,", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD FILTER PREDICATE t (a) ON t , ", true, false, false, new string[]
+        {
+            "ADD",
+        }),
+        (", ADD FILTER PREDICATE {name} () ON {name} WITH (*", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD FILTER PREDICATE t (a) ON t WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name}", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t ", true, false, true, new string[]
+        {
+            "AFTER", "NOT", "WITH", "BEFORE",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} ,", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t , ", true, false, false, new string[]
+        {
+            "ADD",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} WITH (*", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (*", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t AFTER INSERT WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE WITH (*", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t AFTER UPDATE WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE WITH (*", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t BEFORE UPDATE WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (*", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE WITH (", true, false, false, new string[]
+        {
+            "SCHEMABINDING", "STATE",
+        }),
+        ("CREATE EXTERNAL MODEL {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t WITH (", true, false, false, new string[]
+        {
+            "API_FORMAT", "CREDENTIAL", "LOCAL_RUNTIME_PATH", "LOCATION", "MODEL", "MODEL_TYPE",
+            "PARAMETERS",
+        }),
+        ("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t AUTHORIZATION t WITH (", true, false, false, new string[]
+        {
+            "API_FORMAT", "CREDENTIAL", "LOCAL_RUNTIME_PATH", "LOCATION", "MODEL", "MODEL_TYPE",
+            "PARAMETERS",
+        }),
+        ("CREATE EXTERNAL MODEL {name} WITH (* MODEL_TYPE =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t WITH (LOCATION = 'x', API_FORMAT = 'x', MODEL_TYPE = ", true, false, false, new string[]
+        {
+            "EMBEDDINGS",
+        }),
+        ("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (* MODEL_TYPE =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t AUTHORIZATION t WITH (LOCATION = 'x', API_FORMAT = 'x', MODEL_TYPE = ", true, false, false, new string[]
+        {
+            "EMBEDDINGS",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON ", true, false, false, new string[]
+        {
+            "DATABASE", "QUEUE", "SERVER",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON DATABASE", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON DATABASE ", true, false, false, new string[]
+        {
+            "FOR", "WITH FAN_IN",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON DATABASE FOR", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON DATABASE FOR ", true, false, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "ASSEMBLY_LOAD",
+            "AUDIT_ADD_DB_USER_EVENT", "AUDIT_ADD_LOGIN_TO_SERVER_ROLE_EVENT",
+            "AUDIT_ADD_MEMBER_TO_DB_ROLE_EVENT", "AUDIT_ADD_ROLE_EVENT", "AUDIT_ADDLOGIN_EVENT",
+            "AUDIT_APP_ROLE_CHANGE_PASSWORD_EVENT", "AUDIT_BACKUP_RESTORE_EVENT",
+            "AUDIT_CHANGE_AUDIT_EVENT", "AUDIT_CHANGE_DATABASE_OWNER",
+            "AUDIT_DATABASE_MANAGEMENT_EVENT", "AUDIT_DATABASE_OBJECT_ACCESS_EVENT",
+            "AUDIT_DATABASE_OBJECT_GDR_EVENT", "AUDIT_DATABASE_OBJECT_MANAGEMENT_EVENT",
+            "AUDIT_DATABASE_OBJECT_TAKE_OWNERSHIP_EVENT", "AUDIT_DATABASE_OPERATION_EVENT",
+            "AUDIT_DATABASE_PRINCIPAL_IMPERSONATION_EVENT",
+            "AUDIT_DATABASE_PRINCIPAL_MANAGEMENT_EVENT", "AUDIT_DATABASE_SCOPE_GDR_EVENT",
+            "AUDIT_DBCC_EVENT", "AUDIT_FULLTEXT", "AUDIT_LOGIN",
+            "AUDIT_LOGIN_CHANGE_PASSWORD_EVENT", "AUDIT_LOGIN_CHANGE_PROPERTY_EVENT",
+            "AUDIT_LOGIN_FAILED", "AUDIT_LOGIN_GDR_EVENT", "AUDIT_LOGOUT",
+            "AUDIT_SCHEMA_OBJECT_ACCESS_EVENT", "AUDIT_SCHEMA_OBJECT_GDR_EVENT",
+            "AUDIT_SCHEMA_OBJECT_MANAGEMENT_EVENT", "AUDIT_SCHEMA_OBJECT_TAKE_OWNERSHIP_EVENT",
+            "AUDIT_SERVER_ALTER_TRACE_EVENT", "AUDIT_SERVER_OBJECT_GDR_EVENT",
+            "AUDIT_SERVER_OBJECT_MANAGEMENT_EVENT", "AUDIT_SERVER_OBJECT_TAKE_OWNERSHIP_EVENT",
+            "AUDIT_SERVER_OPERATION_EVENT", "AUDIT_SERVER_PRINCIPAL_IMPERSONATION_EVENT",
+            "AUDIT_SERVER_PRINCIPAL_MANAGEMENT_EVENT", "AUDIT_SERVER_SCOPE_GDR_EVENT",
+            "BIND_DEFAULT", "BIND_RULE", "BITMAP_WARNING", "BLOCKED_PROCESS_REPORT",
+            "BROKER_QUEUE_DISABLED", "CPU_THRESHOLD_EXCEEDED", "CREATE_APPLICATION_ROLE",
+            "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY", "CREATE_AUDIT",
+            "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY", "CREATE_CERTIFICATE",
+            "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY", "CREATE_CONTRACT",
+            "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER", "CREATE_DATABASE",
+            "CREATE_DATABASE_AUDIT_SPECIFICATION", "CREATE_DATABASE_ENCRYPTION_KEY",
+            "CREATE_DEFAULT", "CREATE_ENDPOINT", "CREATE_EVENT_NOTIFICATION",
+            "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE", "CREATE_EXTENDED_PROPERTY",
+            "CREATE_EXTERNAL_RESOURCE_POOL", "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX",
+            "CREATE_FULLTEXT_STOPLIST", "CREATE_FUNCTION", "CREATE_INDEX",
+            "CREATE_LINKED_SERVER", "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN",
+            "CREATE_MASTER_KEY", "CREATE_MESSAGE", "CREATE_MESSAGE_TYPE",
+            "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME", "CREATE_PLAN_GUIDE",
+            "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DATA_FILE_AUTO_GROW", "DATA_FILE_AUTO_SHRINK",
+            "DATABASE_MIRRORING_STATE_CHANGE", "DATABASE_SUSPECT_DATA_PAGE",
+            "DDL_APPLICATION_ROLE_EVENTS", "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DEADLOCK_GRAPH",
+            "DENY_DATABASE", "DENY_SERVER", "DEPRECATION_ANNOUNCEMENT",
+            "DEPRECATION_FINAL_SUPPORT", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY",
+            "DROP_ASYMMETRIC_KEY", "DROP_AUDIT", "DROP_AVAILABILITY_GROUP",
+            "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE", "DROP_COLUMN_ENCRYPTION_KEY",
+            "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT", "DROP_CREDENTIAL",
+            "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE", "DROP_DATABASE_AUDIT_SPECIFICATION",
+            "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT", "DROP_ENDPOINT",
+            "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION", "DROP_EXTENDED_PROCEDURE",
+            "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL", "DROP_FULLTEXT_CATALOG",
+            "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST", "DROP_FUNCTION", "DROP_INDEX",
+            "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN", "DROP_LOGIN", "DROP_MASTER_KEY",
+            "DROP_MESSAGE", "DROP_MESSAGE_TYPE", "DROP_PARTITION_FUNCTION",
+            "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE", "DROP_PROCEDURE", "DROP_QUEUE",
+            "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING", "DROP_RESOURCE_POOL",
+            "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE", "DROP_SCHEMA",
+            "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "ERRORLOG", "EVENTLOG",
+            "EXCEPTION", "EXCHANGE_SPILL_EVENT", "EXECUTION_WARNINGS", "FT_CRAWL_ABORTED",
+            "FT_CRAWL_STARTED", "FT_CRAWL_STOPPED", "GRANT_DATABASE", "GRANT_SERVER",
+            "HASH_WARNING", "LOCK_DEADLOCK", "LOCK_DEADLOCK_CHAIN", "LOCK_ESCALATION",
+            "LOG_FILE_AUTO_GROW", "LOG_FILE_AUTO_SHRINK", "MISSING_COLUMN_STATISTICS",
+            "MISSING_JOIN_PREDICATE", "MOUNT_TAPE", "OBJECT_ALTERED", "OBJECT_CREATED",
+            "OBJECT_DELETED", "OLEDB_CALL_EVENT", "OLEDB_DATAREAD_EVENT", "OLEDB_ERRORS",
+            "OLEDB_PROVIDER_INFORMATION", "OLEDB_QUERYINTERFACE_EVENT", "QN__DYNAMICS",
+            "QN__PARAMETER_TABLE", "QN__SUBSCRIPTION", "QN__TEMPLATE", "QUEUE_ACTIVATION",
+            "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER", "SERVER_MEMORY_CHANGE",
+            "SHOWPLAN_ALL_FOR_QUERY_COMPILE", "SHOWPLAN_XML", "SHOWPLAN_XML_FOR_QUERY_COMPILE",
+            "SHOWPLAN_XML_STATISTICS_PROFILE", "SORT_WARNINGS", "SP_CACHEINSERT",
+            "SP_CACHEMISS", "SP_CACHEREMOVE", "SP_RECOMPILE", "SQL_STMTRECOMPILE",
+            "TRACE_FILE_CLOSE", "TRC_ALL_EVENTS", "TRC_CLR", "TRC_DATABASE", "TRC_DEPRECATION",
+            "TRC_ERRORS_AND_WARNINGS", "TRC_FULL_TEXT", "TRC_LOCKS", "TRC_OBJECTS", "TRC_OLEDB",
+            "TRC_PERFORMANCE", "TRC_QUERY_NOTIFICATIONS", "TRC_SECURITY_AUDIT", "TRC_SERVER",
+            "TRC_STORED_PROCEDURES", "TRC_TSQL", "TRC_USER_CONFIGURABLE", "UNBIND_DEFAULT",
+            "UNBIND_RULE", "UPDATE_STATISTICS", "USER_ERROR_MESSAGE", "USERCONFIGURABLE_0",
+            "USERCONFIGURABLE_1", "USERCONFIGURABLE_2", "USERCONFIGURABLE_3",
+            "USERCONFIGURABLE_4", "USERCONFIGURABLE_5", "USERCONFIGURABLE_6",
+            "USERCONFIGURABLE_7", "USERCONFIGURABLE_8", "USERCONFIGURABLE_9",
+            "XQUERY_STATIC_TYPE",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON DATABASE WITH", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON DATABASE WITH ", true, false, false, new string[]
+        {
+            "FAN_IN",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON QUEUE", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON QUEUE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON QUEUE {name}", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON QUEUE t ", true, false, false, new string[]
+        {
+            "FOR", "WITH FAN_IN",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON QUEUE {name} FOR", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON QUEUE t FOR ", true, false, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "ASSEMBLY_LOAD",
+            "AUDIT_ADD_DB_USER_EVENT", "AUDIT_ADD_LOGIN_TO_SERVER_ROLE_EVENT",
+            "AUDIT_ADD_MEMBER_TO_DB_ROLE_EVENT", "AUDIT_ADD_ROLE_EVENT", "AUDIT_ADDLOGIN_EVENT",
+            "AUDIT_APP_ROLE_CHANGE_PASSWORD_EVENT", "AUDIT_BACKUP_RESTORE_EVENT",
+            "AUDIT_CHANGE_AUDIT_EVENT", "AUDIT_CHANGE_DATABASE_OWNER",
+            "AUDIT_DATABASE_MANAGEMENT_EVENT", "AUDIT_DATABASE_OBJECT_ACCESS_EVENT",
+            "AUDIT_DATABASE_OBJECT_GDR_EVENT", "AUDIT_DATABASE_OBJECT_MANAGEMENT_EVENT",
+            "AUDIT_DATABASE_OBJECT_TAKE_OWNERSHIP_EVENT", "AUDIT_DATABASE_OPERATION_EVENT",
+            "AUDIT_DATABASE_PRINCIPAL_IMPERSONATION_EVENT",
+            "AUDIT_DATABASE_PRINCIPAL_MANAGEMENT_EVENT", "AUDIT_DATABASE_SCOPE_GDR_EVENT",
+            "AUDIT_DBCC_EVENT", "AUDIT_FULLTEXT", "AUDIT_LOGIN",
+            "AUDIT_LOGIN_CHANGE_PASSWORD_EVENT", "AUDIT_LOGIN_CHANGE_PROPERTY_EVENT",
+            "AUDIT_LOGIN_FAILED", "AUDIT_LOGIN_GDR_EVENT", "AUDIT_LOGOUT",
+            "AUDIT_SCHEMA_OBJECT_ACCESS_EVENT", "AUDIT_SCHEMA_OBJECT_GDR_EVENT",
+            "AUDIT_SCHEMA_OBJECT_MANAGEMENT_EVENT", "AUDIT_SCHEMA_OBJECT_TAKE_OWNERSHIP_EVENT",
+            "AUDIT_SERVER_ALTER_TRACE_EVENT", "AUDIT_SERVER_OBJECT_GDR_EVENT",
+            "AUDIT_SERVER_OBJECT_MANAGEMENT_EVENT", "AUDIT_SERVER_OBJECT_TAKE_OWNERSHIP_EVENT",
+            "AUDIT_SERVER_OPERATION_EVENT", "AUDIT_SERVER_PRINCIPAL_IMPERSONATION_EVENT",
+            "AUDIT_SERVER_PRINCIPAL_MANAGEMENT_EVENT", "AUDIT_SERVER_SCOPE_GDR_EVENT",
+            "BIND_DEFAULT", "BIND_RULE", "BITMAP_WARNING", "BLOCKED_PROCESS_REPORT",
+            "BROKER_QUEUE_DISABLED", "CPU_THRESHOLD_EXCEEDED", "CREATE_APPLICATION_ROLE",
+            "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY", "CREATE_AUDIT",
+            "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY", "CREATE_CERTIFICATE",
+            "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY", "CREATE_CONTRACT",
+            "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER", "CREATE_DATABASE",
+            "CREATE_DATABASE_AUDIT_SPECIFICATION", "CREATE_DATABASE_ENCRYPTION_KEY",
+            "CREATE_DEFAULT", "CREATE_ENDPOINT", "CREATE_EVENT_NOTIFICATION",
+            "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE", "CREATE_EXTENDED_PROPERTY",
+            "CREATE_EXTERNAL_RESOURCE_POOL", "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX",
+            "CREATE_FULLTEXT_STOPLIST", "CREATE_FUNCTION", "CREATE_INDEX",
+            "CREATE_LINKED_SERVER", "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN",
+            "CREATE_MASTER_KEY", "CREATE_MESSAGE", "CREATE_MESSAGE_TYPE",
+            "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME", "CREATE_PLAN_GUIDE",
+            "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DATA_FILE_AUTO_GROW", "DATA_FILE_AUTO_SHRINK",
+            "DATABASE_MIRRORING_STATE_CHANGE", "DATABASE_SUSPECT_DATA_PAGE",
+            "DDL_APPLICATION_ROLE_EVENTS", "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DEADLOCK_GRAPH",
+            "DENY_DATABASE", "DENY_SERVER", "DEPRECATION_ANNOUNCEMENT",
+            "DEPRECATION_FINAL_SUPPORT", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY",
+            "DROP_ASYMMETRIC_KEY", "DROP_AUDIT", "DROP_AVAILABILITY_GROUP",
+            "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE", "DROP_COLUMN_ENCRYPTION_KEY",
+            "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT", "DROP_CREDENTIAL",
+            "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE", "DROP_DATABASE_AUDIT_SPECIFICATION",
+            "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT", "DROP_ENDPOINT",
+            "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION", "DROP_EXTENDED_PROCEDURE",
+            "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL", "DROP_FULLTEXT_CATALOG",
+            "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST", "DROP_FUNCTION", "DROP_INDEX",
+            "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN", "DROP_LOGIN", "DROP_MASTER_KEY",
+            "DROP_MESSAGE", "DROP_MESSAGE_TYPE", "DROP_PARTITION_FUNCTION",
+            "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE", "DROP_PROCEDURE", "DROP_QUEUE",
+            "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING", "DROP_RESOURCE_POOL",
+            "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE", "DROP_SCHEMA",
+            "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "ERRORLOG", "EVENTLOG",
+            "EXCEPTION", "EXCHANGE_SPILL_EVENT", "EXECUTION_WARNINGS", "FT_CRAWL_ABORTED",
+            "FT_CRAWL_STARTED", "FT_CRAWL_STOPPED", "GRANT_DATABASE", "GRANT_SERVER",
+            "HASH_WARNING", "LOCK_DEADLOCK", "LOCK_DEADLOCK_CHAIN", "LOCK_ESCALATION",
+            "LOG_FILE_AUTO_GROW", "LOG_FILE_AUTO_SHRINK", "MISSING_COLUMN_STATISTICS",
+            "MISSING_JOIN_PREDICATE", "MOUNT_TAPE", "OBJECT_ALTERED", "OBJECT_CREATED",
+            "OBJECT_DELETED", "OLEDB_CALL_EVENT", "OLEDB_DATAREAD_EVENT", "OLEDB_ERRORS",
+            "OLEDB_PROVIDER_INFORMATION", "OLEDB_QUERYINTERFACE_EVENT", "QN__DYNAMICS",
+            "QN__PARAMETER_TABLE", "QN__SUBSCRIPTION", "QN__TEMPLATE", "QUEUE_ACTIVATION",
+            "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER", "SERVER_MEMORY_CHANGE",
+            "SHOWPLAN_ALL_FOR_QUERY_COMPILE", "SHOWPLAN_XML", "SHOWPLAN_XML_FOR_QUERY_COMPILE",
+            "SHOWPLAN_XML_STATISTICS_PROFILE", "SORT_WARNINGS", "SP_CACHEINSERT",
+            "SP_CACHEMISS", "SP_CACHEREMOVE", "SP_RECOMPILE", "SQL_STMTRECOMPILE",
+            "TRACE_FILE_CLOSE", "TRC_ALL_EVENTS", "TRC_CLR", "TRC_DATABASE", "TRC_DEPRECATION",
+            "TRC_ERRORS_AND_WARNINGS", "TRC_FULL_TEXT", "TRC_LOCKS", "TRC_OBJECTS", "TRC_OLEDB",
+            "TRC_PERFORMANCE", "TRC_QUERY_NOTIFICATIONS", "TRC_SECURITY_AUDIT", "TRC_SERVER",
+            "TRC_STORED_PROCEDURES", "TRC_TSQL", "TRC_USER_CONFIGURABLE", "UNBIND_DEFAULT",
+            "UNBIND_RULE", "UPDATE_STATISTICS", "USER_ERROR_MESSAGE", "USERCONFIGURABLE_0",
+            "USERCONFIGURABLE_1", "USERCONFIGURABLE_2", "USERCONFIGURABLE_3",
+            "USERCONFIGURABLE_4", "USERCONFIGURABLE_5", "USERCONFIGURABLE_6",
+            "USERCONFIGURABLE_7", "USERCONFIGURABLE_8", "USERCONFIGURABLE_9",
+            "XQUERY_STATIC_TYPE",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON QUEUE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON QUEUE t WITH ", true, false, false, new string[]
+        {
+            "FAN_IN",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON SERVER", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON SERVER ", true, false, false, new string[]
+        {
+            "FOR", "WITH FAN_IN",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON SERVER FOR", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON SERVER FOR ", true, false, false, new string[]
+        {
+            "ADD_ROLE_MEMBER", "ADD_SERVER_ROLE_MEMBER", "ADD_SIGNATURE",
+            "ADD_SIGNATURE_SCHEMA_OBJECT", "ALTER_APPLICATION_ROLE", "ALTER_ASSEMBLY",
+            "ALTER_ASYMMETRIC_KEY", "ALTER_AUDIT", "ALTER_AUTHORIZATION_DATABASE",
+            "ALTER_AUTHORIZATION_SERVER", "ALTER_AVAILABILITY_GROUP", "ALTER_BROKER_PRIORITY",
+            "ALTER_CERTIFICATE", "ALTER_COLUMN_ENCRYPTION_KEY", "ALTER_CREDENTIAL",
+            "ALTER_CRYPTOGRAPHIC_PROVIDER", "ALTER_DATABASE",
+            "ALTER_DATABASE_AUDIT_SPECIFICATION", "ALTER_DATABASE_ENCRYPTION_KEY",
+            "ALTER_DATABASE_SCOPED_CONFIGURATION", "ALTER_ENDPOINT", "ALTER_EVENT_SESSION",
+            "ALTER_EXTENDED_PROPERTY", "ALTER_EXTERNAL_RESOURCE_POOL", "ALTER_FULLTEXT_CATALOG",
+            "ALTER_FULLTEXT_INDEX", "ALTER_FULLTEXT_STOPLIST", "ALTER_FUNCTION", "ALTER_INDEX",
+            "ALTER_INSTANCE", "ALTER_LINKED_SERVER", "ALTER_LOGIN", "ALTER_MASTER_KEY",
+            "ALTER_MESSAGE", "ALTER_MESSAGE_TYPE", "ALTER_PARTITION_FUNCTION",
+            "ALTER_PARTITION_SCHEME", "ALTER_PLAN_GUIDE", "ALTER_PROCEDURE", "ALTER_QUEUE",
+            "ALTER_REMOTE_SERVER", "ALTER_REMOTE_SERVICE_BINDING",
+            "ALTER_RESOURCE_GOVERNOR_CONFIG", "ALTER_RESOURCE_POOL", "ALTER_ROLE",
+            "ALTER_ROUTE", "ALTER_SCHEMA", "ALTER_SEARCH_PROPERTY_LIST",
+            "ALTER_SECURITY_POLICY", "ALTER_SEQUENCE", "ALTER_SERVER_AUDIT",
+            "ALTER_SERVER_AUDIT_SPECIFICATION", "ALTER_SERVER_CONFIGURATION",
+            "ALTER_SERVER_ROLE", "ALTER_SERVICE", "ALTER_SERVICE_MASTER_KEY",
+            "ALTER_SYMMETRIC_KEY", "ALTER_TABLE", "ALTER_TRIGGER", "ALTER_USER", "ALTER_VIEW",
+            "ALTER_WORKLOAD_GROUP", "ALTER_XML_SCHEMA_COLLECTION", "ASSEMBLY_LOAD",
+            "AUDIT_ADD_DB_USER_EVENT", "AUDIT_ADD_LOGIN_TO_SERVER_ROLE_EVENT",
+            "AUDIT_ADD_MEMBER_TO_DB_ROLE_EVENT", "AUDIT_ADD_ROLE_EVENT", "AUDIT_ADDLOGIN_EVENT",
+            "AUDIT_APP_ROLE_CHANGE_PASSWORD_EVENT", "AUDIT_BACKUP_RESTORE_EVENT",
+            "AUDIT_CHANGE_AUDIT_EVENT", "AUDIT_CHANGE_DATABASE_OWNER",
+            "AUDIT_DATABASE_MANAGEMENT_EVENT", "AUDIT_DATABASE_OBJECT_ACCESS_EVENT",
+            "AUDIT_DATABASE_OBJECT_GDR_EVENT", "AUDIT_DATABASE_OBJECT_MANAGEMENT_EVENT",
+            "AUDIT_DATABASE_OBJECT_TAKE_OWNERSHIP_EVENT", "AUDIT_DATABASE_OPERATION_EVENT",
+            "AUDIT_DATABASE_PRINCIPAL_IMPERSONATION_EVENT",
+            "AUDIT_DATABASE_PRINCIPAL_MANAGEMENT_EVENT", "AUDIT_DATABASE_SCOPE_GDR_EVENT",
+            "AUDIT_DBCC_EVENT", "AUDIT_FULLTEXT", "AUDIT_LOGIN",
+            "AUDIT_LOGIN_CHANGE_PASSWORD_EVENT", "AUDIT_LOGIN_CHANGE_PROPERTY_EVENT",
+            "AUDIT_LOGIN_FAILED", "AUDIT_LOGIN_GDR_EVENT", "AUDIT_LOGOUT",
+            "AUDIT_SCHEMA_OBJECT_ACCESS_EVENT", "AUDIT_SCHEMA_OBJECT_GDR_EVENT",
+            "AUDIT_SCHEMA_OBJECT_MANAGEMENT_EVENT", "AUDIT_SCHEMA_OBJECT_TAKE_OWNERSHIP_EVENT",
+            "AUDIT_SERVER_ALTER_TRACE_EVENT", "AUDIT_SERVER_OBJECT_GDR_EVENT",
+            "AUDIT_SERVER_OBJECT_MANAGEMENT_EVENT", "AUDIT_SERVER_OBJECT_TAKE_OWNERSHIP_EVENT",
+            "AUDIT_SERVER_OPERATION_EVENT", "AUDIT_SERVER_PRINCIPAL_IMPERSONATION_EVENT",
+            "AUDIT_SERVER_PRINCIPAL_MANAGEMENT_EVENT", "AUDIT_SERVER_SCOPE_GDR_EVENT",
+            "BIND_DEFAULT", "BIND_RULE", "BITMAP_WARNING", "BLOCKED_PROCESS_REPORT",
+            "BROKER_QUEUE_DISABLED", "CPU_THRESHOLD_EXCEEDED", "CREATE_APPLICATION_ROLE",
+            "CREATE_ASSEMBLY", "CREATE_ASYMMETRIC_KEY", "CREATE_AUDIT",
+            "CREATE_AVAILABILITY_GROUP", "CREATE_BROKER_PRIORITY", "CREATE_CERTIFICATE",
+            "CREATE_COLUMN_ENCRYPTION_KEY", "CREATE_COLUMN_MASTER_KEY", "CREATE_CONTRACT",
+            "CREATE_CREDENTIAL", "CREATE_CRYPTOGRAPHIC_PROVIDER", "CREATE_DATABASE",
+            "CREATE_DATABASE_AUDIT_SPECIFICATION", "CREATE_DATABASE_ENCRYPTION_KEY",
+            "CREATE_DEFAULT", "CREATE_ENDPOINT", "CREATE_EVENT_NOTIFICATION",
+            "CREATE_EVENT_SESSION", "CREATE_EXTENDED_PROCEDURE", "CREATE_EXTENDED_PROPERTY",
+            "CREATE_EXTERNAL_RESOURCE_POOL", "CREATE_FULLTEXT_CATALOG", "CREATE_FULLTEXT_INDEX",
+            "CREATE_FULLTEXT_STOPLIST", "CREATE_FUNCTION", "CREATE_INDEX",
+            "CREATE_LINKED_SERVER", "CREATE_LINKED_SERVER_LOGIN", "CREATE_LOGIN",
+            "CREATE_MASTER_KEY", "CREATE_MESSAGE", "CREATE_MESSAGE_TYPE",
+            "CREATE_PARTITION_FUNCTION", "CREATE_PARTITION_SCHEME", "CREATE_PLAN_GUIDE",
+            "CREATE_PROCEDURE", "CREATE_QUEUE", "CREATE_REMOTE_SERVER",
+            "CREATE_REMOTE_SERVICE_BINDING", "CREATE_RESOURCE_POOL", "CREATE_ROLE",
+            "CREATE_ROUTE", "CREATE_RULE", "CREATE_SCHEMA", "CREATE_SEARCH_PROPERTY_LIST",
+            "CREATE_SECURITY_POLICY", "CREATE_SEQUENCE", "CREATE_SERVER_AUDIT",
+            "CREATE_SERVER_AUDIT_SPECIFICATION", "CREATE_SERVER_ROLE", "CREATE_SERVICE",
+            "CREATE_SPATIAL_INDEX", "CREATE_STATISTICS", "CREATE_SYMMETRIC_KEY",
+            "CREATE_SYNONYM", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE", "CREATE_USER",
+            "CREATE_VIEW", "CREATE_WORKLOAD_GROUP", "CREATE_XML_INDEX",
+            "CREATE_XML_SCHEMA_COLLECTION", "DATA_FILE_AUTO_GROW", "DATA_FILE_AUTO_SHRINK",
+            "DATABASE_MIRRORING_STATE_CHANGE", "DATABASE_SUSPECT_DATA_PAGE",
+            "DDL_APPLICATION_ROLE_EVENTS", "DDL_ASSEMBLY_EVENTS", "DDL_ASYMMETRIC_KEY_EVENTS",
+            "DDL_AUTHORIZATION_DATABASE_EVENTS", "DDL_AUTHORIZATION_SERVER_EVENTS",
+            "DDL_AVAILABILITY_GROUP_EVENTS", "DDL_BROKER_PRIORITY_EVENTS",
+            "DDL_CERTIFICATE_EVENTS", "DDL_CONTRACT_EVENTS", "DDL_CREDENTIAL_EVENTS",
+            "DDL_CRYPTO_SIGNATURE_EVENTS", "DDL_CRYPTOGRAPHIC_PROVIDER_EVENTS",
+            "DDL_DATABASE_AUDIT_EVENTS", "DDL_DATABASE_AUDIT_SPECIFICATION_EVENTS",
+            "DDL_DATABASE_ENCRYPTION_KEY_EVENTS", "DDL_DATABASE_EVENTS",
+            "DDL_DATABASE_LEVEL_EVENTS", "DDL_DATABASE_SECURITY_EVENTS", "DDL_DEFAULT_EVENTS",
+            "DDL_ENDPOINT_EVENTS", "DDL_EVENT_NOTIFICATION_EVENTS", "DDL_EVENT_SESSION_EVENTS",
+            "DDL_EVENTS", "DDL_EXTENDED_PROCEDURE_EVENTS", "DDL_EXTENDED_PROPERTY_EVENTS",
+            "DDL_FULLTEXT_CATALOG_EVENTS", "DDL_FULLTEXT_STOPLIST_EVENTS",
+            "DDL_FUNCTION_EVENTS", "DDL_GDR_DATABASE_EVENTS", "DDL_GDR_SERVER_EVENTS",
+            "DDL_INDEX_EVENTS", "DDL_LINKED_SERVER_EVENTS", "DDL_LINKED_SERVER_LOGIN_EVENTS",
+            "DDL_LOGIN_EVENTS", "DDL_MASTER_KEY_EVENTS", "DDL_MESSAGE_EVENTS",
+            "DDL_MESSAGE_TYPE_EVENTS", "DDL_PARTITION_EVENTS", "DDL_PARTITION_FUNCTION_EVENTS",
+            "DDL_PARTITION_SCHEME_EVENTS", "DDL_PLAN_GUIDE_EVENTS", "DDL_PROCEDURE_EVENTS",
+            "DDL_QUEUE_EVENTS", "DDL_REMOTE_SERVER_EVENTS", "DDL_REMOTE_SERVICE_BINDING_EVENTS",
+            "DDL_RESOURCE_GOVERNOR_EVENTS", "DDL_RESOURCE_POOL", "DDL_ROLE_EVENTS",
+            "DDL_ROUTE_EVENTS", "DDL_RULE_EVENTS", "DDL_SCHEMA_EVENTS",
+            "DDL_SEARCH_PROPERTY_LIST_EVENTS", "DDL_SECURITY_POLICY_EVENTS",
+            "DDL_SEQUENCE_EVENTS", "DDL_SERVER_AUDIT_EVENTS",
+            "DDL_SERVER_AUDIT_SPECIFICATION_EVENTS", "DDL_SERVER_LEVEL_EVENTS",
+            "DDL_SERVER_SECURITY_EVENTS", "DDL_SERVICE_EVENTS", "DDL_SERVICE_MASTER_KEY_EVENTS",
+            "DDL_SSB_EVENTS", "DDL_STATISTICS_EVENTS", "DDL_SYMMETRIC_KEY_EVENTS",
+            "DDL_SYNONYM_EVENTS", "DDL_TABLE_EVENTS", "DDL_TABLE_VIEW_EVENTS",
+            "DDL_TRIGGER_EVENTS", "DDL_TYPE_EVENTS", "DDL_USER_EVENTS", "DDL_VIEW_EVENTS",
+            "DDL_WORKLOAD_GROUP", "DDL_XML_SCHEMA_COLLECTION_EVENTS", "DEADLOCK_GRAPH",
+            "DENY_DATABASE", "DENY_SERVER", "DEPRECATION_ANNOUNCEMENT",
+            "DEPRECATION_FINAL_SUPPORT", "DROP_APPLICATION_ROLE", "DROP_ASSEMBLY",
+            "DROP_ASYMMETRIC_KEY", "DROP_AUDIT", "DROP_AVAILABILITY_GROUP",
+            "DROP_BROKER_PRIORITY", "DROP_CERTIFICATE", "DROP_COLUMN_ENCRYPTION_KEY",
+            "DROP_COLUMN_MASTER_KEY", "DROP_CONTRACT", "DROP_CREDENTIAL",
+            "DROP_CRYPTOGRAPHIC_PROVIDER", "DROP_DATABASE", "DROP_DATABASE_AUDIT_SPECIFICATION",
+            "DROP_DATABASE_ENCRYPTION_KEY", "DROP_DEFAULT", "DROP_ENDPOINT",
+            "DROP_EVENT_NOTIFICATION", "DROP_EVENT_SESSION", "DROP_EXTENDED_PROCEDURE",
+            "DROP_EXTENDED_PROPERTY", "DROP_EXTERNAL_RESOURCE_POOL", "DROP_FULLTEXT_CATALOG",
+            "DROP_FULLTEXT_INDEX", "DROP_FULLTEXT_STOPLIST", "DROP_FUNCTION", "DROP_INDEX",
+            "DROP_LINKED_SERVER", "DROP_LINKED_SERVER_LOGIN", "DROP_LOGIN", "DROP_MASTER_KEY",
+            "DROP_MESSAGE", "DROP_MESSAGE_TYPE", "DROP_PARTITION_FUNCTION",
+            "DROP_PARTITION_SCHEME", "DROP_PLAN_GUIDE", "DROP_PROCEDURE", "DROP_QUEUE",
+            "DROP_REMOTE_SERVER", "DROP_REMOTE_SERVICE_BINDING", "DROP_RESOURCE_POOL",
+            "DROP_ROLE", "DROP_ROLE_MEMBER", "DROP_ROUTE", "DROP_RULE", "DROP_SCHEMA",
+            "DROP_SEARCH_PROPERTY_LIST", "DROP_SECURITY_POLICY", "DROP_SEQUENCE",
+            "DROP_SERVER_AUDIT", "DROP_SERVER_AUDIT_SPECIFICATION", "DROP_SERVER_ROLE",
+            "DROP_SERVER_ROLE_MEMBER", "DROP_SERVICE", "DROP_SIGNATURE",
+            "DROP_SIGNATURE_SCHEMA_OBJECT", "DROP_STATISTICS", "DROP_SYMMETRIC_KEY",
+            "DROP_SYNONYM", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER", "DROP_VIEW",
+            "DROP_WORKLOAD_GROUP", "DROP_XML_SCHEMA_COLLECTION", "ERRORLOG", "EVENTLOG",
+            "EXCEPTION", "EXCHANGE_SPILL_EVENT", "EXECUTION_WARNINGS", "FT_CRAWL_ABORTED",
+            "FT_CRAWL_STARTED", "FT_CRAWL_STOPPED", "GRANT_DATABASE", "GRANT_SERVER",
+            "HASH_WARNING", "LOCK_DEADLOCK", "LOCK_DEADLOCK_CHAIN", "LOCK_ESCALATION",
+            "LOG_FILE_AUTO_GROW", "LOG_FILE_AUTO_SHRINK", "MISSING_COLUMN_STATISTICS",
+            "MISSING_JOIN_PREDICATE", "MOUNT_TAPE", "OBJECT_ALTERED", "OBJECT_CREATED",
+            "OBJECT_DELETED", "OLEDB_CALL_EVENT", "OLEDB_DATAREAD_EVENT", "OLEDB_ERRORS",
+            "OLEDB_PROVIDER_INFORMATION", "OLEDB_QUERYINTERFACE_EVENT", "QN__DYNAMICS",
+            "QN__PARAMETER_TABLE", "QN__SUBSCRIPTION", "QN__TEMPLATE", "QUEUE_ACTIVATION",
+            "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER", "SERVER_MEMORY_CHANGE",
+            "SHOWPLAN_ALL_FOR_QUERY_COMPILE", "SHOWPLAN_XML", "SHOWPLAN_XML_FOR_QUERY_COMPILE",
+            "SHOWPLAN_XML_STATISTICS_PROFILE", "SORT_WARNINGS", "SP_CACHEINSERT",
+            "SP_CACHEMISS", "SP_CACHEREMOVE", "SP_RECOMPILE", "SQL_STMTRECOMPILE",
+            "TRACE_FILE_CLOSE", "TRC_ALL_EVENTS", "TRC_CLR", "TRC_DATABASE", "TRC_DEPRECATION",
+            "TRC_ERRORS_AND_WARNINGS", "TRC_FULL_TEXT", "TRC_LOCKS", "TRC_OBJECTS", "TRC_OLEDB",
+            "TRC_PERFORMANCE", "TRC_QUERY_NOTIFICATIONS", "TRC_SECURITY_AUDIT", "TRC_SERVER",
+            "TRC_STORED_PROCEDURES", "TRC_TSQL", "TRC_USER_CONFIGURABLE", "UNBIND_DEFAULT",
+            "UNBIND_RULE", "UPDATE_STATISTICS", "USER_ERROR_MESSAGE", "USERCONFIGURABLE_0",
+            "USERCONFIGURABLE_1", "USERCONFIGURABLE_2", "USERCONFIGURABLE_3",
+            "USERCONFIGURABLE_4", "USERCONFIGURABLE_5", "USERCONFIGURABLE_6",
+            "USERCONFIGURABLE_7", "USERCONFIGURABLE_8", "USERCONFIGURABLE_9",
+            "XQUERY_STATIC_TYPE",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON SERVER WITH", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON SERVER WITH ", true, false, false, new string[]
+        {
+            "FAN_IN",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON SERVER FOR {name}", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON SERVER FOR ADD_ROLE_MEMBER ", true, false, false, new string[]
+        {
+            "TO SERVICE",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON SERVER FOR {name} TO", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON SERVER FOR ADD_ROLE_MEMBER TO ", true, false, false, new string[]
+        {
+            "SERVICE",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON SERVER FOR {name} TO SERVICE", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON SERVER FOR ADD_ROLE_MEMBER TO SERVICE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON DATABASE FOR {name}", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON DATABASE FOR ADD_ROLE_MEMBER ", true, false, false, new string[]
+        {
+            "TO SERVICE",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON DATABASE FOR {name} TO", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON DATABASE FOR ADD_ROLE_MEMBER TO ", true, false, false, new string[]
+        {
+            "SERVICE",
+        }),
+        ("CREATE EVENT NOTIFICATION {name} ON DATABASE FOR {name} TO SERVICE", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON DATABASE FOR ADD_ROLE_MEMBER TO SERVICE ", true, false, false, new string[]
+        {
+        }),
+        ("DROP EVENT NOTIFICATION ... ON", SqlKeywordPosition.StatementStart, "DROP EVENT NOTIFICATION a, b ON ", true, false, false, new string[]
+        {
+            "DATABASE", "QUEUE", "SERVER",
+        }),
         ("CREATE EVENT SESSION {name} ON", SqlKeywordPosition.StatementStart, "CREATE EVENT SESSION t ON ", true, false, false, new string[]
         {
             "DATABASE ADD", "SERVER ADD",
@@ -4510,6 +5544,48 @@ internal static class SqlKeywordCatalogData
             "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
         }),
         ("TARGET {name} WITH (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (", true, false, false, new string[]
+        {
+            "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
+            "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
+        }),
+        ("EVENT {name} (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (", false, true, false, new string[]
+        {
+            "ACTION", "SELECT", "SET", "WHERE", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE",
+            "CURRENT_TIMESTAMP", "CURRENT_USER", "IDENTITY", "LEFT", "NEXT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
+        }),
+        ("EVENT {name} () ,", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) , ", true, false, false, new string[]
+        {
+            "ADD",
+        }),
+        ("EVENT {name} () , ADD", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) , ADD ", true, false, false, new string[]
+        {
+            "EVENT",
+        }),
+        ("EVENT {name} () ADD", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) ADD ", true, false, false, new string[]
+        {
+            "TARGET",
+        }),
+        ("EVENT {name} () WITH (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (", true, false, false, new string[]
+        {
+            "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
+            "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
+        }),
+        ("TARGET {name} (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (", false, true, false, new string[]
+        {
+            "SELECT", "SET", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "IDENTITY", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
+        }),
+        ("TARGET {name} () ,", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) , ", true, false, false, new string[]
+        {
+            "ADD",
+        }),
+        ("TARGET {name} () , ADD", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) , ADD ", true, false, false, new string[]
+        {
+            "TARGET",
+        }),
+        ("TARGET {name} () WITH (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (", true, false, false, new string[]
         {
             "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
             "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
@@ -4711,6 +5787,155 @@ internal static class SqlKeywordCatalogData
             "KEY",
         }),
         ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY SYMMETRIC KEY ", false, false, false, new string[]
+        {
+        }),
+        ("BACKUP MASTER KEY TO FILE = {value}", SqlKeywordPosition.StatementStart, "BACKUP MASTER KEY TO FILE = 'x' ", true, false, false, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("BACKUP SERVICE {name} KEY TO FILE = {value}", SqlKeywordPosition.StatementStart, "BACKUP SERVICE t KEY TO FILE = 'x' ", true, false, false, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("RESTORE MASTER KEY FROM FILE = {value}", SqlKeywordPosition.StatementStart, "RESTORE MASTER KEY FROM FILE = 'x' ", true, false, false, new string[]
+        {
+            "DECRYPTION BY",
+        }),
+        ("RESTORE MASTER KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value}", SqlKeywordPosition.StatementStart, "RESTORE MASTER KEY FROM FILE = 'x' DECRYPTION BY PASSWORD = 'x' ", true, false, false, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("RESTORE SERVICE {name} KEY FROM FILE = {value}", SqlKeywordPosition.StatementStart, "RESTORE SERVICE t KEY FROM FILE = 'x' ", true, false, false, new string[]
+        {
+            "DECRYPTION BY",
+        }),
+        ("BACKUP MASTER KEY TO FILE = {value} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "BACKUP MASTER KEY TO FILE = 'x' ENCRYPTION BY PASSWORD ", true, false, false, new string[]
+        {
+        }),
+        ("BACKUP SERVICE {name} KEY TO FILE = {value} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "BACKUP SERVICE t KEY TO FILE = 'x' ENCRYPTION BY PASSWORD ", true, false, false, new string[]
+        {
+        }),
+        ("RESTORE MASTER KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "RESTORE MASTER KEY FROM FILE = 'x' DECRYPTION BY PASSWORD = 'x' ENCRYPTION BY PASSWORD ", true, false, false, new string[]
+        {
+        }),
+        ("RESTORE SERVICE {name} KEY FROM FILE = {value} DECRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "RESTORE SERVICE t KEY FROM FILE = 'x' DECRYPTION BY PASSWORD ", true, false, false, new string[]
+        {
+        }),
+        ("BACKUP CERTIFICATE {name} TO FILE = {value}", SqlKeywordPosition.StatementStart, "BACKUP CERTIFICATE t TO FILE = 'x' ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE CERTIFICATE {name} FROM FILE = {value}", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM FILE = 'x' ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER CERTIFICATE {name} REMOVE", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE t REMOVE ", true, false, false, new string[]
+        {
+            "PRIVATE KEY",
+        }),
+        ("ALTER CERTIFICATE {name} REMOVE PRIVATE", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE t REMOVE PRIVATE ", true, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ALTER CERTIFICATE {name} WITH", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE t WITH ", true, false, false, new string[]
+        {
+            "PRIVATE",
+        }),
+        ("ALTER ASYMMETRIC KEY {name} REMOVE", SqlKeywordPosition.StatementStart, "ALTER ASYMMETRIC KEY t REMOVE ", true, false, false, new string[]
+        {
+            "BY", "PRIVATE KEY",
+        }),
+        ("ALTER ASYMMETRIC KEY {name} REMOVE BY", SqlKeywordPosition.StatementStart, "ALTER ASYMMETRIC KEY t REMOVE BY ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER ASYMMETRIC KEY {name} REMOVE PRIVATE", SqlKeywordPosition.StatementStart, "ALTER ASYMMETRIC KEY t REMOVE PRIVATE ", true, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ALTER ASYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "ALTER ASYMMETRIC KEY t WITH ", true, false, false, new string[]
+        {
+            "PRIVATE KEY",
+        }),
+        ("ALTER ASYMMETRIC KEY {name} WITH PRIVATE", SqlKeywordPosition.StatementStart, "ALTER ASYMMETRIC KEY t WITH PRIVATE ", true, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("BACKUP CERTIFICATE {name} TO FILE = {value} WITH PRIVATE KEY", SqlKeywordPosition.StatementStart, "BACKUP CERTIFICATE t TO FILE = 'x' WITH PRIVATE KEY ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} FROM FILE = {value} WITH PRIVATE KEY", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM FILE = 'x' WITH PRIVATE KEY ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER CERTIFICATE {name} WITH PRIVATE KEY", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE t WITH PRIVATE KEY ", true, false, false, new string[]
+        {
+        }),
+        ("PRIVATE KEY (*", SqlKeywordPosition.Any, "ALTER CERTIFICATE t WITH PRIVATE KEY (", false, false, false, new string[]
+        {
+            "FILE", "ENCRYPTION BY", "DECRYPTION BY",
+        }),
+        ("PRIVATE KEY (* ENCRYPTION", SqlKeywordPosition.Any, "ALTER CERTIFICATE t WITH PRIVATE KEY (FILE = 'x', ENCRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("PRIVATE KEY (* ENCRYPTION BY", SqlKeywordPosition.Any, "ALTER CERTIFICATE t WITH PRIVATE KEY (FILE = 'x', ENCRYPTION BY ", true, false, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("PRIVATE KEY (* ENCRYPTION BY PASSWORD", SqlKeywordPosition.Any, "ALTER CERTIFICATE t WITH PRIVATE KEY (FILE = 'x', ENCRYPTION BY PASSWORD ", true, false, false, new string[]
+        {
+        }),
+        ("PRIVATE KEY (* DECRYPTION", SqlKeywordPosition.Any, "ALTER CERTIFICATE t WITH PRIVATE KEY (FILE = 'x', DECRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("PRIVATE KEY (* DECRYPTION BY", SqlKeywordPosition.Any, "ALTER CERTIFICATE t WITH PRIVATE KEY (FILE = 'x', DECRYPTION BY ", true, false, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("PRIVATE KEY (* DECRYPTION BY PASSWORD", SqlKeywordPosition.Any, "ALTER CERTIFICATE t WITH PRIVATE KEY (FILE = 'x', DECRYPTION BY PASSWORD ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM ASSEMBLY {name}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM ASSEMBLY t ", true, false, true, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM FILE = {value}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM FILE = 'x' ", true, false, true, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM = {name}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = AES_128 ", true, false, true, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM ASSEMBLY {name} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM ASSEMBLY t ENCRYPTION BY PASSWORD ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM = {name} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = AES_128 ENCRYPTION BY PASSWORD ", true, false, false, new string[]
+        {
+        }),
+        (", ALGORITHM =", SqlKeywordPosition.Any, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x' , ALGORITHM = ", true, false, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE SYMMETRIC KEY ... ALGORITHM = {name} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', ALGORITHM = AES_128 ENCRYPTION BY PASSWORD ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY ... ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x' ENCRYPTION BY ", true, false, false, new string[]
+        {
+            "ASYMMETRIC", "CERTIFICATE", "PASSWORD", "SYMMETRIC",
+        }),
+        ("CREATE SYMMETRIC KEY ... IDENTITY_VALUE = {value}", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x' ", true, false, false, new string[]
+        {
+            "ENCRYPTION",
+        }),
+        ("CREATE SYMMETRIC KEY ... IDENTITY_VALUE = {value} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x' ENCRYPTION BY PASSWORD ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE SYMMETRIC KEY ... KEY_SOURCE = {value}", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH IDENTITY_VALUE = 'x', KEY_SOURCE = 'x' ", true, false, false, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("CREATE SYMMETRIC KEY ... KEY_SOURCE = {value} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH IDENTITY_VALUE = 'x', KEY_SOURCE = 'x' ENCRYPTION BY PASSWORD ", true, false, false, new string[]
         {
         }),
         ("CREATE CERTIFICATE {name} AUTHORIZATION", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION ", true, false, false, new string[]
@@ -5611,6 +6836,110 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
+        ("DROP INDEX ... WITH (* MOVE", SqlKeywordPosition.StatementStart, "DROP INDEX i ON t WITH (MOVE ", true, false, false, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER TABLE {name} ALTER", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER ", true, false, false, new string[]
+        {
+            "COLUMN", "INDEX",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD PERSISTED", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD PERSISTED ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP PERSISTED", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP PERSISTED ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD SPARSE", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD SPARSE ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP SPARSE", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP SPARSE ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD ROWGUIDCOL", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD ROWGUIDCOL ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP ROWGUIDCOL", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP ROWGUIDCOL ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD NOT FOR", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD NOT FOR ", true, false, false, new string[]
+        {
+            "REPLICATION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD NOT FOR REPLICATION", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD NOT FOR REPLICATION ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP NOT FOR", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP NOT FOR ", true, false, false, new string[]
+        {
+            "REPLICATION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP NOT FOR REPLICATION", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP NOT FOR REPLICATION ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ", false, true, false, new string[]
+        {
+            "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER",
+            "SYSTEM_USER", "TRY_CONVERT", "USER",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ", false, true, false, new string[]
+        {
+            "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER",
+            "SYSTEM_USER", "TRY_CONVERT", "USER",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE CLUSTERED COLUMNSTORE", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE ", true, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE CLUSTERED COLUMNSTORE INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE INDEX t ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE CLUSTERED COLUMNSTORE INDEX {name} ON {name}", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE INDEX t ON t ", true, false, true, new string[]
+        {
+            "ON", "ORDER", "WHERE", "WITH",
+        }),
+        ("CREATE NONCLUSTERED COLUMNSTORE", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE ", true, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE NONCLUSTERED COLUMNSTORE INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE INDEX t ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE COLUMNSTORE", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE ", true, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE COLUMNSTORE INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE INDEX t ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE VECTOR", SqlKeywordPosition.StatementStart, "CREATE VECTOR ", true, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE VECTOR INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ", true, false, false, new string[]
+        {
+            "ON",
+        }),
         ("TRIGGER {name} ON DATABASE", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON DATABASE ", true, false, false, new string[]
         {
             "AFTER", "FOR", "INSTEAD", "WITH",
@@ -5781,6 +7110,87 @@ internal static class SqlKeywordCatalogData
         {
             "WHERE", "WITH",
         }),
+        ("CREATE DATABASE AUDIT", SqlKeywordPosition.StatementStart, "CREATE DATABASE AUDIT ", true, false, true, new string[]
+        {
+            "AS", "COLLATE", "CONTAINMENT", "FOR", "KEY", "LOG", "ON", "SPECIFICATION",
+        }),
+        ("ALTER DATABASE AUDIT", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT ", true, false, false, new string[]
+        {
+            "ADD", "COLLATE", "MODIFY", "PERFORM_CUTOVER", "REBUILD", "REMOVE", "SET",
+            "SPECIFICATION",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name} FOR SERVER", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t FOR SERVER ", true, false, false, new string[]
+        {
+            "AUDIT",
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name} FOR SERVER", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t FOR SERVER ", true, false, false, new string[]
+        {
+            "AUDIT",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER ", true, false, false, new string[]
+        {
+            "INSERT", "UPDATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER INSERT ", true, false, true, new string[]
+        {
+            "NOT", "WITH",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER UPDATE ", true, false, true, new string[]
+        {
+            "NOT", "WITH",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE ", true, false, false, new string[]
+        {
+            "DELETE", "UPDATE",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE UPDATE ", true, false, true, new string[]
+        {
+            "NOT", "WITH",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE ", true, false, true, new string[]
+        {
+            "NOT", "WITH",
+        }),
+        (", ADD", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD ", true, false, false, new string[]
+        {
+            "BLOCK PREDICATE", "FILTER PREDICATE",
+        }),
+        (", ADD FILTER", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD FILTER ", true, false, false, new string[]
+        {
+            "PREDICATE",
+        }),
+        (", ADD BLOCK", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK ", true, false, false, new string[]
+        {
+            "PREDICATE",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} AFTER", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t AFTER ", true, false, false, new string[]
+        {
+            "INSERT", "UPDATE",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t AFTER INSERT ", true, false, true, new string[]
+        {
+            "NOT", "WITH",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t AFTER UPDATE ", true, false, true, new string[]
+        {
+            "NOT", "WITH",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} BEFORE", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t BEFORE ", true, false, false, new string[]
+        {
+            "DELETE", "UPDATE",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t BEFORE UPDATE ", true, false, true, new string[]
+        {
+            "NOT", "WITH",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE ", true, false, true, new string[]
+        {
+            "NOT", "WITH",
+        }),
+        ("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t AUTHORIZATION t ", true, false, false, new string[]
+        {
+            "WITH",
+        }),
         ("ALTER EVENT SESSION {name} ON SERVER ADD", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER ADD ", true, false, false, new string[]
         {
             "EVENT", "TARGET",
@@ -5808,6 +7218,138 @@ internal static class SqlKeywordCatalogData
         ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION ", true, false, false, new string[]
         {
             "BY",
+        }),
+        ("BACKUP MASTER", SqlKeywordPosition.StatementStart, "BACKUP MASTER ", true, false, false, new string[]
+        {
+            "KEY TO FILE",
+        }),
+        ("BACKUP MASTER KEY", SqlKeywordPosition.StatementStart, "BACKUP MASTER KEY ", true, false, false, new string[]
+        {
+            "TO FILE",
+        }),
+        ("BACKUP MASTER KEY TO", SqlKeywordPosition.StatementStart, "BACKUP MASTER KEY TO ", true, false, false, new string[]
+        {
+            "FILE",
+        }),
+        ("BACKUP SERVICE {name} KEY TO", SqlKeywordPosition.StatementStart, "BACKUP SERVICE t KEY TO ", true, false, false, new string[]
+        {
+            "FILE",
+        }),
+        ("RESTORE MASTER", SqlKeywordPosition.StatementStart, "RESTORE MASTER ", true, false, false, new string[]
+        {
+            "KEY FROM FILE",
+        }),
+        ("RESTORE MASTER KEY", SqlKeywordPosition.StatementStart, "RESTORE MASTER KEY ", true, false, false, new string[]
+        {
+            "FROM FILE",
+        }),
+        ("RESTORE MASTER KEY FROM", SqlKeywordPosition.StatementStart, "RESTORE MASTER KEY FROM ", true, false, false, new string[]
+        {
+            "FILE",
+        }),
+        ("RESTORE MASTER KEY FROM FILE = {value} DECRYPTION", SqlKeywordPosition.StatementStart, "RESTORE MASTER KEY FROM FILE = 'x' DECRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("RESTORE MASTER KEY FROM FILE = {value} DECRYPTION BY", SqlKeywordPosition.StatementStart, "RESTORE MASTER KEY FROM FILE = 'x' DECRYPTION BY ", true, false, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("RESTORE SERVICE {name} KEY FROM", SqlKeywordPosition.StatementStart, "RESTORE SERVICE t KEY FROM ", true, false, false, new string[]
+        {
+            "FILE",
+        }),
+        ("BACKUP MASTER KEY TO FILE = {value} ENCRYPTION", SqlKeywordPosition.StatementStart, "BACKUP MASTER KEY TO FILE = 'x' ENCRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("BACKUP MASTER KEY TO FILE = {value} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "BACKUP MASTER KEY TO FILE = 'x' ENCRYPTION BY ", true, false, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("BACKUP SERVICE {name} KEY TO FILE = {value} ENCRYPTION", SqlKeywordPosition.StatementStart, "BACKUP SERVICE t KEY TO FILE = 'x' ENCRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("BACKUP SERVICE {name} KEY TO FILE = {value} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "BACKUP SERVICE t KEY TO FILE = 'x' ENCRYPTION BY ", true, false, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("RESTORE MASTER KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value} ENCRYPTION", SqlKeywordPosition.StatementStart, "RESTORE MASTER KEY FROM FILE = 'x' DECRYPTION BY PASSWORD = 'x' ENCRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("RESTORE MASTER KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "RESTORE MASTER KEY FROM FILE = 'x' DECRYPTION BY PASSWORD = 'x' ENCRYPTION BY ", true, false, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("RESTORE SERVICE {name} KEY FROM FILE = {value} DECRYPTION", SqlKeywordPosition.StatementStart, "RESTORE SERVICE t KEY FROM FILE = 'x' DECRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("RESTORE SERVICE {name} KEY FROM FILE = {value} DECRYPTION BY", SqlKeywordPosition.StatementStart, "RESTORE SERVICE t KEY FROM FILE = 'x' DECRYPTION BY ", true, false, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("BACKUP CERTIFICATE {name} TO FILE = {value} WITH", SqlKeywordPosition.StatementStart, "BACKUP CERTIFICATE t TO FILE = 'x' WITH ", true, false, false, new string[]
+        {
+            "PRIVATE KEY",
+        }),
+        ("BACKUP CERTIFICATE {name} TO FILE = {value} WITH PRIVATE", SqlKeywordPosition.StatementStart, "BACKUP CERTIFICATE t TO FILE = 'x' WITH PRIVATE ", true, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE CERTIFICATE {name} FROM FILE = {value} WITH", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM FILE = 'x' WITH ", true, false, false, new string[]
+        {
+            "PRIVATE KEY",
+        }),
+        ("CREATE CERTIFICATE {name} FROM FILE = {value} WITH PRIVATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM FILE = 'x' WITH PRIVATE ", true, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ALTER CERTIFICATE {name} WITH PRIVATE", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE t WITH PRIVATE ", true, false, false, new string[]
+        {
+            "FOR", "KEY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM ASSEMBLY {name} ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM ASSEMBLY t ENCRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM ASSEMBLY {name} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM ASSEMBLY t ENCRYPTION BY ", true, false, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM = {name} ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = AES_128 ENCRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM = {name} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = AES_128 ENCRYPTION BY ", true, false, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("CREATE SYMMETRIC KEY ... ALGORITHM = {name}", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', ALGORITHM = AES_128 ", true, false, false, new string[]
+        {
+            "ENCRYPTION BY",
+        }),
+        ("CREATE SYMMETRIC KEY ... ALGORITHM = {name} ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', ALGORITHM = AES_128 ENCRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("CREATE SYMMETRIC KEY ... ALGORITHM = {name} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', ALGORITHM = AES_128 ENCRYPTION BY ", true, false, false, new string[]
+        {
+            "ASYMMETRIC", "CERTIFICATE", "PASSWORD", "SYMMETRIC",
+        }),
+        ("CREATE SYMMETRIC KEY ... ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x' ENCRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("CREATE SYMMETRIC KEY ... KEY_SOURCE = {value} ENCRYPTION", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH IDENTITY_VALUE = 'x', KEY_SOURCE = 'x' ENCRYPTION ", true, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("CREATE SYMMETRIC KEY ... KEY_SOURCE = {value} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH IDENTITY_VALUE = 'x', KEY_SOURCE = 'x' ENCRYPTION BY ", true, false, false, new string[]
+        {
+            "ASYMMETRIC", "CERTIFICATE", "PASSWORD", "SYMMETRIC",
         }),
         ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name}", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ", true, false, false, new string[]
         {

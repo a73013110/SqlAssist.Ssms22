@@ -92,15 +92,16 @@ public static class SqlCompletionCandidates
                 : context.ScriptSources;
         }
 
-        // 引數與提示是純粹的封閉清單，一次資料庫都不必問。
+        // 引數與提示是純粹的封閉清單，一次資料庫都不必問。片語的字照接上來：前一格判不出位置時，
+        // WITH ( 可能是資料表提示，也可能是重建選項。
         switch (context.Target)
         {
             case CompletionTarget.DatePart:
-                return SqlArgumentCatalog.DateParts;
+                return SqlArgumentCatalog.DateParts.Concat(PhraseOf(context)).ToArray();
             case CompletionTarget.TableHint:
-                return SqlArgumentCatalog.TableHints;
+                return SqlArgumentCatalog.TableHints.Concat(PhraseOf(context)).ToArray();
             case CompletionTarget.QueryHint:
-                return SqlArgumentCatalog.QueryHints;
+                return SqlArgumentCatalog.QueryHints.Concat(PhraseOf(context)).ToArray();
 
             // 封閉片語的字之外還有以那些字開頭的片段（CURSOR FOR 之後的 ssf），由上下文過濾挑；
             // 收變數的那一格（SET ）再接上指令碼的變數。

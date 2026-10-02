@@ -45,6 +45,8 @@
 片語的字不看目標：目標說的是這一格要哪一種名稱，剖析器已證明片語的字接得上。候選清單依目標分派時
 （資料行、資料指標、型別）也要接上片語的字：`CREATE TABLE t (PERIOD ` 的目標是型別，`FOR` 由片語給。`EXEC ` 的目標是程序，
 照目標過濾的話 `EXEC AS` 的 `AS` 永遠列不出來；`OPEN ` 的目標是資料指標，`SYMMETRIC`、`MASTER` 也是這樣並列。
+提示與引數的封閉清單也一樣：`USE d⏎ALTER TABLE t REBUILD WITH (` 的前一格判不出位置，片語只比對到可能，
+`WITH (` 同時列資料表提示與 `ONLINE`。
 附加片語除外：它只補目錄給不了的字、比對永遠是可能，與目錄的關鍵字一樣照目標過濾——`FETCH NEXT FROM GLOBAL `
 之後是資料指標名稱，不列 `GENERATED`。
 

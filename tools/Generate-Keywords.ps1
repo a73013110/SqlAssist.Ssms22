@@ -1434,6 +1434,9 @@ $ClausePhrases = @(
     # （DISK、URL、TAPE）。HEADERONLY 這一族也走到 FROM 之後；DATABASE、LOG 之後的名稱是展開的一步。
     @{ Pattern = 'BACKUP'; Expand = 2 }
     @{ Pattern = 'RESTORE'; Expand = 2 }
+    # SERVICE MASTER KEY 的 MASTER 剖析器當名稱讀，手寫。
+    @{ Pattern = 'BACKUP SERVICE'; Values = @('MASTER') }
+    @{ Pattern = 'RESTORE SERVICE'; Values = @('MASTER') }
 
     # CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了，手寫補回來。
     # WITH ( 之後的選項由位置給（IndexOption），INCLUDE、篩選的 WHERE 夾在中間也一樣。
@@ -1462,6 +1465,40 @@ $ClausePhrases = @(
     @{ Pattern = 'WAIT_AT_LOW_PRIORITY (*'; Lead = 'ALTER TABLE t SWITCH TO t WITH (' }
     @{ Pattern = 'WAIT_AT_LOW_PRIORITY (* MAX_DURATION = {value}'; Lead = 'ALTER TABLE t SWITCH TO t WITH (' }
     @{ Pattern = 'WAIT_AT_LOW_PRIORITY (* ABORT_AFTER_WAIT ='; Lead = 'ALTER TABLE t SWITCH TO t WITH ('; Items = 'MAX_DURATION = 1 MINUTES, '; Endings = @(' ))') }
+
+    # 其餘帶 WITH (ONLINE = …) 的。DROP INDEX 一次刪得了幾個，… 從動詞跨過前面幾個；ALTER TABLE 裡的 DROP、ALTER
+    # 位置分析當成動詞，DROP CONSTRAINT、DROP COLUMN、ALTER COLUMN 之後長度不定的一段同樣以 … 跨過。
+    # DROP COLUMN 本身不帶 WITH：那是同一句後面 CONSTRAINT 的選項。
+    # ALTER COLUMN 的名稱之後是型別或 ADD、DROP（PERSISTED、NOT FOR REPLICATION）。名稱之後不展開：型別那一格的
+    # NATIONAL 之後接得上名稱，再往下每一個字都是一整輪探測（展開三層探了三百多萬次）；ADD、DROP 各展開一層。
+    # ADD、DROP 也是語句開頭字，… 找動詞會停在它們上，之後的 WITH ( 從語句開頭寫起；以 Lead 認的話，探測文字也比對得到
+    # 展開出來的 ALTER TABLE … ADD NOT，兩條搶同一格。
+    @{ Pattern = 'DROP INDEX ... WITH (*'; Gap = 'i ON t' }
+    @{ Pattern = 'DROP INDEX ... WITH (* MOVE TO'; Gap = 'i ON t' }
+    @{ Pattern = 'DROP CONSTRAINT ... WITH (*'; Lead = 'ALTER TABLE t '; Gap = 'k' }
+    @{ Pattern = 'DROP COLUMN ... WITH (*'; Lead = 'ALTER TABLE t '; Gap = 'a, CONSTRAINT k' }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name}' }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name} ADD'; Expand = 1 }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name} DROP'; Expand = 1 }
+    @{ Pattern = 'ALTER COLUMN ... WITH (*'; Lead = 'ALTER TABLE t '; Gap = 'a int' }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name} ADD PERSISTED WITH (*' }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name} DROP PERSISTED WITH (*' }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name} ADD SPARSE WITH (*' }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name} DROP SPARSE WITH (*' }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name} ADD ROWGUIDCOL WITH (*' }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name} DROP ROWGUIDCOL WITH (*' }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name} ADD NOT FOR REPLICATION WITH (*' }
+    @{ Pattern = 'ALTER TABLE {name} ALTER COLUMN {name} DROP NOT FOR REPLICATION WITH (*' }
+    @{ Pattern = 'ALTER TABLE {name} REBUILD PARTITION = {value} WITH (*' }
+    @{ Pattern = 'ALTER INDEX {name} ON {name} REBUILD PARTITION = {value} WITH (*' }
+    @{ Pattern = 'ALTER TABLE {name} REBUILD PARTITION = ALL WITH (*' }
+    @{ Pattern = 'ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (*' }
+    @{ Pattern = 'CREATE CLUSTERED COLUMNSTORE INDEX {name} ON {name} WITH (*' }
+    @{ Pattern = 'CREATE NONCLUSTERED COLUMNSTORE INDEX {name} ON {name} () WITH (*' }
+    @{ Pattern = 'CREATE COLUMNSTORE INDEX {name} ON {name} () WITH (*' }
+
+    # 向量索引：METRIC、TYPE 的值是字串，METRIC 只收距離的名稱。
+    @{ Pattern = 'CREATE VECTOR INDEX {name} ON {name} () WITH (*'; Endings = @(" = 'cosine'") }
 
     # 只認位置的格子。觸發程序標頭之後是 AFTER、FOR、INSTEAD、WITH，再下一層是 OF 與 EXECUTE；
     # 事件清單與游標選項每一格都是同一個位置，第二項之後也一樣。
@@ -1550,6 +1587,76 @@ $ClausePhrases = @(
     @{ Pattern = 'CREATE SERVER AUDIT {name} TO {name} WITH (*' }
     @{ Pattern = 'CREATE SERVER AUDIT {name} TO FILE () WITH (*'; Group = "(FILEPATH = 'x')" }
 
+    # 稽核規格：FOR SERVER AUDIT 之後是 ADD、DROP 動作群組，以逗號分隔，最後是 WITH (STATE = …)。ADD、DROP 能開始一句，
+    # 位置分析把它們當成動詞、判不出前一格，以尾巴認。稽核名稱與規格名稱之後的語句已經完整，ADD、DROP、WITH 被當成
+    # 下一句的開頭扣掉，手寫補回。伺服器稽核規格收的動作群組涵蓋資料庫層級的，取它探；資料庫稽核規格括號裡的
+    # 動作 ON 物件 BY 主體沒有收。
+    @{ Pattern = 'CREATE SERVER AUDIT SPECIFICATION {name}'; Expand = 3 }
+    @{ Pattern = 'CREATE DATABASE AUDIT SPECIFICATION {name}'; Expand = 3 }
+    @{ Pattern = 'CREATE SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name}'; Values = @('ADD', 'WITH') }
+    @{ Pattern = 'CREATE DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name}'; Values = @('ADD', 'WITH') }
+    @{ Pattern = 'ALTER SERVER AUDIT SPECIFICATION {name}'; Expand = 1; Values = @('ADD', 'DROP', 'WITH') }
+    @{ Pattern = 'ALTER DATABASE AUDIT SPECIFICATION {name}'; Expand = 1; Values = @('ADD', 'DROP', 'WITH') }
+    @{ Pattern = 'ALTER SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name}'; Values = @('ADD', 'DROP', 'WITH') }
+    @{ Pattern = 'ALTER DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name}'; Values = @('ADD', 'DROP', 'WITH') }
+    @{ Pattern = 'CREATE SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (*' }
+    @{ Pattern = 'CREATE DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (*' }
+    @{ Pattern = 'ALTER SERVER AUDIT SPECIFICATION {name} WITH (*' }
+    @{ Pattern = 'ALTER DATABASE AUDIT SPECIFICATION {name} WITH (*' }
+    @{ Pattern = 'ALTER SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (*' }
+    @{ Pattern = 'ALTER DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (*' }
+    @{ Pattern = 'ADD (*'; Lead = 'ALTER SERVER AUDIT SPECIFICATION s ' }
+    @{ Pattern = 'DROP (*'; Lead = 'ALTER SERVER AUDIT SPECIFICATION s ' }
+    @{ Pattern = 'ADD () ,'; Lead = 'ALTER SERVER AUDIT SPECIFICATION s '; Group = '(SCHEMA_OBJECT_ACCESS_GROUP)' }
+    @{ Pattern = 'DROP () ,'; Lead = 'ALTER SERVER AUDIT SPECIFICATION s '; Group = '(SCHEMA_OBJECT_ACCESS_GROUP)' }
+    @{ Pattern = 'ADD () WITH (*'; Lead = 'ALTER SERVER AUDIT SPECIFICATION s '; Group = '(SCHEMA_OBJECT_ACCESS_GROUP)' }
+    @{ Pattern = 'DROP () WITH (*'; Lead = 'ALTER SERVER AUDIT SPECIFICATION s '; Group = '(SCHEMA_OBJECT_ACCESS_GROUP)' }
+
+    # 安全性原則：ADD FILTER、BLOCK PREDICATE 函式 ON 資料表，BLOCK 之後可以帶 AFTER、BEFORE 的作業，述詞以逗號分隔，
+    # 最後是 WITH (STATE = …)。CREATE 的名稱之後語句已經完整，ADD 被當成下一句的開頭扣掉，手寫補回。
+    # 函式呼叫寫成名稱加括號，整段從語句開頭寫起：ADD 與作業的 INSERT、UPDATE、DELETE 都是語句開頭字，以 … 跨過的話
+    # 找動詞會停在它們上。逗號之後的述詞從逗號寫起，前面墊一個述詞。
+    @{ Pattern = 'CREATE SECURITY POLICY {name}'; Expand = 3; Values = @('ADD') }
+    @{ Pattern = 'ALTER SECURITY POLICY {name}'; Expand = 3 }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} WITH (*' }
+    @{ Pattern = 'ALTER SECURITY POLICY {name} WITH (*' }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name}' }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name} ,' }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name} WITH (*' }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name}' }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} ,' }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} WITH (*' }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (*' }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE WITH (*' }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE WITH (*' }
+    @{ Pattern = 'CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (*' }
+    @{ Pattern = ', ADD FILTER PREDICATE {name} () ON {name}'; Lead = 'CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t' }
+    @{ Pattern = ', ADD FILTER PREDICATE {name} () ON {name} ,'; Lead = 'CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t' }
+    @{ Pattern = ', ADD FILTER PREDICATE {name} () ON {name} WITH (*'; Lead = 'CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t' }
+    @{ Pattern = ', ADD BLOCK PREDICATE {name} () ON {name}'; Lead = 'CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t' }
+    @{ Pattern = ', ADD BLOCK PREDICATE {name} () ON {name} ,'; Lead = 'CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t' }
+    @{ Pattern = ', ADD BLOCK PREDICATE {name} () ON {name} WITH (*'; Lead = 'CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t' }
+    @{ Pattern = ', ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (*'; Lead = 'CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t' }
+    @{ Pattern = ', ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE WITH (*'; Lead = 'CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t' }
+    @{ Pattern = ', ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE WITH (*'; Lead = 'CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t' }
+    @{ Pattern = ', ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (*'; Lead = 'CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t' }
+
+    # 外部模型（SQL Server 2025）：選項清單順序固定，MODEL_TYPE 的值剖析器會驗。
+    @{ Pattern = 'CREATE EXTERNAL MODEL {name} WITH (*' }
+    @{ Pattern = 'CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (*' }
+    @{ Pattern = 'CREATE EXTERNAL MODEL {name} WITH (* MODEL_TYPE ='; Items = "LOCATION = 'x', API_FORMAT = 'x', " }
+    @{ Pattern = 'CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (* MODEL_TYPE ='; Items = "LOCATION = 'x', API_FORMAT = 'x', " }
+
+    # 事件通知：ON SERVER、DATABASE、QUEUE，FOR 之後的事件與 DDL 觸發程序同一份，事件之後 TO SERVICE。
+    # ON 只展開兩層：第三層是每一個事件各立一個只接 TO 的片語（上千個），事件由 FOR 那一格的片語列。
+    # DROP 一次刪得了幾個，名稱以 … 跨過。
+    @{ Pattern = 'CREATE EVENT NOTIFICATION {name} ON'; Expand = 2 }
+    @{ Pattern = 'CREATE EVENT NOTIFICATION {name} ON SERVER FOR' }
+    @{ Pattern = 'CREATE EVENT NOTIFICATION {name} ON DATABASE FOR' }
+    @{ Pattern = 'CREATE EVENT NOTIFICATION {name} ON SERVER FOR {name}'; Expand = 2 }
+    @{ Pattern = 'CREATE EVENT NOTIFICATION {name} ON DATABASE FOR {name}'; Expand = 2 }
+    @{ Pattern = 'DROP EVENT NOTIFICATION ... ON'; Gap = 'a, b' }
+
     # 擴充事件：名稱之後的 ON SERVER，之後是 ADD EVENT、ADD TARGET。ALTER 的 ADD、DROP 剖析器要看到 EVENT、TARGET
     # 才收，整段是證據。ADD 能開始一句（ADD SIGNATURE），位置分析把每一段 ADD 當成動詞，後面的 ADD 判不出前一格：
     # 以尾巴認，事件之後接逗號是下一個事件、不接逗號是目標。
@@ -1567,6 +1674,16 @@ $ClausePhrases = @(
     @{ Pattern = 'ALTER EVENT SESSION {name} ON SERVER DROP TARGET' }
     @{ Pattern = 'EVENT {name} WITH (*'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD ' }
     @{ Pattern = 'TARGET {name} WITH (*'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ' }
+    # 事件與目標可以帶一組括號（事件的 SET、ACTION、WHERE，目標的 SET），括號之後同樣接逗號、ADD、WITH。
+    @{ Pattern = 'EVENT {name} (*'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD ' }
+    @{ Pattern = 'EVENT {name} () ,'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD '; Group = '(ACTION (t.t))' }
+    @{ Pattern = 'EVENT {name} () , ADD'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD '; Group = '(ACTION (t.t))' }
+    @{ Pattern = 'EVENT {name} () ADD'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD '; Group = '(ACTION (t.t))' }
+    @{ Pattern = 'EVENT {name} () WITH (*'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD '; Group = '(ACTION (t.t))' }
+    @{ Pattern = 'TARGET {name} (*'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ' }
+    @{ Pattern = 'TARGET {name} () ,'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD '; Group = '(SET t = 1)' }
+    @{ Pattern = 'TARGET {name} () , ADD'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD '; Group = '(SET t = 1)' }
+    @{ Pattern = 'TARGET {name} () WITH (*'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD '; Group = '(SET t = 1)' }
 
     # 序列的選項不以逗號分隔、順序不限，會重複的格子寫成位置；NO 之後的 CYCLE 往下一層。
     # START 後面非接 WITH 值不可，逐字探測接不上續尾，整段是證據。
@@ -1590,6 +1707,48 @@ $ClausePhrases = @(
     # ALTER SYMMETRIC KEY 的 ADD、DROP 之後剖析器把 ENCRYPTION 當名稱讀，逐字探不出來，整段是證據。
     @{ Pattern = 'ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY'; Expand = 2 }
     @{ Pattern = 'ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY'; Expand = 2 }
+
+    # 主金鑰的備份與還原、憑證與非對稱金鑰的私密金鑰：檔案路徑、演算法之後的 ENCRYPTION BY、DECRYPTION BY。
+    # 剖析器要看到 PASSWORD = 才回頭驗 ENCRYPTION，逐字探不出來，整段寫到 PASSWORD 的片語是證據；
+    # 檔案路徑之後的語句已經完整，WITH 也由證據補回。SERVICE 之後剖析器什麼名稱都收，MASTER 寫成名稱，與展開出來的同一格。
+    # WITH PRIVATE KEY ( 的項是多字的（ENCRYPTION BY PASSWORD = …），各敘述收的項相近，以尾巴認、取 ALTER CERTIFICATE 探，不封閉。
+    # 對稱金鑰的選項清單裡，逗號之後的 ALGORITHM = 也以尾巴認；演算法之後的 ENCRYPTION 以名稱結尾、Lead 立不了，
+    # 名稱與前面的選項以 … 跨過。
+    @{ Pattern = 'BACKUP MASTER KEY TO FILE = {value}'; Expand = 3 }
+    @{ Pattern = 'BACKUP SERVICE {name} KEY TO FILE = {value}'; Expand = 3 }
+    @{ Pattern = 'RESTORE MASTER KEY FROM FILE = {value}'; Expand = 3 }
+    @{ Pattern = 'RESTORE MASTER KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value}'; Expand = 3 }
+    @{ Pattern = 'RESTORE SERVICE {name} KEY FROM FILE = {value}'; Expand = 3 }
+    @{ Pattern = 'BACKUP MASTER KEY TO FILE = {value} ENCRYPTION BY PASSWORD' }
+    @{ Pattern = 'BACKUP SERVICE {name} KEY TO FILE = {value} ENCRYPTION BY PASSWORD' }
+    @{ Pattern = 'RESTORE MASTER KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value} ENCRYPTION BY PASSWORD' }
+    @{ Pattern = 'RESTORE SERVICE {name} KEY FROM FILE = {value} DECRYPTION BY PASSWORD' }
+    @{ Pattern = 'BACKUP CERTIFICATE {name} TO FILE = {value}'; Expand = 2 }
+    @{ Pattern = 'CREATE CERTIFICATE {name} FROM FILE = {value}'; Expand = 2 }
+    @{ Pattern = 'ALTER CERTIFICATE {name}'; Expand = 2 }
+    @{ Pattern = 'ALTER ASYMMETRIC KEY {name}'; Expand = 2 }
+    @{ Pattern = 'BACKUP CERTIFICATE {name} TO FILE = {value} WITH PRIVATE KEY' }
+    @{ Pattern = 'CREATE CERTIFICATE {name} FROM FILE = {value} WITH PRIVATE KEY' }
+    @{ Pattern = 'ALTER CERTIFICATE {name} WITH PRIVATE KEY' }
+    @{ Pattern = 'PRIVATE KEY (*'; Lead = 'ALTER CERTIFICATE t WITH '; Closed = $false }
+    @{ Pattern = 'PRIVATE KEY (* ENCRYPTION'; Lead = 'ALTER CERTIFICATE t WITH '; Items = "FILE = 'x', " }
+    @{ Pattern = 'PRIVATE KEY (* ENCRYPTION BY'; Lead = 'ALTER CERTIFICATE t WITH '; Items = "FILE = 'x', " }
+    @{ Pattern = 'PRIVATE KEY (* ENCRYPTION BY PASSWORD'; Lead = 'ALTER CERTIFICATE t WITH '; Items = "FILE = 'x', " }
+    @{ Pattern = 'PRIVATE KEY (* DECRYPTION'; Lead = 'ALTER CERTIFICATE t WITH '; Items = "FILE = 'x', " }
+    @{ Pattern = 'PRIVATE KEY (* DECRYPTION BY'; Lead = 'ALTER CERTIFICATE t WITH '; Items = "FILE = 'x', " }
+    @{ Pattern = 'PRIVATE KEY (* DECRYPTION BY PASSWORD'; Lead = 'ALTER CERTIFICATE t WITH '; Items = "FILE = 'x', " }
+    @{ Pattern = 'CREATE ASYMMETRIC KEY {name} FROM ASSEMBLY {name}'; Expand = 3 }
+    @{ Pattern = 'CREATE ASYMMETRIC KEY {name} FROM FILE = {value}'; Expand = 3 }
+    @{ Pattern = 'CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM = {name}'; Expand = 3 }
+    @{ Pattern = 'CREATE ASYMMETRIC KEY {name} FROM ASSEMBLY {name} ENCRYPTION BY PASSWORD' }
+    @{ Pattern = 'CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM = {name} ENCRYPTION BY PASSWORD' }
+    @{ Pattern = ', ALGORITHM ='; Lead = "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x' "; Expand = 3 }
+    @{ Pattern = 'CREATE SYMMETRIC KEY ... ALGORITHM = {name} ENCRYPTION BY PASSWORD'; Gap = "t WITH KEY_SOURCE = 'x'," }
+    @{ Pattern = 'CREATE SYMMETRIC KEY ... ENCRYPTION BY'; Gap = "t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x'" }
+    @{ Pattern = 'CREATE SYMMETRIC KEY ... IDENTITY_VALUE = {value}'; Gap = "t WITH KEY_SOURCE = 'x'," }
+    @{ Pattern = 'CREATE SYMMETRIC KEY ... IDENTITY_VALUE = {value} ENCRYPTION BY PASSWORD'; Gap = "t WITH KEY_SOURCE = 'x'," }
+    @{ Pattern = 'CREATE SYMMETRIC KEY ... KEY_SOURCE = {value}'; Gap = "t WITH IDENTITY_VALUE = 'x'," }
+    @{ Pattern = 'CREATE SYMMETRIC KEY ... KEY_SOURCE = {value} ENCRYPTION BY PASSWORD'; Gap = "t WITH IDENTITY_VALUE = 'x'," }
     @{ Pattern = 'CREATE CERTIFICATE {name}'; Expand = 4 }
     @{ Pattern = 'CREATE ASYMMETRIC KEY {name}'; Expand = 5 }
     @{ Pattern = 'CREATE SYMMETRIC KEY {name}'; Expand = 6 }
@@ -1785,8 +1944,11 @@ function Select-PhraseName {
     param([string]$Probe, [string]$Next)
 
     if (-not $Probe.EndsWith('= ') -and (Test-TakesName -Probe $Probe -Next $Next)) {
-        if ($Next -match '^([A-Za-z_]\w*|,)$' -and -not (Test-NameReaches -Text "${Probe}t" -Next $Next) -and
-            (Test-NameReaches -Text "${Probe}t.t" -Next $Next)) {
+        # 下一項是括號的，看名稱撐不撐得過左括號（EVENT a.b (ACTION …)）。
+        $literal = $Next -in '()', '(*' ? '(' : $Next
+
+        if ($literal -match '^([A-Za-z_]\w*|,|\()$' -and -not (Test-NameReaches -Text "${Probe}t" -Next $literal) -and
+            (Test-NameReaches -Text "${Probe}t.t" -Next $literal)) {
             return 't.t'
         }
 

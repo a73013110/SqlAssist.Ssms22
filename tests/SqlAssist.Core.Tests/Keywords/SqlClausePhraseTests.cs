@@ -535,6 +535,25 @@ public sealed class SqlClausePhraseTests
     }
 
     /// <summary>
+    /// 前一格判不出位置時，<c>WITH (</c> 可能是資料表提示，也可能是片語的選項清單：兩份都列。
+    /// </summary>
+    /// <remarks>
+    /// <c>USE d</c> 之後換行的那一句，位置分析說不出它從語句開頭寫起，片語只比對到可能；
+    /// 提示的封閉清單丟掉片語的話，<c>ONLINE</c> 就列不出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("USE Lib\nALTER TABLE dbo.Loan REBUILD WITH (", "ONLINE")]
+    [InlineData("BEGIN TRAN\nALTER INDEX ALL ON dbo.Loan REBUILD WITH (", "ONLINE")]
+    [InlineData("EXEC sp_who\nALTER SERVER AUDIT LibAudit WITH (", "STATE")]
+    public void 判不出前一格時提示清單也接上片語的字(string textBeforeCaret, string word)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(CompletionTarget.TableHint, context.Target);
+        Assert.Contains(word, Offered(textBeforeCaret));
+    }
+
+    /// <summary>
     /// 片語的字不進自動大寫與方括號判定：PATH、TIME、TYPE 是很常見的資料行名稱。
     /// </summary>
     [Theory]

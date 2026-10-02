@@ -97,10 +97,17 @@ public static class SqlCompletionContextAnalyzer
         }
 
         // 引數與提示的封閉清單同樣排在「這裡不接受任何關鍵字」之前：
-        // 那幾個位置除了清單上的字沒有別的東西是對的。
+        // 那幾個位置除了清單上的字沒有別的東西是對的。片語只比對到可能時一併帶著：
+        // USE d⏎ALTER TABLE t REBUILD WITH ( 的前一格判不出位置，WITH ( 也可能是重建選項。
+        // 附加片語不帶：它只補目錄的關鍵字，這一格本來就不收關鍵字。
         if (SqlArgumentPosition.TryResolve(tokens, out var argumentTarget))
         {
-            return new SqlCompletionContext(SqlCompletionSlot.Grammar, tokenStart, prefix, argumentTarget);
+            return new SqlCompletionContext(
+                SqlCompletionSlot.Grammar,
+                tokenStart,
+                prefix,
+                argumentTarget,
+                clausePhrase: caret.Phrase is { Phrase.IsAdditive: false } ? caret.Phrase : null);
         }
 
         // 名單只有伺服器知道的那幾種（定序、語言、時區）同理；片語認得出 SET LANGUAGE 與
