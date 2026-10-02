@@ -28,6 +28,8 @@
   "Image": "已淘汰，改用 VARBINARY(MAX)",
   "Uniqueidentifier": "GUID（16 位元組）",
   "Xml": "XML 文件或片段",
+  "Json": "原生 JSON 物件或陣列（SQL Server 2025）",
+  "Vector": "向量，括號寫維度（SQL Server 2025）",
   "SqlVariant": "可放多種型別的值",
   "Hierarchyid": "階層位置",
   "Geometry": "平面空間資料",

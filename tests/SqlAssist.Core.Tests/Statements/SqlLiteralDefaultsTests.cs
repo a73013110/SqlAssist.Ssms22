@@ -17,6 +17,7 @@ public sealed class SqlLiteralDefaultsTests
     [InlineData("money", "0")]
     [InlineData("varbinary(max)", "0x")]
     [InlineData("uniqueidentifier", "NEWID()")]
+    [InlineData("json", "'{}'")]
     public void 依型別給預留值(string dataType, string expected)
     {
         Assert.Equal(expected, SqlLiteralDefaults.ForType(dataType));
@@ -41,6 +42,7 @@ public sealed class SqlLiteralDefaultsTests
     [InlineData("hierarchyid")]
     [InlineData("geography")]
     [InlineData("sql_variant")]
+    [InlineData("vector(3)")]
     [InlineData("dbo.LibraryCardType")]
     [InlineData("")]
     [InlineData(null)]

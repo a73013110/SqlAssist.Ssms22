@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Settings;
 using SqlAssist.Core.Snippets;
 using Xunit;
@@ -184,6 +185,8 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("DECLARE @name NVARCH", "NVARCHAR")]
     [InlineData("SELECT CAST(f.Amount AS DECIM", "DECIMAL")]
     [InlineData("CREATE TABLE dbo.Loan (LoanId BIGIN", "BIGINT")]
+    [InlineData("DECLARE @v VECT", "VECTOR")]
+    [InlineData("DECLARE @doc AS JSO", "JSON")]
     public void 前綴比對排在第一(string textBeforeCaret, string expected)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -201,6 +204,8 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("VARCHAR", "VARCHAR(")]
     [InlineData("DECIMAL", "DECIMAL(")]
     [InlineData("VARBINARY", "VARBINARY(")]
+    [InlineData("VECTOR", "VECTOR(")]
+    [InlineData("JSON", "JSON")]
     [InlineData("INT", "INT")]
     [InlineData("DATETIME2", "DATETIME2")]
     [InlineData("BIT", "BIT")]
@@ -209,6 +214,41 @@ public sealed class SqlDataTypeCompletionTests
         var item = SqlDataTypeCatalog.All.Single(entry => entry.DisplayText == name);
 
         Assert.Equal(expected, item.InsertionText);
+    }
+
+    /// <summary>
+    /// SQL Server 2025 的新型別在每一種型別位置都列得出來；清單不看連線的版本。
+    /// </summary>
+    [Theory]
+    [InlineData("DECLARE @v |")]
+    [InlineData("DECLARE @v AS |")]
+    [InlineData("DECLARE @rows INT, @v |")]
+    [InlineData("CREATE PROCEDURE dbo.usp_Renew @v |")]
+    [InlineData("SET @doc = CAST(@text AS |")]
+    [InlineData("SELECT TRY_CONVERT(|")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId INT, Embedding |")]
+    [InlineData("ALTER TABLE dbo.Loan ADD Doc |")]
+    [InlineData("ALTER TABLE dbo.Loan ALTER COLUMN Doc |")]
+    [InlineData("DECLARE @copies TABLE (CopyNo INT, Doc |")]
+    public async Task 新版型別在型別位置列得出來(string sqlWithCaret)
+    {
+        var list = await GetAsync(sqlWithCaret);
+
+        Assert.Contains(list, item => item.Kind == SuggestionKind.DataType && item.DisplayText == "VECTOR");
+        Assert.Contains(list, item => item.Kind == SuggestionKind.DataType && item.DisplayText == "JSON");
+    }
+
+    [Fact]
+    public void 新版型別的說明寫明版本且有英文()
+    {
+        Assert.True(SqlDataTypeCatalog.TryGetDescription("vector", out var vector));
+        Assert.Contains("SQL Server 2025", vector);
+
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            Assert.True(SqlDataTypeCatalog.TryGetDescription("json", out var json));
+            Assert.Equal("Native JSON object or array (SQL Server 2025)", json);
+        }
     }
 
     [Fact]

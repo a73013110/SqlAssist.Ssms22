@@ -23,6 +23,14 @@
     "examples.basic.title": "Basic usage",
     "examples.basic.sql": "DECLARE @id uniqueidentifier = NEWID()   -- Clustered key causes splits"
   },
+  "JSON": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "DECLARE @doc json = '{\"copyNo\": 1}'   -- Object or array only; scalars and '' fail"
+  },
+  "VECTOR": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "DECLARE @v vector(3) = '[0.1, 2, 30]'   -- JSON array; length must equal dimensions"
+  },
   "NOLOCK": {
     "examples.basic.title": "Basic usage",
     "examples.basic.sql": "SELECT COUNT(*) FROM dbo.Loan WITH (NOLOCK)   -- Row may appear/disappear"

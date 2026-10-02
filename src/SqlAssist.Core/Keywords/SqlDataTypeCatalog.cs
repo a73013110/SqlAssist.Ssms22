@@ -17,6 +17,9 @@ namespace SqlAssist.Core.Keywords;
 /// 只是在說明欄寫明替代品：它們今天仍然運作，而維護舊結構描述的人本來就要打出它們。
 /// 這與全域變數排除 <c>@@REMSERVER</c> 不衝突——那個變數回報的功能整個被拿掉了，
 /// 打出來也得不到有意義的值。標準是「還有用就收，只是標清楚」。
+///
+/// SQL Server 2025 才有的 <c>JSON</c>、<c>VECTOR</c> 同樣照收、不看連線的版本：這份清單本來就
+/// 不查資料庫，而寫給新版的指令碼常在舊版的連線上編輯。版本寫在說明欄。
 /// </remarks>
 public static class SqlDataTypeCatalog
 {
@@ -69,6 +72,8 @@ public static class SqlDataTypeCatalog
         // 其他
         ("UNIQUEIDENTIFIER", () => DataTypeText.Uniqueidentifier, false),
         ("XML", () => DataTypeText.Xml, false),
+        ("JSON", () => DataTypeText.Json, false),
+        ("VECTOR", () => DataTypeText.Vector, true),
         ("SQL_VARIANT", () => DataTypeText.SqlVariant, false),
         ("HIERARCHYID", () => DataTypeText.Hierarchyid, false),
         ("GEOMETRY", () => DataTypeText.Geometry, false),

@@ -72,7 +72,12 @@ public static class SqlLiteralDefaults
             case "uniqueidentifier":
                 return "NEWID()";
 
+            // json 只收物件或陣列，空字串在轉型那一步就失敗；空物件插得進去、也看得出還沒填。
+            case "json":
+                return "'{}'";
+
             // 空間型別、hierarchyid、sql_variant 與使用者自訂型別沒有共通的字面值寫法。
+            // vector 的字面值要與維度一樣長，寫不出一個插得進去又看得出要改的值。
             default:
                 return "NULL";
         }

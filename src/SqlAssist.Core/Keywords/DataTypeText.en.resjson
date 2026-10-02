@@ -27,6 +27,8 @@
   "Image": "Deprecated; use VARBINARY(MAX) instead",
   "Uniqueidentifier": "GUID (16 bytes)",
   "Xml": "XML document or fragment",
+  "Json": "Native JSON object or array (SQL Server 2025)",
+  "Vector": "Vector; dimensions in parentheses (SQL Server 2025)",
   "SqlVariant": "Can hold values of various data types",
   "Hierarchyid": "Hierarchical position",
   "Geometry": "Planar spatial data",

@@ -137,7 +137,7 @@ public static class SqlTypeName
     }
 
     /// <summary>
-    /// 是不是大型物件：<c>max</c> 長度，或已經淘汰的 <c>text</c>／<c>ntext</c>／<c>image</c>。
+    /// 是不是大型物件：<c>max</c> 長度、<c>xml</c>／<c>json</c>，或已經淘汰的 <c>text</c>／<c>ntext</c>／<c>image</c>。
     /// </summary>
     /// <remarks>
     /// 長度看的是格式化後的字串裡有沒有 <c>(max)</c>。這一層刻意不收
@@ -152,6 +152,7 @@ public static class SqlTypeName
             case "ntext":
             case "image":
             case "xml":
+            case "json":
                 return true;
         }
 

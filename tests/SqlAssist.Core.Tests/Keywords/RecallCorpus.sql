@@ -318,6 +318,15 @@ SET @CopyCount = CAST (@CopyNo AS INT)
 DECLARE @CopyCount INT, @CopyNo VARCHAR(10);
 SET @CopyCount = TRY_CAST (@CopyNo AS INT) + CAST(@CopyNo AS INT)
 
+DECLARE @Embedding VECTOR(3) = '[0.1, 2, 30]', @Doc AS JSON = '{}'
+
+DECLARE @Title NVARCHAR(100) = N'[1, 2, 3]';
+SELECT CAST(@Title AS VECTOR(3)), TRY_CONVERT(JSON, @Title)
+
+CREATE TABLE dbo.Loan (LoanId INT, Doc JSON NULL, Embedding VECTOR(3) NOT NULL)
+
+ALTER TABLE dbo.Loan ADD Embedding VECTOR(3) NULL
+
 SELECT @CopyNo = CopyNo FROM dbo.Copy
 
 IF @CopyNo = 1 SELECT 1 ELSE SELECT 2

@@ -80,6 +80,32 @@
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/uniqueidentifier-transact-sql"
     },
     {
+      "name": "JSON",
+      "kind": "dataType",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE @doc json = '{\"copyNo\": 1}'   -- 只收物件或陣列，純量與空字串都會失敗"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/json-data-type"
+    },
+    {
+      "name": "VECTOR",
+      "kind": "dataType",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE @v vector(3) = '[0.1, 2, 30]'   -- 寫成 JSON 陣列，元素個數要等於維度"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/vector-data-type"
+    },
+    {
       "name": "NOLOCK",
       "kind": "tableHint",
       "summary": "",
