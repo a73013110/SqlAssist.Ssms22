@@ -779,7 +779,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE COLUMN ENCRYPTION KEY {name}", SqlKeywordPosition.StatementStart, "CREATE COLUMN ENCRYPTION KEY t ", true, false, false, new string[]
         {
-            "WITH",
+            "WITH VALUES",
         }),
         ("CREATE COLUMN MASTER", SqlKeywordPosition.StatementStart, "CREATE COLUMN MASTER ", true, false, false, new string[]
         {
@@ -1510,7 +1510,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER COLUMN ENCRYPTION KEY {name}", SqlKeywordPosition.StatementStart, "ALTER COLUMN ENCRYPTION KEY t ", true, false, false, new string[]
         {
-            "ADD", "DROP",
+            "ADD VALUE", "DROP VALUE",
         }),
         ("ALTER CREDENTIAL", SqlKeywordPosition.StatementStart, "ALTER CREDENTIAL ", false, false, false, new string[]
         {
@@ -4257,6 +4257,22 @@ internal static class SqlKeywordCatalogData
         {
             "MINUTE", "MINUTES",
         }),
+        ("WITH (* DATA_COMPRESSION =", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (DATA_COMPRESSION = ", true, false, false, new string[]
+        {
+            "COLUMNSTORE", "COLUMNSTORE_ARCHIVE", "NONE", "PAGE", "ROW",
+        }),
+        ("WITH (* DATA_COMPRESSION = {name}", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (DATA_COMPRESSION = COLUMNSTORE ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("WITH (* DATA_COMPRESSION = {name} ON", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (DATA_COMPRESSION = COLUMNSTORE ON ", true, false, false, new string[]
+        {
+            "PARTITIONS",
+        }),
+        ("ON PARTITIONS (* {value}", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (DATA_COMPRESSION = ROW ON PARTITIONS (1 ", true, false, false, new string[]
+        {
+            "COLLATE", "TO",
+        }),
         ("DROP INDEX ... WITH (*", SqlKeywordPosition.StatementStart, "DROP INDEX i ON t WITH (", true, false, false, new string[]
         {
             "DATA_COMPRESSION", "FILESTREAM_ON", "MAXDOP", "ONLINE", "WAIT_AT_LOW_PRIORITY",
@@ -5543,6 +5559,65 @@ internal static class SqlKeywordCatalogData
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
+        ("ENCRYPTED WITH (*", SqlKeywordPosition.Any, "CREATE TABLE t (a int ENCRYPTED WITH (", true, false, false, new string[]
+        {
+            "ALGORITHM", "COLUMN_ENCRYPTION_KEY", "ENCRYPTION_TYPE",
+        }),
+        ("ENCRYPTED WITH (* ENCRYPTION_TYPE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int ENCRYPTED WITH (ENCRYPTION_TYPE = ", true, false, false, new string[]
+        {
+            "DETERMINISTIC", "RANDOMIZED",
+        }),
+        ("ALTER COLUMN ... ENCRYPTED WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ALTER COLUMN a int ENCRYPTED WITH (", true, false, false, new string[]
+        {
+            "ALGORITHM", "COLUMN_ENCRYPTION_KEY", "ENCRYPTION_TYPE",
+        }),
+        ("CREATE PARTITION FUNCTION {name} ()", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t (int) ", true, false, false, new string[]
+        {
+            "AS",
+        }),
+        ("CREATE PARTITION FUNCTION {name} () AS", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t (int) AS ", true, false, false, new string[]
+        {
+            "RANGE",
+        }),
+        ("CREATE PARTITION FUNCTION {name} () AS RANGE", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t (int) AS RANGE ", true, false, false, new string[]
+        {
+            "FOR VALUES", "LEFT FOR VALUES", "RIGHT FOR VALUES",
+        }),
+        ("CREATE PARTITION FUNCTION {name} () AS RANGE FOR", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t (int) AS RANGE FOR ", true, false, false, new string[]
+        {
+            "VALUES",
+        }),
+        ("CREATE PARTITION FUNCTION {name} () AS RANGE FOR VALUES", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t (int) AS RANGE FOR VALUES ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE PARTITION FUNCTION {name} () AS RANGE LEFT", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t (int) AS RANGE LEFT ", true, false, false, new string[]
+        {
+            "FOR VALUES",
+        }),
+        ("CREATE PARTITION FUNCTION {name} () AS RANGE LEFT FOR", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t (int) AS RANGE LEFT FOR ", true, false, false, new string[]
+        {
+            "VALUES",
+        }),
+        ("CREATE PARTITION FUNCTION {name} () AS RANGE RIGHT", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t (int) AS RANGE RIGHT ", true, false, false, new string[]
+        {
+            "FOR VALUES",
+        }),
+        ("CREATE PARTITION FUNCTION {name} () AS RANGE RIGHT FOR", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t (int) AS RANGE RIGHT FOR ", true, false, false, new string[]
+        {
+            "VALUES",
+        }),
+        ("ALTER PARTITION FUNCTION {name} ()", SqlKeywordPosition.StatementStart, "ALTER PARTITION FUNCTION t () ", true, false, false, new string[]
+        {
+            "MERGE", "SPLIT",
+        }),
+        ("ALTER PARTITION FUNCTION {name} () MERGE", SqlKeywordPosition.StatementStart, "ALTER PARTITION FUNCTION t () MERGE ", true, false, true, new string[]
+        {
+            "RANGE",
+        }),
+        ("ALTER PARTITION FUNCTION {name} () SPLIT", SqlKeywordPosition.StatementStart, "ALTER PARTITION FUNCTION t () SPLIT ", true, false, true, new string[]
+        {
+            "RANGE",
+        }),
         ("OPENROWSET (*", SqlKeywordPosition.DataSource, "SELECT * FROM OPENROWSET (", false, true, false, new string[]
         {
             "BULK", "CONNECTION", "CREDENTIAL", "OBJECT", "PROVIDER", "SERVER_CREDENTIAL",
@@ -6001,6 +6076,50 @@ internal static class SqlKeywordCatalogData
         ("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (* MODEL_TYPE =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t AUTHORIZATION t WITH (LOCATION = 'x', API_FORMAT = 'x', MODEL_TYPE = ", true, false, false, new string[]
         {
             "EMBEDDINGS",
+        }),
+        ("CREATE EXTERNAL LIBRARY {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t FROM (", true, false, false, new string[]
+        {
+            "CONTENT", "PLATFORM",
+        }),
+        ("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t AUTHORIZATION t FROM (", true, false, false, new string[]
+        {
+            "CONTENT", "PLATFORM",
+        }),
+        ("CREATE EXTERNAL LIBRARY {name} FROM ,* (* PLATFORM =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t FROM (CONTENT = 'x', PLATFORM = ", true, false, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
+        ("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name} FROM ,* (* PLATFORM =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t AUTHORIZATION t FROM (CONTENT = 'x', PLATFORM = ", true, false, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
+        ("CREATE EXTERNAL LIBRARY ... WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t FROM (CONTENT = 'x') WITH (", true, false, false, new string[]
+        {
+            "LANGUAGE",
+        }),
+        ("ALTER EXTERNAL LIBRARY {name} SET (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t SET (", true, false, false, new string[]
+        {
+            "CONTENT", "PLATFORM",
+        }),
+        ("ALTER EXTERNAL LIBRARY {name} SET (* PLATFORM =", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t SET (CONTENT = 'x', PLATFORM = ", true, false, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
+        ("ALTER EXTERNAL LIBRARY {name} SET () WITH (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t SET (CONTENT = 'x') WITH (", true, false, false, new string[]
+        {
+            "LANGUAGE",
+        }),
+        ("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t AUTHORIZATION t SET (", true, false, false, new string[]
+        {
+            "CONTENT", "PLATFORM",
+        }),
+        ("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET (* PLATFORM =", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t AUTHORIZATION t SET (CONTENT = 'x', PLATFORM = ", true, false, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
+        ("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET () WITH (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t AUTHORIZATION t SET (CONTENT = 'x') WITH (", true, false, false, new string[]
+        {
+            "LANGUAGE",
         }),
         ("CREATE EVENT NOTIFICATION {name} ON", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON ", true, false, false, new string[]
         {
@@ -7248,6 +7367,43 @@ internal static class SqlKeywordCatalogData
         ("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC KEY t ", true, false, true, new string[]
         {
         }),
+        ("CREATE COLUMN MASTER KEY {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE COLUMN MASTER KEY t WITH (", true, false, false, new string[]
+        {
+            "ENCLAVE_COMPUTATIONS", "KEY_PATH", "KEY_STORE_PROVIDER_NAME",
+        }),
+        ("CREATE COLUMN ENCRYPTION KEY {name} WITH", SqlKeywordPosition.StatementStart, "CREATE COLUMN ENCRYPTION KEY t WITH ", true, false, false, new string[]
+        {
+            "VALUES",
+        }),
+        ("CREATE COLUMN ENCRYPTION KEY {name} WITH VALUES", SqlKeywordPosition.StatementStart, "CREATE COLUMN ENCRYPTION KEY t WITH VALUES ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE COLUMN ENCRYPTION KEY {name} WITH VALUES ,* (*", SqlKeywordPosition.StatementStart, "CREATE COLUMN ENCRYPTION KEY t WITH VALUES (", true, false, false, new string[]
+        {
+            "ALGORITHM", "COLUMN_MASTER_KEY", "ENCRYPTED_VALUE",
+        }),
+        ("ALTER COLUMN ENCRYPTION KEY {name} ADD", SqlKeywordPosition.StatementStart, "ALTER COLUMN ENCRYPTION KEY t ADD ", true, false, false, new string[]
+        {
+            "VALUE",
+        }),
+        ("ALTER COLUMN ENCRYPTION KEY {name} ADD VALUE", SqlKeywordPosition.StatementStart, "ALTER COLUMN ENCRYPTION KEY t ADD VALUE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER COLUMN ENCRYPTION KEY {name} DROP", SqlKeywordPosition.StatementStart, "ALTER COLUMN ENCRYPTION KEY t DROP ", true, false, false, new string[]
+        {
+            "VALUE",
+        }),
+        ("ALTER COLUMN ENCRYPTION KEY {name} DROP VALUE", SqlKeywordPosition.StatementStart, "ALTER COLUMN ENCRYPTION KEY t DROP VALUE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER COLUMN ENCRYPTION KEY {name} ADD VALUE (*", SqlKeywordPosition.StatementStart, "ALTER COLUMN ENCRYPTION KEY t ADD VALUE (", true, false, false, new string[]
+        {
+            "ALGORITHM", "COLUMN_MASTER_KEY", "ENCRYPTED_VALUE",
+        }),
+        ("ALTER COLUMN ENCRYPTION KEY {name} DROP VALUE (*", SqlKeywordPosition.StatementStart, "ALTER COLUMN ENCRYPTION KEY t DROP VALUE (", true, false, false, new string[]
+        {
+            "COLUMN_MASTER_KEY",
+        }),
         ("OPEN SYMMETRIC KEY {name} DECRYPTION BY ASYMMETRIC KEY {name} WITH PASSWORD", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY ASYMMETRIC KEY t WITH PASSWORD ", true, false, false, new string[]
         {
         }),
@@ -8190,6 +8346,14 @@ internal static class SqlKeywordCatalogData
         {
             "COLUMNSTORE",
         }),
+        ("ENCRYPTED", SqlKeywordPosition.Any, "CREATE TABLE t (a int ENCRYPTED ", false, false, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER COLUMN ... ENCRYPTED", SqlKeywordPosition.Any, "ALTER TABLE t ALTER COLUMN a int ENCRYPTED ", true, false, false, new string[]
+        {
+            "WITH",
+        }),
         ("ALTER SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t ", true, false, false, new string[]
         {
             "TO", "WHERE", "WITH",
@@ -8290,6 +8454,14 @@ internal static class SqlKeywordCatalogData
         ("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t AUTHORIZATION t ", true, false, false, new string[]
         {
             "WITH",
+        }),
+        ("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t AUTHORIZATION t ", true, false, false, new string[]
+        {
+            "FROM",
+        }),
+        ("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t AUTHORIZATION t ", true, false, false, new string[]
+        {
+            "SET",
         }),
         ("ALTER EVENT SESSION {name} ON SERVER ADD", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER ADD ", true, false, false, new string[]
         {
@@ -8672,7 +8844,7 @@ internal static class SqlKeywordCatalogData
     {
         (SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC" }),
         (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE" }),
-        (SqlKeywordPosition.None, "CREATE TABLE t (a datetime2 ", new string[] { "GENERATED" }),
+        (SqlKeywordPosition.None, "CREATE TABLE t (a datetime2 ", new string[] { "GENERATED", "ENCRYPTED" }),
         (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD" }),
         (SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD" }),
         (SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),

@@ -1,6 +1,6 @@
 namespace SqlAssist.KeywordGenerator.Data;
 
-/// <summary>PolyBase、外部模型、事件通知與擴充事件。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
+/// <summary>PolyBase、外部模型、外部程式庫、事件通知與擴充事件。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
 internal static class PolyBaseXePhrases
 {
     internal static readonly PhraseDeclaration[] ExternalData =
@@ -22,6 +22,26 @@ internal static class PolyBaseXePhrases
         new("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (*"),
         new("CREATE EXTERNAL MODEL {name} WITH (* MODEL_TYPE =") { Items = "LOCATION = 'x', API_FORMAT = 'x', " },
         new("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (* MODEL_TYPE =") { Items = "LOCATION = 'x', API_FORMAT = 'x', " },
+    ];
+
+    // 宣告在用到它的片語之前：靜態欄位照書寫順序初始化。
+    private static readonly string[] LibraryPlatforms = ["WINDOWS", "LINUX"];
+
+    internal static readonly PhraseDeclaration[] ExternalLibraries =
+    [
+        // 外部程式庫：名稱之後可以寫 AUTHORIZATION，FROM 之後一個平台一組檔案，SET 只換一組，WITH (LANGUAGE = …) 的值是字串。
+        // PLATFORM 的值剖析器什麼名稱都收，只能手寫，取文件的兩個平台；CONTENT 要寫在第一項。
+        new("CREATE EXTERNAL LIBRARY {name} FROM ,* (*"),
+        new("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name} FROM ,* (*"),
+        new("CREATE EXTERNAL LIBRARY {name} FROM ,* (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
+        new("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name} FROM ,* (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
+        new("CREATE EXTERNAL LIBRARY ... WITH (*") { Gap = "t FROM (CONTENT = 'x')" },
+        new("ALTER EXTERNAL LIBRARY {name} SET (*"),
+        new("ALTER EXTERNAL LIBRARY {name} SET (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
+        new("ALTER EXTERNAL LIBRARY {name} SET () WITH (*") { Group = "(CONTENT = 'x')" },
+        new("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET (*"),
+        new("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
+        new("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET () WITH (*") { Group = "(CONTENT = 'x')" },
     ];
 
     internal static readonly PhraseDeclaration[] Events =
@@ -54,6 +74,8 @@ internal static class PolyBaseXePhrases
         new("EVENT {name} WITH (*") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
         new("TARGET {name} WITH (*") { Lead = "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD " },
         // 事件與目標可以帶一組括號（事件的 SET、ACTION、WHERE，目標的 SET），括號之後同樣接逗號、ADD、WITH。
+        // SET 之後的欄位不列：剖析器什麼名稱都收，探不出來；欄位又依目標而不同（event_file 的 filename、ring_buffer 的
+        // max_memory），尾巴的 {name} 分不出是哪一個目標，手寫聯集會列出別的目標的欄位。
         new("EVENT {name} (*") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
         new("EVENT {name} () ,") { Lead = "CREATE EVENT SESSION t ON SERVER ADD ", Group = "(ACTION (t.t))" },
         new("EVENT {name} () , ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD ", Group = "(ACTION (t.t))" },

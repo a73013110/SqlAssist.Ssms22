@@ -132,6 +132,14 @@ internal static class SecurityPhrases
         new("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM =") { Values = ["AES_128", "AES_192", "AES_256", "TRIPLE_DES_3KEY"], Closed = true },
         new("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER CERTIFICATE {name}"),
         new("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER ASYMMETRIC KEY {name}"),
+        // Always Encrypted 的金鑰：資料行主金鑰的 WITH (…)，資料行加密金鑰的值一組一組寫（每把主金鑰一組），
+        // ALTER 一次加或刪一組。演算法與加密值是字串與二進位值，不列。
+        new("CREATE COLUMN MASTER KEY {name} WITH (*"),
+        new("CREATE COLUMN ENCRYPTION KEY {name} WITH") { Expand = 1 },
+        new("CREATE COLUMN ENCRYPTION KEY {name} WITH VALUES ,* (*"),
+        new("ALTER COLUMN ENCRYPTION KEY {name}") { Expand = 2 },
+        new("ALTER COLUMN ENCRYPTION KEY {name} ADD VALUE (*"),
+        new("ALTER COLUMN ENCRYPTION KEY {name} DROP VALUE (*"),
         new("OPEN SYMMETRIC KEY {name} DECRYPTION BY ASYMMETRIC KEY {name} WITH PASSWORD"),
         new("OPEN SYMMETRIC KEY {name} DECRYPTION BY CERTIFICATE {name} WITH PASSWORD"),
         new("CREATE CERTIFICATE {name} WITH ,*"),

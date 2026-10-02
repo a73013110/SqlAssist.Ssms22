@@ -109,6 +109,19 @@ internal static class DdlPhrases
         new("INDEX {name} CLUSTERED") { Lead = "CREATE TABLE t (a int, " },
         new("INDEX {name} CLUSTERED COLUMNSTORE WITH (*") { Lead = "CREATE TABLE t (a int, " },
         new("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (*") { Lead = "CREATE TABLE t (a int, " },
+
+        // Always Encrypted 的資料行：型別之後判不出位置，ENCRYPTED WITH ( 這條尾巴本身認得出來。ENCRYPTION_TYPE 的值
+        // 剖析器要看到下一項才驗，續尾把清單寫完。
+        new("ENCRYPTED WITH (*") { Lead = "CREATE TABLE t (a int " },
+        new("ENCRYPTED WITH (* ENCRYPTION_TYPE =") { Lead = "CREATE TABLE t (a int ", Endings = [", ALGORITHM = 'x', COLUMN_ENCRYPTION_KEY = k))"] },
+        // ALTER COLUMN 的 … WITH (*（線上選項）項數比上面多，比對取它；寫到 ENCRYPTED 的這一條更長。
+        new("ALTER COLUMN ... ENCRYPTED WITH (*") { Lead = "ALTER TABLE t ", Gap = "a int" },
+
+        // 資料分割函式：參數只寫型別，之後是 AS RANGE LEFT／RIGHT FOR VALUES；ALTER 的 SPLIT、MERGE 之後接 RANGE。
+        // AS 之後剖析器什麼名稱都先收，逐字探不出 RANGE，整段是證據；之後的字要看到 FOR VALUES 才驗，續尾把整句寫完。
+        new("CREATE PARTITION FUNCTION {name} ()") { Group = "(int)", Expand = 1 },
+        new("CREATE PARTITION FUNCTION {name} () AS RANGE") { Group = "(int)", Expand = 2, Endings = [" FOR VALUES (1)"] },
+        new("ALTER PARTITION FUNCTION {name} ()") { Group = "()", Expand = 1 },
     ];
 
     internal static readonly PhraseDeclaration[] Sequence =

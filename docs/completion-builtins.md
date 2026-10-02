@@ -69,6 +69,7 @@ SQL Server 2025 才有的 `JSON`、`VECTOR` 同樣照收、不看連線的版本
 | `CREATE TABLE t (Id `、`DECLARE @t TABLE (Id `、`ALTER TABLE t ADD Id `、`WITH RESULT SETS ((Id ` | 名稱前面那一格是資料行定義的開頭（位置分析的 `ColumnDefinition`、`AlterTableAdd`、`ResultSetColumn`）；名稱可加方括號 |
 | `ALTER TABLE t ALTER COLUMN c ` | 前兩個詞元是 `ALTER COLUMN`；`DROP COLUMN c` 之後不是 |
 | `CREATE SEQUENCE s AS `、`CREATE TYPE t FROM ` | 以型別為底的物件，名稱之後的那個字 |
+| `CREATE PARTITION FUNCTION pf (` | 唯一的參數只寫型別、沒有名稱 |
 
 型別那一組的 `AS` 與「`AS` 之後是型別」同一條判斷，只是把 `AS` 放在還沒寫的那一格問
 （`SqlDataTypePosition.AcceptsAs`）：`DECLARE @x `、`CREATE PROCEDURE p @x ` 的型別清單多列可省的 `AS`，

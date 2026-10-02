@@ -117,7 +117,7 @@ public static class SqlDataTypePosition
             return token.IsPunctuation("(") &&
                 last >= 1 &&
                 IsBareIdentifier(tokens[last - 1]) &&
-                TypeFirstArgument.Contains(tokens[last - 1].Value);
+                (TypeFirstArgument.Contains(tokens[last - 1].Value) || OpensPartitionFunction(tokens, last));
         }
 
         // 加了方括號的只可能是名稱：SSMS 產生的指令碼一律寫 CREATE TABLE [dbo].[Loan]([LoanId] |。
@@ -274,6 +274,19 @@ public static class SqlDataTypePosition
             TypedObjects.TryGetValue(tokens[name - 1].Value, out var introducer) &&
             tokens[last].IsKeyword(introducer) &&
             tokens[name - 2].IsKeyword("CREATE");
+    }
+
+    /// <summary>
+    /// <paramref name="open"/> 是 <c>CREATE PARTITION FUNCTION pf (</c> 的左括號：唯一的參數只寫型別、沒有名稱。
+    /// </summary>
+    private static bool OpensPartitionFunction(IReadOnlyList<SqlToken> tokens, int open)
+    {
+        var name = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, open - 1);
+
+        return name >= 3 &&
+            tokens[name - 1].IsKeyword("FUNCTION") &&
+            tokens[name - 2].IsKeyword("PARTITION") &&
+            tokens[name - 3].IsKeyword("CREATE");
     }
 
     /// <summary>

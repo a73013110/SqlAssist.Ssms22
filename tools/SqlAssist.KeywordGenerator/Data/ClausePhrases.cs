@@ -25,6 +25,7 @@ internal static class ClausePhrases
         .. PolyBaseXePhrases.ExternalData,
         .. SecurityPhrases.AuditAndPolicies,
         .. PolyBaseXePhrases.ExternalModels,
+        .. PolyBaseXePhrases.ExternalLibraries,
         .. PolyBaseXePhrases.Events,
         .. DdlPhrases.Sequence,
         .. StatementPhrases.Waitfor,

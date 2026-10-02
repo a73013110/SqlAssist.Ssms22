@@ -38,6 +38,11 @@ internal static class IndexPhrases
         new("WITH (* MAX_DURATION = {value}") { Lead = "ALTER INDEX t ON t RESUME " },
         new("WITH (* COMPRESSION_DELAY = {value}") { Lead = "CREATE CLUSTERED COLUMNSTORE INDEX t ON t " },
         new("SET (* COMPRESSION_DELAY = {value}") { Lead = "ALTER INDEX t ON t " },
+        // 資料壓縮的值同理：索引、重建、條件約束與資料表選項的 WITH (…) 收的是同一份值，一條尾巴共用。
+        // 取資料表選項探：每一種值都收，值之後的 ON PARTITIONS 也不必先寫 PARTITION = ALL（重建要）。
+        new("WITH (* DATA_COMPRESSION =") { Lead = "CREATE TABLE t (a int) ", Expand = 2 },
+        // 分割區清單的範圍（ON PARTITIONS (2 TO 4)）：資料與 XML 壓縮共用。
+        new("ON PARTITIONS (* {value}") { Lead = "CREATE TABLE t (a int) WITH (DATA_COMPRESSION = ROW " },
 
         // 其餘帶 WITH (ONLINE = …) 的。DROP INDEX 一次刪得了幾個，… 從動詞跨過前面幾個；ALTER TABLE 裡的 DROP、ALTER
         // 位置分析當成動詞，DROP CONSTRAINT、DROP COLUMN、ALTER COLUMN 之後長度不定的一段同樣以 … 跨過。

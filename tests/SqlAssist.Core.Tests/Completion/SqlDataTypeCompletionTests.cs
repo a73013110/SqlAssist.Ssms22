@@ -45,6 +45,7 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("DECLARE @copies TABLE (CopyNo INT), @name ")]
     [InlineData("CREATE SEQUENCE dbo.LoanSeq AS ")]
     [InlineData("CREATE TYPE dbo.Code FROM ")]
+    [InlineData("CREATE PARTITION FUNCTION LibRange (")]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch ")]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch varchar(10), CopyCount ")]
     [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE, RESULT SETS ((Branch int), (CopyNo ")]
@@ -95,6 +96,8 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch int ")]
     [InlineData("SELECT * FROM dbo.fn_Copies(1) WITH (Branch ")]
     [InlineData("SELECT * FROM dbo.Loan WITH (Branch ")]
+    [InlineData("CREATE FUNCTION dbo.fn_Copies (")]
+    [InlineData("ALTER PARTITION FUNCTION LibRange () SPLIT RANGE (")]
     public void 不是型別的位置(string textBeforeCaret)
     {
         Assert.NotEqual(
