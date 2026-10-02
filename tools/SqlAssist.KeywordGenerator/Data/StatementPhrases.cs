@@ -3,12 +3,22 @@ namespace SqlAssist.KeywordGenerator.Data;
 /// <summary>一般敘述：SET、BACKUP／RESTORE、EXECUTE AS、WAITFOR、DBCC、EXEC 的選項清單。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
 internal static class StatementPhrases
 {
+    private static readonly string[] DateFormats = ["mdy", "dmy", "ymd", "ydm", "myd", "dym"];
+
+    private static readonly string[] DeadlockPriorities = ["LOW", "NORMAL", "HIGH"];
+
     internal static readonly PhraseDeclaration[] Set =
     [
         new("SET") { Expand = 4 },
         new("SET IDENTITY_INSERT {name}"),
-        new("SET DATEFORMAT") { Values = ["mdy", "dmy", "ymd", "ydm", "myd", "dym"], Closed = true },
-        new("SET DEADLOCK_PRIORITY") { Values = ["LOW", "NORMAL", "HIGH"], Closed = true },
+        new("SET DATEFORMAT") { Values = DateFormats, Closed = true },
+        new("SET DEADLOCK_PRIORITY") { Values = DeadlockPriorities, Closed = true },
+
+        // 一次可以設幾個選項（SET LANGUAGE 'x', DATEFORMAT dmy），值的那一格也可能在逗號之後：中段的 ,* 走過前面幾項。
+        // 逗號之後以尾巴認，不寫成清單片語：那樣 SET 之後就成了 OptionItem，SetTarget 收的變數列不出來。
+        new("SET ,* ,"),
+        new("SET ,* , DATEFORMAT") { Gap = "LANGUAGE 'x'", Values = DateFormats, Closed = true },
+        new("SET ,* , DEADLOCK_PRIORITY") { Gap = "LANGUAGE 'x'", Values = DeadlockPriorities, Closed = true },
     ];
 
     internal static readonly PhraseDeclaration[] BackupHeaders =

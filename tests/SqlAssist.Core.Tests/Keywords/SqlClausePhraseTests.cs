@@ -173,6 +173,13 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT a FROM t TABLESAMPLE (10 ", "PERCENT", "ROWS")]
     [InlineData("SELECT * FROM OPENROWSET(", "BULK")]
     [InlineData("SELECT * FROM OPENROWSET(BULK 'Copy.csv', ", "FORMAT", "DATA_SOURCE", "FIRSTROW", "SINGLE_CLOB")]
+    [InlineData("SET LANGUAGE 'us_english', ", "DATEFORMAT", "DATEFIRST")]
+    [InlineData("SET LANGUAGE 'us_english', DATEFORMAT ", "dmy", "ymd")]
+    [InlineData("ALTER DATABASE Lib ADD FILE (NAME = Lib2), (NAME = Lib3), (", "NAME", "FILENAME", "SIZE")]
+    [InlineData("ALTER DATABASE Lib ADD FILE (NAME = Lib2, SIZE = 5 ", "MB", "GB")]
+    [InlineData("CREATE DATABASE Lib ON PRIMARY (NAME = Lib), FILEGROUP LibFg (NAME = Lib2), (NAME = Lib3, ", "MAXSIZE", "FILEGROWTH")]
+    [InlineData("CREATE DATABASE Lib ON (NAME = Lib) LOG ON (NAME = LibLog, MAXSIZE = ", "UNLIMITED")]
+    [InlineData("ALTER INDEX IX_Loan ON dbo.Loan RESUME WITH (MAXDOP = 2, MAX_DURATION = 5 ", "MINUTES")]
     [InlineData("SELECT * FROM OPENROWSET(BULK 'Copy.csv', FORMAT = 'CSV', ", "DATA_SOURCE", "FIELDQUOTE")]
     [InlineData("CREATE EXTERNAL TABLE dbo.LoanArchiveFile (LoanId int)\nWITH (LOCATION = '/loan/', ", "DATA_SOURCE", "FILE_FORMAT")]
     [InlineData("CREATE AGGREGATE dbo.LoanConcat (@copyNo int) ", "RETURNS")]
@@ -327,6 +334,8 @@ public sealed class SqlClausePhraseTests
     /// </remarks>
     [Theory]
     [InlineData("SET DATEFORMAT ", "ON")]
+    [InlineData("SET LANGUAGE 'us_english', ", "SELECT")]
+    [InlineData("ALTER DATABASE Lib ADD FILE (NAME = Lib2), (", "SELECT")]
     [InlineData("SET LANGUAGE ", "OFF")]
     [InlineData("SET NOCOUNT ", "READ")]
     [InlineData("SET STATISTICS ", "ON")]
@@ -553,6 +562,20 @@ public sealed class SqlClausePhraseTests
         var offered = Offered("PRINT @a SET TRANSACTION ISOLATION LEVEL ");
 
         Assert.Single(offered, word => word == "READ");
+    }
+
+    /// <summary>
+    /// 中段的 <c>,*</c> 走過清單項時走不出這一句，標頭前一格也要對得上：UPDATE 的 SET、
+    /// 同一段裡前一句的 ADD FILE 都不算。
+    /// </summary>
+    [Theory]
+    [InlineData("UPDATE dbo.Loan SET Fee = 1, ")]
+    [InlineData("ALTER DATABASE Lib ADD FILE (NAME = Lib2) SELECT * FROM dbo.Loan WHERE Fee IN (")]
+    public void 清單項走不出這一句(string textBeforeToken)
+    {
+        var phrase = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Phrase;
+
+        Assert.True(phrase is null || !phrase.Phrase.Pattern.Contains(",*"), phrase?.Phrase.Pattern);
     }
 
     /// <summary>

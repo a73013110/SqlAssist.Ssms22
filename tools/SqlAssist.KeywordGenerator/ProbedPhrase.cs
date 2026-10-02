@@ -28,7 +28,7 @@ public sealed class ProbedPhrase
 
     public bool EndsStatement { get; init; }
 
-    /// <summary>這一格接得了名稱或值：唯一接續的併項不跨過它。清單片語一律是 false。</summary>
+    /// <summary>這一格接得了名稱、值或括號：唯一接續的併項不跨過它。清單片語一律是 false。</summary>
     public bool TakesOperand { get; init; }
 
     public List<string> Words { get; set; }

@@ -21,6 +21,7 @@ internal static class IndexPhrases
         new("ALTER INDEX {name} ON {name} REBUILD WITH (*"),
         new("ALTER INDEX {name} ON {name} REORGANIZE WITH (*"),
         new("ALTER INDEX {name} ON {name} SET (*"),
+        new("ALTER INDEX {name} ON {name} RESUME WITH (*"),
         new("ALTER TABLE {name} REBUILD WITH (*"),
         new("ALTER TABLE {name} SWITCH TO {name} WITH (*"),
         new("KEY () WITH (*") { Lead = "ALTER TABLE t ADD PRIMARY " },
@@ -32,6 +33,11 @@ internal static class IndexPhrases
         new("WAIT_AT_LOW_PRIORITY (*") { Lead = "ALTER TABLE t SWITCH TO t WITH (" },
         new("WAIT_AT_LOW_PRIORITY (* MAX_DURATION = {value}") { Lead = "ALTER TABLE t SWITCH TO t WITH (" },
         new("WAIT_AT_LOW_PRIORITY (* ABORT_AFTER_WAIT =") { Lead = "ALTER TABLE t SWITCH TO t WITH (", Items = "MAX_DURATION = 1 MINUTES, ", Endings = [" ))"] },
+        // 值之後的單位（MAX_DURATION = 5 MINUTES）：接這兩個選項的 WITH (…) 有十幾種標頭，CREATE INDEX 的還夾著 INCLUDE、WHERE；
+        // 尾巴認 WITH 開的那組括號就夠了，判不出位置也不比對到 WHERE max_duration = 5 這種欄位。
+        new("WITH (* MAX_DURATION = {value}") { Lead = "ALTER INDEX t ON t RESUME " },
+        new("WITH (* COMPRESSION_DELAY = {value}") { Lead = "CREATE CLUSTERED COLUMNSTORE INDEX t ON t " },
+        new("SET (* COMPRESSION_DELAY = {value}") { Lead = "ALTER INDEX t ON t " },
 
         // 其餘帶 WITH (ONLINE = …) 的。DROP INDEX 一次刪得了幾個，… 從動詞跨過前面幾個；ALTER TABLE 裡的 DROP、ALTER
         // 位置分析當成動詞，DROP CONSTRAINT、DROP COLUMN、ALTER COLUMN 之後長度不定的一段同樣以 … 跨過。

@@ -670,6 +670,25 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
+        ("SET ,* ,", SqlKeywordPosition.StatementStart, "SET ANSI_DEFAULTS, ", true, false, false, new string[]
+        {
+            "ANSI_DEFAULTS", "ANSI_NULL_DFLT_OFF", "ANSI_NULL_DFLT_ON", "ANSI_NULLS",
+            "ANSI_PADDING", "ANSI_WARNINGS", "ARITHABORT", "ARITHIGNORE",
+            "CONCAT_NULL_YIELDS_NULL", "CURSOR_CLOSE_ON_COMMIT", "FMTONLY", "FORCEPLAN",
+            "IMPLICIT_TRANSACTIONS", "NO_BROWSETABLE", "NOCOUNT", "NOEXEC",
+            "NUMERIC_ROUNDABORT", "PARSEONLY", "QUOTED_IDENTIFIER", "REMOTE_PROC_TRANSACTIONS",
+            "SHOWPLAN_ALL", "SHOWPLAN_TEXT", "SHOWPLAN_XML", "XACT_ABORT", "CONTEXT_INFO",
+            "DATEFIRST", "DATEFORMAT", "DEADLOCK_PRIORITY", "FIPS_FLAGGER", "LANGUAGE",
+            "LOCK_TIMEOUT", "QUERY_GOVERNOR_COST_LIMIT",
+        }),
+        ("SET ,* , DATEFORMAT", SqlKeywordPosition.StatementStart, "SET LANGUAGE 'x' , DATEFORMAT ", true, true, false, new string[]
+        {
+            "NULL", "mdy", "dmy", "ymd", "ydm", "myd", "dym",
+        }),
+        ("SET ,* , DEADLOCK_PRIORITY", SqlKeywordPosition.StatementStart, "SET LANGUAGE 'x' , DEADLOCK_PRIORITY ", true, true, false, new string[]
+        {
+            "NULL", "LOW", "NORMAL", "HIGH",
+        }),
         ("CREATE", SqlKeywordPosition.StatementStart, "CREATE ", true, false, false, new string[]
         {
             "AGGREGATE", "APPLICATION ROLE", "ASSEMBLY", "ASYMMETRIC KEY", "BROKER PRIORITY",
@@ -1915,7 +1934,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER SERVER", SqlKeywordPosition.StatementStart, "ALTER SERVER ", true, false, false, new string[]
         {
-            "AUDIT SPECIFICATION", "ROLE",
+            "AUDIT SPECIFICATION", "ROLE", "CONFIGURATION SET",
         }),
         ("ALTER SERVER AUDIT", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT ", true, false, false, new string[]
         {
@@ -2668,7 +2687,7 @@ internal static class SqlKeywordCatalogData
             "HONOR_BROKER_PRIORITY", "MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT",
             "MIXED_PAGE_ALLOCATION", "MULTI_USER", "NESTED_TRIGGERS", "NEW_BROKER",
             "NUMERIC_ROUNDABORT", "OFFLINE", "ONLINE", "OPTIMIZED_LOCKING", "PAGE_VERIFY",
-            "PARAMETERIZATION", "PARTNER", "QUERY_STORE CLEAR", "QUOTED_IDENTIFIER",
+            "PARAMETERIZATION", "PARTNER", "QUERY_STORE", "QUOTED_IDENTIFIER",
             "READ_COMMITTED_SNAPSHOT", "READ_ONLY", "READ_WRITE", "RECOVERY",
             "RECURSIVE_TRIGGERS", "REMOTE_DATA_ARCHIVE", "RESTRICTED_USER", "SINGLE_USER",
             "SUPPLEMENTAL_LOGGING", "TARGET_RECOVERY_TIME", "TEMPORAL_HISTORY_RETENTION",
@@ -2951,6 +2970,948 @@ internal static class SqlKeywordCatalogData
             "VERBOSE_TRUNCATION_WARNINGS", "XTP_PROCEDURE_EXECUTION_STATISTICS",
             "XTP_QUERY_EXECUTION_STATISTICS",
         }),
+        ("CREATE DATABASE {name} CONTAINMENT =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = ", true, false, false, new string[]
+        {
+            "NONE", "PARTIAL",
+        }),
+        ("CREATE DATABASE {name} ON", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON ", true, false, false, new string[]
+        {
+            "PRIMARY",
+        }),
+        ("CREATE DATABASE {name} ON ,*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON PRIMARY (NAME = a, FILENAME = 'x'), ", true, false, false, new string[]
+        {
+            "FILEGROUP", "PRIMARY",
+        }),
+        ("CREATE DATABASE {name} ON ,* (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (", true, false, false, new string[]
+        {
+            "FILEGROWTH", "FILENAME", "MAXSIZE", "NAME", "NEWNAME", "OFFLINE", "SIZE",
+        }),
+        ("CREATE DATABASE {name} ON ,* (* FILEGROWTH", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (FILEGROWTH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} ON ,* (* FILEGROWTH = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (FILEGROWTH = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("CREATE DATABASE {name} ON ,* (* FILENAME", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (FILENAME ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} ON ,* (* MAXSIZE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (MAXSIZE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} ON ,* (* MAXSIZE =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (MAXSIZE = ", true, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("CREATE DATABASE {name} ON ,* (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (MAXSIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("CREATE DATABASE {name} ON ,* (* NAME", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} ON ,* (* NEWNAME", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NEWNAME ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} ON ,* (* NEWNAME = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NEWNAME = 'x' ", true, false, false, new string[]
+        {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("CREATE DATABASE {name} ON ,* (* OFFLINE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (OFFLINE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} ON ,* (* SIZE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (SIZE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} ON ,* (* SIZE = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (SIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("CREATE DATABASE {name} ON ,* ()", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') ", true, false, true, new string[]
+        {
+            "AS", "COLLATE", "FOR", "LOG ON",
+        }),
+        ("CREATE DATABASE {name} ON ,* () AS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') AS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} ON ,* () COLLATE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') COLLATE ", false, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} ON ,* () FOR", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') FOR ", true, false, false, new string[]
+        {
+            "ATTACH", "ATTACH_FORCE_REBUILD_LOG", "ATTACH_REBUILD_LOG",
+        }),
+        ("CREATE DATABASE {name} ON ,* () LOG", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') LOG ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE DATABASE {name} ON ,* FILEGROUP {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t ", true, false, false, new string[]
+        {
+            "CONTAINS", "DEFAULT",
+        }),
+        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} CONTAINS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS ", true, false, false, new string[]
+        {
+            "FILESTREAM", "MEMORY_OPTIMIZED_DATA",
+        }),
+        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} CONTAINS FILESTREAM", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS FILESTREAM ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} CONTAINS MEMORY_OPTIMIZED_DATA", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS MEMORY_OPTIMIZED_DATA ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} DEFAULT", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t DEFAULT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON ", true, false, false, new string[]
+        {
+            "PRIMARY",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON PRIMARY (NAME = a, FILENAME = 'x'), ", true, false, false, new string[]
+        {
+            "FILEGROUP", "PRIMARY",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (", true, false, false, new string[]
+        {
+            "FILEGROWTH", "FILENAME", "MAXSIZE", "NAME", "NEWNAME", "OFFLINE", "SIZE",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* FILEGROWTH", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (FILEGROWTH ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* FILEGROWTH = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (FILEGROWTH = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* FILENAME", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (FILENAME ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* MAXSIZE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (MAXSIZE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* MAXSIZE =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (MAXSIZE = ", true, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (MAXSIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* NAME", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* NEWNAME", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NEWNAME ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* NEWNAME = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NEWNAME = 'x' ", true, false, false, new string[]
+        {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* OFFLINE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (OFFLINE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* SIZE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (SIZE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (* SIZE = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (SIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* ()", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x') ", true, false, true, new string[]
+        {
+            "AS", "COLLATE", "FOR", "LOG ON",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* () AS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x') AS ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* () COLLATE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x') COLLATE ", false, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* () FOR", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x') FOR ", true, false, false, new string[]
+        {
+            "ATTACH", "ATTACH_FORCE_REBUILD_LOG", "ATTACH_REBUILD_LOG",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* () LOG", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x') LOG ", true, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t ", true, false, false, new string[]
+        {
+            "CONTAINS", "DEFAULT",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} CONTAINS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS ", true, false, false, new string[]
+        {
+            "FILESTREAM", "MEMORY_OPTIMIZED_DATA",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} CONTAINS FILESTREAM", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS FILESTREAM ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} CONTAINS MEMORY_OPTIMIZED_DATA", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS MEMORY_OPTIMIZED_DATA ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} DEFAULT", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t DEFAULT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (", true, false, false, new string[]
+        {
+            "FILEGROWTH", "FILENAME", "MAXSIZE", "NAME", "NEWNAME", "OFFLINE", "SIZE",
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* FILEGROWTH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (FILEGROWTH ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* FILEGROWTH = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (FILEGROWTH = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* FILENAME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (FILENAME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* MAXSIZE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (MAXSIZE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* MAXSIZE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (MAXSIZE = ", true, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (MAXSIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* NAME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (NAME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* NEWNAME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (NEWNAME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* NEWNAME = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (NEWNAME = 'x' ", true, false, false, new string[]
+        {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* OFFLINE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (OFFLINE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* SIZE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (SIZE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* (* SIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (SIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* ()", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (NAME = a, FILENAME = 'x') ", true, false, true, new string[]
+        {
+            "TO FILEGROUP",
+        }),
+        ("ALTER DATABASE {name} ADD FILE ,* () TO", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (NAME = a, FILENAME = 'x') TO ", true, false, false, new string[]
+        {
+            "FILEGROUP",
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (", true, false, false, new string[]
+        {
+            "FILEGROWTH", "FILENAME", "MAXSIZE", "NAME", "NEWNAME", "OFFLINE", "SIZE",
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* FILEGROWTH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (FILEGROWTH ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* FILEGROWTH = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (FILEGROWTH = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* FILENAME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (FILENAME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* MAXSIZE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (MAXSIZE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* MAXSIZE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (MAXSIZE = ", true, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (MAXSIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* NAME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (NAME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* NEWNAME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (NEWNAME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* NEWNAME = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (NEWNAME = 'x' ", true, false, false, new string[]
+        {
+            "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "BACKUP",
+            "BEGIN", "BETWEEN", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASE", "CHECK",
+            "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLUMN", "COMMIT",
+            "COMPUTE", "CONSTRAINT", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT",
+            "CREATE", "CROSS", "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "CURSOR", "DATABASE", "DBCC", "DEALLOCATE", "DECLARE", "DEFAULT",
+            "DELETE", "DENY", "DESC", "DISTINCT", "DISTRIBUTED", "DOUBLE", "DROP", "ELSE",
+            "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
+            "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
+            "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
+            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
+            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
+            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
+            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
+            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
+            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
+            "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
+            "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
+            "UNION", "UNIQUE", "UNPIVOT", "UPDATE", "UPDATETEXT", "USE", "USER", "VALUES",
+            "VARYING", "VIEW", "WAITFOR", "WHEN", "WHERE", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* OFFLINE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (OFFLINE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* SIZE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (SIZE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} ADD LOG FILE ,* (* SIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG FILE (SIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (", true, false, false, new string[]
+        {
+            "FILEGROWTH", "FILENAME", "MAXSIZE", "NAME", "NEWNAME", "OFFLINE", "SIZE",
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* FILEGROWTH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (FILEGROWTH ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* FILEGROWTH = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (FILEGROWTH = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* FILENAME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (FILENAME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* MAXSIZE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (MAXSIZE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* MAXSIZE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (MAXSIZE = ", true, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (MAXSIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* NAME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (NAME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* NEWNAME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (NEWNAME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* OFFLINE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (OFFLINE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* SIZE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (SIZE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY FILE (* SIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILE (SIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "KB", "MB", "TB",
+        }),
+        ("CREATE DATABASE {name} (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (", true, false, false, new string[]
+        {
+            "EDITION", "MAXSIZE", "SERVICE_OBJECTIVE",
+        }),
+        ("CREATE DATABASE {name} (* EDITION", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (EDITION ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} (* MAXSIZE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (MAXSIZE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (MAXSIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "MB",
+        }),
+        ("CREATE DATABASE {name} (* SERVICE_OBJECTIVE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (SERVICE_OBJECTIVE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY (", true, false, false, new string[]
+        {
+            "EDITION", "MAXSIZE", "SERVICE_OBJECTIVE",
+        }),
+        ("ALTER DATABASE {name} MODIFY (* EDITION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY (EDITION ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY (* MAXSIZE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY (MAXSIZE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY (MAXSIZE = 1 ", true, false, false, new string[]
+        {
+            "GB", "MB",
+        }),
+        ("ALTER DATABASE {name} MODIFY (* SERVICE_OBJECTIVE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY (SERVICE_OBJECTIVE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET TARGET_RECOVERY_TIME = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TARGET_RECOVERY_TIME = 1 ", true, false, false, new string[]
+        {
+            "MINUTES", "SECONDS",
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (", true, false, false, new string[]
+        {
+            "AUTO_CLEANUP", "CHANGE_RETENTION",
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING (* AUTO_CLEANUP", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (AUTO_CLEANUP ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING (* AUTO_CLEANUP =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (AUTO_CLEANUP = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING (* CHANGE_RETENTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (CHANGE_RETENTION ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING (* CHANGE_RETENTION = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (CHANGE_RETENTION = 1 ", true, false, false, new string[]
+        {
+            "DAYS", "HOURS", "MINUTES",
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (", true, false, false, new string[]
+        {
+            "AUTO_CLEANUP", "CHANGE_RETENTION",
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (* AUTO_CLEANUP", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (AUTO_CLEANUP ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (* AUTO_CLEANUP =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (AUTO_CLEANUP = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (* CHANGE_RETENTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (CHANGE_RETENTION ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (* CHANGE_RETENTION = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 1 ", true, false, false, new string[]
+        {
+            "DAYS", "HOURS", "MINUTES",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (", true, false, false, new string[]
+        {
+            "CLEANUP_POLICY", "DATA_FLUSH_INTERVAL_SECONDS", "DESIRED_STATE",
+            "FLUSH_INTERVAL_SECONDS", "INTERVAL_LENGTH_MINUTES", "MAX_PLANS_PER_QUERY",
+            "MAX_STORAGE_SIZE_MB", "OPERATION_MODE", "QUERY_CAPTURE_MODE",
+            "SIZE_BASED_CLEANUP_MODE", "WAIT_STATS_CAPTURE_MODE",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* CLEANUP_POLICY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (CLEANUP_POLICY ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* DATA_FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (DATA_FLUSH_INTERVAL_SECONDS ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* DESIRED_STATE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (DESIRED_STATE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* DESIRED_STATE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (DESIRED_STATE = ", true, false, false, new string[]
+        {
+            "READ_ONLY", "READ_WRITE",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (FLUSH_INTERVAL_SECONDS ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* INTERVAL_LENGTH_MINUTES", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (INTERVAL_LENGTH_MINUTES ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* MAX_PLANS_PER_QUERY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (MAX_PLANS_PER_QUERY ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* MAX_STORAGE_SIZE_MB", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (MAX_STORAGE_SIZE_MB ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* OPERATION_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (OPERATION_MODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* OPERATION_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (OPERATION_MODE = ", true, false, false, new string[]
+        {
+            "READ_ONLY", "READ_WRITE",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* QUERY_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (QUERY_CAPTURE_MODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* QUERY_CAPTURE_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (QUERY_CAPTURE_MODE = ", true, false, false, new string[]
+        {
+            "ALL", "AUTO", "NONE",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* SIZE_BASED_CLEANUP_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (SIZE_BASED_CLEANUP_MODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* SIZE_BASED_CLEANUP_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (SIZE_BASED_CLEANUP_MODE = ", true, false, false, new string[]
+        {
+            "AUTO", "OFF",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* WAIT_STATS_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (WAIT_STATS_CAPTURE_MODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (", true, false, false, new string[]
+        {
+            "CLEANUP_POLICY", "DATA_FLUSH_INTERVAL_SECONDS", "DESIRED_STATE",
+            "FLUSH_INTERVAL_SECONDS", "INTERVAL_LENGTH_MINUTES", "MAX_PLANS_PER_QUERY",
+            "MAX_STORAGE_SIZE_MB", "OPERATION_MODE", "QUERY_CAPTURE_MODE",
+            "SIZE_BASED_CLEANUP_MODE", "WAIT_STATS_CAPTURE_MODE",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* CLEANUP_POLICY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (CLEANUP_POLICY ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* DATA_FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (DATA_FLUSH_INTERVAL_SECONDS ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* DESIRED_STATE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (DESIRED_STATE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* DESIRED_STATE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (DESIRED_STATE = ", true, false, false, new string[]
+        {
+            "READ_ONLY", "READ_WRITE",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (FLUSH_INTERVAL_SECONDS ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* INTERVAL_LENGTH_MINUTES", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (INTERVAL_LENGTH_MINUTES ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* MAX_PLANS_PER_QUERY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (MAX_PLANS_PER_QUERY ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* MAX_STORAGE_SIZE_MB", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (MAX_STORAGE_SIZE_MB ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* OPERATION_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (OPERATION_MODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* OPERATION_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (OPERATION_MODE = ", true, false, false, new string[]
+        {
+            "READ_ONLY", "READ_WRITE",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* QUERY_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (QUERY_CAPTURE_MODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* QUERY_CAPTURE_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = ", true, false, false, new string[]
+        {
+            "ALL", "AUTO", "NONE",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* SIZE_BASED_CLEANUP_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (SIZE_BASED_CLEANUP_MODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* SIZE_BASED_CLEANUP_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (SIZE_BASED_CLEANUP_MODE = ", true, false, false, new string[]
+        {
+            "AUTO", "OFF",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* WAIT_STATS_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (WAIT_STATS_CAPTURE_MODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE (* CLEANUP_POLICY = (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (CLEANUP_POLICY = (", true, false, false, new string[]
+        {
+            "STALE_QUERY_THRESHOLD_DAYS",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* CLEANUP_POLICY = (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (CLEANUP_POLICY = (", true, false, false, new string[]
+        {
+            "STALE_QUERY_THRESHOLD_DAYS",
+        }),
+        ("ALTER SERVER CONFIGURATION SET", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET ", true, false, false, new string[]
+        {
+            "BUFFER POOL EXTENSION", "DIAGNOSTICS LOG", "EXTERNAL AUTHENTICATION",
+            "FAILOVER CLUSTER PROPERTY", "HADR CLUSTER", "PROCESS AFFINITY", "SOFTNUMA",
+        }),
+        ("ALTER SERVER CONFIGURATION SET BUFFER", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET BUFFER ", true, false, false, new string[]
+        {
+            "POOL EXTENSION",
+        }),
+        ("ALTER SERVER CONFIGURATION SET BUFFER POOL", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET BUFFER POOL ", true, false, false, new string[]
+        {
+            "EXTENSION",
+        }),
+        ("ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET DIAGNOSTICS", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET DIAGNOSTICS ", true, false, false, new string[]
+        {
+            "LOG",
+        }),
+        ("ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG ", true, false, false, new string[]
+        {
+            "MAX_FILES", "MAX_SIZE", "OFF", "ON", "PATH",
+        }),
+        ("ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_FILES", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_FILES ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_FILES =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_FILES = ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 1 ", true, false, false, new string[]
+        {
+            "MB",
+        }),
+        ("ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG PATH", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG PATH ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG PATH =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG PATH = ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER SERVER CONFIGURATION SET EXTERNAL", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET EXTERNAL ", true, false, false, new string[]
+        {
+            "AUTHENTICATION",
+        }),
+        ("ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER ", true, false, false, new string[]
+        {
+            "CLUSTER PROPERTY",
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER ", true, false, false, new string[]
+        {
+            "PROPERTY",
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY ", true, false, false, new string[]
+        {
+            "FAILURECONDITIONLEVEL", "HEALTHCHECKTIMEOUT", "SQLDUMPERDUMPFLAGS",
+            "SQLDUMPERDUMPPATH", "SQLDUMPERDUMPTIMEOUT", "VERBOSELOGGING",
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY FAILURECONDITIONLEVEL", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY FAILURECONDITIONLEVEL ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY FAILURECONDITIONLEVEL =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY FAILURECONDITIONLEVEL = ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY HEALTHCHECKTIMEOUT", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY HEALTHCHECKTIMEOUT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY HEALTHCHECKTIMEOUT =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY HEALTHCHECKTIMEOUT = ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPFLAGS", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPFLAGS ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPFLAGS =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPFLAGS = ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPPATH", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPPATH ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPPATH =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPPATH = ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPTIMEOUT", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPTIMEOUT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPTIMEOUT =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SQLDUMPERDUMPTIMEOUT = ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VERBOSELOGGING", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VERBOSELOGGING ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VERBOSELOGGING =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VERBOSELOGGING = ", true, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER SERVER CONFIGURATION SET HADR", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET HADR ", true, false, false, new string[]
+        {
+            "CLUSTER",
+        }),
+        ("ALTER SERVER CONFIGURATION SET HADR CLUSTER", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET HADR CLUSTER ", true, false, false, new string[]
+        {
+            "CONTEXT",
+        }),
+        ("ALTER SERVER CONFIGURATION SET HADR CLUSTER CONTEXT", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET HADR CLUSTER CONTEXT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET HADR CLUSTER CONTEXT =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET HADR CLUSTER CONTEXT = ", true, false, false, new string[]
+        {
+            "LOCAL",
+        }),
+        ("ALTER SERVER CONFIGURATION SET PROCESS", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS ", true, false, false, new string[]
+        {
+            "AFFINITY",
+        }),
+        ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY ", true, false, false, new string[]
+        {
+            "CPU", "NUMANODE",
+        }),
+        ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = ", true, false, false, new string[]
+        {
+            "AUTO",
+        }),
+        ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = 1 ", true, false, true, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = 1 ", true, false, true, new string[]
+        {
+            "TO",
+        }),
+        ("ALTER SERVER CONFIGURATION SET SOFTNUMA", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET SOFTNUMA ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (*", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (", true, false, false, new string[]
+        {
+            "FILENAME", "SIZE",
+        }),
+        ("ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (* FILENAME", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (", true, false, false, new string[]
+        {
+            "AFFINITY", "CAP_CPU_PERCENT", "CAP_IO_PERCENT", "MAX_CPU_PERCENT",
+            "MAX_IO_PERCENT", "MAX_IOPS_PER_VOLUME", "MAX_MEMORY_PERCENT", "MIN_CPU_PERCENT",
+            "MIN_IO_PERCENT", "MIN_IOPS_PER_VOLUME", "MIN_MEMORY_PERCENT",
+            "TARGET_MEMORY_PERCENT",
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* AFFINITY", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (AFFINITY ", true, false, false, new string[]
+        {
+            "NUMANODE", "SCHEDULER",
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* AFFINITY NUMANODE", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (AFFINITY NUMANODE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* AFFINITY SCHEDULER", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (AFFINITY SCHEDULER ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* AFFINITY SCHEDULER =", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (AFFINITY SCHEDULER = ", true, false, false, new string[]
+        {
+            "AUTO",
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* CAP_CPU_PERCENT", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (CAP_CPU_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* CAP_IO_PERCENT", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (CAP_IO_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* MAX_CPU_PERCENT", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (MAX_CPU_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* MAX_IO_PERCENT", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (MAX_IO_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* MAX_IOPS_PER_VOLUME", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (MAX_IOPS_PER_VOLUME ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* MAX_MEMORY_PERCENT", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (MAX_MEMORY_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* MIN_CPU_PERCENT", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (MIN_CPU_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* MIN_IO_PERCENT", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (MIN_IO_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* MIN_IOPS_PER_VOLUME", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (MIN_IOPS_PER_VOLUME ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* MIN_MEMORY_PERCENT", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (MIN_MEMORY_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE RESOURCE POOL {name} WITH (* TARGET_MEMORY_PERCENT", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (TARGET_MEMORY_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (*", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (", true, false, false, new string[]
+        {
+            "AFFINITY", "CAP_CPU_PERCENT", "CAP_IO_PERCENT", "MAX_CPU_PERCENT",
+            "MAX_IO_PERCENT", "MAX_IOPS_PER_VOLUME", "MAX_MEMORY_PERCENT", "MIN_CPU_PERCENT",
+            "MIN_IO_PERCENT", "MIN_IOPS_PER_VOLUME", "MIN_MEMORY_PERCENT",
+            "TARGET_MEMORY_PERCENT",
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* AFFINITY", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (AFFINITY ", true, false, false, new string[]
+        {
+            "NUMANODE", "SCHEDULER",
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* AFFINITY NUMANODE", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (AFFINITY NUMANODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* AFFINITY SCHEDULER", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (AFFINITY SCHEDULER ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* AFFINITY SCHEDULER =", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (AFFINITY SCHEDULER = ", true, false, false, new string[]
+        {
+            "AUTO",
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* CAP_CPU_PERCENT", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (CAP_CPU_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* CAP_IO_PERCENT", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (CAP_IO_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* MAX_CPU_PERCENT", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (MAX_CPU_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* MAX_IO_PERCENT", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (MAX_IO_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* MAX_IOPS_PER_VOLUME", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (MAX_IOPS_PER_VOLUME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* MAX_MEMORY_PERCENT", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (MAX_MEMORY_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* MIN_CPU_PERCENT", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (MIN_CPU_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* MIN_IO_PERCENT", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (MIN_IO_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* MIN_IOPS_PER_VOLUME", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (MIN_IOPS_PER_VOLUME ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* MIN_MEMORY_PERCENT", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (MIN_MEMORY_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER RESOURCE POOL {name} WITH (* TARGET_MEMORY_PERCENT", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t WITH (TARGET_MEMORY_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL RESOURCE POOL {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE POOL t WITH (", true, false, false, new string[]
+        {
+            "AFFINITY", "MAX_CPU_PERCENT", "MAX_MEMORY_PERCENT", "MAX_PROCESSES",
+        }),
+        ("CREATE EXTERNAL RESOURCE POOL {name} WITH (* AFFINITY", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE POOL t WITH (AFFINITY ", true, false, false, new string[]
+        {
+            "CPU", "NUMANODE",
+        }),
+        ("CREATE EXTERNAL RESOURCE POOL {name} WITH (* AFFINITY CPU", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE POOL t WITH (AFFINITY CPU ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL RESOURCE POOL {name} WITH (* AFFINITY CPU =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE POOL t WITH (AFFINITY CPU = ", true, false, false, new string[]
+        {
+            "AUTO",
+        }),
+        ("CREATE EXTERNAL RESOURCE POOL {name} WITH (* AFFINITY NUMANODE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE POOL t WITH (AFFINITY NUMANODE ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL RESOURCE POOL {name} WITH (* MAX_CPU_PERCENT", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE POOL t WITH (MAX_CPU_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL RESOURCE POOL {name} WITH (* MAX_MEMORY_PERCENT", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE POOL t WITH (MAX_MEMORY_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL RESOURCE POOL {name} WITH (* MAX_PROCESSES", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE POOL t WITH (MAX_PROCESSES ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL RESOURCE POOL {name} WITH (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t WITH (", true, false, false, new string[]
+        {
+            "AFFINITY", "MAX_CPU_PERCENT", "MAX_MEMORY_PERCENT", "MAX_PROCESSES",
+        }),
+        ("ALTER EXTERNAL RESOURCE POOL {name} WITH (* AFFINITY", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t WITH (AFFINITY ", true, false, false, new string[]
+        {
+            "CPU", "NUMANODE",
+        }),
+        ("ALTER EXTERNAL RESOURCE POOL {name} WITH (* AFFINITY CPU", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t WITH (AFFINITY CPU ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL RESOURCE POOL {name} WITH (* AFFINITY CPU =", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t WITH (AFFINITY CPU = ", true, false, false, new string[]
+        {
+            "AUTO",
+        }),
+        ("ALTER EXTERNAL RESOURCE POOL {name} WITH (* AFFINITY NUMANODE", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t WITH (AFFINITY NUMANODE ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL RESOURCE POOL {name} WITH (* MAX_CPU_PERCENT", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t WITH (MAX_CPU_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL RESOURCE POOL {name} WITH (* MAX_MEMORY_PERCENT", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t WITH (MAX_MEMORY_PERCENT ", true, false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL RESOURCE POOL {name} WITH (* MAX_PROCESSES", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t WITH (MAX_PROCESSES ", true, false, false, new string[]
+        {
+        }),
         ("BACKUP", SqlKeywordPosition.StatementStart, "BACKUP ", true, false, false, new string[]
         {
             "CERTIFICATE", "DATABASE", "LOG", "SERVICE", "MASTER KEY TO FILE",
@@ -3210,6 +4171,15 @@ internal static class SqlKeywordCatalogData
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
+        ("ALTER INDEX {name} ON {name} RESUME WITH (*", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t RESUME WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
         ("ALTER TABLE {name} REBUILD WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (", true, false, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
@@ -3274,6 +4244,18 @@ internal static class SqlKeywordCatalogData
         ("WAIT_AT_LOW_PRIORITY (* ABORT_AFTER_WAIT =", SqlKeywordPosition.Any, "ALTER TABLE t SWITCH TO t WITH (WAIT_AT_LOW_PRIORITY (MAX_DURATION = 1 MINUTES, ABORT_AFTER_WAIT = ", true, false, false, new string[]
         {
             "BLOCKERS", "NONE", "SELF",
+        }),
+        ("WITH (* MAX_DURATION = {value}", SqlKeywordPosition.Any, "ALTER INDEX t ON t RESUME WITH (MAX_DURATION = 1 ", true, false, false, new string[]
+        {
+            "MINUTES",
+        }),
+        ("WITH (* COMPRESSION_DELAY = {value}", SqlKeywordPosition.Any, "CREATE CLUSTERED COLUMNSTORE INDEX t ON t WITH (COMPRESSION_DELAY = 1 ", true, false, false, new string[]
+        {
+            "MINUTE", "MINUTES",
+        }),
+        ("SET (* COMPRESSION_DELAY = {value}", SqlKeywordPosition.Any, "ALTER INDEX t ON t SET (COMPRESSION_DELAY = 1 ", true, false, false, new string[]
+        {
+            "MINUTE", "MINUTES",
         }),
         ("DROP INDEX ... WITH (*", SqlKeywordPosition.StatementStart, "DROP INDEX i ON t WITH (", true, false, false, new string[]
         {
@@ -4365,6 +5347,14 @@ internal static class SqlKeywordCatalogData
         {
             "AS", "BEGIN", "EXTERNAL",
         }),
+        ("ATOMIC WITH (*", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC WITH (", true, false, false, new string[]
+        {
+            "DATEFIRST", "DATEFORMAT", "DELAYED_DURABILITY", "LANGUAGE", "TRANSACTION",
+        }),
+        ("ATOMIC WITH (* TRANSACTION ISOLATION LEVEL =", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = ", true, false, false, new string[]
+        {
+            "READ", "REPEATABLE", "SERIALIZABLE", "SNAPSHOT",
+        }),
         ("", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN ", true, false, false, new string[]
         {
             "MATCHED", "NOT MATCHED",
@@ -4530,6 +5520,28 @@ internal static class SqlKeywordCatalogData
             "DATA_SOURCE", "DISTRIBUTION", "FILE_FORMAT", "LOCATION", "OBJECT_NAME",
             "REJECT_SAMPLE_VALUE", "REJECT_TYPE", "REJECT_VALUE", "REJECTED_ROW_LOCATION",
             "SCHEMA_NAME", "TABLE_OPTIONS",
+        }),
+        ("INDEX {name} CLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED ", true, false, false, new string[]
+        {
+            "COLUMNSTORE",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (*", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (*", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (", true, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
         ("OPENROWSET (*", SqlKeywordPosition.DataSource, "SELECT * FROM OPENROWSET (", false, true, false, new string[]
         {
@@ -5556,11 +6568,9 @@ internal static class SqlKeywordCatalogData
             "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
             "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
         }),
-        ("EVENT {name} (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (", false, true, false, new string[]
+        ("EVENT {name} (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (", true, false, false, new string[]
         {
-            "ACTION", "SELECT", "SET", "WHERE", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE",
-            "CURRENT_TIMESTAMP", "CURRENT_USER", "IDENTITY", "LEFT", "NEXT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "ACTION", "SET", "WHERE",
         }),
         ("EVENT {name} () ,", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) , ", true, false, false, new string[]
         {
@@ -5579,11 +6589,9 @@ internal static class SqlKeywordCatalogData
             "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
             "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
         }),
-        ("TARGET {name} (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (", false, true, false, new string[]
+        ("TARGET {name} (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (", true, false, false, new string[]
         {
-            "SELECT", "SET", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "IDENTITY", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
-            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "SET",
         }),
         ("TARGET {name} () ,", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) , ", true, false, false, new string[]
         {
@@ -6836,11 +7844,59 @@ internal static class SqlKeywordCatalogData
         {
             "CLEAR", "SET",
         }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ", true, false, true, new string[]
+        {
+            "AS", "COLLATE", "FOR", "LOG", "ON",
+        }),
+        ("ALTER DATABASE {name} ADD", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD ", true, false, false, new string[]
+        {
+            "FILE", "FILEGROUP", "LOG FILE",
+        }),
+        ("ALTER DATABASE {name} ADD LOG", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG ", true, false, false, new string[]
+        {
+            "FILE",
+        }),
+        ("ALTER DATABASE {name} MODIFY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY ", true, false, false, new string[]
+        {
+            "FILE", "FILEGROUP", "NAME",
+        }),
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET QUERY_STORE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ", true, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER CONFIGURATION", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION ", true, false, false, new string[]
+        {
+            "SET",
+        }),
+        ("CREATE RESOURCE POOL {name}", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER RESOURCE POOL {name}", SqlKeywordPosition.StatementStart, "ALTER RESOURCE POOL t ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE EXTERNAL RESOURCE POOL {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL RESOURCE POOL t ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER EXTERNAL RESOURCE POOL {name}", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL RESOURCE POOL t ", true, false, true, new string[]
+        {
+            "WITH",
+        }),
         ("ALTER INDEX {name} ON {name} REBUILD", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD ", true, false, true, new string[]
         {
             "PARTITION", "WITH",
         }),
         ("ALTER INDEX {name} ON {name} REORGANIZE", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REORGANIZE ", true, false, true, new string[]
+        {
+            "PARTITION", "WITH",
+        }),
+        ("ALTER INDEX {name} ON {name} RESUME", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t RESUME ", true, false, true, new string[]
         {
             "PARTITION", "WITH",
         }),
@@ -7008,6 +8064,18 @@ internal static class SqlKeywordCatalogData
         {
             "INPUT",
         }),
+        ("ATOMIC", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC ", true, false, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ATOMIC WITH (* TRANSACTION", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC WITH (TRANSACTION ", true, false, false, new string[]
+        {
+            "ISOLATION",
+        }),
+        ("ATOMIC WITH (* TRANSACTION ISOLATION", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC WITH (TRANSACTION ISOLATION ", true, false, false, new string[]
+        {
+            "LEVEL",
+        }),
         ("NOT MATCHED", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED ", true, false, false, new string[]
         {
             "AND", "BY", "THEN",
@@ -7113,6 +8181,14 @@ internal static class SqlKeywordCatalogData
         ("BULK INSERT {name}", SqlKeywordPosition.StatementStart, "BULK INSERT t ", true, false, false, new string[]
         {
             "FROM",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE ", true, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} NONCLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED ", true, false, false, new string[]
+        {
+            "COLUMNSTORE",
         }),
         ("ALTER SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t ", true, false, false, new string[]
         {
@@ -7559,44 +8635,42 @@ internal static class SqlKeywordCatalogData
         }),
         ("DBCC CHECKDB (*", SqlKeywordPosition.StatementStart, "DBCC CHECKDB (", false, true, false, new string[]
         {
-            "NULL", "SELECT", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST",
-            "REPAIR_REBUILD",
+            "NULL", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST", "REPAIR_REBUILD",
         }),
         ("DBCC SQLPERF (*", SqlKeywordPosition.StatementStart, "DBCC SQLPERF (", false, true, false, new string[]
         {
-            "NULL", "SELECT", "LOGSPACE", "CLEAR",
+            "NULL", "LOGSPACE", "CLEAR",
         }),
         ("DBCC CHECKIDENT (*", SqlKeywordPosition.StatementStart, "DBCC CHECKIDENT (", false, true, false, new string[]
         {
-            "NULL", "SELECT", "RESEED", "NORESEED",
+            "NULL", "RESEED", "NORESEED",
         }),
         ("DBCC SHRINKFILE (*", SqlKeywordPosition.StatementStart, "DBCC SHRINKFILE (", false, true, false, new string[]
         {
-            "NULL", "SELECT", "EMPTYFILE", "NOTRUNCATE", "TRUNCATEONLY",
+            "NULL", "EMPTYFILE", "NOTRUNCATE", "TRUNCATEONLY",
         }),
         ("DBCC CHECKALLOC (*", SqlKeywordPosition.StatementStart, "DBCC CHECKALLOC (", false, true, false, new string[]
         {
-            "NULL", "SELECT", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST",
-            "REPAIR_REBUILD",
+            "NULL", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST", "REPAIR_REBUILD",
         }),
         ("DBCC CHECKFILEGROUP (*", SqlKeywordPosition.StatementStart, "DBCC CHECKFILEGROUP (", false, true, false, new string[]
         {
-            "NULL", "SELECT", "NOINDEX",
+            "NULL", "NOINDEX",
         }),
         ("DBCC CHECKTABLE (*", SqlKeywordPosition.StatementStart, "DBCC CHECKTABLE (", false, true, false, new string[]
         {
-            "NULL", "SELECT", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST",
-            "REPAIR_REBUILD",
+            "NULL", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST", "REPAIR_REBUILD",
         }),
         ("DBCC SHRINKDATABASE (*", SqlKeywordPosition.StatementStart, "DBCC SHRINKDATABASE (", false, true, false, new string[]
         {
-            "NULL", "SELECT", "NOTRUNCATE", "TRUNCATEONLY",
+            "NULL", "NOTRUNCATE", "TRUNCATEONLY",
         }),
     };
 
     /// <summary>附加片語：只認位置、比對永遠是「可能」，把關鍵字目錄給不了的片語開頭加進那個位置。</summary>
     internal static readonly (SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
+        (SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC" }),
         (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE" }),
         (SqlKeywordPosition.None, "CREATE TABLE t (a datetime2 ", new string[] { "GENERATED" }),
         (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD" }),

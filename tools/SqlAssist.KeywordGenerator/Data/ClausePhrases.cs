@@ -10,6 +10,9 @@ internal static class ClausePhrases
     [
         .. StatementPhrases.Set,
         .. DdlPhrases.Objects,
+        .. DatabasePhrases.Files,
+        .. DatabasePhrases.SetOptions,
+        .. DatabasePhrases.Server,
         .. StatementPhrases.BackupHeaders,
         .. IndexPhrases.Options,
         .. DdlPhrases.TriggerPositions,

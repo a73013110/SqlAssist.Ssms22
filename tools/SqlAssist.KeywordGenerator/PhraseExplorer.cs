@@ -37,6 +37,7 @@ internal sealed class PhraseExplorer
     private readonly IReadOnlyDictionary<string, string[]> _templates;
     private readonly Action<string?>? _progress;
     private readonly HashSet<string> _statementStarters;
+    private readonly HashSet<string> _queryStarters;
 
     // 每個片語展開過幾層。展開到已探過的一格時，只在這次的層數比較多才再往下：OPEN 的展開先走到
     // OPEN SYMMETRIC KEY {name}，之後宣告的那一條要走得更深。
@@ -66,6 +67,10 @@ internal sealed class PhraseExplorer
         // 語句已經完整的片語（CREATE INDEX i ON t (a) 之後）接得上的字也包括下一句的開頭；
         // 那一份在這裡探一次，從那些片語裡扣掉。
         _statementStarters = new HashSet<string>(Words("SELECT 1; "), IgnoreCase);
+
+        // 完整的語句之後的左括號也可能是下一句：一組括號包起來的查詢（(SELECT 1)）。
+        // SET CHANGE_TRACKING = ON ( 之後的 SELECT、CASE 是那一句的字，不是選項清單的。
+        _queryStarters = new HashSet<string>(Words("SELECT 1; ("), IgnoreCase);
     }
 
     public PhraseTable Phrases { get; } = new();
@@ -89,7 +94,7 @@ internal sealed class PhraseExplorer
     /// ALGORITHM = 什麼名稱都先收，整句寫完才驗，普通名稱探得過一半、整段卻剖析不過。
     /// next 是這段之後片語的下一項：只取前一段探測時（片語裡的每一個字），名稱那一格照樣看得到它後面寫什麼。
     /// 後面還有項的 (* 代入左括號與 Items：清單有固定的第一項時（FORMAT_TYPE = …），之後的項才寫得出來。
-    /// 清單片語（,*）這裡給的是標頭，逗號之後另外探。
+    /// 清單片語（,*、以尾巴比對的 ,* ,）這裡給的是標頭，逗號之後另外探。
     /// </remarks>
     public string ProbeText(string lead, string pattern, string? group = null, string? gap = null, string? next = null, string? items = null)
     {
@@ -100,8 +105,10 @@ internal sealed class PhraseExplorer
         }
 
         var text = lead;
-        var parts = (pattern.EndsWith(" ,*", StringComparison.Ordinal) ? pattern.Substring(0, pattern.Length - 3) : pattern)
-            .Split([' '], StringSplitOptions.RemoveEmptyEntries);
+        var head = pattern.EndsWith(" ,*", StringComparison.Ordinal) ? pattern.Substring(0, pattern.Length - 3)
+            : pattern.EndsWith(" ,* ,", StringComparison.Ordinal) ? pattern.Substring(0, pattern.Length - 5)
+            : pattern;
+        var parts = head.Split([' '], StringSplitOptions.RemoveEmptyEntries);
 
         for (var index = 0; index < parts.Length; index++)
         {
@@ -114,6 +121,7 @@ internal sealed class PhraseExplorer
                 "()" => (string.IsNullOrEmpty(group) ? "(a)" : group) + " ",
                 "(*" => index < parts.Length - 1 ? "(" + items : "(",
                 "..." => gap + " ",
+                ",*" => string.IsNullOrEmpty(gap) ? string.Empty : gap + " ",
                 _ => item + " ",
             };
         }
@@ -167,9 +175,10 @@ internal sealed class PhraseExplorer
             {
                 var probe = ProbeText(lead, declaration.Pattern, declaration.Group, declaration.Gap, items: declaration.Items);
 
-                if (declaration.IsList)
+                if (declaration.IsList || declaration.IsTailList)
                 {
-                    AddList(declaration.Pattern, probe, position);
+                    var head = ProbeText(lead, declaration.ListHead, declaration.Group, declaration.Gap, items: declaration.Items);
+                    AddList(declaration.Pattern, declaration.ListHead, head, position, declaration.Endings);
                     continue;
                 }
 
@@ -317,7 +326,19 @@ internal sealed class PhraseExplorer
         }
 
         var renamed = Continuations.PlainName + (items.Length > 1 ? " " + string.Join(" ", items, 1, items.Length - 1) : string.Empty);
-        return PatternAccepted(ProbeText(lead, renamed, declaration.Group, declaration.Gap, items: declaration.Items));
+        var renamedProbe = ProbeText(lead, renamed, declaration.Group, declaration.Gap, items: declaration.Items);
+
+        if (!PatternAccepted(renamedProbe))
+        {
+            return false;
+        }
+
+        // 剖析器有的地方一項寫完才回頭驗：BEGIN x WITH ( 撐得到檔案結尾，寫完 (TRANSACTION … SNAPSHOT) 才在 x 報錯。
+        // 片語自己的續尾（Endings）撐得過的，名稱讀法也要撐得過。
+        var probe = ProbeText(lead, declaration.Pattern, declaration.Group, declaration.Gap, items: declaration.Items);
+        return (declaration.Endings ?? []).All(ending =>
+            _prober.FirstRejection(probe + ending) < (probe + ending).Length ||
+            _prober.FirstRejection(renamedProbe + ending) >= (renamedProbe + ending).Length);
     }
 
     // None 的附加片語只在判不出位置時比對得上，那時每一個附加片語都算（只加字、取聯集）：
@@ -411,6 +432,10 @@ internal sealed class PhraseExplorer
         {
             found = found.Where(word => !_statementStarters.Contains(word));
         }
+        else if (probe.EndsWith("(", StringComparison.Ordinal) && _prober.IsComplete(probe.Substring(0, probe.Length - 1).TrimEnd()))
+        {
+            found = found.Where(word => !_queryStarters.Contains(word));
+        }
 
         // borrowed 是前一格寫成名稱時接得上的字：FETCH NEXT 之後的 INTO 屬於名叫 NEXT 的資料指標，
         // 不是 NEXT 帶出來的。
@@ -471,7 +496,8 @@ internal sealed class PhraseExplorer
                     : !_prober.AcceptsName(probe, Continuations.PlainName, _continuations)),
                 TakesVariable = _prober.AcceptsName(probe, Continuations.PlainVariable, _continuations),
                 EndsStatement = endsStatement,
-                TakesOperand = takesName || sample != null,
+                // 括號也是一個運算元：CREATE DATABASE d ON 之後是 PRIMARY 或 (，不能併成 ON PRIMARY。
+                TakesOperand = takesName || sample != null || _prober.FirstRejection(probe + "(") > probe.Length,
             });
         }
 
@@ -509,12 +535,17 @@ internal sealed class PhraseExplorer
         var nameReading = _prober.IsComplete(probe + Continuations.PlainName) ? Words(probe + Continuations.PlainName + " ") : null;
 
         // 等號之後列得出的字是值（AES_128、RSA_2048），值之後接的與是哪一個值無關：不逐一展開，
-        // 以名稱代表往下，探測代入第一個字。
+        // 以名稱代表往下，探測代入第一個字。也收數值或字串的另外代入它往下：單位（MAXSIZE = 5 MB、UNLIMITED 之後沒有）只有這條路探得到。
         if (pattern.EndsWith(" =", StringComparison.Ordinal))
         {
             if (words.Count > 0 && !Explored(after, pattern + " {name}", expand - 1))
             {
                 Add(pattern + " {name}", probe + words[0] + " ", after, expand - 1, child: true, step: true);
+            }
+
+            if (sample != null && !Explored(after, pattern + " {value}", expand - 1))
+            {
+                Add(pattern + " {value}", probe + sample + " ", after, expand - 1, child: true, step: true);
             }
 
             return;
@@ -557,10 +588,9 @@ internal sealed class PhraseExplorer
         }
     }
 
-    // 清單片語（,*）：第一項由標頭的片語給，這一條只說逗號之後。
-    private void AddList(string pattern, string head, string after)
+    // 清單片語（,*）與以尾巴比對的清單（,* ,）：第一項由標頭的片語給，這一條只說逗號之後。
+    private void AddList(string pattern, string headPattern, string head, string after, string[]? endings)
     {
-        var headPattern = pattern.Substring(0, pattern.Length - " ,*".Length);
         var headKey = ProbedPhrase.Key(after, headPattern);
 
         if (!Phrases.Contains(headKey))
@@ -569,7 +599,7 @@ internal sealed class PhraseExplorer
         }
 
         var firsts = Phrases[headKey].Words.ToList();
-        var items = ListItemWords(head, firsts, null);
+        var items = ListItemWords(head, firsts, endings);
 
         if (items.Probe == null)
         {
@@ -659,7 +689,7 @@ internal sealed class PhraseExplorer
             closed = closed && !_prober.AcceptsName(itemProbe, Continuations.PlainName, _continuations);
             takesVariable = takesVariable || _prober.AcceptsName(itemProbe, Continuations.PlainVariable, _continuations);
 
-            var fresh = Words(itemProbe).Where(word => !words.Contains(word)).ToList();
+            var fresh = Words(itemProbe, extraEndings).Where(word => !words.Contains(word)).ToList();
             words.AddRange(fresh);
 
             if (fresh.Count > 0)

@@ -187,6 +187,11 @@ public sealed class SqlClausePhrase
                 return MatchRest(tokens, index, element, analyzer);
             }
 
+            if (_elements[element].Kind == ElementKind.Items)
+            {
+                return MatchItems(tokens, index, element, analyzer);
+            }
+
             index = _elements[element].MatchBackward(tokens, index);
 
             if (index == Element.Mismatch)
@@ -228,6 +233,44 @@ public sealed class SqlClausePhrase
             return first.Kind == SqlTokenKind.Identifier && !first.IsQuoted && SqlKeywordCatalog.IsKeyword(first.Value)
                 ? -1
                 : verb;
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// 中段的 <c>,*</c> 以 <paramref name="last"/> 結尾：它前面那幾項是標頭，標頭之後到這裡是零到多項寫完的清單項。
+    /// </summary>
+    /// <remarks>
+    /// 檔案規格一組一組寫下去（<c>ADD FILE (…), (…), (</c>），SET 選項也可以一次寫幾個（<c>SET LANGUAGE 'x', DATEFORMAT</c>）：
+    /// 尾巴寫不出前面有幾項。從 <paramref name="last"/> 往回，每一格先試標頭能不能在那裡收尾，不能就走過一個詞元；
+    /// 清單項裡寫得出的詞元與清單片語的選項同一條規則（<see cref="SqlKeywordPositionAnalyzer.StartsClauseOfItsOwn"/>），
+    /// 一整組括號跳過。走不出這一句：<c>WHERE a IN (</c> 往回碰到 WHERE 就停，不會比對到前一句的 ADD FILE。
+    /// </remarks>
+    private int MatchItems(IReadOnlyList<SqlToken> tokens, int last, int items, SqlKeywordPositionAnalyzer analyzer)
+    {
+        for (var index = last; index >= 0; index--)
+        {
+            var start = MatchBefore(tokens, index, items, analyzer);
+
+            if (start >= 0)
+            {
+                return start;
+            }
+
+            if (tokens[index].IsPunctuation(")"))
+            {
+                index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
+
+                if (index < 0)
+                {
+                    return -1;
+                }
+            }
+            else if (!tokens[index].IsPunctuation(",") && analyzer.StartsClauseOfItsOwn(index))
+            {
+                return -1;
+            }
         }
 
         return -1;
@@ -277,7 +320,9 @@ public sealed class SqlClausePhrase
                 // 逗號分隔的是同一句裡重複的一段（ADD EVENT a.b, ADD EVENT），不是括號清單的項。
                 "," => new Element(ElementKind.Word, ","),
                 ",*" when index == parts.Length - 1 && index > 0 => new Element(ElementKind.List),
-                ",*" => throw new FormatException($"Phrase '{pattern}': ,* must follow a head and be the last element."),
+                // 中段的 ,*：標頭之後零到多項清單項，後面那一項是清單裡某一項的一部分（ADD FILE ,* (*）。
+                ",*" when index > 0 && parts[index + 1] is not (",*" or "...") => new Element(ElementKind.Items),
+                ",*" => throw new FormatException($"Phrase '{pattern}': ,* must follow a head."),
                 _ when parts[index].IndexOfAny(new[] { '{', '(', ')', ',' }) >= 0 =>
                     throw new FormatException($"Phrase '{pattern}': unknown element {parts[index]}."),
                 _ => new Element(ElementKind.Word, parts[index])
@@ -297,6 +342,7 @@ public sealed class SqlClausePhrase
         Group,
         OpenList,
         List,
+        Items,
         Rest
     }
 
@@ -369,8 +415,9 @@ public sealed class SqlClausePhrase
                 case ElementKind.List:
                     return Mismatch;
 
-                // 要看這一句的動詞，由 MatchRest 比對。
+                // 要看這一句的動詞，由 MatchRest 比對；清單項由 MatchItems 走過。
                 case ElementKind.Rest:
+                case ElementKind.Items:
                     return Mismatch;
 
                 default:

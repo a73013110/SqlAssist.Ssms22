@@ -862,7 +862,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <summary>
     /// 這個詞元開始另一個子句或另一句：能開始一句的關鍵字、分號、沒關上的左括號。
     /// </summary>
-    private bool StartsClauseOfItsOwn(int index)
+    /// <remarks>清單項寫不出這種詞元；子句片語的中段 <c>,*</c> 走過清單項也照這一條，見 <see cref="SqlClausePhrase"/>。</remarks>
+    internal bool StartsClauseOfItsOwn(int index)
     {
         var token = tokens[index];
 

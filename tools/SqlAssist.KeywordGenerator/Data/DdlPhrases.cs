@@ -73,6 +73,11 @@ internal static class DdlPhrases
         new("EXEC AS") { After = ["ProcedureOption", "FunctionOption", "TriggerOption"] },
         new("RETURNS NULL ON NULL INPUT") { After = ["FunctionOption"] },
         new("CALLED ON NULL INPUT") { After = ["FunctionOption"] },
+
+        // 原生編譯模組的 BEGIN ATOMIC WITH (…)：ATOMIC 不是關鍵字，由這裡的證據進區塊開頭的附加片語。
+        // BEGIN x WITH ( 剖析器要一項寫完才在 x 報錯，續尾把那一項寫完，才分得出 ATOMIC 不是名稱。
+        new("ATOMIC WITH (*") { After = ["BlockStart"], Endings = [" TRANSACTION ISOLATION LEVEL = SNAPSHOT)"] },
+        new("ATOMIC WITH (* TRANSACTION ISOLATION LEVEL =") { After = ["BlockStart"] },
     ];
 
     internal static readonly PhraseDeclaration[] Tables =
@@ -99,6 +104,11 @@ internal static class DdlPhrases
         new("BULK INSERT {name} FROM {value} WITH (*"),
         new("CREATE EXTERNAL TABLE {name} () WITH (*") { Group = "(a int)" },
         new("CREATE EXTERNAL TABLE {name} WITH (*"),
+
+        // 資料表定義裡的索引（INDEX i CLUSTERED COLUMNSTORE WITH (…)）：前一格判不出位置，尾巴本身認得出來。
+        new("INDEX {name} CLUSTERED") { Lead = "CREATE TABLE t (a int, " },
+        new("INDEX {name} CLUSTERED COLUMNSTORE WITH (*") { Lead = "CREATE TABLE t (a int, " },
+        new("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (*") { Lead = "CREATE TABLE t (a int, " },
     ];
 
     internal static readonly PhraseDeclaration[] Sequence =

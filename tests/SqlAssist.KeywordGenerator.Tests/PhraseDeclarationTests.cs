@@ -45,7 +45,7 @@ public sealed class PhraseDeclarationTests
     [InlineData("Group")]
     [InlineData("Items")]
     [InlineData("Clause")]
-    [InlineData(",* 只能是最後一項")]
+    [InlineData(",* 只能有一個")]
     public void 錯的宣告一次全部報出來(string problem)
     {
         PhraseDeclaration[] phrases =
@@ -59,7 +59,7 @@ public sealed class PhraseDeclarationTests
             new("OPENROWSET (*") { Group = "(a)" },
             new("OPENROWSET (*") { Items = "BULK 'x', " },
             new("OPENROWSET ()") { Clause = true },
-            new("FOR XML ,* AUTO"),
+            new("FOR XML ,* AUTO ,*"),
         ];
 
         var exception = Assert.Throws<InvalidOperationException>(() => PhraseDeclaration.Validate(phrases, Templates));

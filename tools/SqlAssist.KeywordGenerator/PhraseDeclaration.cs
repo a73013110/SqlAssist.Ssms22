@@ -21,10 +21,14 @@ public enum ObjectKinds
 //            後面還有項的話，那幾項是清單裡某一項的開頭（WITH (* TYPE =：清單裡任一項的 TYPE =），探測代入左括號；
 //            清單有固定的第一項時，探測要墊的那幾項寫在 Items（FORMAT_TYPE = DELIMITEDTEXT, ）
 //   ,        逗號本身，分隔同一句裡重複的一段（ADD EVENT a.b, ADD EVENT），比對同等號
-//   ,*       標頭開的逗號清單，游標在逗號之後；只能是最後一項，前面那段是標頭，以字面字結尾。
+//   ,*       標頭開的逗號清單，游標在逗號之後；在最後一項時前面那段是標頭，以字面字結尾。
 //            標頭本身也立成片語，給第一項的字；逗號之後的字以「第一項的每一種寫法接逗號」探測取聯集，探到的新字再往下一項探。
 //            清單由位置分析走訪（OptionItem），哪些敘述有這種清單只在這裡說。選項寫完之後還有位置要回報
-//            （模組標頭的 AS）的，仍以位置為鍵
+//            （模組標頭的 AS）的，仍以位置為鍵。
+//            寫在中段是標頭之後零到多項寫完的清單項，後面那幾項是游標所在那一項的一部分：檔案規格一組一組寫
+//            （ADD FILE ,* (*：第幾組的括號裡都一樣）、SET 一次寫幾個選項（SET ,* DATEFORMAT）。探測代入 Gap，沒寫就是零項。
+//            以逗號結尾的（SET ,* ,）是逗號之後的下一項，字照清單片語探，只是由尾巴比對、不經位置分析：
+//            SET 寫成清單片語的話，分析器把 SET 之後判成 OptionItem，蓋掉 SetTarget（SET @ 要列變數）
 //   ...      動詞之後、下一個字面字之前的其餘標頭（EXEC p @a = 1 WITH 的 p @a = 1、BACKUP 的裝置清單）；
 //            前後都要是字面字，第一個字是這一句的動詞，由位置分析找。中間第一個詞元不能是關鍵字：
 //            EXECUTE AS … WITH 是別的敘述。探測時代入 Gap 那段文字
@@ -77,6 +81,12 @@ public sealed record PhraseDeclaration(string Pattern)
 
     internal bool IsList => Pattern.EndsWith(" ,*", StringComparison.Ordinal);
 
+    /// <summary>以尾巴比對的清單：中段的 ,* 之後是逗號（SET ,* ,），字照清單片語探。</summary>
+    internal bool IsTailList => Pattern.EndsWith(" ,* ,", StringComparison.Ordinal);
+
+    /// <summary>清單的標頭：清單片語與以尾巴比對的清單去掉清單那一段。</summary>
+    internal string ListHead => Pattern.Substring(0, Pattern.Length - (IsTailList ? " ,* ," : " ,*").Length);
+
     internal bool IsOpenList => Pattern.EndsWith(" (*", StringComparison.Ordinal);
 
     /// <summary>沒有 Lead 的片語探測的位置；兩個都不寫就是語句開頭。</summary>
@@ -100,21 +110,22 @@ public sealed record PhraseDeclaration(string Pattern)
     {
         var hasGap = Pattern.Contains("...");
         var items = Pattern.Split([' '], StringSplitOptions.RemoveEmptyEntries);
+        var midList = Array.IndexOf(items, ",*") is var list && list >= 0 && list != items.Length - 1;
 
-        // ... 的寫法由執行期的 SqlClausePhrase 驗；探測只要有一段代入的文字。
-        if (hasGap != !string.IsNullOrEmpty(Gap))
+        // ... 的寫法由執行期的 SqlClausePhrase 驗；探測只要有一段代入的文字。中段的 ,* 可以是零項，Gap 可寫可不寫。
+        if (hasGap != !string.IsNullOrEmpty(Gap) && !(midList && !hasGap))
         {
             yield return $"片語「{Pattern}」的 ... 與 Gap 要一起寫：Gap 是探測時代入 ... 的文字。";
         }
 
-        if (hasGap && Expand != 0)
+        if (hasGap && (Expand != 0 || midList))
         {
-            yield return $"片語「{Pattern}」有 ... 就不收 Expand：展開出來的片語照樣要 Gap，逐條寫清楚。";
+            yield return $"片語「{Pattern}」有 ... 就不收 Expand 與中段的 ,*：展開出來的片語照樣要 Gap，逐條寫清楚。";
         }
 
-        if (Array.IndexOf(items, ",*") is var list && list >= 0 && list != items.Length - 1)
+        if (items.Count(item => item == ",*") > 1)
         {
-            yield return $"片語「{Pattern}」的 ,* 只能是最後一項：前面那段是清單的標頭。";
+            yield return $"片語「{Pattern}」的 ,* 只能有一個：前面那段是清單的標頭。";
         }
 
         if (Group != null && !items.Contains("()"))
@@ -165,7 +176,7 @@ public sealed record PhraseDeclaration(string Pattern)
             }
         }
 
-        if (IsList && (Expand != 0 || Values is { Length: > 0 } || Closed != null))
+        if ((IsList || IsTailList) && (Expand != 0 || Values is { Length: > 0 } || Closed != null))
         {
             yield return $"清單片語「{Pattern}」的字全由探測決定，不收 Expand、Values、Closed。";
         }
