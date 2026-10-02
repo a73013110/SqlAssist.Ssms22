@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    關鍵字產生器的探測器：tools/Generate-Keywords.ps1 先建置它再載入，上百萬次剖析與快取都在這裡。
+    netstandard2.0 讓任何 PowerShell 7 都載得進去，也讓 net10 的單元測試參照同一份。
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>SqlAssist.KeywordGenerator</AssemblyName>
+    <RootNamespace>SqlAssist.KeywordGenerator</RootNamespace>
+    <Platforms>AnyCPU;x64</Platforms>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="SqlAssist.KeywordGenerator.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+      以 Core 參照的版本編譯；執行期由腳本先載入 SSMS 那一份（組件身分相同），產物記的是 SSMS 帶的版本。
+    -->
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
+    <!-- 快取的作廢條件是這個區段的雜湊；嵌進組件，載入的程式與雜湊的文字一定是同一份。 -->
+    <EmbeddedResource Include="ProbeFacts.cs" LogicalName="ProbeFacts.cs" />
+  </ItemGroup>
+</Project>

@@ -5,7 +5,8 @@
 
 .DESCRIPTION
     關鍵字清單刻意不手寫，改由 Microsoft 自己的剖析器推導，換版本重跑即可更新。
-    三個階段都會自我驗證，不猜任何一個字：
+    每個階段都會自我驗證，不猜任何一個字。剖析與判定由 tools/SqlAssist.KeywordGenerator 的探測器
+    （KeywordProber）平行執行並記憶化；腳本先建置它再載入，自己只交代問什麼：
 
     一、取字面值
         列舉 TSqlTokenType 的成員名稱，大寫後丟回 tokenizer；token 型別對得回原成員
@@ -72,8 +73,9 @@
     不讀舊快取、全部重新剖析，結果照樣寫回快取。懷疑快取與剖析器不一致時用。
 
 .NOTES
-    產物要進版控。SqlAssist.Core 是 netstandard2.0 且刻意零相依，建置時不會、
-    也不該去碰 SSMS 的組件，所以這支腳本是手動執行、結果 commit 進去。
+    產物要進版控。剖析要上百萬次，建置時不跑，手動執行、結果 commit 進去。
+    探測器與 Core 一樣以 NuGet 的 ScriptDom 編譯，執行期載入 SSMS 安裝目錄那一份（組件身分相同）：
+    SourceVersion 記的是 SSMS 帶的版本，換 SSMS 版本重跑就跟著換，不必等 NuGet 發版。
 #>
 [CmdletBinding()]
 param(
@@ -94,61 +96,80 @@ if (-not (Test-Path $scriptDomPath)) {
     throw "找不到 ScriptDom：$scriptDomPath。請以 -SsmsInstallDir 指定 SSMS 22 的安裝路徑。"
 }
 
-$assembly = [System.Reflection.Assembly]::LoadFrom($scriptDomPath)
-$scriptDomVersion = (Get-Item $scriptDomPath).VersionInfo.FileVersion
-
-# 取得到得了的最新剖析器。SSMS 22 是 TSql170Parser（SQL Server 2025 相容層級）。
-$parserType = @('TSql170Parser', 'TSql160Parser', 'TSql150Parser') |
-    ForEach-Object { $assembly.GetType("Microsoft.SqlServer.TransactSql.ScriptDom.$_") } |
-    Where-Object { $_ } |
-    Select-Object -First 1
-
-if (-not $parserType) {
-    throw 'ScriptDom 裡找不到可用的 TSqlNNNParser 型別。'
+# 組件載進來就換不掉：同一個工作階段重跑的話，建置覆寫不了被鎖住的檔案，載入的也還是舊的那一份。
+if ('SqlAssist.KeywordGenerator.KeywordProber' -as [type]) {
+    throw '探測器已經載入這個 PowerShell 工作階段，改過的程式載不進來；請以 pwsh -File 在新的程序執行。'
 }
 
-# 建構參數是 initialQuotedIdentifiers。
-$parser = [Activator]::CreateInstance($parserType, @($true))
-$tokenTypeEnum = $assembly.GetType('Microsoft.SqlServer.TransactSql.ScriptDom.TSqlTokenType')
+# 剖析一律交給探測器：第三階段與片語要把上千個候選字逐一配上幾十條續尾剖析，PowerShell 單執行緒要一個多小時，
+# 平行、並且前綴與續尾各只斷詞一次之後仍要二十多分鐘，所以剖析結果另存成快取，重跑只剖析新的文字。快取只記剖析器說了什麼
+# （拒收落在哪一段、整段完不完整），怎麼解讀每次重算：改片語、續尾或判定規則都用得上舊的結果，
+# 只有 ScriptDom 版本、拒收錯誤碼或探測器 ProbeFacts.cs 的 <cache-facts> 區段變了才整份作廢。
+$generatorProject = Join-Path $PSScriptRoot 'SqlAssist.KeywordGenerator\SqlAssist.KeywordGenerator.csproj'
+dotnet build $generatorProject --configuration Release --nologo --verbosity quiet
 
-Write-Host "ScriptDom $scriptDomVersion（$($parserType.Name)）"
+if ($LASTEXITCODE -ne 0) {
+    throw "探測器建置失敗，結束代碼：$LASTEXITCODE"
+}
+
+# 先載入 SSMS 那一份 ScriptDom：探測器以 NuGet 的版本編譯，組件身分相同，執行期就綁到已經載入的這一份。
+$assembly = [System.Reflection.Assembly]::LoadFrom($scriptDomPath)
+Add-Type -Path (Join-Path $PSScriptRoot 'SqlAssist.KeywordGenerator\bin\Release\netstandard2.0\SqlAssist.KeywordGenerator.dll')
+
+# 46010 = "'X' 附近的語法不正確"。出現在關鍵字結尾之前代表剖析器根本吃不下它。
+# 46005 = "必須是 X，但卻發現 Y"。ORDER BY a Lib_Reader 1 報的是這一條而不是 46010，
+#         不算進來的話任何名稱都「接受」，非保留字的 OFFSET 就分不出來。
+# 46014 = "Default 條件約束只可存在於資料行層級"。剖析器吃得下 CREATE TABLE t (DEFAULT
+#         卻另外報這一條，不算進來的話 DEFAULT 會被分到資料行定義的開頭。
+# 46001 = "剖析器內部錯誤"。剖析器在報錯的詞元上當掉、之後都沒檢查，與 46010 一樣是它過不去的地方。
+#         不算進來的話 WITHIN GROUP (GRAPH 在檔案結尾只報這一條、一個拒收都沒有，GRAPH 就接得上。
+#         算在它報的位置而不是整段作廢：換一條續尾剖析器照常走完的話，那個字仍然成立。
+# 46029 = "出現未預期的檔案結尾"，代表吃下去了、只是語句沒寫完，那是合法的。
+#
+# 另有一族訊息說「這個字不是這裡的選項」（{0} is not a WITH option for a procedure.）：
+# 選項名稱在文法上是任意識別字，認不認得留到之後才判。不算進來的話任何名稱都是合法的選項，
+# CREATE TRIGGER … WITH 之後的 ENCRYPTION 就分不出來。號碼不手寫，從剖析器的訊息資源撈。
+$parserMessages = [System.Resources.ResourceManager]::new('Microsoft.SqlServer.TransactSql.ScriptDom.TSqlParserResource', $assembly).
+    GetResourceSet([System.Globalization.CultureInfo]::InvariantCulture, $true, $true)
+$optionRejections = @($parserMessages | Where-Object {
+    $_.Key -match '^SQL\d+Message$' -and $_.Value -match "^(\{0\}|Option '\{0\}') is not a .*\b(option|hint|function)\b"
+} | ForEach-Object { [int]($_.Key -replace '\D', '') } | Sort-Object)
+
+if ($optionRejections.Count -eq 0) {
+    throw '剖析器的訊息資源裡找不到「不是這裡的選項」那一族；資源名稱或文案變了。'
+}
+
+Write-Host "選項拒收訊息：$($optionRejections -join ', ')"
+$RejectingErrorNumbers = @(46001, 46005, 46010, 46014) + $optionRejections
+
+$resolvedCachePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($CachePath)
+$prober = [SqlAssist.KeywordGenerator.KeywordProber]::new([int[]]$RejectingErrorNumbers, $resolvedCachePath, -not $NoCache)
+
+if ($prober.ScriptDomPath -ne $assembly.Location) {
+    throw "探測器綁到的 ScriptDom 是 $($prober.ScriptDomPath)，不是 SSMS 那一份 $scriptDomPath。"
+}
+
+Write-Host "ScriptDom $($prober.ScriptDomVersion)（$($prober.ParserName)）"
+
+# 中途失敗（驗證不過的 throw 之類）也把算過的結果存回去，下次從這裡接著算。trap 管整個腳本，
+# 探測器建好之前的失敗沒有東西可存。Ctrl+C 不經過 trap，靠探測器每兩分鐘一次的檢查點。
+trap {
+    if ($null -ne $prober) {
+        $prober.SaveCache($false)
+    }
+
+    break
+}
 
 # ---------------------------------------------------------------- 一、取字面值
 
-function Test-RoundTrip {
-    param([string]$Text, [string]$ExpectedTokenType)
-
-    $reader = [System.IO.StringReader]::new($Text)
-    $errors = $null
-    $tokens = $parser.GetTokenStream($reader, [ref]$errors)
-
-    return $tokens.Count -ge 1 -and "$($tokens[0].TokenType)" -eq $ExpectedTokenType
-}
-
-$keywords = [System.Collections.Generic.List[string]]::new()
-
-foreach ($name in [Enum]::GetNames($tokenTypeEnum)) {
-    $upper = $name.ToUpperInvariant()
-
-    if (Test-RoundTrip -Text $upper -ExpectedTokenType $name) {
-        $keywords.Add($upper)
-        continue
-    }
-
-    # CurrentTimestamp → CURRENT_TIMESTAMP
-    $underscored = [regex]::Replace($name, '(?<!^)([A-Z])', '_$1').ToUpperInvariant()
-
-    if ($underscored -ne $upper -and (Test-RoundTrip -Text $underscored -ExpectedTokenType $name)) {
-        $keywords.Add($underscored)
-    }
-}
-
+$keywords = [System.Collections.Generic.List[string]]::new([string[]]$prober.ReadLiterals())
 $lexerCount = ($keywords | Sort-Object -Unique).Count
 
 # 非保留字的補充清單。
 #
-# 這是整支腳本唯一「條列」出來的東西，而且是不得已的：非保留字在文法上本來就不是
-# 關鍵字，THROW 與 APPLY 對詞法器來說跟 Lib_Reader 沒有兩樣，因此 ScriptDom 的
+# 這是關鍵字這一側唯一「條列」出來的東西（片語那一側另有 $ScopedConfigurations 與各片語的 Values），
+# 而且是不得已的：非保留字在文法上本來就不是關鍵字，THROW 與 APPLY 對詞法器來說跟 Lib_Reader 沒有兩樣，因此 ScriptDom 的
 # TSqlTokenType 沒有它們、SqlParser 的 Scanner 也一律回報識別字。任何工具在這一塊
 # 都只能自己維護清單。
 #
@@ -196,33 +217,11 @@ $IdentifierTemplates = @(
 # 下面的探測會回驗這份清單：真的不需要括號就會警告，不會變成死條目。
 $IdentifierReservedSupplement = @('IDENTITYCOL', 'ROWGUIDCOL')
 
-function Test-IdentifierRejected {
-    param([string]$Name)
+$identifierPrefixes = [string[]]@($IdentifierTemplates | ForEach-Object { $_.Prefix })
+$identifierSuffixes = [string[]]@($IdentifierTemplates | ForEach-Object { $_.Suffix })
+$reserved = [System.Collections.Generic.List[string]]::new(
+    [string[]]$prober.RejectedAsIdentifiers([string[]]@($keywords), $identifierPrefixes, $identifierSuffixes))
 
-    foreach ($template in $IdentifierTemplates) {
-        $limit = $template.Prefix.Length + $Name.Length
-        $reader = [System.IO.StringReader]::new($template.Prefix + $Name + $template.Suffix)
-        $errors = $null
-        $null = $parser.Parse($reader, [ref]$errors)
-
-        foreach ($error in $errors) {
-            # 樣板本身是完整語句，名字之前（含名字）出現任何錯誤都只可能是它造成的。
-            if ($error.Offset -le $limit) {
-                return $true
-            }
-        }
-    }
-
-    return $false
-}
-
-$reserved = [System.Collections.Generic.List[string]]::new()
-
-foreach ($keyword in $keywords) {
-    if (Test-IdentifierRejected -Name $keyword) {
-        $reserved.Add($keyword)
-    }
-}
 
 $nonReserved = $keywords | Where-Object { $reserved -notcontains $_ }
 
@@ -232,7 +231,7 @@ foreach ($supplement in $IdentifierReservedSupplement) {
         continue
     }
 
-    if (-not (Test-IdentifierRejected -Name $supplement)) {
+    if ($prober.RejectedAsIdentifiers([string[]]@($supplement), $identifierPrefixes, $identifierSuffixes).Count -eq 0) {
         # 剖析器接受它當名字，加了括號只是多餘。
         Write-Warning "補充清單裡的 $supplement 不需要方括號，可以移除。"
         continue
@@ -428,867 +427,12 @@ $Continuations = @(
     '::x TO y'
 )
 
-# 46010 = "'X' 附近的語法不正確"。出現在關鍵字結尾之前代表剖析器根本吃不下它。
-# 46005 = "必須是 X，但卻發現 Y"。ORDER BY a Lib_Reader 1 報的是這一條而不是 46010，
-#         不算進來的話任何名稱都「接受」，非保留字的 OFFSET 就分不出來。
-# 46014 = "Default 條件約束只可存在於資料行層級"。剖析器吃得下 CREATE TABLE t (DEFAULT
-#         卻另外報這一條，不算進來的話 DEFAULT 會被分到資料行定義的開頭。
-# 46001 = "剖析器內部錯誤"。剖析器在報錯的詞元上當掉、之後都沒檢查，與 46010 一樣是它過不去的地方。
-#         不算進來的話 WITHIN GROUP (GRAPH 在檔案結尾只報這一條、一個拒收都沒有，GRAPH 就接得上。
-#         算在它報的位置而不是整段作廢：換一條續尾剖析器照常走完的話，那個字仍然成立。
-# 46029 = "出現未預期的檔案結尾"，代表吃下去了、只是語句沒寫完，那是合法的。
-#
-# 另有一族訊息說「這個字不是這裡的選項」（{0} is not a WITH option for a procedure.）：
-# 選項名稱在文法上是任意識別字，認不認得留到之後才判。不算進來的話任何名稱都是合法的選項，
-# CREATE TRIGGER … WITH 之後的 ENCRYPTION 就分不出來。號碼不手寫，從剖析器的訊息資源撈。
-$parserMessages = [System.Resources.ResourceManager]::new('Microsoft.SqlServer.TransactSql.ScriptDom.TSqlParserResource', $assembly).
-    GetResourceSet([System.Globalization.CultureInfo]::InvariantCulture, $true, $true)
-$optionRejections = @($parserMessages | Where-Object {
-    $_.Key -match '^SQL\d+Message$' -and $_.Value -match "^(\{0\}|Option '\{0\}') is not a .*\b(option|hint|function)\b"
-} | ForEach-Object { [int]($_.Key -replace '\D', '') } | Sort-Object)
-
-if ($optionRejections.Count -eq 0) {
-    throw '剖析器的訊息資源裡找不到「不是這裡的選項」那一族；資源名稱或文案變了。'
-}
-
-Write-Host "選項拒收訊息：$($optionRejections -join ', ')"
-$RejectingErrorNumbers = @(46001, 46005, 46010, 46014) + $optionRejections
 
 # 非保留字的對照名稱：不是任何關鍵字的普通識別字。
 $PlainName = 'Lib_Reader'
 
 # 封閉那一格收不收變數的對照名稱：SET 之後除了選項還接 @ReaderId = 1。
 $PlainVariable = '@ReaderId'
-
-# 剖析一律交給 C#：第三階段與片語要把上千個候選字逐一配上幾十條續尾剖析，PowerShell 單執行緒要一個多小時，
-# 平行、並且前綴與續尾各只斷詞一次之後仍要二十多分鐘，所以剖析結果另存成快取，重跑只剖析新的文字。快取只記剖析器說了什麼
-# （拒收落在哪一段、整段完不完整），怎麼解讀每次重算：改片語、續尾或判定規則都用得上舊的結果，
-# 只有 ScriptDom 版本、拒收錯誤碼或 <cache-facts> 區段變了才整份作廢。
-#
-# 片語的判定規則與第三階段相同，只多了一條：普通名稱在字本身就被拒、而候選字撐過了字本身，
-# 也算——ROWS BETWEEN UNBOUNDED 後面要接 PRECEDING 才完整，整段比對的話它與普通名稱一起被拒，
-# 永遠分不出來。
-# ScriptDom 是 .NET Framework 組件，編譯時要 mscorlib 的轉送組件。
-$proberSource = @'
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
-using System.Diagnostics;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.SqlServer.TransactSql.ScriptDom;
-
-public static class SqlAssistPhraseProber
-{
-    private const string CacheFormat = "SqlAssistProbeCache/1";
-
-    // 中斷（Ctrl+C）攔不到，只能定期存：最多白算這麼久。
-    private static readonly TimeSpan CheckpointInterval = TimeSpan.FromMinutes(2);
-
-    private static ThreadLocal<TSqlParser> _parser;
-    private static HashSet<int> _rejecting;
-    private static string _cacheKey;
-    private static string _cachePath;
-    private static long _parses;
-    private static readonly Stopwatch _sinceSave = Stopwatch.StartNew();
-    private static long _savedMisses;
-
-    private static readonly Memo<byte[]> _classes = new Memo<byte[]>();
-    private static readonly Memo<bool> _complete = new Memo<bool>();
-    private static readonly Memo<int> _rejection = new Memo<int>();
-    private static readonly Memo<long> _accepted = new Memo<long>();
-
-    public static void Initialize(Type parserType, int[] rejecting, string cacheKey, string cachePath, bool loadCache)
-    {
-        // 建構參數是 initialQuotedIdentifiers；只傳 true 會落到 nonPublic 那個多載。
-        _parser = new ThreadLocal<TSqlParser>(() => (TSqlParser)Activator.CreateInstance(parserType, new object[] { true }));
-        _rejecting = new HashSet<int>(rejecting);
-        _cacheKey = cacheKey;
-        _cachePath = cachePath;
-
-        if (loadCache)
-        {
-            LoadCache(cachePath);
-        }
-    }
-
-    // <cache-facts>
-    // 這個區段產生的是存進快取的事實，文字一變快取就整份作廢；解讀事實的規則放在區段外。
-    private const byte Recanted = 0;
-    private const byte InWord = 1;
-    private const byte InContinuation = 2;
-    private const byte Whole = 3;
-
-    // 每拼接這麼多次，就另外整段剖析一次比對；對不上代表拼接的前提有漏洞，快取不能留。
-    private const int VerifyEvery = 64;
-
-    private static readonly ConcurrentDictionary<string, TSqlParserToken[]> _heads =
-        new ConcurrentDictionary<string, TSqlParserToken[]>(StringComparer.Ordinal);
-    private static readonly ConcurrentDictionary<string, TSqlParserToken[]> _tails =
-        new ConcurrentDictionary<string, TSqlParserToken[]>(StringComparer.Ordinal);
-    private static readonly ConcurrentDictionary<string, bool> _joins =
-        new ConcurrentDictionary<string, bool>(StringComparer.Ordinal);
-    private static long _spliced;
-    private static volatile bool _mismatch;
-
-    private static IList<ParseError> ParseErrors(string text)
-    {
-        IList<ParseError> errors;
-        _parser.Value.Parse(new StringReader(text), out errors);
-        Interlocked.Increment(ref _parses);
-        return errors;
-    }
-
-    /// <summary>剖析 prefix + word + continuation，結果與整段剖析相同，但斷詞只做一次。</summary>
-    /// <remarks>
-    /// 整段剖析一次約 80µs，改餵斷好的詞元只要約 20µs；同一個前綴配同一個字要接幾十條續尾，不必每次重新斷詞。
-    /// 前綴連同那個字一起斷（字要自成一個詞元，才知道前綴沒有吃進它），續尾另外斷，接起來餵剖析器。斷詞不是處處與上下文無關：GO 只有在行首才是批次分隔，SELECT a FROM t GO 的 GO
-    /// 是識別字、單獨斷卻是分隔符號，所以字與續尾連在一起斷的結果要與分開斷的相同才拼，否則整段剖析。
-    /// </remarks>
-    private static IList<ParseError> ParseErrors(string prefix, string word, string continuation)
-    {
-        var head = _heads.GetOrAdd(prefix + word, key => LexHead(key, prefix.Length));
-        var tail = _tails.GetOrAdd(continuation, LexTail);
-
-        if (head == null || tail == null || !_joins.GetOrAdd(word + "\u0001" + continuation, key => JoinsCleanly(word, continuation)))
-        {
-            return ParseErrors(prefix + word + continuation);
-        }
-
-        // 同一份詞元會被幾個執行緒同時拿去剖析，每次複製一份，不賭剖析器不改它。
-        var tokens = new List<TSqlParserToken>(head.Length + tail.Length);
-
-        foreach (var token in head)
-        {
-            tokens.Add(new TSqlParserToken(token.TokenType, token.Offset, token.Text, token.Line, token.Column));
-        }
-
-        var last = head[head.Length - 1];
-        var length = prefix.Length + word.Length;
-        var column = last.Column + last.Text.Length;
-
-        foreach (var token in tail)
-        {
-            tokens.Add(new TSqlParserToken(token.TokenType, length + token.Offset, token.Text, last.Line, column + token.Offset));
-        }
-
-        IList<ParseError> errors;
-        _parser.Value.Parse(tokens, out errors);
-        Interlocked.Increment(ref _parses);
-
-        if (Interlocked.Increment(ref _spliced) % VerifyEvery == 0)
-        {
-            var text = prefix + word + continuation;
-            var expected = ErrorSignature(ParseErrors(text));
-            var actual = ErrorSignature(errors);
-
-            if (expected != actual)
-            {
-                _mismatch = true;
-                throw new InvalidOperationException(string.Format(
-                    "拼接詞元的剖析結果與整段剖析不同，快取已刪除：{0}（整段 {1}，拼接 {2}）", text, expected, actual));
-            }
-        }
-
-        return errors;
-    }
-
-    /// <summary>斷詞，含最後的檔案結尾詞元；有斷詞錯誤就回傳 null，交給整段剖析。</summary>
-    private static TSqlParserToken[] Lex(string text, bool keepEnd)
-    {
-        IList<ParseError> errors;
-        var tokens = _parser.Value.GetTokenStream(new StringReader(text), out errors);
-
-        if (errors.Count > 0 || tokens.Count == 0 || tokens[tokens.Count - 1].TokenType != TSqlTokenType.EndOfFile)
-        {
-            return null;
-        }
-
-        var result = new TSqlParserToken[keepEnd ? tokens.Count : tokens.Count - 1];
-
-        for (var index = 0; index < result.Length; index++)
-        {
-            result[index] = tokens[index];
-        }
-
-        return result;
-    }
-
-    private static TSqlParserToken[] LexHead(string text, int wordStart)
-    {
-        var tokens = Lex(text, false);
-
-        if (tokens == null || tokens.Length == 0)
-        {
-            return null;
-        }
-
-        var last = tokens[tokens.Length - 1];
-        return last.Offset == wordStart && last.Text.Length == text.Length - wordStart ? tokens : null;
-    }
-
-    // 檔案結尾詞元要用斷詞器給的那一個：自己造的 Text 是空字串，剖析器在 WITHIN GROUP (GRAPH 的結尾
-    // 走的路就不同（整段剖析報內部錯誤 46001，自己造的報 46010）。
-    // 續尾的詞元沿用字所在的那一行，跨行的話行號對不上。
-    private static TSqlParserToken[] LexTail(string continuation)
-    {
-        return continuation.IndexOf('\n') < 0 && continuation.IndexOf('\r') < 0 ? Lex(continuation, true) : null;
-    }
-
-    private static bool JoinsCleanly(string word, string continuation)
-    {
-        var joined = Lex(word + continuation, true);
-        var alone = Lex(word, false);
-        var tail = _tails.GetOrAdd(continuation, LexTail);
-
-        if (joined == null || alone == null || tail == null || joined.Length != alone.Length + tail.Length)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < joined.Length; index++)
-        {
-            var expected = index < alone.Length ? alone[index] : tail[index - alone.Length];
-            var offset = index < alone.Length ? expected.Offset : word.Length + expected.Offset;
-
-            if (joined[index].TokenType != expected.TokenType || joined[index].Offset != offset || joined[index].Text != expected.Text)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    // 產生器用得到的只有每個錯誤碼最早落在哪裡；拼接與整段在錯誤復原之後報的重複錯誤次數會不同，不比。
-    private static string ErrorSignature(IList<ParseError> errors)
-    {
-        var earliest = new SortedDictionary<int, int>();
-
-        foreach (var error in errors)
-        {
-            int offset;
-
-            if (!earliest.TryGetValue(error.Number, out offset) || error.Offset < offset)
-            {
-                earliest[error.Number] = error.Offset;
-            }
-        }
-
-        var signature = new StringBuilder();
-
-        foreach (var pair in earliest)
-        {
-            signature.Append(pair.Key).Append('@').Append(pair.Value).Append(';');
-        }
-
-        return signature.ToString();
-    }
-
-    private static int ComputeRejection(string text)
-    {
-        return FirstRejectionIn(ParseErrors(text));
-    }
-
-    private static int ComputeRejection(string prefix, string word, string continuation)
-    {
-        return FirstRejectionIn(ParseErrors(prefix, word, continuation));
-    }
-
-    private static int FirstRejectionIn(IList<ParseError> errors)
-    {
-        var first = int.MaxValue;
-
-        foreach (var error in errors)
-        {
-            if (_rejecting.Contains(error.Number) && error.Offset < first)
-            {
-                first = error.Offset;
-            }
-        }
-
-        return first;
-    }
-
-    private static bool ComputeComplete(string text)
-    {
-        return ParseErrors(text).Count == 0;
-    }
-
-    private static bool ComputeComplete(string prefix, string word, string continuation)
-    {
-        return ParseErrors(prefix, word, continuation).Count == 0;
-    }
-
-    /// <summary>每個字接上續尾之後最早的拒收落在哪一段，每字兩個位元。</summary>
-    private static byte[] ComputeClasses(string probe, string[] words, string continuation)
-    {
-        var classes = new byte[words.Length];
-
-        Parallel.For(0, words.Length, index =>
-        {
-            var word = words[index];
-            var wordEnd = probe.Length + word.Length;
-            var rejection = ComputeRejection(probe, word, continuation);
-
-            classes[index] =
-                rejection < probe.Length ? Recanted :
-                rejection <= wordEnd ? InWord :
-                rejection <= wordEnd + continuation.Length ? InContinuation :
-                Whole;
-        });
-
-        var packed = new byte[(words.Length + 3) / 4];
-
-        for (var index = 0; index < words.Length; index++)
-        {
-            packed[index / 4] |= (byte)(classes[index] << (index % 4 * 2));
-        }
-
-        return packed;
-    }
-
-    /// <summary>第三階段的事實：最早的拒收位置（低 32 位元），以及補上分號仍報 46097（第 32 位元）。</summary>
-    /// <remarks>
-    /// 46097 = "MERGE 陳述式必須以分號結尾"，只在 MERGE 已經完整時出現。少了分號時剖析器只報這一條，
-    /// 之後的字一路跳到分號都不再檢查，動作寫完之後的格子「接受」普通名稱，非保留字的 OUTPUT 就分不出來。
-    /// 補上分號再剖析一次：落在分號上的錯誤是語句沒寫完，與出現未預期的檔案結尾同義，不算；
-    /// 分號補上了還報 46097，代表剖析器又跳過了一段，整段過不了。
-    /// </remarks>
-    private static long ComputeAcceptedFacts(string prefix, string word, string continuation)
-    {
-        var text = prefix + word + continuation;
-        var errors = ParseErrors(prefix, word, continuation);
-        var skipped = false;
-
-        if (HasError(errors, 46097))
-        {
-            var retried = ParseErrors(prefix, word, continuation + ";");
-            skipped = HasError(retried, 46097);
-            errors = new List<ParseError>();
-
-            foreach (var error in retried)
-            {
-                if (error.Offset < text.Length)
-                {
-                    errors.Add(error);
-                }
-            }
-        }
-
-        var first = int.MaxValue;
-
-        foreach (var error in errors)
-        {
-            if (_rejecting.Contains(error.Number) && error.Offset < first)
-            {
-                first = error.Offset;
-            }
-        }
-
-        return (skipped ? 1L << 32 : 0L) | (uint)first;
-    }
-
-    private static bool HasError(IList<ParseError> errors, int number)
-    {
-        foreach (var error in errors)
-        {
-            if (error.Number == number)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-    // </cache-facts>
-
-    private static byte ClassOf(byte[] packed, int index)
-    {
-        return (byte)((packed[index / 4] >> (index % 4 * 2)) & 3);
-    }
-
-    /// <summary>最早一個拒收錯誤的位置；沒有就是 int.MaxValue。</summary>
-    public static int FirstRejection(string text)
-    {
-        return _rejection.Get(text, ComputeRejection);
-    }
-
-    public static bool IsComplete(string text)
-    {
-        return _complete.Get(text, ComputeComplete);
-    }
-
-    private static bool IsComplete(string prefix, string word, string continuation)
-    {
-        return _complete.Get(prefix + word + continuation, key => ComputeComplete(prefix, word, continuation));
-    }
-
-    /// <summary>第三階段：每個關鍵字在每個位置是否合法；位置的樣板任一個接得上就算。</summary>
-    public static bool[][] ClassifyPositions(string[] keywords, bool[] canBeName, string[][] templates, string[] continuations, string plain)
-    {
-        var result = new bool[keywords.Length][];
-
-        Parallel.For(0, keywords.Length, index =>
-        {
-            result[index] = new bool[templates.Length];
-
-            for (var position = 0; position < templates.Length; position++)
-            {
-                foreach (var prefix in templates[position])
-                {
-                    if (KeywordAllowed(prefix, keywords[index], canBeName[index], continuations, plain))
-                    {
-                        result[index][position] = true;
-                        break;
-                    }
-                }
-            }
-        });
-
-        EndBatch();
-        return result;
-    }
-
-    // 前綴連同字的詞元只在同一批探測裡重複用到，留著只會把記憶體吃光；檢查點也趁批次之間存，
-    // 那時沒有平行工作在寫快取。
-    private static void EndBatch()
-    {
-        _heads.Clear();
-
-        if (_sinceSave.Elapsed >= CheckpointInterval && Misses() != _savedMisses)
-        {
-            SaveCache(false);
-        }
-    }
-
-    private static long Misses()
-    {
-        return (long)_classes.Misses + _complete.Misses + _rejection.Misses + _accepted.Misses;
-    }
-
-    // 非保留字（APPLY、NOLOCK、GO…）當名字寫也合法，所以任何接受名稱的位置都「接受」它們：
-    // CREATE TABLE t ( 之後的 NOLOCK 只是一個叫 NOLOCK 的資料行。一條規則分開兩種情形，
-    // 不分位置：同一組續尾換成普通名稱也過的話，那一次只證明它能當名字，不算數；
-    // 普通名稱過不了而它過得了，才是它以關鍵字的身分屬於這個位置（BEGIN TRY）。
-    // 這一比看的是整段而不只到字為止：SELECT Lib_Reader VALUE FOR s 在名稱之後才出錯，
-    // 只看到名稱為止的話它也「過」，NEXT VALUE FOR 就分不出來。
-    // 保留字不必比：它們當不了名字，被接受就一定是以關鍵字的身分。
-    private static bool KeywordAllowed(string prefix, string keyword, bool canBeName, string[] continuations, string plain)
-    {
-        foreach (var continuation in continuations)
-        {
-            var accepted = canBeName
-                ? Accepted(prefix, keyword, continuation, true) && !Accepted(prefix, plain, continuation, true)
-                : Accepted(prefix, keyword, continuation, false);
-
-            if (accepted)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // whole：整段都要過，不只到這個字為止。只到字為止的判定看不出 46097 跳過的是哪裡，不看它。
-    private static bool Accepted(string prefix, string word, string continuation, bool whole)
-    {
-        var facts = _accepted.Get(prefix + word + continuation, key => ComputeAcceptedFacts(prefix, word, continuation));
-
-        if (whole && (facts >> 32) != 0)
-        {
-            return false;
-        }
-
-        var limit = prefix.Length + word.Length + (whole ? continuation.Length : 0);
-        return (int)(facts & 0xFFFFFFFFL) > limit;
-    }
-
-    /// <summary>樣板接上這個字就是完整的一句，而且這個字寫完的是語句裡的一項，不是語句本身。</summary>
-    /// <remarks>
-    /// 一項是語法樹裡語句以外的片段：運算式、排序項、資料表提示。BEGIN TRAN 也完整，但以 TRAN
-    /// 結尾的只有語句本身——那種字之後往回找子句，找到的是上一句的；SELECT a COMMIT 的 COMMIT
-    /// 是下一句，批次分隔的 GO 不在任何片段裡，同樣不算。
-    /// </remarks>
-    public static bool EndsItem(string template, string word)
-    {
-        IList<ParseError> errors;
-        var text = template + word;
-        var fragment = _parser.Value.Parse(new StringReader(text), out errors);
-
-        if (errors.Count > 0 || fragment == null)
-        {
-            return false;
-        }
-
-        var finder = new ItemEndingFinder(template.Length, text.Length);
-        fragment.Accept(finder);
-        return finder.Found;
-    }
-
-    /// <summary>樣板接上這個字就是完整的一句，而且這個字寫完的是那一句本身，不是其中的一項。</summary>
-    /// <remarks>
-    /// 游標所在的是包住這個字最內層的那一句：IF 的主體、BEGIN … END 裡的一句都算自己的一句。
-    /// </remarks>
-    public static bool EndsStatement(string template, string word)
-    {
-        IList<ParseError> errors;
-        var text = template + word;
-        var fragment = _parser.Value.Parse(new StringReader(text), out errors);
-
-        if (errors.Count > 0 || fragment == null)
-        {
-            return false;
-        }
-
-        var statements = new StatementFinder(template.Length);
-        fragment.Accept(statements);
-
-        if (statements.Innermost == null ||
-            statements.Innermost.StartOffset + statements.Innermost.FragmentLength != text.Length)
-        {
-            return false;
-        }
-
-        var items = new ItemEndingFinder(template.Length, text.Length);
-        fragment.Accept(items);
-        return !items.Found;
-    }
-
-    private sealed class StatementFinder : TSqlFragmentVisitor
-    {
-        private readonly int _offset;
-
-        public StatementFinder(int offset)
-        {
-            _offset = offset;
-        }
-
-        public TSqlStatement Innermost { get; private set; }
-
-        public override void Visit(TSqlStatement node)
-        {
-            if (node.StartOffset <= _offset &&
-                node.StartOffset + node.FragmentLength > _offset &&
-                (Innermost == null || node.FragmentLength < Innermost.FragmentLength))
-            {
-                Innermost = node;
-            }
-        }
-    }
-
-    private sealed class ItemEndingFinder : TSqlFragmentVisitor
-    {
-        private readonly int _wordStart;
-        private readonly int _end;
-
-        public ItemEndingFinder(int wordStart, int end)
-        {
-            _wordStart = wordStart;
-            _end = end;
-        }
-
-        public bool Found { get; private set; }
-
-        public override void Visit(TSqlFragment node)
-        {
-            if (!(node is TSqlStatement) && !(node is TSqlBatch) && !(node is TSqlScript) &&
-                node.StartOffset >= 0 &&
-                node.StartOffset <= _wordStart &&
-                node.StartOffset + node.FragmentLength == _end)
-            {
-                Found = true;
-            }
-        }
-    }
-
-    /// <summary>普通名稱配上任何一條續尾組得成完整的語句，這一格就不封閉。</summary>
-    /// <remarks>
-    /// 要完整而不只是沒被拒：SET TRANSACTION Lib_Reader 在檔案結尾之前一個錯都沒有，
-    /// 剖析器要看到後面的 LEVEL 才說「必須是 ISOLATION」。
-    /// </remarks>
-    public static bool AcceptsName(string probe, string plain, string[] continuations)
-    {
-        foreach (var continuation in continuations)
-        {
-            if (IsComplete(probe, plain, continuation))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public static string[] Probe(string probe, string[] pool, string[] reserved, string[] continuations, string plain)
-    {
-        var reservedSet = new HashSet<string>(reserved, StringComparer.OrdinalIgnoreCase);
-
-        // 普通名稱排在最後一格，與候選字一起分類。
-        var words = new string[pool.Length + 1];
-        Array.Copy(pool, words, pool.Length);
-        words[pool.Length] = plain;
-        var wordsKey = HashWords(words);
-
-        var canBeName = new bool[pool.Length];
-        var passed = new bool[pool.Length];
-        var recanted = new bool[pool.Length];
-
-        for (var index = 0; index < pool.Length; index++)
-        {
-            canBeName[index] = !reservedSet.Contains(pool[index]);
-        }
-
-        foreach (var continuation in continuations)
-        {
-            var classes = _classes.Get(wordsKey + "\u0001" + probe + "\u0001" + continuation,
-                key => ComputeClasses(probe, words, continuation));
-            var plainClass = ClassOf(classes, pool.Length);
-
-            for (var index = 0; index < pool.Length; index++)
-            {
-                var wordClass = ClassOf(classes, index);
-
-                // 剖析器有的地方先收下、讀完才回頭驗：DECRYPTION BY CERTIFICATE KEY 到檔案結尾都沒被拒，
-                // 接上金鑰名稱才在 CERTIFICATE 報錯。回頭拒收過的字，只有整句寫得完才算接得上。
-                recanted[index] |= wordClass == Recanted;
-
-                if (passed[index])
-                {
-                    continue;
-                }
-
-                // 保留字當不了名字，被接受就一定是以關鍵字的身分。
-                passed[index] = canBeName[index]
-                    ? (plainClass <= InWord && wordClass >= InContinuation) ||
-                        (plainClass <= InContinuation && wordClass == Whole)
-                    : wordClass >= InContinuation;
-            }
-        }
-
-        Parallel.For(0, pool.Length, index =>
-        {
-            if (!passed[index] || !recanted[index])
-            {
-                return;
-            }
-
-            var complete = false;
-
-            foreach (var continuation in continuations)
-            {
-                if (IsComplete(probe, pool[index], continuation))
-                {
-                    complete = true;
-                    break;
-                }
-            }
-
-            passed[index] = complete;
-        });
-
-        EndBatch();
-        var accepted = new List<string>();
-
-        for (var index = 0; index < pool.Length; index++)
-        {
-            if (passed[index])
-            {
-                accepted.Add(pool[index]);
-            }
-        }
-
-        return accepted.ToArray();
-    }
-
-    // FNV-1a 64 位元：候選字清單只隨 ScriptDom 或補充清單改變，拿來區分快取項夠了。
-    private static string HashWords(string[] words)
-    {
-        var hash = 14695981039346656037UL;
-
-        foreach (var word in words)
-        {
-            foreach (var c in word + "\n")
-            {
-                hash = (hash ^ c) * 1099511628211UL;
-            }
-        }
-
-        return hash.ToString("x16");
-    }
-
-    public static string CacheSummary()
-    {
-        return string.Format("剖析 {0} 次；快取沿用 {1} 筆、新增 {2} 筆",
-            Interlocked.Read(ref _parses),
-            _classes.Hits + _complete.Hits + _rejection.Hits + _accepted.Hits,
-            Misses());
-    }
-
-    private static void LoadCache(string path)
-    {
-        if (!File.Exists(path))
-        {
-            return;
-        }
-
-        try
-        {
-            using (var file = File.OpenRead(path))
-            using (var zip = new GZipStream(file, CompressionMode.Decompress))
-            using (var reader = new BinaryReader(zip, Encoding.UTF8))
-            {
-                if (reader.ReadString() != CacheFormat || reader.ReadString() != _cacheKey)
-                {
-                    return;
-                }
-
-                _classes.Read(reader, r => r.ReadBytes(r.ReadInt32()));
-                _complete.Read(reader, r => r.ReadBoolean());
-                _rejection.Read(reader, r => r.ReadInt32());
-                _accepted.Read(reader, r => r.ReadInt64());
-            }
-        }
-        catch (Exception exception) when (exception is IOException || exception is InvalidDataException)
-        {
-            // 讀到一半壞掉的快取整份不用，已讀進來的也不採信。
-            _classes.Loaded.Clear();
-            _complete.Loaded.Clear();
-            _rejection.Loaded.Clear();
-            _accepted.Loaded.Clear();
-        }
-    }
-
-    /// <summary>寫回快取。prune：只存這一次用到的項目，樣板或片語改掉之後舊文字的結果不會一直留著；
-    /// 只有跑完全程才修剪，檢查點與中途失敗時連同還沒用到的舊項目一起存。</summary>
-    public static void SaveCache(bool prune)
-    {
-        // 拼接比對不上時，之前抽不到的那些也可能是錯的，整份不留。
-        if (_mismatch)
-        {
-            File.Delete(_cachePath);
-            return;
-        }
-
-        Directory.CreateDirectory(Path.GetDirectoryName(_cachePath));
-        var temporary = _cachePath + ".tmp";
-
-        using (var file = File.Create(temporary))
-        using (var zip = new GZipStream(file, CompressionLevel.Fastest))
-        using (var writer = new BinaryWriter(zip, Encoding.UTF8))
-        {
-            writer.Write(CacheFormat);
-            writer.Write(_cacheKey);
-            _classes.Write(writer, prune, (w, value) => { w.Write(value.Length); w.Write(value); });
-            _complete.Write(writer, prune, (w, value) => w.Write(value));
-            _rejection.Write(writer, prune, (w, value) => w.Write(value));
-            _accepted.Write(writer, prune, (w, value) => w.Write(value));
-        }
-
-        File.Move(temporary, _cachePath, true);
-        _savedMisses = Misses();
-        _sinceSave.Restart();
-    }
-
-    private sealed class Memo<T>
-    {
-        public readonly ConcurrentDictionary<string, T> Loaded = new ConcurrentDictionary<string, T>(StringComparer.Ordinal);
-        private readonly ConcurrentDictionary<string, T> _used = new ConcurrentDictionary<string, T>(StringComparer.Ordinal);
-        public int Hits;
-        public int Misses;
-
-        public T Get(string key, Func<string, T> compute)
-        {
-            T value;
-
-            if (_used.TryGetValue(key, out value))
-            {
-                return value;
-            }
-
-            if (Loaded.TryGetValue(key, out value))
-            {
-                Interlocked.Increment(ref Hits);
-            }
-            else
-            {
-                value = compute(key);
-                Interlocked.Increment(ref Misses);
-            }
-
-            _used[key] = value;
-            return value;
-        }
-
-        public void Read(BinaryReader reader, Func<BinaryReader, T> read)
-        {
-            var count = reader.ReadInt32();
-
-            for (var index = 0; index < count; index++)
-            {
-                var key = reader.ReadString();
-                Loaded[key] = read(reader);
-            }
-        }
-
-        public void Write(BinaryWriter writer, bool prune, Action<BinaryWriter, T> write)
-        {
-            var entries = new List<KeyValuePair<string, T>>(_used);
-
-            if (!prune)
-            {
-                foreach (var entry in Loaded)
-                {
-                    if (!_used.ContainsKey(entry.Key))
-                    {
-                        entries.Add(entry);
-                    }
-                }
-            }
-
-            writer.Write(entries.Count);
-
-            foreach (var entry in entries)
-            {
-                writer.Write(entry.Key);
-                write(writer, entry.Value);
-            }
-        }
-    }
-}
-'@
-
-$proberFacts = [regex]::Match($proberSource, '(?s)// <cache-facts>.*// </cache-facts>').Value
-
-if (-not $proberFacts) {
-    throw '探測器原始碼裡找不到 <cache-facts> 區段；快取的作廢條件靠它。'
-}
-
-$proberFactsHash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($proberFacts)))
-$cacheKey = "$scriptDomVersion|$($parserType.Name)|$($RejectingErrorNumbers -join ',')|$proberFactsHash"
-$resolvedCachePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($CachePath)
-
-Add-Type -ReferencedAssemblies @(
-    $scriptDomPath, 'mscorlib', 'netstandard', 'System.Runtime', 'System.Collections', 'System.Collections.Concurrent',
-    'System.IO.Compression', 'System.Threading', 'System.Threading.Tasks.Parallel'
-) -TypeDefinition $proberSource
-
-[SqlAssistPhraseProber]::Initialize($parserType, [int[]]$RejectingErrorNumbers, $cacheKey, $resolvedCachePath, -not $NoCache)
-$proberReady = $true
-
-# 中途失敗（驗證不過的 throw 之類）也把算過的結果存回去，下次從這裡接著算。trap 管整個腳本，
-# 探測器建好之前的失敗沒有東西可存。Ctrl+C 不經過 trap，靠探測器每兩分鐘一次的檢查點。
-trap {
-    if ($proberReady) {
-        [SqlAssistPhraseProber]::SaveCache($false)
-    }
-
-    break
-}
 
 $positionNames = @($ContextTemplates.Keys)
 $templateArrays = [string[][]]::new($positionNames.Count)
@@ -1297,8 +441,10 @@ for ($index = 0; $index -lt $positionNames.Count; $index++) {
     $templateArrays[$index] = [string[]]@($ContextTemplates[$positionNames[$index]])
 }
 
+$keywordArray = [string[]]@($keywords)
+$reservedArray = [string[]]@($reserved)
 $canBeNameArray = [bool[]]@($keywords | ForEach-Object { $reserved -notcontains $_ })
-$allowedMatrix = [SqlAssistPhraseProber]::ClassifyPositions([string[]]@($keywords), $canBeNameArray, $templateArrays, [string[]]@($Continuations), $PlainName)
+$allowedMatrix = $prober.ClassifyPositions($keywordArray, $canBeNameArray, $templateArrays, [string[]]@($Continuations), $PlainName)
 $positions = @{}
 $counts = [ordered]@{}
 
@@ -1903,6 +1049,11 @@ $PhraseContinuations = @($Continuations) + @(
     ' LEVEL READ COMMITTED', ' READ COMMITTED', ' COMMITTED', ' READ', ' TRIGGER ALL',
     ' AS BEGIN RETURN 1 END', ' AS RETURN SELECT 1 AS a', " = 'x'", ' KEY x', ' = x', ' = 0x01'
 )
+$continuationArray = [string[]]@($PhraseContinuations)
+
+# 值的代表寫法，依序試：數值、字串。手寫的值另外還要開得了一組清單（索引鍵之後的 WITH 只接 `(`）。
+$valueSamples = [string[]]@('1', "'x'")
+$valueEndings = [string[]](@($PhraseContinuations) + ' (')
 
 function Get-PhraseProbe {
     param([string]$Lead, [string]$Pattern, [string]$Group, [string]$Gap, [string]$Next, [string]$Items)
@@ -1965,28 +1116,23 @@ function Select-PhraseName {
 function Test-NameReaches {
     param([string]$Text, [string]$Next)
 
-    return @($PhraseContinuations | Where-Object {
-        [SqlAssistPhraseProber]::FirstRejection("$Text $Next$_") -gt "$Text $Next".Length
-    }).Count -gt 0
+    return $null -ne $prober.FirstEndingPast("$Text $Next", $continuationArray, "$Text $Next".Length)
 }
 
 # 值的代表寫法：數值或字串，取剖析器在那一格收的第一種；兩種都不收的回傳 null。
 function Select-PhraseValue {
     param([string]$Probe)
 
-    return @('1', "'x'") | Where-Object { [SqlAssistPhraseProber]::FirstRejection("$Probe$_") -gt $Probe.Length } |
-        Select-Object -First 1
+    return $prober.FirstEndingPast($Probe, $valueSamples, $Probe.Length)
 }
 
 $poolArray = [string[]]@($phrasePool)
-$reservedArray = [string[]]@($reserved)
-$continuationArray = [string[]]@($PhraseContinuations)
 
 function Get-PhraseWords {
     param([string]$Probe, [string[]]$Extra)
 
     $continuations = $Extra ? [string[]](@($continuationArray) + @($Extra)) : $continuationArray
-    return [SqlAssistPhraseProber]::Probe($Probe, $poolArray, $reservedArray, $continuations, $PlainName)
+    return $prober.Probe($Probe, $poolArray, $reservedArray, $continuations, $PlainName)
 }
 
 # 語句已經完整的片語（CREATE INDEX i ON t (a) 之後）接得上的字也包括下一句的開頭；
@@ -2023,7 +1169,7 @@ function Test-Explored {
 function Test-TakesName {
     param([string]$Probe, [string]$Next)
 
-    if ([SqlAssistPhraseProber]::FirstRejection("$Probe$PlainName x") -gt $Probe.Length) {
+    if ($prober.FirstRejection("$Probe$PlainName x") -gt $Probe.Length) {
         return $true
     }
 
@@ -2031,9 +1177,7 @@ function Test-TakesName {
         return $false
     }
 
-    return @($PhraseContinuations | Where-Object {
-        [SqlAssistPhraseProber]::FirstRejection("$Probe$PlainName $Next$_") -gt $Probe.Length
-    }).Count -gt 0
+    return $null -ne $prober.FirstEndingPast("$Probe$PlainName $Next", $continuationArray, $Probe.Length)
 }
 
 function Add-ClausePhrase {
@@ -2043,7 +1187,7 @@ function Add-ClausePhrase {
 
     Write-Progress -Activity '探測子句片語' -Status "$Pattern（$After）"
     $script:phraseBudgets["$After`t$Pattern"] = [Math]::Max($Expand, $script:phraseBudgets["$After`t$Pattern"] ?? -1)
-    $endsStatement = [SqlAssistPhraseProber]::IsComplete($Probe.TrimEnd())
+    $endsStatement = $prober.IsComplete($Probe.TrimEnd())
     $found = @(Get-PhraseWords -Probe $Probe -Extra $ExtraEndings)
 
     if ($endsStatement) {
@@ -2064,11 +1208,7 @@ function Add-ClausePhrase {
 
     # 手寫值還可以開一組清單（索引鍵之後的 WITH 只接 `(`）：清單項本身由那一格的位置片語列。
     foreach ($value in @($Values | Where-Object { $_ })) {
-        $valueAccepted = (@($PhraseContinuations) + ' (') | Where-Object {
-            [SqlAssistPhraseProber]::FirstRejection($Probe + $value + $_) -gt $Probe.Length + $value.Length + $_.Length
-        } | Select-Object -First 1
-
-        if ($null -eq $valueAccepted) {
+        if ($null -eq $prober.FirstEndingThrough($Probe + $value, $valueEndings, '')) {
             throw "片語「$Pattern」的手寫值 $value 剖析不過，這份清單過時了。"
         }
 
@@ -2088,7 +1228,7 @@ function Add-ClausePhrase {
         $script:createdKinds.Add($kind)
 
         # 兩段式名稱撐過點號之後那一段：CREATE INDEX s.ix 在點號就報錯。
-        if ([SqlAssistPhraseProber]::FirstRejection("$Probe$PlainName.$PlainName x") -gt "$Probe$PlainName.".Length) {
+        if ($prober.FirstRejection("$Probe$PlainName.$PlainName x") -gt "$Probe$PlainName.".Length) {
             $null = $script:schemaQualifiedKinds.Add($kind)
         }
     }
@@ -2101,8 +1241,8 @@ function Add-ClausePhrase {
             # 物件種類之後的名稱要再寫一長段標頭才完整（CREATE SYMMETRIC KEY k WITH …），照寫不寫得完判的話
             # 名稱那一格被判成封閉；種類的片語改問名稱在那裡收不收。
             Closed        = $null -ne $Closed ? [bool]$Closed :
-                $Kinds ? -not $takesName : -not [SqlAssistPhraseProber]::AcceptsName($Probe, $PlainName, $continuationArray)
-            TakesVariable = [SqlAssistPhraseProber]::AcceptsName($Probe, $PlainVariable, $continuationArray)
+                $Kinds ? -not $takesName : -not $prober.AcceptsName($Probe, $PlainName, $continuationArray)
+            TakesVariable = $prober.AcceptsName($Probe, $PlainVariable, $continuationArray)
             EndsStatement = $endsStatement
             Words         = @($words)
             TakesOperand  = $takesName -or $null -ne $value
@@ -2135,7 +1275,7 @@ function Add-ClausePhrase {
     }
 
     # 這一格寫普通名稱就完整的話（OPEN c），名稱之後接得上的字（FETCH c INTO）另探一次，展開時扣掉。
-    $nameReading = [SqlAssistPhraseProber]::IsComplete("$Probe$PlainName") ?
+    $nameReading = $prober.IsComplete("$Probe$PlainName") ?
         [string[]]@(Get-PhraseWords -Probe "$Probe$PlainName ") : $null
 
     # 等號之後列得出的字是值（AES_128、RSA_2048），值之後接的與是哪一個值無關：不逐一展開，
@@ -2163,7 +1303,7 @@ function Add-ClausePhrase {
         # 是這一句的下一段。子句裡的不探：WHERE a IS NOT NULL 寫完之後接什麼由位置分析說，片語只看一個樣板，
         # 立了反而藏掉那個位置其餘的字（索引篩選之後的 WITH）。普通名稱放在同一格也完整時，完整的可能只是
         # 名稱那種讀法——OPEN SYMMETRIC 也是名叫 SYMMETRIC 的資料指標，後面照樣接 KEY——扣掉名稱讀法接得上的字。
-        $completes = [SqlAssistPhraseProber]::IsComplete($childProbe.TrimEnd())
+        $completes = $prober.IsComplete($childProbe.TrimEnd())
 
         if ($completes -and $After -ne 'StatementStart' -and $null -eq $nameReading) {
             continue
@@ -2175,7 +1315,7 @@ function Add-ClausePhrase {
         # 選項名稱之後的等號與字算同一層：ALGORITHM = 之後的 AES_256、RSA_2048 由剖析器列。
         # 接得了值的格子是運算式，那裡的等號是比較（WHERE CURRENT = 1），不是選項。
         if (-not $Kinds -and $null -eq $value -and
-            [SqlAssistPhraseProber]::FirstRejection("$childProbe=") -gt $childProbe.Length -and
+            $prober.FirstRejection("$childProbe=") -gt $childProbe.Length -and
             -not (Test-Explored -Key "$After`t$childPattern =" -Expand ($Expand - 1))) {
             Add-ClausePhrase -Pattern "$childPattern =" -Probe "$childProbe= " -After $After -Expand ($Expand - 1) -Child -Step
         }
@@ -2213,19 +1353,17 @@ function Get-ListItemWords {
         # 這一項寫完、接得了逗號就好，整句寫不寫得完不論：對稱金鑰的 WITH 清單之後還要寫 ENCRYPTION BY。
         # 剖析器會驗的值（FORMAT_TYPE = DELIMITEDTEXT）續尾寫不出來：等號之後代入那一格列得出的第一個字，同 Get-PhraseProbe。
         # 只有那一份清單才有的寫法（VECTOR_SEARCH 的 METRIC = 'cosine'）由片語的 Endings 給。
-        $endings = [System.Collections.Generic.List[string]]::new([string[]](@($PhraseContinuations) + @($ExtraEndings | Where-Object { $_ })))
+        $endings = @($continuationArray) + @($ExtraEndings | Where-Object { $_ })
 
-        if ([SqlAssistPhraseProber]::FirstRejection("$prefix$item = ") -gt "$prefix$item ".Length) {
+        if ($prober.FirstRejection("$prefix$item = ") -gt "$prefix$item ".Length) {
             $value = @(Get-PhraseWords -Probe "$prefix$item = ")[0]
 
             if ($value) {
-                $endings.Add(" = $value")
+                $endings += " = $value"
             }
         }
 
-        $ending = $endings | Where-Object {
-            [SqlAssistPhraseProber]::FirstRejection("$prefix$item$_, ") -gt "$prefix$item$_".Length
-        } | Select-Object -First 1
+        $ending = $prober.FirstEndingThrough("$prefix$item", [string[]]$endings, ', ')
 
         # 寫不完的一項（NO 之後要 CREDENTIAL）探不出逗號之後，由別的項補。
         if ($null -eq $ending) {
@@ -2236,13 +1374,13 @@ function Get-ListItemWords {
 
         # 這一項本身已經讓剖析器報了別的錯（OPENROWSET(BULK …) 不收 BATCHSIZE），之後它不再檢查：逗號接逗號也不被拒，
         # 每個保留字都「接得上」。這種探測說明不了什麼。
-        if ([SqlAssistPhraseProber]::FirstRejection("$itemProbe,") -gt $itemProbe.Length) {
+        if ($prober.FirstRejection("$itemProbe,") -gt $itemProbe.Length) {
             continue
         }
 
         $probe ??= $itemProbe
-        $closed = $closed -and -not [SqlAssistPhraseProber]::AcceptsName($itemProbe, $PlainName, $continuationArray)
-        $takesVariable = $takesVariable -or [SqlAssistPhraseProber]::AcceptsName($itemProbe, $PlainVariable, $continuationArray)
+        $closed = $closed -and -not $prober.AcceptsName($itemProbe, $PlainName, $continuationArray)
+        $takesVariable = $takesVariable -or $prober.AcceptsName($itemProbe, $PlainVariable, $continuationArray)
 
         $fresh = @(Get-PhraseWords -Probe $itemProbe | Where-Object { -not $words.Contains($_) })
 
@@ -2380,16 +1518,11 @@ foreach ($entry in $ClausePhrases) {
 # 關鍵字）收進那個位置的附加片語：只加字、比對永遠是「可能」，那一格其餘的字照樣由目錄給——
 # 立成一般的只認位置片語的話，比對確定時整份目錄讓給它，選取清單尾端只剩 AT。
 $additivePhrases = [ordered]@{}
+# 撐到片語結尾就算，續尾的第一個字被拒不影響片語本身。
 function Test-PatternAccepted {
     param([string]$Probe)
 
-    foreach ($continuation in $PhraseContinuations) {
-        if ([SqlAssistPhraseProber]::FirstRejection($Probe + $continuation) -ge $Probe.Length) {
-            return $true
-        }
-    }
-
-    return $false
+    return $null -ne $prober.FirstEndingPast($Probe, $continuationArray, $Probe.Length - 1)
 }
 
 foreach ($entry in $ClausePhrases) {
@@ -2642,23 +1775,8 @@ Write-Host "附加片語：$(($additivePhrases.Keys | ForEach-Object { "$_($($ad
 # ------------------------------------------------------------ 五、寫完一項的字
 
 # NULL、CURRENT_USER 本身就是完整的運算元，DESC 寫完 ORDER BY 的一項：這些字之後的位置
-# 與識別字之後相同，由往回找到的子句決定。判法是任一個樣板接上它就是完整的一句、
-# 而以它結尾的是語句裡的一項；非保留字照第三階段的規則，普通名稱接上去也成立的不算。
-$itemEndings = @($keywords | Where-Object {
-    $keyword = $_
-    $canBeName = $reserved -notcontains $keyword
-
-    foreach ($name in $positionNames) {
-        foreach ($prefix in $ContextTemplates[$name]) {
-            if ([SqlAssistPhraseProber]::EndsItem($prefix, $keyword) -and
-                -not ($canBeName -and [SqlAssistPhraseProber]::EndsItem($prefix, $PlainName))) {
-                return $true
-            }
-        }
-    }
-
-    return $false
-})
+# 與識別字之後相同，由往回找到的子句決定。
+$itemEndings = @($prober.ItemEndings($keywordArray, $canBeNameArray, $templateArrays, $PlainName))
 
 Write-Host "寫完一項的字：$($itemEndings -join ', ')"
 
@@ -2666,43 +1784,12 @@ Write-Host "寫完一項的字：$($itemEndings -join ', ')"
 
 # 第五階段排除的那一半：BREAK、COMMIT、BEGIN TRAN 的 TRAN 寫完的是語句本身。分析器拿它們
 # 認語句的界線，前一格落在「收得乾淨」的位置時，之後直接是下一句的開頭。
-# 收得乾淨是指那一句再也接不了語句開頭以外的東西：COMMIT 還接 TRAN、RETURN 還接運算式、
-# BEGIN TRAN 還接交易名稱的變數，把它們判成語句開頭就把這些字藏起來了。
-# 每個位置以第一個接得上的樣板為準；非保留字照第三階段的規則，普通名稱也寫得完一句的不算。
-$keywordArray = [string[]]@($keywords)
-$continuationArrayForKeywords = [string[]]@($Continuations)
-
 $statementEndings = [ordered]@{}
 
-foreach ($keyword in $keywords) {
-    $canBeName = $reserved -notcontains $keyword
-    $closes = [System.Collections.Generic.List[string]]::new()
-    $ends = $false
-
-    foreach ($name in $positionNames) {
-        $prefix = @($ContextTemplates[$name]) | Where-Object {
-            [SqlAssistPhraseProber]::EndsStatement($_, $keyword) -and
-                -not ($canBeName -and [SqlAssistPhraseProber]::EndsStatement($_, $PlainName))
-        } | Select-Object -First 1
-
-        if ($null -eq $prefix) {
-            continue
-        }
-
-        $ends = $true
-        $probe = "$prefix$keyword "
-        $followers = [SqlAssistPhraseProber]::Probe($probe, $keywordArray, $reservedArray, $continuationArrayForKeywords, $PlainName)
-        $hidden = @($followers | Where-Object { $positions[$_] -notcontains 'StatementStart' })
-        $takesVariable = [SqlAssistPhraseProber]::FirstRejection("$probe@v") -gt $probe.Length + 2
-
-        if ($hidden.Count -eq 0 -and -not $takesVariable) {
-            $closes.Add($name)
-        }
-    }
-
-    if ($ends) {
-        $statementEndings[$keyword] = $closes
-    }
+foreach ($ending in $prober.StatementEndings(
+        $keywordArray, $canBeNameArray, [string[]]$positionNames, $templateArrays, $allowedMatrix,
+        $reservedArray, [string[]]@($Continuations), $PlainName)) {
+    $statementEndings[$ending.Word] = $ending.Closes
 }
 
 Write-Host "寫完一句的字：$(($statementEndings.Keys | ForEach-Object { "$_($($statementEndings[$_] -join '|'))" }) -join ', ')"
@@ -2713,7 +1800,7 @@ $builder = [System.Text.StringBuilder]::new()
 $null = $builder.AppendLine('// <auto-generated />')
 $null = $builder.AppendLine('//')
 $null = $builder.AppendLine('// 由 tools/Generate-Keywords.ps1 產生，請勿手動編輯。')
-$null = $builder.AppendLine("// 來源：Microsoft.SqlServer.TransactSql.ScriptDom $scriptDomVersion（$($parserType.Name)）")
+$null = $builder.AppendLine("// 來源：Microsoft.SqlServer.TransactSql.ScriptDom $($prober.ScriptDomVersion)（$($prober.ParserName)）")
 $null = $builder.AppendLine('//')
 $null = $builder.AppendLine('// 關鍵字取自 TSqlTokenType 的成員名稱並以 tokenizer 回驗，')
 $null = $builder.AppendLine("// 另加腳本裡 `$NonReservedSupplement 的 $($NonReservedSupplement.Count) 個非保留字；")
@@ -2733,7 +1820,7 @@ $null = $builder.AppendLine('/// <summary>產生出來的關鍵字資料；請�
 $null = $builder.AppendLine('internal static class SqlKeywordCatalogData')
 $null = $builder.AppendLine('{')
 $null = $builder.AppendLine("    /// <summary>產生這份目錄所用的 ScriptDom 版本。</summary>")
-$null = $builder.AppendLine("    internal const string SourceVersion = `"$scriptDomVersion`";")
+$null = $builder.AppendLine("    internal const string SourceVersion = `"$($prober.ScriptDomVersion)`";")
 $null = $builder.AppendLine('')
 $null = $builder.AppendLine('    /// <summary>全部關鍵字，以及各自可以出現的位置。</summary>')
 $null = $builder.AppendLine('    internal static readonly KeyValuePair<string, SqlKeywordPosition>[] Keywords =')
@@ -2910,5 +1997,5 @@ $output = $builder.ToString().Replace("`r`n", "`n").Replace("`r", "`n")
 
 Write-Host "已寫出 $resolved"
 
-[SqlAssistPhraseProber]::SaveCache($true)
-Write-Host "$([SqlAssistPhraseProber]::CacheSummary())，快取：$resolvedCachePath"
+$prober.SaveCache($true)
+Write-Host "$($prober.CacheSummary())，快取：$($prober.CachePath)"

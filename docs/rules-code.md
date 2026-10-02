@@ -12,7 +12,8 @@
 
 - 資料夾與命名空間一致；測試鏡像來源路徑。不要為單一檔案建立資料夾。
 - 不用 `Metadata.SqlObjectInfo` 這類相對限定；用 `using` 加簡名。
-- 禁止手改 `Keywords/SqlKeywordCatalog.Generated.cs`；改 `tools/Generate-Keywords.ps1` 後重跑。
+- 禁止手改 `Keywords/SqlKeywordCatalog.Generated.cs`；改 `tools/Generate-Keywords.ps1` 或它的探測器
+  `tools/SqlAssist.KeywordGenerator` 後重跑。
 
 ## 對 SSMS 組件的參考
 
