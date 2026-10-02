@@ -28,8 +28,9 @@
 
 - `TreatWarningsAsErrors` 與 Nullable 必須維持啟用。SSMS 更新換掉參考組件的註解時，
   先照新契約改寫，`!` 與 `#pragma` 是最後手段且要寫明理由，見[開發](development.md)。
-- 測試使用 Microsoft.Testing.Platform；執行 `tools/Run-CoreTests.ps1` 或 `dotnet test <方案>`，
-  不得加回 VSTest 轉接層。
+- 測試使用 Microsoft.Testing.Platform；執行 `tools/Run-CoreTests.ps1` 或在 repo 內
+  `dotnet test --solution <方案>`／`--project <專案>`，不得加回 VSTest 轉接層。位置引數會被
+  轉給各測試程式，路徑不被接受時每個專案都跑零項、結束代碼 5。
 - 註解只寫理由、失敗方案或不照做的症狀，不逐行翻譯程式碼。
 - 公開 repo 的程式、註解、測試、文件、commit 訊息與 PR 內文禁止出現真實系統的伺服器、
   資料庫、schema、資料表、欄位或程序名；使用者回報裡的名稱先換掉再寫下來。只用既有的
