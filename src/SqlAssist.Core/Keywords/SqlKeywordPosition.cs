@@ -6,7 +6,7 @@ namespace SqlAssist.Core.Keywords;
 /// 關鍵字可以出現的位置。
 /// </summary>
 /// <remarks>
-/// 每個成員對應 <c>tools/Generate-Keywords.ps1</c> 裡的一個樣板；成員名稱與樣板名稱
+/// 每個成員對應 <c>tools/SqlAssist.KeywordGenerator/Data/PositionTemplates.cs</c> 裡的一個樣板；成員名稱與樣板名稱
 /// 必須一致，產生器直接用名稱組出旗標。
 ///
 /// 存在的理由是雜訊：關鍵字目錄有 180 個字，全部無條件列出來的話，打第一個字元時
@@ -277,8 +277,8 @@ public enum SqlKeywordPosition : long
     /// <remarks>
     /// 所有這種清單共用一個位元。位置只說「這裡是某一句的選項清單」，是哪一句、接哪些字由片語的尾巴
     /// 說：LOGIN、USER、BACKUP、RESTORE、EXEC、RAISERROR、DBCC 的選項各不相同，每種各佔一個位元的話，
-    /// 敘述數一多位元就不夠。哪些敘述有這種清單也只由片語說一次，見 <c>tools/Generate-Keywords.ps1</c>
-    /// 的 <c>,*</c>；標頭中段長度不定的（<c>EXEC p @a = 1 WITH</c>）用 <c>...</c> 代表動詞到 WITH 之間。
+    /// 敘述數一多位元就不夠。哪些敘述有這種清單也只由片語說一次，見產生器 <c>Data</c> 資料夾
+    /// 裡片語的 <c>,*</c>；標頭中段長度不定的（<c>EXEC p @a = 1 WITH</c>）用 <c>...</c> 代表動詞到 WITH 之間。
     /// 仍各佔一格的清單：中間夾著的不是這一句的其餘標頭（<see cref="IndexOption"/> 前面是索引鍵與篩選），
     /// 選項寫完之後還有位置要回報（<see cref="ProcedureOption"/>、<see cref="TriggerOption"/>），
     /// 或不以逗號分隔（<see cref="CursorOption"/>）。

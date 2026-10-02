@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    關鍵字產生器的探測器：tools/Generate-Keywords.ps1 先建置它再載入，上百萬次剖析與快取都在這裡。
+    關鍵字產生器：tools/Generate-Keywords.ps1 先建置它再載入，六個階段、上百萬次剖析與快取、產物的寫出都在這裡。
     netstandard2.0 讓任何 PowerShell 7 都載得進去，也讓 net10 的單元測試參照同一份。
   -->
   <PropertyGroup>
@@ -20,5 +20,11 @@
     <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
     <!-- 快取的作廢條件是這個區段的雜湊；嵌進組件，載入的程式與雜湊的文字一定是同一份。 -->
     <EmbeddedResource Include="ProbeFacts.cs" LogicalName="ProbeFacts.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 語句說明是片語的證據；讀它的 JSON 剖析器與 Core 同一份。 -->
+    <Compile Include="..\..\src\SqlAssist.Core\Json\JsonReader.cs" Link="Json\JsonReader.cs" />
+    <Compile Include="..\..\src\SqlAssist.Core\Json\JsonValue.cs" Link="Json\JsonValue.cs" />
+    <Compile Include="..\..\src\SqlAssist.Core\IsExternalInit.cs" Link="IsExternalInit.cs" />
   </ItemGroup>
 </Project>

@@ -11,7 +11,7 @@ using Microsoft.SqlServer.TransactSql.ScriptDom;
 namespace SqlAssist.KeywordGenerator;
 
 /// <summary>
-/// tools/Generate-Keywords.ps1 的探測器：每一個判定都是「剖析器收不收這段文字」，腳本只交代問什麼。
+/// 產生器的探測器：每一個判定都是「剖析器收不收這段文字」，<see cref="CatalogGenerator"/> 與 <see cref="PhraseExplorer"/> 只交代問什麼。
 /// 剖析事實記進快取（<see cref="ProbeFacts"/>），解讀的規則在這裡，每次重算。
 /// </summary>
 public sealed class KeywordProber
@@ -63,7 +63,7 @@ public sealed class KeywordProber
         Statement,
     }
 
-    /// <summary>實際載入的 ScriptDom；腳本拿它確認用的是 SSMS 那一份。</summary>
+    /// <summary>實際載入的 ScriptDom。</summary>
     public string ScriptDomPath { get; }
 
     public string ScriptDomVersion { get; }
@@ -143,7 +143,7 @@ public sealed class KeywordProber
     }
 
     /// <summary>子句片語：候選字裡接得上這段探測文字的字，順序同 pool。</summary>
-    /// <remarks>腳本對同一格會問好幾次（名稱格的代表寫法、展開時的扣除），整組問題記一份答案。</remarks>
+    /// <remarks>片語引擎對同一格會問好幾次（名稱格的代表寫法、展開時的扣除），整組問題記一份答案。</remarks>
     public string[] Probe(string probe, string[] pool, string[] reserved, string[] continuations, string plain)
     {
         var words = WordsOf(pool);
@@ -453,7 +453,7 @@ public sealed class KeywordProber
         return mask;
     }
 
-    /// <summary>候選字清單與它的雜湊：腳本每次傳的是同一個陣列，雜湊只算一次。</summary>
+    /// <summary>候選字清單與它的雜湊：呼叫端每次傳的是同一個陣列，雜湊只算一次。</summary>
     private sealed class PoolWords
     {
         public PoolWords(string[] words)

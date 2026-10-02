@@ -15,7 +15,7 @@
 
 ## 片語怎麼來
 
-`tools/Generate-Keywords.ps1` 的第四階段拿剖析器探測，手寫的只有尾巴；寫法、展開與證據見[子句片語的產生器](phrase-generator.md)。
+產生器的第四階段（`PhraseExplorer`）拿剖析器探測，手寫的只有尾巴；寫法、展開與證據見[子句片語的產生器](phrase-generator.md)。
 
 ## 執行期
 

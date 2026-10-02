@@ -9,13 +9,13 @@
 | 建議清單多／少了某一類項目 | `Core/Completion/BuiltInSuggestionCatalog.cs`、`SqlCompletionCandidates.cs` |
 | 排名順序不對 | `Core/Completion/SuggestionList.cs`、`SuggestionScore.cs`、`Core/Matching/FuzzyMatcher.cs` |
 | 某個位置不該開清單／該開沒開、打完字沒重開 | `Core/Completion/SqlCompletionSlot.cs`、`SqlCompletionPolicy.cs`、`SqlCompletionContextAnalyzer.cs`、`SqlCompletionTriggers.cs`、`Core/Keywords/SqlKeywordPositionAnalyzer.cs`、`Ssms22/Completion/SqlCompletionReopen.cs` |
-| 某個位置出現不該有的候選 | `Core/Completion/SuggestionContextFilter.cs`、`Core/Keywords/SqlKeywordPositionExtensions.cs`、`tools/Generate-Keywords.ps1` 的樣板 |
+| 某個位置出現不該有的候選 | `Core/Completion/SuggestionContextFilter.cs`、`Core/Keywords/SqlKeywordPositionExtensions.cs`、產生器的 `Data/PositionTemplates.cs` |
 | 換了介面語言某處沒跟著換 | `Ssms22/Settings/SqlLanguageSwitch.cs`；作法見[在地化](localization.md#即時切換) |
 | SSMS 自己的清單也跟著彈出來 | `Ssms22/Settings/NativeMemberList.cs`；總開關為何不能關見[補全](completion.md) |
 | 提交後寫進去的文字不對 | `Core/Completion/SqlInsertionText.cs`（規則）、`Ssms22/Completion/SqlAsyncCompletionCommitManager.cs`（接線） |
 | `INSERT INTO`／`MERGE INTO`／`EXEC`／`ALTER` 展開內容不對、蓋錯位置 | `Core/Statements/`、`Ssms22/Completion/SqlCommitExpansions.cs`、`SqlCommitExpander.cs` |
-| 關鍵字清單要增刪；某條尾巴之後少字或多字 | `tools/Generate-Keywords.ps1`（`$ClausePhrases`）、`Core/Keywords/SqlClausePhrase.cs` |
-| 產生器的判定或快取作廢 | `tools/SqlAssist.KeywordGenerator`：`KeywordProber` 解讀，`ProbeFacts` 的 `<cache-facts>` 是存進快取的剖析事實 |
+| 關鍵字清單要增刪；某條尾巴之後少字或多字 | `tools/SqlAssist.KeywordGenerator/Data/*Phrases.cs`、`Core/Keywords/SqlClausePhrase.cs` |
+| 產生器的判定或快取作廢 | `tools/SqlAssist.KeywordGenerator`：`KeywordProber` 解讀、`PhraseExplorer` 探片語，`ProbeFacts` 的 `<cache-facts>` 是存進快取的剖析事實 |
 | 內建函式、全域變數或型別要增刪 | `Core/Keywords/` 底下的三個 Catalog |
 | 自動大寫時機 | `Core/Keywords/SqlKeywordCase.cs`、`Ssms22/Editor/SqlKeywordCasing.cs` |
 | 括號或引號補錯時機、跳不過去 | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |

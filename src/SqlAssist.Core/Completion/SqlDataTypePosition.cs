@@ -20,7 +20,7 @@ namespace SqlAssist.Core.Completion;
 /// 各認一份的症狀是 CREATE TABLE 認得、ALTER TABLE ADD 認不得。
 ///
 /// 沒有做成 <see cref="SqlKeywordPosition"/> 的一個新成員：那個列舉的每個成員都對應
-/// <c>tools/Generate-Keywords.ps1</c> 裡的一個樣板，而型別根本不在關鍵字目錄裡，
+/// 產生器 <c>tools/SqlAssist.KeywordGenerator/Data/PositionTemplates.cs</c> 裡的一個樣板，而型別根本不在關鍵字目錄裡，
 /// 加一個沒有樣板的成員只會讓兩邊對不起來。這裡要的是「換一份清單」而不是
 /// 「篩掉一些關鍵字」，那正是 <see cref="CompletionTarget"/> 的工作。
 /// </remarks>

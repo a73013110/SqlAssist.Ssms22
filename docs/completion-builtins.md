@@ -86,6 +86,6 @@ token 列舉裡根本沒有它——任何工具在這一塊都只能自己維�
 撈到外層的 `SELECT`——順序反過來的話它會被別名那一條整份收掉。
 
 沒有做成 `SqlKeywordPosition` 的一個新成員：那個列舉的每個成員都對應
-`tools/Generate-Keywords.ps1` 裡的一個樣板，而型別根本不在關鍵字目錄裡，加一個沒有
+產生器 `Data/PositionTemplates.cs` 裡的一個樣板，而型別根本不在關鍵字目錄裡，加一個沒有
 樣板的成員只會讓兩邊對不起來。這裡要的是「換一份清單」而不是「篩掉一些關鍵字」，
 那正是 `CompletionTarget` 的工作。

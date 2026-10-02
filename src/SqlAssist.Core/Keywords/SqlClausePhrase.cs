@@ -50,7 +50,7 @@ public sealed class SqlClausePhrase
         Tentative = new SqlClausePhraseMatch(this, isCertain: false);
     }
 
-    /// <summary>片語的尾巴，寫法見 <c>tools/Generate-Keywords.ps1</c> 的 <c>$ClausePhrases</c>。</summary>
+    /// <summary>片語的尾巴，寫法見 <c>tools/SqlAssist.KeywordGenerator/PhraseDeclaration.cs</c>。</summary>
     public string Pattern { get; }
 
     /// <summary>

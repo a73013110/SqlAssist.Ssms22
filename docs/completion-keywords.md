@@ -7,7 +7,7 @@
 
 T-SQL 關鍵字不是手寫的，由 `tools/Generate-Keywords.ps1` 反射
 SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCatalog.Generated.cs`。
-換 SSMS 版本重跑就更新。剖析與判定在探測器 `tools/SqlAssist.KeywordGenerator`，
+換 SSMS 版本重跑就更新。產生器在 `tools/SqlAssist.KeywordGenerator`，
 結果快取在 `artifacts/cache/`：只存剖析器的回答（拒收落在
 哪一段、整段完不完整），解讀每次重算；ScriptDom 版本、拒收錯誤碼或 `ProbeFacts.cs` 的 `<cache-facts>`
 區段一變就整份作廢，懷疑不一致時加 `-NoCache` 重建。每個階段都自我驗證，不猜字：
@@ -29,8 +29,8 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
 而且回報含該位置的文字：樣板表隨產物輸出成 `SqlKeywordCatalogData.Templates`，
 由 Core 測試逐條回驗。只有產生器分得出的位置是自欺——型別寫完之後（`CREATE TABLE t (a int |`）因此沒有樣板，是 `Any`。
 
-非保留字是唯一的例外：`THROW`、`APPLY`、`NOLOCK` 不在 token 列舉裡，由產生器的
-`$NonReservedSupplement` 手寫，位置一樣自動分類。
+非保留字是唯一的例外：`THROW`、`APPLY`、`NOLOCK` 不在 token 列舉裡，由產生器
+`Data/KeywordSupplements.cs` 手寫，位置一樣自動分類。
 
 ### 召回稽核
 

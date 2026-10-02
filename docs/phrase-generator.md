@@ -1,10 +1,10 @@
 # 子句片語的產生器
 
-本頁處理子句片語怎麼從 ScriptDom 探測出來：尾巴的寫法、展開、證據與前一格；執行期怎麼比對與過濾見[子句片語](completion-phrases.md)。
+本頁處理子句片語的探測：尾巴的寫法、展開、證據與前一格；執行期的比對與過濾見[子句片語](completion-phrases.md)。
 
 ## 尾巴的寫法
 
-`tools/Generate-Keywords.ps1` 的第四階段。手寫的只有 `$ClausePhrases` 的尾巴：
+`tools/SqlAssist.KeywordGenerator` 的第四階段。手寫的只有 `Data/*Phrases.cs` 的尾巴，探測前一次驗完：
 
 | 寫法 | 意思 |
 |---|---|
@@ -23,7 +23,7 @@
 它與普通名稱一起被拒。剖析器也有讀完才回頭驗的地方（`DECRYPTION BY CERTIFICATE KEY x` 在 `CERTIFICATE` 報錯）：
 讓前面的字被拒過的字，要有續尾把整句寫完才算。
 普通名稱在任何續尾都過不了的片語是**封閉**的；名稱後面還要再寫一段的
-（`UPDATE t SET`、`OPEN SYMMETRIC KEY k DECRYPTION`）也會判成封閉，由 `Closed = $false` 宣告不封閉。
+（`UPDATE t SET`、`OPEN SYMMETRIC KEY k DECRYPTION`）也會判成封閉，由 `Closed = false` 宣告不封閉。
 換 `@ReaderId` 過得了的另記 `TakesVariable`（收變數）。
 
 探測文字本身已是完整語句時（`CREATE INDEX i ON t (a) `），接得上的字也含下一句的開頭；

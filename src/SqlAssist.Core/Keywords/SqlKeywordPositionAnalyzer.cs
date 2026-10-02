@@ -9,7 +9,7 @@ namespace SqlAssist.Core.Keywords;
 /// 判斷游標落在 <see cref="SqlKeywordPosition"/> 的哪一個位置。
 /// </summary>
 /// <remarks>
-/// 與 <c>tools/Generate-Keywords.ps1</c> 的樣板是一對的：產生器決定「哪些關鍵字
+/// 與 <c>tools/SqlAssist.KeywordGenerator/Data/PositionTemplates.cs</c> 的樣板是一對的：產生器決定「哪些關鍵字
 /// 可以出現在這個位置」，這裡決定「游標現在在哪個位置」。兩邊的粒度必須一致，
 /// 因此樣板一律切在前一個詞元之後，這裡也只看前一個詞元加上最近的子句關鍵字。
 ///

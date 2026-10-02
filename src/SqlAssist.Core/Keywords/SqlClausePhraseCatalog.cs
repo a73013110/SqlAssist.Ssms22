@@ -10,7 +10,7 @@ namespace SqlAssist.Core.Keywords;
 /// 產生出來的子句片語，以及「游標前面是哪一個片語」的比對。
 /// </summary>
 /// <remarks>
-/// 比對是資料驅動的：新增一個片語只要在產生器的 <c>$ClausePhrases</c> 加一行再重跑，
+/// 比對是資料驅動的：新增一個片語只要在產生器 <c>Data</c> 資料夾的宣告加一行再重跑，
 /// 這裡不必改。不再各自為 <c>SET</c>、<c>ALTER INDEX</c>、<c>FOR XML</c> 寫一段位置判斷。
 /// </remarks>
 public static class SqlClausePhraseCatalog
