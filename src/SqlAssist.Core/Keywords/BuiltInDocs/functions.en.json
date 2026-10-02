@@ -664,6 +664,12 @@
     "examples.with-schema.title": "WITH expands typed columns",
     "examples.with-schema.sql": "SELECT * FROM OPENJSON('{\"Id\":1}') WITH (Id int)   -- One column: Id=1"
   },
+  "VECTOR_SEARCH": {
+    "summary": "Nearest rows via a vector index (approximate); adds distance",
+    "examples.basic.title": "Basic usage",
+    "examples.with-alias.title": "Table alias and distance",
+    "examples.with-alias.sql": "SELECT c.CopyNo, s.distance\nFROM VECTOR_SEARCH(\n    TABLE = dbo.Copy AS c,\n    COLUMN = Embedding,\n    SIMILAR_TO = @Probe,\n    METRIC = 'cosine',\n    TOP_N = 10) AS s   -- 10 nearest copies"
+  },
   "ACOS": {
     "summary": "Arccosine, argument in range -1 to 1, returns radians",
     "examples.basic.title": "Basic usage"

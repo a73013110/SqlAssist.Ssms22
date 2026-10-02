@@ -640,7 +640,7 @@ public sealed class SqlClausePhraseTests
 
     /// <summary>
     /// 走產品的過濾路徑：候選清單加上片語的字，再做上下文過濾。唯一接續併成的一項（<c>INSTEAD OF</c>）
-    /// 也算它的第一個字：打那個字就選得到它。
+    /// 也算它的第一個字：打那個字就選得到它。ScriptDom 當識別字的資料列集函式（<c>VECTOR_SEARCH</c>）由函式目錄列。
     /// </summary>
     private static string[] Offered(string textBeforeToken)
     {
@@ -649,7 +649,7 @@ public sealed class SqlClausePhraseTests
             .Concat(context.ClausePhrase?.Suggestions ?? Enumerable.Empty<SqlSuggestion>());
 
         return SuggestionContextFilter.Filter(candidates, context)
-            .Where(suggestion => suggestion.Kind == SuggestionKind.Keyword)
+            .Where(suggestion => suggestion.Kind is SuggestionKind.Keyword or SuggestionKind.BuiltInFunction)
             .SelectMany(suggestion => new[] { suggestion.DisplayText, suggestion.DisplayText.Split(' ')[0] })
             .Distinct()
             .ToArray();

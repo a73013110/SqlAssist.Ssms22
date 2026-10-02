@@ -1355,10 +1355,13 @@ Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 #   {name}   一個名稱單位，可以含點號與方括號；保留字（ALTER INDEX ALL、ALTER DATABASE CURRENT）與變數也算
 #   {value}  一個數值、字串、變數，或一整組括號
 #   ()       一整組括號；探測代入 (a)，剖析器對括號裡的內容有要求時（RAISERROR 要訊息、嚴重性、狀態）由 Group 指定
-#   (*       還沒關上的左括號清單，游標在左括號或逗號之後；只能是最後一項。字是左括號之後與「第一項的每一種寫法接逗號」
-#            之後的聯集（執行期分不出是哪一格）；括號裡是一個子句、逗號屬於子句的（WITHIN GROUP (ORDER BY …)）寫 Clause = $true
+#   (*       還沒關上的左括號清單，游標在左括號或逗號之後。字是左括號之後與「第一項的每一種寫法接逗號」
+#            之後的聯集（執行期分不出是哪一格）；括號裡是一個子句、逗號屬於子句的（WITHIN GROUP (ORDER BY …)）寫 Clause = $true。
+#            後面還有項的話，那幾項是清單裡某一項的開頭（WITH (* TYPE =：清單裡任一項的 TYPE =），探測代入左括號；
+#            清單有固定的第一項時，探測要墊的那幾項寫在 Items（FORMAT_TYPE = DELIMITEDTEXT, ）
+#   ,        逗號本身，分隔同一句裡重複的一段（ADD EVENT a.b, ADD EVENT），比對同等號
 #   ,*       標頭開的逗號清單，游標在逗號之後；只能是最後一項，前面那段是標頭，以字面字結尾。
-#            標頭本身也立成片語，給第一項的字；逗號之後的字以「第一項的每一種寫法接逗號」探測取聯集。
+#            標頭本身也立成片語，給第一項的字；逗號之後的字以「第一項的每一種寫法接逗號」探測取聯集，探到的新字再往下一項探。
 #            清單由位置分析走訪（OptionItem），哪些敘述有這種清單只在這裡說。選項寫完之後還有位置要回報
 #            （模組標頭的 AS）的，仍以位置為鍵
 #   ...      動詞之後、下一個字面字之前的其餘標頭（EXEC p @a = 1 WITH 的 p @a = 1、BACKUP 的裝置清單）；
@@ -1380,9 +1383,22 @@ Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 # 剖析器眼中就是名稱；語句已經完整的片語扣掉了下一句的開頭，同時也是子句字的要補回來
 # （更長的片語寫得出那個字時不必：片語裡的每一個字由它前面那段列出，見探測之後的那一段）。
 # Closed 由人宣告那一格只有這幾個值。
+# Endings 是只有這條片語用得上的續尾（VECTOR_SEARCH 的 METRIC 只收 'cosine' 這種距離名稱、ABORT_AFTER_WAIT 的值
+# 之後要關兩層括號）：探這條片語與它的清單項時接在共用續尾之後。共用續尾一變，每個片語的探測都要重剖。
 # 同一條尾巴、同一個位置後寫的覆蓋先寫的，所以 Expand 展開出來的片語可以在後面補 Values。
 $QueryTails = @('SelectListTail', 'TableSourceTail', 'ExpressionTail', 'OrderByTail', 'GroupByTail')
 $ModuleOptions = @('ProcedureOption', 'FunctionOption', 'ViewOption', 'TriggerOption')
+$ScopedConfigurations = @(
+    'ACCELERATED_PLAN_FORCING', 'ASYNC_STATS_UPDATE_WAIT_AT_LOW_PRIORITY', 'BATCH_MODE_ADAPTIVE_JOINS',
+    'BATCH_MODE_MEMORY_GRANT_FEEDBACK', 'BATCH_MODE_ON_ROWSTORE', 'CE_FEEDBACK', 'DEFERRED_COMPILATION_TV',
+    'DOP_FEEDBACK', 'ELEVATE_ONLINE', 'ELEVATE_RESUMABLE', 'EXEC_QUERY_STATS_FOR_SCALAR_FUNCTIONS',
+    'GLOBAL_TEMPORARY_TABLE_AUTO_DROP', 'IDENTITY_CACHE', 'INTERLEAVED_EXECUTION_TVF', 'ISOLATE_SECURITY_POLICY_CARDINALITY',
+    'LAST_QUERY_PLAN_STATS', 'LEDGER_DIGEST_STORAGE_ENDPOINT', 'LEGACY_CARDINALITY_ESTIMATION', 'LIGHTWEIGHT_QUERY_PROFILING',
+    'MAXDOP', 'MEMORY_GRANT_FEEDBACK_PERCENTILE_GRANT', 'MEMORY_GRANT_FEEDBACK_PERSISTENCE', 'OPTIMIZE_FOR_AD_HOC_WORKLOADS',
+    'OPTIMIZED_PLAN_FORCING', 'OPTIMIZED_SP_EXECUTESQL', 'PARAMETER_SENSITIVE_PLAN_OPTIMIZATION', 'PARAMETER_SNIFFING',
+    'PAUSED_RESUMABLE_INDEX_ABORT_DURATION_MINUTES', 'QUERY_OPTIMIZER_HOTFIXES', 'ROW_MODE_MEMORY_GRANT_FEEDBACK',
+    'TSQL_SCALAR_UDF_INLINING', 'VERBOSE_TRUNCATION_WARNINGS', 'XTP_PROCEDURE_EXECUTION_STATISTICS', 'XTP_QUERY_EXECUTION_STATISTICS'
+)
 
 $ClausePhrases = @(
     @{ Pattern = 'SET'; Expand = 4 }
@@ -1408,6 +1424,12 @@ $ClausePhrases = @(
     @{ Pattern = 'DROP'; After = @('AlterTableAction'); Expand = 2 }
     @{ Pattern = 'ALTER DATABASE {name}' }
     @{ Pattern = 'ALTER DATABASE {name} SET'; Expand = 1 }
+
+    # 資料庫範圍設定：SCOPED 在剖析器眼中也可以是資料庫名稱，逐字探不出來，整段是證據。
+    # SET 之後的設定名稱剖析器什麼都收（認得的幾個另外剖析），只能手寫；名單取 SQL Server 的文件，不含 Synapse 的 DW_COMPATIBILITY_LEVEL。
+    @{ Pattern = 'ALTER DATABASE SCOPED CONFIGURATION'; Expand = 3 }
+    @{ Pattern = 'ALTER DATABASE SCOPED CONFIGURATION SET'; Values = $ScopedConfigurations }
+    @{ Pattern = 'ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET'; Values = $ScopedConfigurations }
     # BACKUP／RESTORE 的標頭：名稱之後是 TO／FROM 與檔案、檔案群組，TO／FROM 之後是裝置種類
     # （DISK、URL、TAPE）。HEADERONLY 這一族也走到 FROM 之後；DATABASE、LOG 之後的名稱是展開的一步。
     @{ Pattern = 'BACKUP'; Expand = 2 }
@@ -1420,6 +1442,26 @@ $ClausePhrases = @(
     @{ Pattern = 'INDEX {name} ON {name} ()'; Lead = 'CREATE '; Values = @('WITH') }
     @{ Pattern = 'INCLUDE ()'; Lead = 'CREATE INDEX t ON t (a) '; Values = @('WITH') }
     @{ Pattern = ''; After = @('IndexOption') }
+
+    # 其餘接索引選項的 WITH (…)：ALTER INDEX 的 REBUILD、REORGANIZE、SET，ALTER TABLE 的 REBUILD、SWITCH，
+    # 以及條件約束的索引鍵之後（PRIMARY KEY (a) WITH (…)）。各敘述收的選項不同，標頭固定的寫成括號清單由剖析器探；
+    # 條件約束的前一格判不出位置（CONSTRAINT pk 之後），KEY ( ) WITH ( 這條尾巴本身認得出來。
+    # ONLINE = ON ( 與 WAIT_AT_LOW_PRIORITY ( 是清單裡再開的清單，MAX_DURATION 是固定的第一項：
+    # ABORT_AFTER_WAIT 要墊在它之後，值之後還要關兩層括號。
+    @{ Pattern = 'ALTER INDEX {name} ON {name} REBUILD WITH (*' }
+    @{ Pattern = 'ALTER INDEX {name} ON {name} REORGANIZE WITH (*' }
+    @{ Pattern = 'ALTER INDEX {name} ON {name} SET (*' }
+    @{ Pattern = 'ALTER TABLE {name} REBUILD WITH (*' }
+    @{ Pattern = 'ALTER TABLE {name} SWITCH TO {name} WITH (*' }
+    @{ Pattern = 'KEY () WITH (*'; Lead = 'ALTER TABLE t ADD PRIMARY ' }
+    @{ Pattern = 'UNIQUE () WITH (*'; Lead = 'ALTER TABLE t ADD ' }
+    @{ Pattern = 'CLUSTERED () WITH (*'; Lead = 'ALTER TABLE t ADD PRIMARY KEY ' }
+    @{ Pattern = 'NONCLUSTERED () WITH (*'; Lead = 'ALTER TABLE t ADD PRIMARY KEY ' }
+    # 墊的文字與上面的清單片語相同：ONLINE、WAIT_AT_LOW_PRIORITY 已由那一份列出，不必另加到判不出位置的地方。
+    @{ Pattern = 'ONLINE = ON (*'; Lead = 'ALTER INDEX t ON t REBUILD WITH (' }
+    @{ Pattern = 'WAIT_AT_LOW_PRIORITY (*'; Lead = 'ALTER TABLE t SWITCH TO t WITH (' }
+    @{ Pattern = 'WAIT_AT_LOW_PRIORITY (* MAX_DURATION = {value}'; Lead = 'ALTER TABLE t SWITCH TO t WITH (' }
+    @{ Pattern = 'WAIT_AT_LOW_PRIORITY (* ABORT_AFTER_WAIT ='; Lead = 'ALTER TABLE t SWITCH TO t WITH ('; Items = 'MAX_DURATION = 1 MINUTES, '; Endings = @(' ))') }
 
     # 只認位置的格子。觸發程序標頭之後是 AFTER、FOR、INSTEAD、WITH，再下一層是 OF 與 EXECUTE；
     # 事件清單與游標選項每一格都是同一個位置，第二項之後也一樣。
@@ -1474,6 +1516,12 @@ $ClausePhrases = @(
     # 是資料表層級的一項。資料表選項 WITH (…)、ALTER TABLE SET (…) 與 SYSTEM_VERSIONING = ON (…) 是括號清單。
     @{ Pattern = 'GENERATED ALWAYS AS ROW START HIDDEN'; Lead = 'CREATE TABLE t (a datetime2 ' }
     @{ Pattern = 'GENERATED ALWAYS AS ROW END HIDDEN'; Lead = 'CREATE TABLE t (a datetime2 ' }
+    # AS 之後的 SUSER_SID、TRANSACTION_ID 這些字剖析器要看到 START／END 才收，逐字探不出來，整段是證據；
+    # 墊的文字要與上面相同，才補得進同一個 GENERATED ALWAYS AS。
+    @{ Pattern = 'GENERATED ALWAYS AS SUSER_SID START HIDDEN'; Lead = 'CREATE TABLE t (a datetime2 ' }
+    @{ Pattern = 'GENERATED ALWAYS AS SUSER_SNAME END HIDDEN'; Lead = 'CREATE TABLE t (a datetime2 ' }
+    @{ Pattern = 'GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN'; Lead = 'CREATE TABLE t (a datetime2 ' }
+    @{ Pattern = 'GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN'; Lead = 'CREATE TABLE t (a datetime2 ' }
     @{ Pattern = 'PERIOD FOR SYSTEM_TIME ()'; After = @('ColumnDefinition', 'AlterTableAdd'); Group = '(a, b)' }
     @{ Pattern = 'CREATE TABLE {name} () WITH (*'; Group = '(a int)' }
     @{ Pattern = 'ALTER TABLE {name} SET (*' }
@@ -1482,6 +1530,43 @@ $ClausePhrases = @(
     @{ Pattern = 'CREATE EXTERNAL TABLE {name} () WITH (*'; Group = '(a int)' }
     @{ Pattern = 'CREATE EXTERNAL TABLE {name} WITH (*' }
     @{ Pattern = 'OPENROWSET (*'; After = @('DataSource') }
+    # VECTOR_SEARCH 的具名引數順序固定（TABLE、COLUMN、SIMILAR_TO、METRIC、TOP_N），清單一項一項往下探。
+    # METRIC 只收距離的名稱，共用續尾寫不完那一項就探不到後面的 TOP_N。
+    @{ Pattern = 'VECTOR_SEARCH (*'; After = @('DataSource'); Endings = @(" = 'cosine'") }
+
+    # PolyBase：外部資料來源與檔案格式的 WITH (…)。資料來源的 TYPE = 之後剖析器什麼名稱都收，值取 SQL Server 的文件
+    # （RDBMS、SHARD_MAP_MANAGER 是 Azure SQL Database 的）；檔案格式的 FORMAT_TYPE 剖析器會驗，而且要寫在第一項。
+    @{ Pattern = 'CREATE EXTERNAL DATA SOURCE {name} WITH (*' }
+    @{ Pattern = 'CREATE EXTERNAL DATA SOURCE {name} WITH (* TYPE ='; Values = @('HADOOP', 'BLOB_STORAGE'); Closed = $true }
+    @{ Pattern = 'ALTER EXTERNAL DATA SOURCE {name} SET ,*' }
+    @{ Pattern = 'CREATE EXTERNAL FILE FORMAT {name} WITH (*' }
+    @{ Pattern = 'CREATE EXTERNAL FILE FORMAT {name} WITH (* FORMAT_TYPE =' }
+    @{ Pattern = 'CREATE EXTERNAL FILE FORMAT {name} WITH (* FORMAT_OPTIONS (*'; Items = 'FORMAT_TYPE = DELIMITEDTEXT, ' }
+
+    # 稽核：ALTER SERVER AUDIT 的名稱剖析器要看到 TO、WITH 這些字才收，CREATE、ALTER 的展開到不了名稱之後。
+    @{ Pattern = 'ALTER SERVER AUDIT {name} WITH (*' }
+    @{ Pattern = 'ALTER SERVER AUDIT {name} TO FILE (*' }
+    @{ Pattern = 'CREATE SERVER AUDIT {name} TO FILE (*' }
+    @{ Pattern = 'CREATE SERVER AUDIT {name} TO {name} WITH (*' }
+    @{ Pattern = 'CREATE SERVER AUDIT {name} TO FILE () WITH (*'; Group = "(FILEPATH = 'x')" }
+
+    # 擴充事件：名稱之後的 ON SERVER，之後是 ADD EVENT、ADD TARGET。ALTER 的 ADD、DROP 剖析器要看到 EVENT、TARGET
+    # 才收，整段是證據。ADD 能開始一句（ADD SIGNATURE），位置分析把每一段 ADD 當成動詞，後面的 ADD 判不出前一格：
+    # 以尾巴認，事件之後接逗號是下一個事件、不接逗號是目標。
+    @{ Pattern = 'CREATE EVENT SESSION {name} ON'; Expand = 3 }
+    @{ Pattern = 'ALTER EVENT SESSION {name} ON'; Expand = 2 }
+    @{ Pattern = 'DROP EVENT SESSION {name} ON' }
+    @{ Pattern = 'EVENT {name} ,'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD ' }
+    @{ Pattern = 'EVENT {name} , ADD'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD ' }
+    @{ Pattern = 'EVENT {name} ADD'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD ' }
+    @{ Pattern = 'TARGET {name} ,'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ' }
+    @{ Pattern = 'TARGET {name} , ADD'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ' }
+    @{ Pattern = 'ALTER EVENT SESSION {name} ON SERVER ADD EVENT' }
+    @{ Pattern = 'ALTER EVENT SESSION {name} ON SERVER ADD TARGET' }
+    @{ Pattern = 'ALTER EVENT SESSION {name} ON SERVER DROP EVENT' }
+    @{ Pattern = 'ALTER EVENT SESSION {name} ON SERVER DROP TARGET' }
+    @{ Pattern = 'EVENT {name} WITH (*'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD ' }
+    @{ Pattern = 'TARGET {name} WITH (*'; Lead = 'CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ' }
 
     # 序列的選項不以逗號分隔、順序不限，會重複的格子寫成位置；NO 之後的 CYCLE 往下一層。
     # START 後面非接 WITH 值不可，逐字探測接不上續尾，整段是證據。
@@ -1502,6 +1587,9 @@ $ClausePhrases = @(
     # 另一把金鑰）與 WITH 之後的演算法、主旨。等號之後的值（AES_256、RSA_2048）也由展開列，逗號之後由清單片語。
     @{ Pattern = 'CREATE MASTER KEY'; Expand = 3 }
     @{ Pattern = 'ALTER MASTER KEY'; Expand = 5 }
+    # ALTER SYMMETRIC KEY 的 ADD、DROP 之後剖析器把 ENCRYPTION 當名稱讀，逐字探不出來，整段是證據。
+    @{ Pattern = 'ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY'; Expand = 2 }
+    @{ Pattern = 'ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY'; Expand = 2 }
     @{ Pattern = 'CREATE CERTIFICATE {name}'; Expand = 4 }
     @{ Pattern = 'CREATE ASYMMETRIC KEY {name}'; Expand = 5 }
     @{ Pattern = 'CREATE SYMMETRIC KEY {name}'; Expand = 6 }
@@ -1658,7 +1746,7 @@ $PhraseContinuations = @($Continuations) + @(
 )
 
 function Get-PhraseProbe {
-    param([string]$Lead, [string]$Pattern, [string]$Group, [string]$Gap)
+    param([string]$Lead, [string]$Pattern, [string]$Group, [string]$Gap, [string]$Next, [string]$Items)
 
     # 只認位置的片語：樣板本身就是探測文字。
     if (-not $Pattern) {
@@ -1669,14 +1757,19 @@ function Get-PhraseProbe {
     # 值與名稱的代表寫法由剖析器挑：FETCH ABSOLUTE 之後要數字，PASSWORD = 之後要字串；收不了普通名稱的格子
     # 代入那一格列得出的第一個字。等號之後一律代入列得出的值（剖析器列的或手寫的）：資料庫加密金鑰的
     # ALGORITHM = 什麼名稱都先收，整句寫完才驗，普通名稱探得過一半、整段卻剖析不過。
+    # Next 是這段之後片語的下一項：只取前一段探測時（片語裡的每一個字），名稱那一格照樣看得到它後面寫什麼。
+    # 後面還有項的 (* 代入左括號與 Items：清單有固定的第一項時（FORMAT_TYPE = …），之後的項才寫得出來。
     $text = $Lead
+    $parts = @(($Pattern -replace ' ,\*$', '') -split ' ' | Where-Object { $_ })
 
-    foreach ($item in @(($Pattern -replace ' ,\*$', '') -split ' ' | Where-Object { $_ })) {
+    for ($index = 0; $index -lt $parts.Count; $index++) {
+        $item = $parts[$index]
+        $following = $index + 1 -lt $parts.Count ? $parts[$index + 1] : $Next
         $text += switch ($item) {
-            '{name}' { (Select-PhraseName -Probe $text) + ' ' }
+            '{name}' { (Select-PhraseName -Probe $text -Next $following) + ' ' }
             '{value}' { ((Select-PhraseValue -Probe $text) ?? '1') + ' ' }
             '()' { ($Group ? $Group : '(a)') + ' ' }
-            '(*' { '(' }
+            '(*' { $index -lt $parts.Count - 1 ? "($Items" : '(' }
             '...' { "$Gap " }
             default { "$item " }
         }
@@ -1685,17 +1778,34 @@ function Get-PhraseProbe {
     return $text
 }
 
-# 名稱的代表寫法，理由見 Get-PhraseProbe。
+# 名稱的代表寫法，理由見 Get-PhraseProbe。剖析器有的地方要看到名稱之後的字才收名稱（ALTER SERVER AUDIT a
+# 之後非 TO、WITH 不可，接別的字在名稱就報錯）：片語寫了下一個字面字，名稱接上它撐得過就是名稱格。
+# 只收兩段名稱的格子（擴充事件的 package.event）一段的名稱接下一個字面字就報錯，兩段的撐得過：代入兩段。
 function Select-PhraseName {
-    param([string]$Probe)
+    param([string]$Probe, [string]$Next)
 
-    if (-not $Probe.EndsWith('= ') -and (Test-TakesName -Probe $Probe)) {
+    if (-not $Probe.EndsWith('= ') -and (Test-TakesName -Probe $Probe -Next $Next)) {
+        if ($Next -match '^([A-Za-z_]\w*|,)$' -and -not (Test-NameReaches -Text "${Probe}t" -Next $Next) -and
+            (Test-NameReaches -Text "${Probe}t.t" -Next $Next)) {
+            return 't.t'
+        }
+
         return 't'
     }
 
     $listed = @(Get-PhraseWords -Probe $Probe) + @($script:phrases.Values | Where-Object { $_.Probe -eq $Probe } | ForEach-Object { $_.Words })
 
     return $listed[0] ?? 't'
+}
+
+# 名稱寫成 Text 之後撐得過下一個字面字：至少一組續尾在那個字之後才報錯。只寫到那個字為止不算，
+# 剖析器在檔案結尾才報（ADD EVENT t WITH 看不出 t 不夠）。
+function Test-NameReaches {
+    param([string]$Text, [string]$Next)
+
+    return @($PhraseContinuations | Where-Object {
+        [SqlAssistPhraseProber]::FirstRejection("$Text $Next$_") -gt "$Text $Next".Length
+    }).Count -gt 0
 }
 
 # 值的代表寫法：數值或字串，取剖析器在那一格收的第一種；兩種都不收的回傳 null。
@@ -1711,9 +1821,10 @@ $reservedArray = [string[]]@($reserved)
 $continuationArray = [string[]]@($PhraseContinuations)
 
 function Get-PhraseWords {
-    param([string]$Probe)
+    param([string]$Probe, [string[]]$Extra)
 
-    return [SqlAssistPhraseProber]::Probe($Probe, $poolArray, $reservedArray, $continuationArray, $PlainName)
+    $continuations = $Extra ? [string[]](@($continuationArray) + @($Extra)) : $continuationArray
+    return [SqlAssistPhraseProber]::Probe($Probe, $poolArray, $reservedArray, $continuations, $PlainName)
 }
 
 # 語句已經完整的片語（CREATE INDEX i ON t (a) 之後）接得上的字也包括下一句的開頭；
@@ -1748,20 +1859,30 @@ function Test-Explored {
 # 還要寫一長段才完整，照「寫得完」判的話 CREATE SYMMETRIC KEY 之後就不是名稱。名稱寫到檔案結尾也不夠：
 # CREATE SECURITY 之後要 POLICY，剖析器要看到下一個字才在名稱報錯。
 function Test-TakesName {
-    param([string]$Probe)
+    param([string]$Probe, [string]$Next)
 
-    return [SqlAssistPhraseProber]::FirstRejection("$Probe$PlainName x") -gt $Probe.Length
+    if ([SqlAssistPhraseProber]::FirstRejection("$Probe$PlainName x") -gt $Probe.Length) {
+        return $true
+    }
+
+    if ($Next -notmatch '^[A-Za-z_]') {
+        return $false
+    }
+
+    return @($PhraseContinuations | Where-Object {
+        [SqlAssistPhraseProber]::FirstRejection("$Probe$PlainName $Next$_") -gt $Probe.Length
+    }).Count -gt 0
 }
 
 function Add-ClausePhrase {
     param(
         [string]$Pattern, [string]$Probe, [string]$After, [int]$Expand, [object[]]$Values, [object]$Closed,
-        [string[]]$Borrowed, [switch]$Child, [switch]$Step, [string]$Kinds)
+        [string[]]$Borrowed, [switch]$Child, [switch]$Step, [string]$Kinds, [string[]]$ExtraEndings)
 
     Write-Progress -Activity '探測子句片語' -Status "$Pattern（$After）"
     $script:phraseBudgets["$After`t$Pattern"] = [Math]::Max($Expand, $script:phraseBudgets["$After`t$Pattern"] ?? -1)
     $endsStatement = [SqlAssistPhraseProber]::IsComplete($Probe.TrimEnd())
-    $found = @(Get-PhraseWords -Probe $Probe)
+    $found = @(Get-PhraseWords -Probe $Probe -Extra $ExtraEndings)
 
     if ($endsStatement) {
         $found = @($found | Where-Object { -not $statementStarters.Contains($_) })
@@ -1902,35 +2023,73 @@ function Add-ClausePhrase {
 # 清單裡逗號之後的字：標頭本身那個片語給第一項的字，逗號之後的字另探。第一項的寫法不只一種，
 # 用過的選項剖析器不收第二次（ALTER LOGIN l WITH NAME = n, 之後沒有 NAME），所以每一種第一項各接一個逗號探一次，
 # 取聯集；第一項受限的（CREATE LOGIN 只能先寫 PASSWORD）也因此只探那一種，之後的字不含它。
+# 逗號之後探到新字時，取第一個新字再接一個逗號往下探，直到沒有新字：順序固定的清單（VECTOR_SEARCH 的 TABLE、
+# COLUMN、SIMILAR_TO）一項只接得了下一項，只探第一項之後的話第三項以後都列不出來。順序不限的清單第二次就探不到新字；
+# 每個新字都探的話，DDL 觸發程序幾百個事件各要探一次。
 # 第一項沒有一種寫得完時 Probe 是 null。
 function Get-ListItemWords {
-    param([string]$Head, [object[]]$Firsts)
+    param([string]$Head, [object[]]$Firsts, [string[]]$ExtraEndings)
 
     $words = [System.Collections.Generic.List[string]]::new()
     $probe = $null
     $closed = $true
     $takesVariable = $false
+    $followed = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $pending = [System.Collections.Generic.Queue[object]]::new()
 
     foreach ($first in $Firsts) {
-        # 第一項寫完、接得了逗號就好，整句寫不寫得完不論：對稱金鑰的 WITH 清單之後還要寫 ENCRYPTION BY。
-        $ending = $PhraseContinuations | Where-Object {
-            [SqlAssistPhraseProber]::FirstRejection("$Head$first$_, ") -gt "$Head$first$_".Length
+        $pending.Enqueue(@($Head, $first))
+    }
+
+    while ($pending.Count -gt 0) {
+        $prefix, $item = $pending.Dequeue()
+
+        if (-not $followed.Add($item)) {
+            continue
+        }
+
+        # 這一項寫完、接得了逗號就好，整句寫不寫得完不論：對稱金鑰的 WITH 清單之後還要寫 ENCRYPTION BY。
+        # 剖析器會驗的值（FORMAT_TYPE = DELIMITEDTEXT）續尾寫不出來：等號之後代入那一格列得出的第一個字，同 Get-PhraseProbe。
+        # 只有那一份清單才有的寫法（VECTOR_SEARCH 的 METRIC = 'cosine'）由片語的 Endings 給。
+        $endings = [System.Collections.Generic.List[string]]::new([string[]](@($PhraseContinuations) + @($ExtraEndings | Where-Object { $_ })))
+
+        if ([SqlAssistPhraseProber]::FirstRejection("$prefix$item = ") -gt "$prefix$item ".Length) {
+            $value = @(Get-PhraseWords -Probe "$prefix$item = ")[0]
+
+            if ($value) {
+                $endings.Add(" = $value")
+            }
+        }
+
+        $ending = $endings | Where-Object {
+            [SqlAssistPhraseProber]::FirstRejection("$prefix$item$_, ") -gt "$prefix$item$_".Length
         } | Select-Object -First 1
 
-        # 寫不完的第一項（NO 之後要 CREDENTIAL）探不出逗號之後，由別的第一項補。
+        # 寫不完的一項（NO 之後要 CREDENTIAL）探不出逗號之後，由別的項補。
         if ($null -eq $ending) {
             continue
         }
 
-        $itemProbe = "$Head$first$ending, "
+        $itemProbe = "$prefix$item$ending, "
+
+        # 這一項本身已經讓剖析器報了別的錯（OPENROWSET(BULK …) 不收 BATCHSIZE），之後它不再檢查：逗號接逗號也不被拒，
+        # 每個保留字都「接得上」。這種探測說明不了什麼。
+        if ([SqlAssistPhraseProber]::FirstRejection("$itemProbe,") -gt $itemProbe.Length) {
+            continue
+        }
+
         $probe ??= $itemProbe
         $closed = $closed -and -not [SqlAssistPhraseProber]::AcceptsName($itemProbe, $PlainName, $continuationArray)
         $takesVariable = $takesVariable -or [SqlAssistPhraseProber]::AcceptsName($itemProbe, $PlainVariable, $continuationArray)
 
-        foreach ($word in @(Get-PhraseWords -Probe $itemProbe)) {
-            if (-not $words.Contains($word)) {
-                $words.Add($word)
-            }
+        $fresh = @(Get-PhraseWords -Probe $itemProbe | Where-Object { -not $words.Contains($_) })
+
+        foreach ($word in $fresh) {
+            $words.Add($word)
+        }
+
+        if ($fresh.Count -gt 0) {
+            $pending.Enqueue(@($itemProbe, $fresh[0]))
         }
     }
 
@@ -1968,10 +2127,10 @@ function Add-ListPhrase {
 # OPENROWSET( 之後是 BULK，OPENROWSET(BULK 'x', 之後是 FORMAT、DATA_SOURCE。選項清單的兩份本來就相同。
 # 括號裡是一個子句的（WITHIN GROUP (ORDER BY a, b)）逗號屬於子句，由 Clause 宣告不探：聯集會讓左括號之後也列出運算式的字。
 function Add-OpenListItems {
-    param([string]$Key)
+    param([string]$Key, [string[]]$Endings)
 
     $phrase = $script:phrases[$Key]
-    $items = Get-ListItemWords -Head $phrase.Probe -Firsts @($phrase.Words)
+    $items = Get-ListItemWords -Head $phrase.Probe -Firsts @($phrase.Words) -ExtraEndings $Endings
 
     if ($null -eq $items.Probe) {
         return
@@ -1987,7 +2146,7 @@ function Add-OpenListItems {
 # （FROM t JOIN y 還缺 ON），拿來探片語只會長出那條旁支才有的字，還要多花幾倍的時間。
 foreach ($entry in $ClausePhrases) {
     $pattern = $entry['Pattern']
-    $common = @{ Pattern = $pattern; Expand = [int]$entry['Expand']; Values = $entry['Values']; Closed = $entry['Closed']; Kinds = $entry['Kinds'] }
+    $common = @{ Pattern = $pattern; Expand = [int]$entry['Expand']; Values = $entry['Values']; Closed = $entry['Closed']; Kinds = $entry['Kinds']; ExtraEndings = $entry['Endings'] }
 
     # ... 的寫法由執行期的 SqlClausePhrase 驗；探測只要有一段代入的文字。
     if (($pattern -match '\.\.\.') -ne [bool]$entry['Gap']) {
@@ -2011,10 +2170,10 @@ foreach ($entry in $ClausePhrases) {
             throw "清單片語「$pattern」要以 After 交代位置：位置分析拿標頭認清單，得判得出標頭前一格。"
         }
 
-        Add-ClausePhrase @common -Probe (Get-PhraseProbe -Lead $entry['Lead'] -Pattern $pattern -Group $entry['Group'] -Gap $entry['Gap']) -After 'Any'
+        Add-ClausePhrase @common -Probe (Get-PhraseProbe -Lead $entry['Lead'] -Pattern $pattern -Group $entry['Group'] -Gap $entry['Gap'] -Items $entry['Items']) -After 'Any'
 
         if ($pattern -match ' \(\*$' -and -not $entry['Clause'] -and $phrases.Contains("Any`t$pattern")) {
-            Add-OpenListItems -Key "Any`t$pattern"
+            Add-OpenListItems -Key "Any`t$pattern" -Endings $entry['Endings']
         }
 
         continue
@@ -2025,7 +2184,7 @@ foreach ($entry in $ClausePhrases) {
             throw "片語「$pattern」的 After 寫了不存在的位置 $position。"
         }
 
-        $probe = Get-PhraseProbe -Lead @($ContextTemplates[$position])[[int]$entry['Template']] -Pattern $pattern -Group $entry['Group'] -Gap $entry['Gap']
+        $probe = Get-PhraseProbe -Lead @($ContextTemplates[$position])[[int]$entry['Template']] -Pattern $pattern -Group $entry['Group'] -Gap $entry['Gap'] -Items $entry['Items']
 
         if ($pattern -match ' ,\*$') {
             if ($entry['Expand'] -or $entry['Values'] -or $null -ne $entry['Closed']) {
@@ -2039,7 +2198,7 @@ foreach ($entry in $ClausePhrases) {
         Add-ClausePhrase @common -Probe $probe -After $position
 
         if ($pattern -match ' \(\*$' -and -not $entry['Clause'] -and $phrases.Contains("$position`t$pattern")) {
-            Add-OpenListItems -Key "$position`t$pattern"
+            Add-OpenListItems -Key "$position`t$pattern" -Endings $entry['Endings']
         }
     }
 }
@@ -2082,8 +2241,10 @@ foreach ($entry in $ClausePhrases) {
     foreach ($position in ($null -ne $lead ? @('Any') : @($entry['After'] ?? 'StatementStart'))) {
         $leadText = $lead ?? @($ContextTemplates[$position])[[int]$entry['Template']]
 
-        if (-not (Test-PatternAccepted -Probe (Get-PhraseProbe -Lead $leadText -Pattern $entry['Pattern'] -Group $entry['Group'] -Gap $entry['Gap']))) {
-            throw "片語「$($entry['Pattern'])」整段剖析不過，拿它補前面那段的字沒有根據。"
+        $wholeProbe = Get-PhraseProbe -Lead $leadText -Pattern $entry['Pattern'] -Group $entry['Group'] -Gap $entry['Gap'] -Items $entry['Items']
+
+        if (-not (Test-PatternAccepted -Probe $wholeProbe)) {
+            throw "片語「$($entry['Pattern'])」整段剖析不過（$wholeProbe），拿它補前面那段的字沒有根據。"
         }
 
         for ($index = 0; $index -lt $items.Count; $index++) {
@@ -2114,7 +2275,7 @@ foreach ($entry in $ClausePhrases) {
 
             $prefix = $index -eq 0 ? '' : $items[0..($index - 1)] -join ' '
             $key = "$position`t$prefix"
-            $prefixProbe = Get-PhraseProbe -Lead $leadText -Pattern $prefix -Group $entry['Group'] -Gap $entry['Gap']
+            $prefixProbe = Get-PhraseProbe -Lead $leadText -Pattern $prefix -Group $entry['Group'] -Gap $entry['Gap'] -Items $entry['Items'] -Next $word
 
             # Lead 片語的鍵不含 Lead：視窗框架的 ROWS 與 OFFSET 之後的 ROWS 同一個鍵，墊的文字不同就是別的片語。
             if ($phrases.Contains($key) -and $phrases[$key].Probe -ne $prefixProbe) {

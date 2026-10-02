@@ -129,6 +129,7 @@ public static class SqlClausePhraseCatalog
             var last = tokens[count - 1];
             var lastWord = last.Kind == SqlTokenKind.Identifier && !last.IsQuoted ? last.Value
                 : last.Kind == SqlTokenKind.Operator && last.Value == "=" ? last.Value
+                : last.IsPunctuation(",") ? last.Value
                 : null;
 
             if (lastWord is not null && ByLastWord.TryGetValue(lastWord, out var candidates))

@@ -2068,6 +2068,24 @@
       ]
     },
     {
+      "name": "VECTOR_SEARCH",
+      "kind": "function",
+      "summary": "以向量索引找出與指定向量最相近的資料列（近似最近鄰），回傳的資料列多一欄 distance；需要向量索引。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT * FROM VECTOR_SEARCH(TABLE=Copy, COLUMN=Vec, SIMILAR_TO=@v, METRIC='dot', TOP_N=5)"
+        },
+        {
+          "id": "with-alias",
+          "title": "資料表別名與距離",
+          "sql": "SELECT c.CopyNo, s.distance\nFROM VECTOR_SEARCH(\n    TABLE = dbo.Copy AS c,\n    COLUMN = Embedding,\n    SIMILAR_TO = @Probe,\n    METRIC = 'cosine',\n    TOP_N = 10) AS s   -- 最相近的 10 本"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/vector-search-transact-sql"
+    },
+    {
       "name": "ACOS",
       "kind": "function",
       "summary": "反餘弦，引數要在 -1 到 1 之間，回傳弧度。",

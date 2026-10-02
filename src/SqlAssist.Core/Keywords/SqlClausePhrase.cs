@@ -131,7 +131,7 @@ public sealed class SqlClausePhrase
     /// </remarks>
     internal bool IsList => _elements.Length > 0 && _elements[_elements.Length - 1].Kind == ElementKind.List;
 
-    /// <summary>片語最後一項是字面值（字或等號）時的那個字；比對前先用它分桶。</summary>
+    /// <summary>片語最後一項是字面值（字、等號或逗號）時的那個字；比對前先用它分桶。</summary>
     internal string? LastWord =>
         _elements.Length > 0 && _elements[_elements.Length - 1] is { Kind: ElementKind.Word } last ? last.Word : null;
 
@@ -270,9 +270,12 @@ public sealed class SqlClausePhrase
                 "{name}" => new Element(ElementKind.Name),
                 "{value}" => new Element(ElementKind.Value),
                 "()" => new Element(ElementKind.Group),
-                "(*" when index == parts.Length - 1 => new Element(ElementKind.OpenList),
-                "(*" => throw new FormatException($"Phrase '{pattern}': (* must be the last element."),
+                // 後面還有項時，那幾項是清單裡某一項的開頭（WITH (* TYPE =），左括號或逗號之後都算。
+                "(*" when index > 0 => new Element(ElementKind.OpenList),
+                "(*" => throw new FormatException($"Phrase '{pattern}': (* must follow a head."),
                 "=" => new Element(ElementKind.Word, "="),
+                // 逗號分隔的是同一句裡重複的一段（ADD EVENT a.b, ADD EVENT），不是括號清單的項。
+                "," => new Element(ElementKind.Word, ","),
                 ",*" when index == parts.Length - 1 && index > 0 => new Element(ElementKind.List),
                 ",*" => throw new FormatException($"Phrase '{pattern}': ,* must follow a head and be the last element."),
                 _ when parts[index].IndexOfAny(new[] { '{', '(', ')', ',' }) >= 0 =>
@@ -330,6 +333,9 @@ public sealed class SqlClausePhrase
                 // 等號是選項的指派（ALGORITHM = AES_256），與字一樣是字面值。
                 case ElementKind.Word when Word == "=":
                     return token.Kind == SqlTokenKind.Operator && token.Value == "=" ? last - 1 : Mismatch;
+
+                case ElementKind.Word when Word == ",":
+                    return token.IsPunctuation(",") ? last - 1 : Mismatch;
 
                 case ElementKind.Word:
                     return token.IsKeyword(Word!) && !(last >= 1 && tokens[last - 1].IsPunctuation("."))

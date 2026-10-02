@@ -40,10 +40,10 @@ public static class SqlFunctionCatalog
     /// 回傳一份資料列的函式，只寫在資料來源的位置（<c>FROM OPENJSON(@j)</c>、<c>CROSS APPLY OPENJSON(a.Doc)</c>）。
     /// </summary>
     /// <remarks>
-    /// 同類的 <c>OPENROWSET</c>、<c>OPENXML</c> 是關鍵字，位置由產生器探出；<c>OPENJSON</c> 在 ScriptDom 眼中
-    /// 只是識別字，位置只能寫在這裡。放在運算式位置的話 <c>SELECT OPENJSON(</c> 列得出來、<c>FROM </c> 之後反而沒有。
+    /// 同類的 <c>OPENROWSET</c>、<c>OPENXML</c> 是關鍵字，位置由產生器探出；<c>OPENJSON</c>、<c>VECTOR_SEARCH</c>
+    /// 在 ScriptDom 眼中只是識別字，位置只能寫在這裡。放在運算式位置的話 <c>SELECT OPENJSON(</c> 列得出來、<c>FROM </c> 之後反而沒有。
     /// </remarks>
-    private static readonly HashSet<string> RowsetFunctions = new(StringComparer.OrdinalIgnoreCase) { "OPENJSON" };
+    private static readonly HashSet<string> RowsetFunctions = new(StringComparer.OrdinalIgnoreCase) { "OPENJSON", "VECTOR_SEARCH" };
 
     /// <summary>名稱與簽章；簽章同時當成清單右側的說明。</summary>
     private static readonly (string Name, string Signature)[] Definitions =
@@ -264,7 +264,10 @@ public static class SqlFunctionCatalog
         ("JSON_PATH_EXISTS", "JSON_PATH_EXISTS(json, path)"),
         ("JSON_QUERY", "JSON_QUERY(json [, path])"),
         ("JSON_VALUE", "JSON_VALUE(json, path)"),
-        ("OPENJSON", "OPENJSON(json [, path])")
+        ("OPENJSON", "OPENJSON(json [, path])"),
+
+        // 向量
+        ("VECTOR_SEARCH", "VECTOR_SEARCH(TABLE = table AS alias, COLUMN = column, SIMILAR_TO = vector, METRIC = 'cosine', TOP_N = n)")
     };
 
     private static IReadOnlyList<SqlSuggestion>? _suggestions;
