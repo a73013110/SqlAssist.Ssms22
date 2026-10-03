@@ -594,6 +594,11 @@
     "examples.trigger-scenario.title": "Differs with a trigger involved",
     "examples.trigger-scenario.sql": "CREATE TABLE dbo.Lib_Tag (Id int IDENTITY, Name nvarchar(50));\nCREATE TABLE dbo.Lib_TagLog (Id int IDENTITY(100,1), TagId int);\nGO\nCREATE TRIGGER trg_Lib_Tag_Log ON dbo.Lib_Tag AFTER INSERT AS\n  INSERT INTO dbo.Lib_TagLog (TagId) SELECT Id FROM inserted;\nGO\nINSERT INTO dbo.Lib_Tag (Name) VALUES ('Fiction');\nSELECT SCOPE_IDENTITY() AS ScopeId, @@IDENTITY AS GlobalId, IDENT_CURRENT('dbo.Lib_Tag') AS CurrentId;\n-- ScopeId=1 (Lib_Tag's row); GlobalId=100 (overwritten by Lib_TagLog's identity); CurrentId=1 (only looks at Lib_Tag)\nDROP TABLE dbo.Lib_Tag; DROP TABLE dbo.Lib_TagLog;"
   },
+  "IDENTITY": {
+    "summary": "Adds an identity column to a SELECT INTO table",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT IDENTITY(int, 1, 1) AS RowNo, CopyNo INTO #c FROM dbo.Cat_BookCopy   -- From 1"
+  },
   "SUSER_SNAME": {
     "summary": "Login name; omit argument for current connection's login",
     "examples.basic.title": "Basic usage",
@@ -669,6 +674,11 @@
     "examples.basic.title": "Basic usage",
     "examples.with-alias.title": "Table alias and distance",
     "examples.with-alias.sql": "SELECT c.CopyNo, s.distance\nFROM VECTOR_SEARCH(\n    TABLE = dbo.Copy AS c,\n    COLUMN = Embedding,\n    SIMILAR_TO = @Probe,\n    METRIC = 'cosine',\n    TOP_N = 10) AS s   -- 10 nearest copies"
+  },
+  "PREDICT": {
+    "summary": "Scores rows with a stored model; WITH declares its outputs",
+    "examples.basic.title": "Basic usage",
+    "examples.onnx.title": "ONNX model"
   },
   "AI_GENERATE_CHUNKS": {
     "summary": "Splits text into fixed-size chunks; used after FROM or APPLY",
@@ -886,10 +896,19 @@
     "examples.basic.title": "Basic usage",
     "examples.basic.sql": "SELECT JSON_ARRAY(1, 'a', NULL)   -- '[1,\"a\"]', NULL skipped by default"
   },
+  "JSON_ARRAYAGG": {
+    "summary": "Aggregates values into a JSON array; SQL Server 2025+",
+    "examples.basic.title": "Basic usage"
+  },
   "JSON_OBJECT": {
     "summary": "Assembles JSON object string. Available SQL Server 2022+",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT JSON_OBJECT('a': 1, 'b': NULL)   -- '{\"a\":1}', NULL skipped by default"
+    "examples.basic.sql": "SELECT JSON_OBJECT('a': 1, 'b': NULL)   -- '{\"a\":1,\"b\":null}', NULL ON NULL by default",
+    "examples.absent-on-null.title": "Skipping NULL"
+  },
+  "JSON_OBJECTAGG": {
+    "summary": "Aggregates pairs into a JSON object; SQL Server 2025+",
+    "examples.basic.title": "Basic usage"
   },
   "JSON_PATH_EXISTS": {
     "summary": "1 if the path exists, else 0; SQL Server 2022+",

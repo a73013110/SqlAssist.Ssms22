@@ -6,10 +6,10 @@ using SqlAssist.Core.Localization;
 namespace SqlAssist.Core.Keywords;
 
 /// <summary>
-/// 「這個位置文法上只有這幾個字合法」的封閉清單：日期部分與查詢提示。
+/// 「這個位置文法上只有這幾個字合法」的封閉清單：日期部分、提示與 ODBC 純量函式。
 /// </summary>
 /// <remarks>
-/// 三份都與內建函式、型別同一個處境——它們在文法上不是關鍵字，ScriptDom 的 token
+/// 這幾份都與內建函式、型別同一個處境——它們在文法上不是關鍵字，ScriptDom 的 token
 /// 列舉撈不到，只能手寫。差別只在位置更窄：<c>DATEADD(</c> 的第一個引數、
 /// <c>WITH (</c> 與 <c>OPTION (</c> 的括號裡，除了這幾個字沒有別的東西是對的。
 ///
@@ -115,6 +115,32 @@ public static class SqlArgumentCatalog
         ("LABEL", () => ArgumentText.QueryHintLabel, false)
     };
 
+    /// <summary>ODBC 跳脫 <c>{fn …}</c> 的純量函式。</summary>
+    /// <remarks>
+    /// 只收 SQL Server 文件列出、引擎自己認得的那一份，不收驅動程式才翻譯的 ODBC 標準函式。
+    /// <c>CURRENT_TIME</c> 的精確度可省，慣例寫法不帶括號。
+    /// </remarks>
+    private static readonly (string Name, Func<string> Description, bool TakesArguments)[] OdbcFunctionDefinitions =
+    {
+        ("CURRENT_DATE", () => ArgumentText.OdbcCurrentDate, true),
+        ("CURDATE", () => ArgumentText.OdbcCurrentDate, true),
+        ("CURRENT_TIME", () => ArgumentText.OdbcCurrentTime, false),
+        ("CURTIME", () => ArgumentText.OdbcCurrentTime, true),
+        ("DAYNAME", () => ArgumentText.OdbcDayname, true),
+        ("DAYOFMONTH", () => ArgumentText.OdbcDayofmonth, true),
+        ("DAYOFWEEK", () => ArgumentText.OdbcDayofweek, true),
+        ("MONTHNAME", () => ArgumentText.OdbcMonthname, true),
+        ("QUARTER", () => ArgumentText.OdbcQuarter, true),
+        ("WEEK", () => ArgumentText.OdbcWeek, true),
+        ("HOUR", () => ArgumentText.OdbcHour, true),
+        ("MINUTE", () => ArgumentText.OdbcMinute, true),
+        ("SECOND", () => ArgumentText.OdbcSecond, true),
+        ("CONCAT", () => ArgumentText.OdbcConcat, true),
+        ("BIT_LENGTH", () => ArgumentText.OdbcBitLength, true),
+        ("OCTET_LENGTH", () => ArgumentText.OdbcOctetLength, true),
+        ("TRUNCATE", () => ArgumentText.OdbcTruncate, true)
+    };
+
     private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> DatePartCache =
         new(_ => BuildDateParts());
 
@@ -124,6 +150,9 @@ public static class SqlArgumentCatalog
     private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> QueryHintCache =
         new(_ => Build(QueryHintDefinitions, SuggestionKind.QueryHint));
 
+    private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> OdbcFunctionCache =
+        new(_ => Build(OdbcFunctionDefinitions, SuggestionKind.BuiltInFunction));
+
     /// <summary><c>DATEADD</c> 這一族第一個引數的建議項。</summary>
     public static IReadOnlyList<SqlSuggestion> DateParts => DatePartCache.Current;
 
@@ -132,6 +161,9 @@ public static class SqlArgumentCatalog
 
     /// <summary><c>OPTION (…)</c> 的查詢提示建議項。</summary>
     public static IReadOnlyList<SqlSuggestion> QueryHints => QueryHintCache.Current;
+
+    /// <summary>ODBC <c>{fn </c> 之後的純量函式建議項。</summary>
+    public static IReadOnlyList<SqlSuggestion> OdbcFunctions => OdbcFunctionCache.Current;
 
     /// <summary>
     /// 查出一個提示或日期部分的一行說明；大小寫不敏感。

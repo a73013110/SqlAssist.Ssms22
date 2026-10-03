@@ -9,22 +9,24 @@
 
 ## 引數與提示的封閉清單
 
-有三個位置除了那一份清單以外沒有別的東西是對的，它們與資料型別是同一種判斷、
+這幾個位置除了那一份清單以外沒有別的東西是對的，與資料型別是同一種判斷、
 同一個代價權衡——判定成立時整份清單就換掉，所以只收看得出來的：
 
 ```text
 SELECT DATEADD(|              → DAY、MONTH、YEAR…（15 個日期部分）
 SELECT * FROM dbo.Loan WITH (| → NOLOCK、UPDLOCK、INDEX(…（21 個資料表提示）
 SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 個查詢提示）
+SELECT {fn |                  → CURRENT_TIME、DAYNAME…（ODBC 純量函式）
 ```
 
-三種都認得出來，是因為游標**前面**那個字就把話說完了。CTE 的 `WITH` 不會誤判——
+都認得出來，是因為游標**前面**那個字就把話說完了。CTE 的 `WITH` 不會誤判——
 `;WITH c AS (` 的 `WITH` 與左括號之間隔著一個名稱。
 
-日期部分只在**第一個**引數：打過逗號之後那裡要的是數字與日期。提示則是一份清單，
-逗號之後還是提示。`INDEX` 提交時補左括號，理由與內建函式相同。
+日期部分只在**第一個**引數：打過逗號之後那裡要的是數字與日期。哪些函式由函式目錄的簽章說
+（`DATE_BUCKET(datepart, …)`），不另列名單。提示則是一份清單，逗號之後還是提示。
+`INDEX` 提交時補左括號，理由與內建函式相同。
 
-日期部分只收完整名稱，不收 `yy`、`dd`：縮寫背得起來的人不需要補字，收了清單就要捲動。
+日期部分只收完整名稱，不收 `yy`、`dd`：收了清單就要捲動。
 
 `CREATE INDEX … WITH (` 列的是索引選項（片語，見[子句片語](completion-phrases.md)）。
 已知會誤判的是 `OPENJSON(…) WITH (col int '$.x')`：也會列出資料表提示。沒有為它再加判斷：
@@ -90,8 +92,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 `USING` 與 `FROM` 收在同一列不是為了湊數：MERGE 的來源與 FROM 的來源是同一條文法，
 `SqlKeywordPositionAnalyzer` 與 `SqlScopeAnalyzer` 也早就這樣歸類。只有這一份漏掉時，
 症狀是 `USING ` 之後完全沒有清單，而使用者看不出它和 `FROM ` 之後有什麼不同。
-`FROM` 只算 SELECT、UPDATE、DELETE 的：`FETCH NEXT FROM ` 之後是資料指標，`REVOKE … FROM ` 之後
-不列資料表；`INTO` 不算 FETCH 的，那裡列指令碼變數。判準見[語句的界線](completion-boundaries.md#語句的界線)。資料指標那一格由位置分析的
+`FROM`、`INTO` 之後接不接資料來源見[語句的界線](completion-boundaries.md#語句的界線)。資料指標那一格由位置分析的
 `IntroducesCursor` 一條認，位置與目標共用；名稱前的 `GLOBAL` 是修飾字，當成名稱就只剩 `INTO`。
 名稱只在指令碼裡，不查資料庫；宣告的認法（`Parsing/SqlCursorDeclaration`）與 `CursorOption` 共用。
 資料指標變數也收（`DECLARE @c CURSOR`、`SET @c = CURSOR`），`DEALLOCATE @` 照樣是這一格；

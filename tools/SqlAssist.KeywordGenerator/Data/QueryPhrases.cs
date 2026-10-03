@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace SqlAssist.KeywordGenerator.Data;
 
 /// <summary>查詢：MERGE、資料列集函式、FOR、運算式之後的字、TABLESAMPLE、OFFSET … FETCH。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
@@ -28,6 +32,11 @@ internal static class QueryPhrases
         // CHUNK_TYPE 的值剖析器當名稱讀，只收 FIXED。
         new("AI_GENERATE_CHUNKS (*") { After = ["DataSource"], Endings = [" = FIXED"] },
         new("AI_GENERATE_CHUNKS (* CHUNK_TYPE =") { After = ["DataSource"], Items = "SOURCE = 'x', ", Values = ["FIXED"], Closed = true },
+        // PREDICT 的具名引數依序是 MODEL、DATA、RUNTIME，括號之後一定要有 WITH 宣告輸出欄位。MODEL 之後的引數名稱
+        // 剖析器什麼名字都收（留到語意檢查才擋），DATA 只能手寫；RUNTIME 的值也當名稱讀，只收 ONNX。
+        new("PREDICT (*") { After = ["DataSource"] },
+        new("PREDICT (* MODEL = {value} ,") { After = ["DataSource"], Values = ["DATA"], Closed = true },
+        new("PREDICT (* RUNTIME =") { After = ["DataSource"], Items = "MODEL = @m, DATA = t AS d, ", Values = ["ONNX"], Closed = true },
     ];
 
     internal static readonly PhraseDeclaration[] Clauses =
@@ -38,6 +47,8 @@ internal static class QueryPhrases
         new("FOR") { After = QueryTails, Expand = 1 },
         new("FOR UPDATE") { After = QueryTails },
         new("FOR SYSTEM_TIME") { After = ["TableSourceTail"], Expand = 1 },
+        new("FOR SYSTEM_TIME BETWEEN {value} AND {value}") { After = ["TableSourceTail"] },
+        new("FOR SYSTEM_TIME FROM {value} TO {value}") { After = ["TableSourceTail"] },
         new("FOR") { After = ["CursorOption"] },
         new("SYNONYM {name} FOR") { After = ["DdlObject"] },
 
@@ -53,17 +64,18 @@ internal static class QueryPhrases
         new("AT TIME") { Lead = "SELECT a " },
         new("AT TIME") { After = ["SelectListTail"] },
 
-        // AI_GENERATE_EMBEDDINGS 的來源之後是 USE MODEL 與模型名稱，再來是選用的 PARAMETERS。來源寫成常值或資料行；
-        // 函式引數裡判不出位置，從呼叫寫起。
+        // AI_GENERATE_EMBEDDINGS 的來源之後是 USE MODEL 與模型名稱，再來是選用的 PARAMETERS。來源是運算式（{value}
+        // 也比對得到資料行）；函式引數裡判不出位置，從呼叫寫起。
         new("AI_GENERATE_EMBEDDINGS (* {value} USE") { Lead = "SELECT " },
-        new("AI_GENERATE_EMBEDDINGS (* {name} USE") { Lead = "SELECT " },
         new("AI_GENERATE_EMBEDDINGS (* {value} USE MODEL {name}") { Lead = "SELECT " },
-        new("AI_GENERATE_EMBEDDINGS (* {name} USE MODEL {name}") { Lead = "SELECT " },
 
         // 有序集合彙總：STRING_AGG、PERCENTILE_CONT 的呼叫之後是 WITHIN GROUP (ORDER BY …)。剖析器要看到 GROUP
         // 才收 WITHIN，WITHIN 由整段證據補到函式呼叫之後；WITHIN GROUP 之後只接左括號。
+        // LAG、FIRST_VALUE 這類函式的呼叫之後可以寫 IGNORE NULLS、RESPECT NULLS，再接 OVER；以位移函式的樣板探測。
         new("WITHIN GROUP") { After = ["FunctionCallTail"] },
         new("WITHIN GROUP (*") { After = ["FunctionCallTail"], Clause = true },
+        new("IGNORE NULLS") { After = ["FunctionCallTail"], Template = 1 },
+        new("RESPECT NULLS") { After = ["FunctionCallTail"], Template = 1 },
 
         // UPDATE、DELETE 的 WHERE CURRENT OF 資料指標：CURRENT 之後只有 OF，OF 之後是資料指標名稱或 GLOBAL。
         // SELECT 的 WHERE 寫不出來，所以用 DELETE 的樣板。
@@ -89,17 +101,44 @@ internal static class QueryPhrases
         new("") { After = ["TableSampleTail"] },
     ];
 
+    // FETCH 的列數之後（NEXT 10 ROWS ONLY）不看前面是 OFFSET … ROWS 還是 SQL Server 2025 的 FETCH APPROX：尾巴從 NEXT、FIRST 寫起，
+    // 兩種寫法共用。剖析器只收直接接在 ORDER BY 之後的 FETCH APPROX，與 OFFSET 並用就報錯。
+    // 列數是運算式，比對見 SqlOperand。
     internal static readonly PhraseDeclaration[] OffsetFetch =
     [
         new("ROWS") { After = ["OffsetTail"], Values = ["FETCH"] },
         new("ROW") { After = ["OffsetTail"], Values = ["FETCH"] },
         new("ROWS FETCH") { After = ["OffsetTail"] },
         new("ROW FETCH") { After = ["OffsetTail"] },
-        new("FETCH NEXT {value}") { Lead = "SELECT a FROM t ORDER BY a OFFSET 0 ROWS " },
-        new("FETCH FIRST {value}") { Lead = "SELECT a FROM t ORDER BY a OFFSET 0 ROWS " },
-        new("FETCH NEXT {value} ROWS") { Lead = "SELECT a FROM t ORDER BY a OFFSET 0 ROWS " },
-        new("FETCH NEXT {value} ROW") { Lead = "SELECT a FROM t ORDER BY a OFFSET 0 ROWS " },
-        new("FETCH FIRST {value} ROWS") { Lead = "SELECT a FROM t ORDER BY a OFFSET 0 ROWS " },
-        new("FETCH FIRST {value} ROW") { Lead = "SELECT a FROM t ORDER BY a OFFSET 0 ROWS " },
+        new("FETCH APPROX") { After = ["OrderByTail"] },
+        new("FETCH APPROXIMATE") { After = ["OrderByTail"] },
+        .. RowCounts(["NEXT {value}", "FIRST {value}", "NEXT {value} ROWS", "NEXT {value} ROW", "FIRST {value} ROWS", "FIRST {value} ROW"]),
     ];
+
+    // 靜態欄位依序初始化，要寫在用到它的 JsonConstructors 之前。子句寫到 RETURNING 為止，之後的 JSON 由探測列出：
+    // 寫到 JSON 的話，每一條各多一個什麼字都不接的片語。
+    private static readonly string[] JsonClauses = ["NULL ON NULL RETURNING", "ABSENT ON NULL RETURNING", "RETURNING"];
+
+    // JSON 建構函式的引數之後是 NULL 的處理（NULL ON NULL、ABSENT ON NULL）與 RETURNING JSON。函式引數裡判不出位置，
+    // 從呼叫寫起；引數是 {value}（一個運算式）。每一格的字由整段證據補進它前面那段，只有引數剛寫完那一格以值結尾、
+    // 補不出來（Lead 片語以值結尾的一段不立），另外宣告。沒有引數的 JSON_OBJECT(NULL ON NULL) 從左括號寫起，
+    // 左括號本身也宣告：ABSENT 不是運算式的字。空呼叫照剖析器收的寫：JSON_ARRAYAGG 不收，只寫 RETURNING JSON 的也不收。
+    internal static readonly PhraseDeclaration[] JsonConstructors =
+    [
+        .. Json("JSON_OBJECT", "{value} : {value}", empty: true),
+        .. Json("JSON_ARRAY", "{value}", empty: true),
+        .. Json("JSON_OBJECTAGG", "{value} : {value}", empty: true),
+        .. Json("JSON_ARRAYAGG", "{value}", empty: false),
+        .. Json("JSON_ARRAYAGG", "{value} ORDER BY {value}", empty: false),
+    ];
+
+    private static IEnumerable<PhraseDeclaration> Json(string function, string argument, bool empty) =>
+        (empty ? [$"{function} (*"] : Array.Empty<string>())
+            .Append($"{function} (* {argument}")
+            .Concat(JsonClauses.Select(clause => $"{function} (* {argument} {clause}"))
+            .Concat(empty ? JsonClauses.Where(clause => clause.Contains(" ON NULL")).Select(clause => $"{function} (* {clause}") : [])
+            .Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT " });
+
+    private static IEnumerable<PhraseDeclaration> RowCounts(string[] patterns) =>
+        patterns.Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH " });
 }

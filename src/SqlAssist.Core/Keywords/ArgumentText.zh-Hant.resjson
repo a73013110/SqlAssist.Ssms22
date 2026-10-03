@@ -1,5 +1,5 @@
 {
-  // DATEADD 的 datepart（DatePart…）、WITH (…) 的資料表提示（TableHint…）與 OPTION (…) 的查詢提示（QueryHint…）的一行說明。提示名稱與 T-SQL 關鍵字不翻。
+  // DATEADD 的 datepart（DatePart…）、WITH (…) 的資料表提示（TableHint…）、OPTION (…) 的查詢提示（QueryHint…）與 ODBC {fn} 的純量函式（Odbc…）的一行說明。提示名稱與 T-SQL 關鍵字不翻。
   "DatePartYear": "年",
   "DatePartQuarter": "季",
   "DatePartMonth": "月",
@@ -69,5 +69,20 @@
   "QueryHintIgnoreNonclusteredColumnstoreIndex": "不使用非叢集資料行存放區索引",
   "QueryHintUseHint": "套用具名的查詢提示",
   "QueryHintQuerytraceon": "為這一次編譯開啟追蹤旗標",
-  "QueryHintLabel": "為這個查詢加上標籤"
+  "QueryHintLabel": "為這個查詢加上標籤",
+  "OdbcCurrentDate": "目前日期",
+  "OdbcCurrentTime": "目前時間",
+  "OdbcDayname": "星期幾的名稱",
+  "OdbcDayofmonth": "一個月中的第幾天",
+  "OdbcDayofweek": "星期幾，星期日是 1",
+  "OdbcMonthname": "月份名稱",
+  "OdbcQuarter": "第幾季",
+  "OdbcWeek": "一年中的第幾週",
+  "OdbcHour": "時",
+  "OdbcMinute": "分",
+  "OdbcSecond": "秒",
+  "OdbcConcat": "串接兩個字串",
+  "OdbcBitLength": "字串的位元數",
+  "OdbcOctetLength": "字串的位元組數",
+  "OdbcTruncate": "截去小數到指定位數，不四捨五入"
 }

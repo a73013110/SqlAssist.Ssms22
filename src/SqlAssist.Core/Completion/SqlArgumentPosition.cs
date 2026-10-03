@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Completion;
@@ -9,21 +10,14 @@ namespace SqlAssist.Core.Completion;
 /// </summary>
 /// <remarks>
 /// 與 <see cref="SqlDataTypePosition"/> 同一種判斷、同一個代價權衡：判定成立時整份
-/// 清單就換掉，因此只收看得出來的三種，其餘一律照常。
+/// 清單就換掉，因此只收看得出來的幾種，其餘一律照常。
 ///
-/// 三種都認得出來，是因為游標前面那個字就把話說完了——
-/// <c>DATEADD(</c>、<c>WITH (</c> 與 <c>OPTION (</c>。清單只有伺服器知道的那幾種
+/// 都認得出來，是因為游標前面那個字就把話說完了——
+/// <c>DATEADD(</c>、<c>WITH (</c>、<c>OPTION (</c> 與 ODBC 的 <c>{fn</c>。清單只有伺服器知道的那幾種
 /// （<c>COLLATE</c>、<c>SET LANGUAGE</c>、<c>AT TIME ZONE</c>）由 <see cref="SqlInstanceList"/> 判斷。
 /// </remarks>
 public static class SqlArgumentPosition
 {
-    /// <summary>第一個引數是日期部分的函式。</summary>
-    private static readonly HashSet<string> DatePartFunctions =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "DATEADD", "DATEDIFF", "DATEDIFF_BIG", "DATENAME", "DATEPART", "DATETRUNC"
-        };
-
     /// <summary>
     /// 判斷 <paramref name="tokens"/> 的尾端之後是哪一種封閉清單的位置。
     /// </summary>
@@ -44,13 +38,20 @@ public static class SqlArgumentPosition
             return false;
         }
 
-        // DATEADD(| ——只有第一個引數；打過逗號之後那裡要的是數字與日期。
+        // DATEADD(|、DATE_BUCKET(| ——只有第一個引數；打過逗號之後那裡要的是數字與日期。哪些函式由簽章說。
         if (tokens[last].IsPunctuation("(") &&
             last >= 1 &&
             IsBareIdentifier(tokens[last - 1]) &&
-            DatePartFunctions.Contains(tokens[last - 1].Value))
+            SqlFunctionCatalog.FirstParameterIs(tokens[last - 1].Value, "datepart"))
         {
             target = CompletionTarget.DatePart;
+            return true;
+        }
+
+        // {fn | ——ODBC 跳脫只收它自己那一份純量函式。
+        if (last >= 1 && tokens[last].IsKeyword("fn") && tokens[last - 1] is { Kind: SqlTokenKind.Operator, Value: "{" })
+        {
+            target = CompletionTarget.OdbcFunction;
             return true;
         }
 

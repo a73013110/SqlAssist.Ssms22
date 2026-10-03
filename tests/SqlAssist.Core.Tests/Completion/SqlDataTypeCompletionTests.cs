@@ -29,6 +29,9 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("SELECT PARSE(f.Amount AS ")]
     [InlineData("SELECT CONVERT(")]
     [InlineData("SELECT TRY_CONVERT(")]
+    [InlineData("SELECT IDENTITY(")]
+    [InlineData("SELECT RowNo = IDENTITY(")]
+    [InlineData("SELECT CopyNo, IDENTITY(")]
     [InlineData("CREATE TABLE dbo.Loan (LoanId ")]
     [InlineData("CREATE TABLE Loan (LoanId ")]
     [InlineData("CREATE TABLE dbo.Loan (LoanId INT NOT NULL, CopyNo ")]
@@ -98,6 +101,10 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("SELECT * FROM dbo.Loan WITH (Branch ")]
     [InlineData("CREATE FUNCTION dbo.fn_Copies (")]
     [InlineData("ALTER PARTITION FUNCTION LibRange () SPLIT RANGE (")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId INT IDENTITY(")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo INT, LoanId DECIMAL(10, 0) NOT NULL IDENTITY(")]
+    [InlineData("ALTER TABLE dbo.Loan ADD LoanId INT IDENTITY(")]
+    [InlineData("DECLARE @copies TABLE (RowNo INT IDENTITY(")]
     public void 不是型別的位置(string textBeforeCaret)
     {
         Assert.NotEqual(

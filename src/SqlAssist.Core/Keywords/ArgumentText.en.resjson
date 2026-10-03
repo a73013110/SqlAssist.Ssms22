@@ -68,5 +68,20 @@
   "QueryHintIgnoreNonclusteredColumnstoreIndex": "Do not use nonclustered columnstore indexes",
   "QueryHintUseHint": "Apply named query hint",
   "QueryHintQuerytraceon": "Enable trace flag for this compilation",
-  "QueryHintLabel": "Add label to this query"
+  "QueryHintLabel": "Add label to this query",
+  "OdbcCurrentDate": "Current date",
+  "OdbcCurrentTime": "Current time",
+  "OdbcDayname": "Name of the weekday",
+  "OdbcDayofmonth": "Day of the month",
+  "OdbcDayofweek": "Day of the week; Sunday is 1",
+  "OdbcMonthname": "Name of the month",
+  "OdbcQuarter": "Quarter",
+  "OdbcWeek": "Week of the year",
+  "OdbcHour": "Hour",
+  "OdbcMinute": "Minute",
+  "OdbcSecond": "Second",
+  "OdbcConcat": "Concatenate two strings",
+  "OdbcBitLength": "Length of the string in bits",
+  "OdbcOctetLength": "Length of the string in bytes",
+  "OdbcTruncate": "Truncate to given decimals without rounding"
 }

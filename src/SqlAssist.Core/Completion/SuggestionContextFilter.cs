@@ -264,6 +264,7 @@ public static class SuggestionContextFilter
             CompletionTarget.DatePart => kind == SuggestionKind.DatePart,
             CompletionTarget.TableHint => kind == SuggestionKind.TableHint,
             CompletionTarget.QueryHint => kind == SuggestionKind.QueryHint,
+            CompletionTarget.OdbcFunction => kind == SuggestionKind.BuiltInFunction,
 
             // 兩類是同一種東西、不同的來源，排名才分開；能不能出現在這個位置
             // 沒有差別。三份名單的候選清單只有自己那一份，不必再比 Tag。

@@ -39,9 +39,10 @@ public static class SqlFunctionCatalog
     /// </summary>
     /// <remarks>
     /// 同類的 <c>OPENROWSET</c>、<c>OPENXML</c> 是關鍵字，位置由產生器探出；<c>OPENJSON</c>、<c>VECTOR_SEARCH</c>、
-    /// <c>AI_GENERATE_CHUNKS</c> 在 ScriptDom 眼中只是識別字，位置只能寫在這裡。放在運算式位置的話 <c>SELECT OPENJSON(</c> 列得出來、<c>FROM </c> 之後反而沒有。
+    /// <c>AI_GENERATE_CHUNKS</c>、<c>PREDICT</c> 在 ScriptDom 眼中只是識別字，位置只能寫在這裡。放在運算式位置的話 <c>SELECT OPENJSON(</c> 列得出來、<c>FROM </c> 之後反而沒有。
     /// </remarks>
-    private static readonly HashSet<string> RowsetFunctions = new(StringComparer.OrdinalIgnoreCase) { "OPENJSON", "VECTOR_SEARCH", "AI_GENERATE_CHUNKS" };
+    private static readonly HashSet<string> RowsetFunctions =
+        new(StringComparer.OrdinalIgnoreCase) { "OPENJSON", "VECTOR_SEARCH", "AI_GENERATE_CHUNKS", "PREDICT" };
 
     /// <summary>名稱與簽章；簽章同時當成清單右側的說明。</summary>
     private static readonly (string Name, string Signature)[] Definitions =
@@ -108,7 +109,7 @@ public static class SqlFunctionCatalog
         ("STUFF", "STUFF(value, start, length, replaceWith)"),
         ("SUBSTRING", "SUBSTRING(value, start, length)"),
         ("TRANSLATE", "TRANSLATE(value, characters, translations)"),
-        ("TRIM", "TRIM(value)"),
+        ("TRIM", "TRIM([LEADING | TRAILING | BOTH] [characters FROM] value)"),
         ("UNICODE", "UNICODE(character)"),
         ("UPPER", "UPPER(value)"),
 
@@ -214,6 +215,7 @@ public static class SqlFunctionCatalog
         ("SCHEMA_ID", "SCHEMA_ID([schemaName])"),
         ("SCHEMA_NAME", "SCHEMA_NAME([schemaId])"),
         ("SCOPE_IDENTITY", "SCOPE_IDENTITY()"),
+        ("IDENTITY", "IDENTITY(type [, seed, increment])"),
         ("SERVERPROPERTY", "SERVERPROPERTY(property)"),
         ("SESSION_CONTEXT", "SESSION_CONTEXT(key)"),
         ("SQL_VARIANT_PROPERTY", "SQL_VARIANT_PROPERTY(expression, property)"),
@@ -256,9 +258,11 @@ public static class SqlFunctionCatalog
 
         // JSON
         ("ISJSON", "ISJSON(expression)"),
-        ("JSON_ARRAY", "JSON_ARRAY([value ...])"),
+        ("JSON_ARRAY", "JSON_ARRAY([value ...] [NULL | ABSENT ON NULL] [RETURNING JSON])"),
+        ("JSON_ARRAYAGG", "JSON_ARRAYAGG(value [ORDER BY ...] [NULL | ABSENT ON NULL] [RETURNING JSON])"),
         ("JSON_MODIFY", "JSON_MODIFY(json, path, newValue)"),
-        ("JSON_OBJECT", "JSON_OBJECT([key: value ...])"),
+        ("JSON_OBJECT", "JSON_OBJECT([key: value ...] [NULL | ABSENT ON NULL] [RETURNING JSON])"),
+        ("JSON_OBJECTAGG", "JSON_OBJECTAGG(key: value [NULL | ABSENT ON NULL] [RETURNING JSON])"),
         ("JSON_PATH_EXISTS", "JSON_PATH_EXISTS(json, path)"),
         ("JSON_QUERY", "JSON_QUERY(json [, path])"),
         ("JSON_VALUE", "JSON_VALUE(json, path)"),
@@ -268,8 +272,9 @@ public static class SqlFunctionCatalog
         ("AI_GENERATE_CHUNKS", "AI_GENERATE_CHUNKS(SOURCE = text, CHUNK_TYPE = FIXED, CHUNK_SIZE = n [, OVERLAP = n])"),
         ("AI_GENERATE_EMBEDDINGS", "AI_GENERATE_EMBEDDINGS(source USE MODEL model [PARAMETERS json])"),
 
-        // 向量
-        ("VECTOR_SEARCH", "VECTOR_SEARCH(TABLE = table AS alias, COLUMN = column, SIMILAR_TO = vector, METRIC = 'cosine', TOP_N = n)")
+        // 向量與模型
+        ("VECTOR_SEARCH", "VECTOR_SEARCH(TABLE = table AS alias, COLUMN = column, SIMILAR_TO = vector, METRIC = 'cosine', TOP_N = n)"),
+        ("PREDICT", "PREDICT(MODEL = model, DATA = source AS alias [, RUNTIME = ONNX]) WITH (column type, ...)")
     };
 
     private static IReadOnlyList<SqlSuggestion>? _suggestions;
@@ -365,6 +370,34 @@ public static class SqlFunctionCatalog
 
         signature = string.Empty;
         return false;
+    }
+
+    /// <summary>
+    /// 這個函式的第一個參數是不是 <paramref name="parameter"/>：簽章寫 <c>DATEADD(datepart, …)</c>、<c>CONVERT(type, …)</c>。
+    /// </summary>
+    /// <remarks>
+    /// 哪些函式的引數是另一份清單（日期部分、型別）只寫在簽章：位置判斷各留一份名單的話，
+    /// <c>DATE_BUCKET</c> 補進目錄、名單沒補，<c>DATE_BUCKET(</c> 就列不出 <c>WEEK</c>。
+    /// </remarks>
+    public static bool FirstParameterIs(string? name, string parameter)
+    {
+        if (!TryGetSignature(name, out var signature))
+        {
+            return false;
+        }
+
+        var start = name!.Length + 1;
+        var end = start + parameter.Length;
+
+        return signature.Length > end &&
+            string.Compare(signature, start, parameter, 0, parameter.Length, StringComparison.Ordinal) == 0 &&
+            signature[end] is ',' or ' ' or ')';
+    }
+
+    /// <summary>這個函式的 <c>AS</c> 之後是型別：簽章寫 <c>CAST(expression AS type)</c>。</summary>
+    public static bool TakesTypeAfterAs(string? name)
+    {
+        return TryGetSignature(name, out var signature) && signature.Contains(" AS type");
     }
 
     /// <summary>

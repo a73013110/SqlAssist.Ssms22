@@ -218,12 +218,10 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return null;
     }
 
-    /// <summary><paramref name="last"/> 寫完 ORDER BY 的 <c>OFFSET</c> 值：數值、變數或一整組括號。</summary>
+    /// <summary><paramref name="last"/> 寫完 ORDER BY 的 <c>OFFSET</c> 值，一個運算式（<see cref="SqlOperand.SkipBackward"/>）。</summary>
     private bool EndsOffsetValue(int last)
     {
-        var offset = tokens[last].IsPunctuation(")")
-            ? SqlTokenNavigator.FindOpeningParenthesis(tokens, last) - 1
-            : tokens[last].Kind is SqlTokenKind.Number or SqlTokenKind.Variable ? last - 1 : -1;
+        var offset = SqlOperand.SkipBackward(tokens, last) - 1;
 
         return offset >= 1 &&
             IsBareKeyword(offset) &&
@@ -647,7 +645,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// </remarks>
     private SqlKeywordPosition? FindMergeSlot(int last)
     {
-        if (!EndsOperand(last) &&
+        if (!SqlOperand.Ends(tokens, last) &&
             !tokens[last].IsKeyword("THEN") && !tokens[last].IsKeyword("DELETE") && !tokens[last].IsKeyword("VALUES"))
         {
             return null;
@@ -707,7 +705,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 }
 
                 return token.IsKeyword("WHEN")
-                    ? (hasAnd && EndsOperand(last) ? SqlKeywordPosition.CaseArm : null)
+                    ? (hasAnd && SqlOperand.Ends(tokens, last) ? SqlKeywordPosition.CaseArm : null)
                     : EndsMergeAction(index, last);
             }
 
@@ -747,7 +745,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
         if (verb.IsKeyword("UPDATE"))
         {
             // SET 之後的指派寫完：值還能接運算子與 COLLATE，也能接下一個 WHEN。
-            return then + 2 < last && tokens[then + 2].IsKeyword("SET") && EndsOperand(last)
+            return then + 2 < last && tokens[then + 2].IsKeyword("SET") && SqlOperand.Ends(tokens, last)
                 ? SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause
                 : null;
         }
@@ -811,22 +809,6 @@ public sealed partial class SqlKeywordPositionAnalyzer
     private bool NamesMergeSourceAlias(int index) =>
         index >= 1 && tokens[index].Kind == SqlTokenKind.Identifier && !IsBareKeyword(index) &&
         !tokens[index - 1].IsPunctuation(".") && !tokens[index - 1].IsKeyword("USING");
-
-    /// <summary>
-    /// <paramref name="last"/> 寫完一個運算元：名稱、變數、常值、右括號，或 NULL 這種自成一項的關鍵字。
-    /// </summary>
-    private bool EndsOperand(int last)
-    {
-        var token = tokens[last];
-
-        return token.Kind switch
-        {
-            SqlTokenKind.Identifier => !IsBareKeyword(last) || SqlKeywordCatalog.EndsItem(token.Value),
-            SqlTokenKind.Punctuation => token.IsPunctuation(")"),
-            SqlTokenKind.Operator => false,
-            _ => true
-        };
-    }
 
     /// <summary>
     /// <paramref name="last"/> 是索引鍵清單裡的一個資料行：CREATE INDEX 的 <c>ON t (a</c>、

@@ -131,9 +131,23 @@ public static class SqlWindowClause
     private static bool IsOpen(IReadOnlyList<SqlToken> tokens, int open) =>
         open >= 1 && open < tokens.Count && tokens[open].IsPunctuation("(");
 
-    /// <summary>函式呼叫之後的 <c>OVER</c>（<c>SUM(a) OVER</c>、<c>WITHIN GROUP (…) OVER</c>）。</summary>
-    private static bool IsOver(IReadOnlyList<SqlToken> tokens, int index) =>
-        index >= 1 && tokens[index].IsKeyword("OVER") && tokens[index - 1].IsPunctuation(")");
+    /// <summary>
+    /// 函式呼叫之後的 <c>OVER</c>（<c>SUM(a) OVER</c>、<c>WITHIN GROUP (…) OVER</c>、<c>LAG(a) IGNORE NULLS OVER</c>）。
+    /// </summary>
+    private static bool IsOver(IReadOnlyList<SqlToken> tokens, int index)
+    {
+        if (index < 1 || !tokens[index].IsKeyword("OVER"))
+        {
+            return false;
+        }
+
+        var call = index >= 3 && tokens[index - 1].IsKeyword("NULLS") &&
+            (tokens[index - 2].IsKeyword("IGNORE") || tokens[index - 2].IsKeyword("RESPECT"))
+                ? index - 3
+                : index - 1;
+
+        return tokens[call].IsPunctuation(")");
+    }
 
     /// <summary>游標在 <paramref name="open"/> 開啟的那一組括號裡。</summary>
     private static bool Contains(IReadOnlyList<SqlToken> tokens, int open, int end, int caretPosition)

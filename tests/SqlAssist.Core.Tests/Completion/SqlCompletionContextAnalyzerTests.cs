@@ -554,6 +554,8 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("REVOKE SELECT ON dbo.Loan FROM ")]
     [InlineData("BULK INSERT dbo.Loan FROM ")]
     [InlineData("CREATE LOGIN Lib_Reader FROM ")]
+    [InlineData("SELECT TRIM('x' FROM ")]
+    [InlineData("SELECT TRIM(LEADING '0' FROM ")]
     public void 不接資料來源的FROM之後不列資料表(string textBeforeCaret)
     {
         Assert.NotEqual(CompletionTarget.DataSource, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Target);

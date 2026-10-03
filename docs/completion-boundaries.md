@@ -108,5 +108,5 @@
 權限清單的一項（`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式，`CASE … END` 整組跳過。
 
 - **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c ` 接 `INTO`
-  （`FetchTail`），`RESTORE`、`REVOKE`、`BULK INSERT` 的 FROM 是 `Any`。位置、目標與範圍分析
-  共用 `IntroducesDataSource`，分岔時 `DISK` 被收成一張表。
+  （`FetchTail`），`RESTORE`、`REVOKE`、`BULK INSERT` 的 FROM 是 `Any`，簽章帶 FROM 的函式
+  （`TRIM('x' FROM s)`）之後是運算式。位置、目標與範圍分析共用 `IntroducesDataSource`，分岔時 `DISK` 被收成表。

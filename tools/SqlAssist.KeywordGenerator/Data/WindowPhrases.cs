@@ -1,26 +1,39 @@
+using System.Collections.Generic;
+using System.Linq;
+
 namespace SqlAssist.KeywordGenerator.Data;
 
 /// <summary>視窗框架的每一段。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
 internal static class WindowPhrases
 {
+    // 框架的端點：寫完的樣子與開頭的字。ROWS 收數值，RANGE 只收 UNBOUNDED 與 CURRENT ROW（剖析器擋下 RANGE 2 PRECEDING）。
+    private static readonly string[] RowBounds = ["UNBOUNDED PRECEDING", "{value} PRECEDING", "{value} FOLLOWING", "CURRENT ROW"];
+    private static readonly string[] RowHeads = ["UNBOUNDED", "{value}", "CURRENT"];
+    private static readonly string[] RangeBounds = ["UNBOUNDED PRECEDING", "CURRENT ROW"];
+    private static readonly string[] RangeHeads = ["UNBOUNDED", "CURRENT"];
+
+    /// <remarks>
+    /// ORDER BY 的排序項之後是 ROWS、RANGE。端點寫在三個地方：ROWS 之後、BETWEEN 之後與 AND 之後，每一處宣告到端點的第一個字，
+    /// 之後的字由探測列；BETWEEN 的起點寫成整段，AND 由整段證據補（見 PhraseExplorer.AddEvidence）。框架從 ROWS 寫起
+    /// 才由位置釘住：中段（AND 之後）的前一格判不出位置，以前另寫的 Lead 片語（UNBOUNDED、PRECEDING AND）漏了
+    /// CURRENT ROW AND 與數值的端點。CURRENT 之後剖析器收任何識別字（留到語意檢查才擋），ROW 只能手寫。
+    /// </remarks>
     internal static readonly PhraseDeclaration[] Frames =
     [
-        // 視窗框架：ORDER BY 的排序項之後是 ROWS、RANGE，框架的每一段由片語往下補。基底視窗名稱之後也寫得出框架
-        // （OVER (w ROWS …)），見 Frame。
-        // 框架中段（AND 之後）的 UNBOUNDED、CURRENT 前一格判不出位置，仍由 Lead 片語給。
-        // CURRENT 之後剖析器收任何識別字（留到語意檢查才擋），ROW 只能手寫。
         .. Frame(new("")),
-        .. Frame(new("ROWS BETWEEN UNBOUNDED PRECEDING")),
-        .. Frame(new("RANGE BETWEEN UNBOUNDED PRECEDING")),
-        .. Frame(new("ROWS UNBOUNDED")),
-        .. Frame(new("RANGE UNBOUNDED")),
-        new("UNBOUNDED") { Lead = "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND " },
-        new("PRECEDING AND") { Lead = "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED " },
-        .. Frame(new("ROWS CURRENT") { Values = ["ROW"], Closed = true }),
-        .. Frame(new("RANGE CURRENT") { Values = ["ROW"], Closed = true }),
-        new("BETWEEN CURRENT") { Lead = "SELECT SUM(a) OVER (ORDER BY a ROWS ", Values = ["ROW"], Closed = true },
-        new("AND CURRENT") { Lead = "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING ", Values = ["ROW"], Closed = true },
+        .. Bounds("ROWS", RowBounds, RowHeads),
+        .. Bounds("RANGE", RangeBounds, RangeHeads),
     ];
+
+    private static IEnumerable<PhraseDeclaration> Bounds(string unit, string[] bounds, string[] heads) =>
+        new[] { unit, $"{unit} BETWEEN" }
+            .Concat(bounds.Select(bound => $"{unit} BETWEEN {bound} AND"))
+            .SelectMany(anchor => heads.Select(head => new PhraseDeclaration($"{anchor} {head}")
+            {
+                Values = head == "CURRENT" ? ["ROW"] : null,
+                Closed = head == "CURRENT" ? true : null,
+            }))
+            .SelectMany(Frame);
 
     /// <summary>排序項之後與視窗規格裡各一條。</summary>
     /// <remarks>

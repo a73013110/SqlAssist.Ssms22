@@ -192,7 +192,25 @@ public sealed class SqlFunctionCatalogTests
     public void AI_GENERATE_CHUNKS只在資料來源位置()
     {
         Assert.Equal(SqlKeywordPosition.DataSource, Get("AI_GENERATE_CHUNKS").Positions);
+        Assert.Equal(SqlKeywordPosition.DataSource, Get("PREDICT").Positions);
+        Assert.True(SqlFunctionCatalog.IsRowsetFunction("PREDICT"));
         Assert.NotEqual(SqlKeywordPosition.None, Get("AI_GENERATE_EMBEDDINGS").Positions & SqlKeywordPosition.SelectList);
+    }
+
+    /// <summary>第一個參數是哪一份清單只寫在簽章：日期部分與型別的位置都問它。</summary>
+    [Theory]
+    [InlineData("DATEADD", "datepart", true)]
+    [InlineData("DATE_BUCKET", "datepart", true)]
+    [InlineData("date_bucket", "datepart", true)]
+    [InlineData("CONVERT", "type", true)]
+    [InlineData("IDENTITY", "type", true)]
+    [InlineData("CAST", "type", false)]
+    [InlineData("TYPE_ID", "type", false)]
+    [InlineData("DATEFROMPARTS", "datepart", false)]
+    [InlineData("Lib_Reader", "type", false)]
+    public void 第一個參數由簽章決定(string name, string parameter, bool expected)
+    {
+        Assert.Equal(expected, SqlFunctionCatalog.FirstParameterIs(name, parameter));
     }
 
     /// <summary>

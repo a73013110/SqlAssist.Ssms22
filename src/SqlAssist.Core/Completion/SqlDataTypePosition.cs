@@ -39,21 +39,6 @@ public static class SqlDataTypePosition
             "RETURNS"
         };
 
-    /// <summary>括號直接接在這些字後面時，第一個引數是型別。</summary>
-    /// <remarks><c>CONVERT(type, expression)</c>；<c>CAST</c> 走的是 <c>AS</c> 那一支。</remarks>
-    private static readonly HashSet<string> TypeFirstArgument =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "CONVERT", "TRY_CONVERT"
-        };
-
-    /// <summary>這些函式的 <c>AS</c> 之後是型別。</summary>
-    private static readonly HashSet<string> TypeAfterAs =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "CAST", "TRY_CAST", "PARSE", "TRY_PARSE"
-        };
-
     /// <summary>以型別為底的物件：<c>CREATE</c> 這種物件的名稱之後，這個字接型別。</summary>
     /// <remarks><c>CREATE SEQUENCE s AS int</c>、<c>CREATE TYPE t FROM varchar(10)</c>。</remarks>
     private static readonly Dictionary<string, string> TypedObjects =
@@ -113,11 +98,13 @@ public static class SqlDataTypePosition
 
         if (token.Kind != SqlTokenKind.Identifier)
         {
-            // CONVERT(|、TRY_CONVERT(|
+            // CONVERT(|、TRY_CONVERT(|、SELECT IDENTITY(| ——第一個參數是型別的函式，由簽章說。
             return token.IsPunctuation("(") &&
                 last >= 1 &&
                 IsBareIdentifier(tokens[last - 1]) &&
-                (TypeFirstArgument.Contains(tokens[last - 1].Value) || OpensPartitionFunction(tokens, last));
+                ((SqlFunctionCatalog.FirstParameterIs(tokens[last - 1].Value, "type") &&
+                        !DefinesColumn(tokens, last - 1, textBeforeToken)) ||
+                    OpensPartitionFunction(tokens, last));
         }
 
         // 加了方括號的只可能是名稱：SSMS 產生的指令碼一律寫 CREATE TABLE [dbo].[Loan]([LoanId] |。
@@ -185,7 +172,7 @@ public static class SqlDataTypePosition
         var last = tokens.Count - 1;
 
         return last >= 0 &&
-            EndsOperand(tokens[last]) &&
+            SqlOperand.Ends(tokens, last) &&
             (TypeFollowsAs(tokens, tokens.Count) ||
                 NewColumnPosition(tokens, last, textBeforeToken) is
                     SqlKeywordPosition.ColumnDefinition or SqlKeywordPosition.AlterTableAdd);
@@ -209,7 +196,7 @@ public static class SqlDataTypePosition
 
         return open >= 1 &&
             IsBareIdentifier(tokens[open - 1]) &&
-            TypeAfterAs.Contains(tokens[open - 1].Value) &&
+            SqlFunctionCatalog.TakesTypeAfterAs(tokens[open - 1].Value) &&
             !HasAs(tokens, open + 1, asIndex);
     }
 
@@ -241,20 +228,6 @@ public static class SqlDataTypePosition
         }
 
         return false;
-    }
-
-    /// <summary>這個詞元寫完一個運算元：名稱、變數、常值、<c>)</c> 或 <c>CASE … END</c> 的 <c>END</c>。</summary>
-    private static bool EndsOperand(SqlToken token)
-    {
-        return token.Kind switch
-        {
-            SqlTokenKind.Variable or SqlTokenKind.Number or SqlTokenKind.String => true,
-            SqlTokenKind.Identifier => token.IsQuoted ||
-                !SqlKeywordCatalog.IsKeyword(token.Value) ||
-                token.IsKeyword("END") ||
-                SqlKeywordCatalog.EndsItem(token.Value),
-            _ => token.IsPunctuation(")")
-        };
     }
 
     /// <summary>
@@ -315,6 +288,40 @@ public static class SqlDataTypePosition
         }
 
         return SqlKeywordPositionAnalyzer.PositionBefore(tokens, last, textBeforeToken);
+    }
+
+    /// <summary>
+    /// <paramref name="index"/> 那個字寫在一個資料行定義裡：<c>CREATE TABLE t (Id int IDENTITY(</c> 的 IDENTITY 是屬性，
+    /// 引數是種子與遞增；<c>SELECT IDENTITY(int, 1, 1)</c> 才是第一個參數是型別的函式。
+    /// </summary>
+    /// <remarks>那一項的第一個詞元是新資料行的名稱，與型別的位置同一條判斷。</remarks>
+    private static bool DefinesColumn(IReadOnlyList<SqlToken> tokens, int index, string textBeforeToken)
+    {
+        var first = index;
+
+        while (first >= 1 && !tokens[first - 1].IsPunctuation(",") && !tokens[first - 1].IsKeyword("ADD"))
+        {
+            if (tokens[first - 1].IsPunctuation(")"))
+            {
+                first = SqlTokenNavigator.FindOpeningParenthesis(tokens, first - 1);
+
+                if (first < 0)
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (tokens[first - 1].IsPunctuation("("))
+            {
+                break;
+            }
+
+            first--;
+        }
+
+        return first < index && IsNewColumn(tokens, first, textBeforeToken);
     }
 
     private static bool IsBareIdentifier(SqlToken token)

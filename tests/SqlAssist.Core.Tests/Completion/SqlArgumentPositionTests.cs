@@ -16,6 +16,7 @@ public sealed class SqlArgumentPositionTests
     [InlineData("SELECT DATENAME(")]
     [InlineData("SELECT DATEPART(")]
     [InlineData("SELECT DATETRUNC(")]
+    [InlineData("SELECT DATE_BUCKET(")]
     [InlineData("SELECT DATEADD(DA")]
     public void 日期部分的位置(string textBeforeCaret)
     {
@@ -58,6 +59,23 @@ public sealed class SqlArgumentPositionTests
 
         Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.QueryHint, context.Target);
+    }
+
+    /// <summary>ODBC 跳脫 <c>{fn</c> 之後只列它自己那一份純量函式。</summary>
+    [Theory]
+    [InlineData("SELECT {fn ")]
+    [InlineData("SELECT {fn CUR")]
+    [InlineData("SELECT {FN ")]
+    public void ODBC純量函式的位置(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+        var names = SuggestionContextFilter.Filter(SqlArgumentCatalog.OdbcFunctions, context).Select(item => item.DisplayText).ToList();
+
+        Assert.Equal(CompletionTarget.OdbcFunction, context.Target);
+        Assert.Contains("CURRENT_TIME", names);
+        Assert.Contains("DAYNAME", names);
+        Assert.Equal("CURRENT_TIME", SqlArgumentCatalog.OdbcFunctions.Single(item => item.DisplayText == "CURRENT_TIME").InsertionText);
+        Assert.Equal("CURDATE(", SqlArgumentCatalog.OdbcFunctions.Single(item => item.DisplayText == "CURDATE").InsertionText);
     }
 
     /// <summary>

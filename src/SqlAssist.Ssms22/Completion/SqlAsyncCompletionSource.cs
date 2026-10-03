@@ -581,6 +581,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         CompletionTarget.DatePart => SqlKindText.DatePart,
         CompletionTarget.TableHint => SqlKindText.TableHint,
         CompletionTarget.QueryHint => SqlKindText.QueryHint,
+        CompletionTarget.OdbcFunction => SqlKindText.BuiltInFunctions,
         CompletionTarget.Collation => SqlKindText.Collation,
         CompletionTarget.Language => SqlKindText.Language,
         CompletionTarget.TimeZone => SqlKindText.TimeZone,

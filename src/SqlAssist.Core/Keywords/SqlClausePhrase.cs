@@ -331,6 +331,8 @@ public sealed class SqlClausePhrase
                 "=" => new Element(ElementKind.Word, "="),
                 // 逗號分隔的是同一句裡重複的一段（ADD EVENT a.b, ADD EVENT），不是括號清單的項。
                 "," => new Element(ElementKind.Word, ","),
+                // JSON_OBJECT 的鍵與值之間（'k': v）。
+                ":" => new Element(ElementKind.Word, ":"),
                 ",*" when index == parts.Length - 1 && index > 0 => new Element(ElementKind.List),
                 // 中段的 ,*：標頭之後零到多項清單項，後面那一項是清單裡某一項的一部分（ADD FILE ,* (*）。
                 ",*" when index > 0 && parts[index + 1] is not (",*" or "...") => new Element(ElementKind.Items),
@@ -392,8 +394,8 @@ public sealed class SqlClausePhrase
                 case ElementKind.Word when Word == "=":
                     return token.Kind == SqlTokenKind.Operator && token.Value == "=" ? last - 1 : Mismatch;
 
-                case ElementKind.Word when Word == ",":
-                    return token.IsPunctuation(",") ? last - 1 : Mismatch;
+                case ElementKind.Word when Word is "," or ":":
+                    return token.IsPunctuation(Word) ? last - 1 : Mismatch;
 
                 case ElementKind.Word:
                     return token.IsKeyword(Word!) && !(last >= 1 && tokens[last - 1].IsPunctuation("."))
@@ -412,13 +414,9 @@ public sealed class SqlClausePhrase
                         _ => Mismatch
                     };
 
+                // 值的格子在文法上是運算式：FETCH NEXT @a - @b + 1 ROWS、JSON_OBJECT('k': Title NULL。
                 case ElementKind.Value:
-                    if (token.Kind is SqlTokenKind.Number or SqlTokenKind.String or SqlTokenKind.Variable)
-                    {
-                        return last - 1;
-                    }
-
-                    return MatchGroup(tokens, last);
+                    return SqlOperand.SkipBackward(tokens, last) is var start and >= 0 ? start - 1 : Mismatch;
 
                 case ElementKind.Group:
                     return MatchGroup(tokens, last);

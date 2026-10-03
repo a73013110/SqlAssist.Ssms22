@@ -36,6 +36,9 @@ public static class SqlClausePhraseCatalog
     /// <summary>同時對上的附加片語合成的片語，鍵是它們在 <see cref="Additive"/> 裡的位元；建議項的 Tag 要一直是同一個物件。</summary>
     private static readonly ConcurrentDictionary<long, SqlClausePhrase> AdditiveUnions = new();
 
+    /// <summary>同一條尾巴在幾個位置同時確定成立時合成的片語，鍵是尾巴與那幾個位置；理由同 <see cref="AdditiveUnions"/>。</summary>
+    private static readonly ConcurrentDictionary<(string Pattern, SqlKeywordPosition After), SqlClausePhrase> PositionUnions = new();
+
     /// <summary>任一個片語接得上的字；語句開頭的判準先問它，絕大多數的字不必比對。</summary>
     private static readonly HashSet<string> AllWords =
         new(Phrases.SelectMany(phrase => phrase.Words).Select(SqlClausePhrase.FirstWord), StringComparer.OrdinalIgnoreCase);
@@ -60,8 +63,9 @@ public static class SqlClausePhraseCatalog
     ///
     /// 同時比對得上時取項數多的：<c>OFFSET 0 ROWS </c> 是 <c>OFFSET {value} ROWS</c>
     /// 而不是視窗框架的 <c>ROWS</c>；<c>SELECT TOP 10 WITH </c> 的 WITH 前一格是 TOP 子句，
-    /// 不是觸發程序標頭。項數一樣多的只有同一條尾巴在不同位置上的片語，它們的位置
-    /// 互不重疊，前一格判不出位置時才同時成立，那時取字多的——多列幾個字，不少列。
+    /// 不是觸發程序標頭。項數一樣多的只有同一條尾巴在不同位置上的片語：前一格判不出位置時取字多的
+    /// ——多列幾個字，不少列；前一格同時是幾個位置時（<c>ORDER BY a⏎FETCH</c> 是查詢的尾端，換了行也是下一句的開頭）
+    /// 每個位置接的字都算，見 <see cref="Union"/>。
     ///
     /// 沒有尾巴的片語項數是零，只在尾巴都比對不到、或只比對到<b>可能</b>時才輪到：它的前一格
     /// 就是游標處，判得出來就是確定的。游標處判不出位置時它什麼也沒認到，不算。
@@ -233,24 +237,74 @@ public static class SqlClausePhraseCatalog
         SqlKeywordPositionAnalyzer analyzer,
         int minimumLength)
     {
-        foreach (var phrase in candidates)
+        for (var index = 0; index < candidates.Length; index++)
         {
+            var phrase = candidates[index];
+
             if (phrase.Length < minimumLength)
             {
                 break;
             }
 
             var start = phrase.MatchTail(tokens, count, analyzer);
+            var before = start == count ? caret : analyzer.PositionBefore(start);
 
             // 語句到片語為止已經完整又換了行：可能是下一句，也可能還是這一句（CREATE SEQUENCE s⏎START WITH、
             // CREATE DATABASE d ON (…)⏎LOG ON），片語只算可能、字加進那一格。換行是不是界線由位置分析決定，這裡不另判。
-            if (start >= 0 && Qualify(phrase, start == count ? caret : analyzer.PositionBefore(start)) is { } match)
+            if (start >= 0 && Qualify(phrase, before) is { } match)
             {
+                if (match.IsCertain)
+                {
+                    phrase = Union(phrase, candidates, index, before);
+                    match = phrase.Certain;
+                }
+
                 return phrase.EndsStatement && onNewLine ? phrase.Tentative : match;
             }
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 同一條尾巴在 <paramref name="before"/> 的其他位置也確定成立的片語，與 <paramref name="phrase"/> 合成一個：字取聯集。
+    /// </summary>
+    /// <remarks>
+    /// 位置是旗標，前一格可以同時是幾個位置：<c>ORDER BY a⏎FETCH </c> 接得上 <c>APPROX</c>（查詢的尾端），
+    /// 也接得上 <c>NEXT</c>（換了行的下一句）。只取第一個的話另一個位置的字就不見了，與附加片語取聯集同一個道理。
+    /// 都封閉才封閉；收變數、收名稱、寫完一句的任一個成立就算。
+    /// </remarks>
+    private static SqlClausePhrase Union(SqlClausePhrase phrase, SqlClausePhrase[] candidates, int index, SqlKeywordPosition before)
+    {
+        List<SqlClausePhrase>? parts = null;
+
+        for (var other = index + 1; other < candidates.Length && candidates[other].Length == phrase.Length; other++)
+        {
+            var candidate = candidates[other];
+
+            if (string.Equals(candidate.Pattern, phrase.Pattern, StringComparison.OrdinalIgnoreCase) &&
+                Qualify(candidate, before) is { IsCertain: true })
+            {
+                (parts ??= new List<SqlClausePhrase> { phrase }).Add(candidate);
+            }
+        }
+
+        if (parts is null)
+        {
+            return phrase;
+        }
+
+        var after = parts.Aggregate(SqlKeywordPosition.None, (union, part) => union | part.After);
+
+        return PositionUnions.GetOrAdd((phrase.Pattern, after), _ => new SqlClausePhrase(
+            phrase.Pattern,
+            after,
+            phrase.Probe,
+            parts.All(part => part.IsClosed),
+            parts.Any(part => part.EndsStatement),
+            parts.SelectMany(part => part.Words).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            takesVariable: parts.Any(part => part.TakesVariable),
+            takesName: parts.Any(part => part.TakesName)));
     }
 
     /// <summary>

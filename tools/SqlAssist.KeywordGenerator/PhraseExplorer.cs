@@ -26,7 +26,7 @@ internal sealed class PhraseExplorer
     private static readonly Regex OperandEnd = new(@"(\{value\}|\{name\}|=)$", RegexOptions.IgnoreCase);
     private static readonly Regex ExistingObject = new(" (ON|AUTHORIZATION)$", RegexOptions.IgnoreCase);
     private static readonly Regex LeadSegmentEnd = new("^([A-Za-z_]|=$)", RegexOptions.IgnoreCase);
-    private static readonly Regex AfterSegmentEnd = new(@"^([A-Za-z_]|=$|\{name\}$)", RegexOptions.IgnoreCase);
+    private static readonly Regex AfterSegmentEnd = new(@"^([A-Za-z_]|=$|\{name\}$|\{value\}$)", RegexOptions.IgnoreCase);
 
     private readonly KeywordProber _prober;
     private readonly string[] _pool;
@@ -222,7 +222,8 @@ internal sealed class PhraseExplorer
     /// （以名稱或值結尾的一段，前一個字之後什麼都可能接，立了會封閉掉不相干的清單），而且至少兩項——
     /// 執行期不看 Lead 的前一格，單獨一個 ON、NEXT 到處都比對得上。單獨一個不是關鍵字的（GENERATED）立得起來但不封閉：
     /// 它也可能是名稱，比對到只把字加進那一格的目錄。帶位置的片語從那個位置寫起，已經釘住了，
-    /// 以名稱結尾的一段也立得起來：ALGORITHM = AES_128 之後的 ENCRYPTION 剖析器當名稱讀，只有整段是證據。
+    /// 以名稱或值結尾的一段也立得起來：ALGORITHM = AES_128 之後的 ENCRYPTION 剖析器當名稱讀，只有整段是證據；
+    /// 視窗框架 ROWS BETWEEN 2 之後的 PRECEDING 同理。
     /// 以 ...、括號或清單結尾的一段不立：那些元素要夾在字中間才比對得了。
     /// 帶 After 的片語，第一個字前面那段是位置本身：那個位置有只認位置的片語就補進去
     /// （函式 WITH 之後的 RETURNS、CALLED），沒有的由關鍵字目錄給。目錄也不給的（AT、ENABLE 不是

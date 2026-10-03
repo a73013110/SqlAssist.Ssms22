@@ -131,6 +131,9 @@ public enum CompletionTarget
     /// <summary><c>OPTION (</c> 的查詢提示。</summary>
     QueryHint,
 
+    /// <summary>ODBC 跳脫 <c>{fn </c> 之後的純量函式。</summary>
+    OdbcFunction,
+
     /// <summary><c>COLLATE</c> 之後的定序名稱。</summary>
     /// <remarks>
     /// 與其他封閉位置差在清單的來源：日期部分與兩種提示的名稱寫在

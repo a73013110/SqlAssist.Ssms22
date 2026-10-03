@@ -1855,6 +1855,19 @@
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/scope-identity-transact-sql"
     },
     {
+      "name": "IDENTITY",
+      "kind": "function",
+      "summary": "SELECT INTO 建立新資料表時加上一個識別資料行；只能寫在 SELECT INTO 的選取清單。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT IDENTITY(int, 1, 1) AS RowNo, CopyNo INTO #c FROM dbo.Cat_BookCopy   -- 從 1 起"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/identity-function-transact-sql"
+    },
+    {
       "name": "SUSER_SNAME",
       "kind": "function",
       "summary": "登入名稱，省略引數就是目前這個連線的登入。",
@@ -2084,6 +2097,24 @@
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/vector-search-transact-sql"
+    },
+    {
+      "name": "PREDICT",
+      "kind": "function",
+      "summary": "以儲存的模型替每一列評分的資料列集函式，WITH 宣告模型輸出的欄位；寫在 FROM。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT * FROM PREDICT(MODEL = @Model, DATA = dbo.Copy AS d) WITH (Score float) AS p"
+        },
+        {
+          "id": "onnx",
+          "title": "ONNX 模型",
+          "sql": "SELECT d.CopyNo, p.Score\nFROM PREDICT(MODEL = @Model, DATA = dbo.Copy AS d, RUNTIME = ONNX)\nWITH (Score float) AS p"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/predict-transact-sql"
     },
     {
       "name": "AI_GENERATE_CHUNKS",
@@ -2699,6 +2730,19 @@
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/json-array-transact-sql"
     },
     {
+      "name": "JSON_ARRAYAGG",
+      "kind": "function",
+      "summary": "把每一列的值彙總成一個 JSON 陣列，可指定順序；SQL Server 2025 起才有。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT JSON_ARRAYAGG(CopyNo ORDER BY DueDate) FROM dbo.Loan   -- '[\"C001\",\"C002\"]'"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/json-arrayagg-transact-sql"
+    },
+    {
       "name": "JSON_OBJECT",
       "kind": "function",
       "summary": "組出 JSON 物件字串；2022 起才有。",
@@ -2706,10 +2750,28 @@
         {
           "id": "basic",
           "title": "基本用法",
-          "sql": "SELECT JSON_OBJECT('a': 1, 'b': NULL)   -- '{\"a\":1}'，NULL 預設略過"
+          "sql": "SELECT JSON_OBJECT('a': 1, 'b': NULL)   -- '{\"a\":1,\"b\":null}'，預設 NULL ON NULL"
+        },
+        {
+          "id": "absent-on-null",
+          "title": "略過 NULL",
+          "sql": "SELECT JSON_OBJECT('a': 1, 'b': NULL ABSENT ON NULL)   -- '{\"a\":1}'"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/json-object-transact-sql"
+    },
+    {
+      "name": "JSON_OBJECTAGG",
+      "kind": "function",
+      "summary": "把每一列的鍵與值彙總成一個 JSON 物件；SQL Server 2025 起才有。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT JSON_OBJECTAGG(CopyNo: DueDate) FROM dbo.Loan   -- '{\"C001\":\"2026-10-01\",...}'"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/json-objectagg-transact-sql"
     },
     {
       "name": "JSON_PATH_EXISTS",

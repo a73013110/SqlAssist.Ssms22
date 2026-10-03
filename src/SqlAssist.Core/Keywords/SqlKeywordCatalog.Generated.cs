@@ -274,6 +274,7 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.WindowName, "SELECT a FROM t WINDOW w AS (ORDER BY a), w2 "),
         new(SqlKeywordPosition.WindowClauseTail, "SELECT a FROM t WINDOW w AS (ORDER BY a) "),
         new(SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) "),
+        new(SqlKeywordPosition.FunctionCallTail, "SELECT (LAG(a) "),
         new(SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) "),
         new(SqlKeywordPosition.ModuleHeader, "CREATE VIEW v WITH SCHEMABINDING "),
         new(SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE "),
@@ -7001,6 +7002,18 @@ internal static class SqlKeywordCatalogData
         {
             "FIXED",
         }),
+        ("PREDICT (*", SqlKeywordPosition.DataSource, "SELECT * FROM PREDICT (", true, false, false, false, new string[]
+        {
+            "MODEL", "RUNTIME",
+        }),
+        ("PREDICT (* MODEL = {value} ,", SqlKeywordPosition.DataSource, "SELECT * FROM PREDICT (MODEL = 1 , ", true, false, true, false, new string[]
+        {
+            "DATA",
+        }),
+        ("PREDICT (* RUNTIME =", SqlKeywordPosition.DataSource, "SELECT * FROM PREDICT (MODEL = @m, DATA = t AS d, RUNTIME = ", true, false, true, false, new string[]
+        {
+            "ONNX",
+        }),
         ("CREATE EXTERNAL DATA SOURCE {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL DATA SOURCE t WITH (", true, false, false, false, new string[]
         {
             "CONNECTION_OPTIONS", "CREDENTIAL", "DATABASE_NAME", "LOCATION", "PUSHDOWN",
@@ -9090,6 +9103,18 @@ internal static class SqlKeywordCatalogData
         ("FOR SYSTEM_TIME FROM", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME FROM ", true, false, false, false, new string[]
         {
         }),
+        ("FOR SYSTEM_TIME BETWEEN {value} AND {value}", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME BETWEEN 'x' AND 'x' ", false, false, true, true, new string[]
+        {
+            "AS", "CROSS", "EXCEPT", "FOR", "FULL", "GROUP", "HAVING", "HOLDLOCK", "INNER",
+            "INTERSECT", "JOIN", "LEFT", "OPTION", "ORDER", "OUTER", "PIVOT", "RIGHT",
+            "TABLESAMPLE", "UNION", "UNPIVOT", "WHERE", "WINDOW",
+        }),
+        ("FOR SYSTEM_TIME FROM {value} TO {value}", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME FROM 'x' TO 'x' ", false, false, true, true, new string[]
+        {
+            "AS", "CROSS", "EXCEPT", "FOR", "FULL", "GROUP", "HAVING", "HOLDLOCK", "INNER",
+            "INTERSECT", "JOIN", "LEFT", "OPTION", "ORDER", "OUTER", "PIVOT", "RIGHT",
+            "TABLESAMPLE", "UNION", "UNPIVOT", "WHERE", "WINDOW",
+        }),
         ("FOR", SqlKeywordPosition.CursorOption, "DECLARE c CURSOR FOR ", true, false, false, false, new string[]
         {
             "SELECT", "WITH",
@@ -9119,15 +9144,7 @@ internal static class SqlKeywordCatalogData
         {
             "MODEL",
         }),
-        ("AI_GENERATE_EMBEDDINGS (* {name} USE", SqlKeywordPosition.Any, "SELECT AI_GENERATE_EMBEDDINGS (t USE ", true, false, false, false, new string[]
-        {
-            "MODEL",
-        }),
         ("AI_GENERATE_EMBEDDINGS (* {value} USE MODEL {name}", SqlKeywordPosition.Any, "SELECT AI_GENERATE_EMBEDDINGS (1 USE MODEL t ", true, false, false, false, new string[]
-        {
-            "PARAMETERS",
-        }),
-        ("AI_GENERATE_EMBEDDINGS (* {name} USE MODEL {name}", SqlKeywordPosition.Any, "SELECT AI_GENERATE_EMBEDDINGS (t USE MODEL t ", true, false, false, false, new string[]
         {
             "PARAMETERS",
         }),
@@ -9137,6 +9154,14 @@ internal static class SqlKeywordCatalogData
         ("WITHIN GROUP (*", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (", true, false, false, false, new string[]
         {
             "ORDER",
+        }),
+        ("IGNORE NULLS", SqlKeywordPosition.FunctionCallTail, "SELECT (LAG(a) IGNORE NULLS ", true, false, false, false, new string[]
+        {
+            "COLLATE", "OVER",
+        }),
+        ("RESPECT NULLS", SqlKeywordPosition.FunctionCallTail, "SELECT (LAG(a) RESPECT NULLS ", true, false, false, false, new string[]
+        {
+            "COLLATE", "OVER",
         }),
         ("CURRENT", SqlKeywordPosition.Predicate, "DELETE FROM t WHERE CURRENT ", true, false, false, false, new string[]
         {
@@ -9537,29 +9562,159 @@ internal static class SqlKeywordCatalogData
         {
             "APPROX", "APPROXIMATE", "FIRST", "FROM", "NEXT",
         }),
-        ("FETCH NEXT {value}", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ", true, false, false, false, new string[]
+        ("FETCH APPROX", SqlKeywordPosition.OrderByTail, "SELECT * FROM t ORDER BY a FETCH APPROX ", true, false, false, false, new string[]
+        {
+            "FIRST", "NEXT",
+        }),
+        ("FETCH APPROXIMATE", SqlKeywordPosition.OrderByTail, "SELECT * FROM t ORDER BY a FETCH APPROXIMATE ", true, false, false, false, new string[]
+        {
+            "FIRST", "NEXT",
+        }),
+        ("NEXT {value}", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ", true, false, false, false, new string[]
         {
             "COLLATE", "ROW ONLY", "ROWS ONLY",
         }),
-        ("FETCH FIRST {value}", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ", true, false, false, false, new string[]
+        ("FIRST {value}", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ", true, false, false, false, new string[]
         {
             "COLLATE", "ROW ONLY", "ROWS ONLY",
         }),
-        ("FETCH NEXT {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROWS ", true, false, false, false, new string[]
+        ("NEXT {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROWS ", true, false, false, false, new string[]
         {
             "ONLY",
         }),
-        ("FETCH NEXT {value} ROW", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROW ", true, false, false, false, new string[]
+        ("NEXT {value} ROW", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROW ", true, false, false, false, new string[]
         {
             "ONLY",
         }),
-        ("FETCH FIRST {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ROWS ", true, false, false, false, new string[]
+        ("FIRST {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ROWS ", true, false, false, false, new string[]
         {
             "ONLY",
         }),
-        ("FETCH FIRST {value} ROW", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ROW ", true, false, false, false, new string[]
+        ("FIRST {value} ROW", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ROW ", true, false, false, false, new string[]
         {
             "ONLY",
+        }),
+        ("JSON_OBJECT (*", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "ABSENT",
+        }),
+        ("JSON_OBJECT (* {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 ", true, false, true, false, new string[]
+        {
+            "COLLATE", "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
+        }),
+        ("JSON_OBJECT (* {value} : {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_OBJECT (* {value} : {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_OBJECT (* {value} : {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_OBJECT (* NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_OBJECT (* ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAY (*", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (", false, true, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "ABSENT",
+        }),
+        ("JSON_ARRAY (* {value}", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 ", true, false, true, false, new string[]
+        {
+            "COLLATE", "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
+        }),
+        ("JSON_ARRAY (* {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAY (* {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAY (* {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAY (* NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAY (* ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_OBJECTAGG (*", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (", false, true, true, false, new string[]
+        {
+            "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "DISTINCT", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "IDENTITY", "ABSENT",
+        }),
+        ("JSON_OBJECTAGG (* {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 ", true, false, true, false, new string[]
+        {
+            "COLLATE", "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
+        }),
+        ("JSON_OBJECTAGG (* {value} : {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_OBJECTAGG (* {value} : {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_OBJECTAGG (* NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_OBJECTAGG (* ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value}", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ", true, false, true, false, new string[]
+        {
+            "COLLATE", "NULL ON NULL", "ORDER BY", "ABSENT ON NULL", "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER BY {value}", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ", true, false, true, false, new string[]
+        {
+            "ASC", "COLLATE", "DESC", "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER BY {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER BY {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER BY {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
         }),
         ("", SqlKeywordPosition.WindowOrderTail, "SELECT SUM(a) OVER (ORDER BY a ", true, false, false, false, new string[]
         {
@@ -9569,43 +9724,107 @@ internal static class SqlKeywordCatalogData
         {
             "ORDER", "PARTITION", "RANGE", "ROWS",
         }),
-        ("ROWS BETWEEN UNBOUNDED PRECEDING", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING ", true, false, false, false, new string[]
-        {
-            "AND",
-        }),
-        ("RANGE BETWEEN UNBOUNDED PRECEDING", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN UNBOUNDED PRECEDING ", true, false, false, false, new string[]
-        {
-            "AND",
-        }),
         ("ROWS UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS UNBOUNDED ", true, false, false, false, new string[]
         {
             "FOLLOWING", "PRECEDING",
         }),
-        ("RANGE UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE UNBOUNDED ", true, false, false, false, new string[]
+        ("ROWS {value}", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS 1 ", true, false, false, false, new string[]
         {
             "FOLLOWING", "PRECEDING",
-        }),
-        ("UNBOUNDED", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED ", true, false, false, false, new string[]
-        {
-            "FOLLOWING", "PRECEDING",
-        }),
-        ("PRECEDING AND", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND ", true, false, false, false, new string[]
-        {
-            "CURRENT", "UNBOUNDED",
         }),
         ("ROWS CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS CURRENT ", true, false, true, false, new string[]
         {
             "ROW",
         }),
+        ("ROWS BETWEEN UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING AND",
+        }),
+        ("ROWS BETWEEN {value}", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 ", true, false, false, false, new string[]
+        {
+            "FOLLOWING AND", "PRECEDING AND",
+        }),
+        ("ROWS BETWEEN CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ", true, false, true, false, new string[]
+        {
+            "ROW AND",
+        }),
+        ("ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
+        ("ROWS BETWEEN UNBOUNDED PRECEDING AND {value}", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND 1 ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
+        ("ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ", true, false, true, false, new string[]
+        {
+            "ROW",
+        }),
+        ("ROWS BETWEEN {value} PRECEDING AND UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 PRECEDING AND UNBOUNDED ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
+        ("ROWS BETWEEN {value} PRECEDING AND {value}", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 PRECEDING AND 1 ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
+        ("ROWS BETWEEN {value} PRECEDING AND CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 PRECEDING AND CURRENT ", true, false, true, false, new string[]
+        {
+            "ROW",
+        }),
+        ("ROWS BETWEEN {value} FOLLOWING AND UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
+        ("ROWS BETWEEN {value} FOLLOWING AND {value}", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 FOLLOWING AND 1 ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
+        ("ROWS BETWEEN {value} FOLLOWING AND CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 FOLLOWING AND CURRENT ", true, false, true, false, new string[]
+        {
+            "ROW",
+        }),
+        ("ROWS BETWEEN CURRENT ROW AND UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
+        ("ROWS BETWEEN CURRENT ROW AND {value}", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ROW AND 1 ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
+        ("ROWS BETWEEN CURRENT ROW AND CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ROW AND CURRENT ", true, false, true, false, new string[]
+        {
+            "ROW",
+        }),
+        ("RANGE UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE UNBOUNDED ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
         ("RANGE CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE CURRENT ", true, false, true, false, new string[]
         {
             "ROW",
         }),
-        ("BETWEEN CURRENT", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ", true, false, true, false, new string[]
+        ("RANGE BETWEEN UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN UNBOUNDED ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING AND",
+        }),
+        ("RANGE BETWEEN CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN CURRENT ", true, false, true, false, new string[]
+        {
+            "ROW AND",
+        }),
+        ("RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
+        ("RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ", true, false, true, false, new string[]
         {
             "ROW",
         }),
-        ("AND CURRENT", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ", true, false, true, false, new string[]
+        ("RANGE BETWEEN CURRENT ROW AND UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN CURRENT ROW AND UNBOUNDED ", true, false, false, false, new string[]
+        {
+            "FOLLOWING", "PRECEDING",
+        }),
+        ("RANGE BETWEEN CURRENT ROW AND CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN CURRENT ROW AND CURRENT ", true, false, true, false, new string[]
         {
             "ROW",
         }),
@@ -9821,6 +10040,14 @@ internal static class SqlKeywordCatalogData
         ("ALTER TABLE {name} ALTER COLUMN {name} DROP NOT FOR REPLICATION", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP NOT FOR REPLICATION ", true, false, false, true, new string[]
         {
             "WITH",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = {value}", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE", "WITH",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = {value}", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE", "WITH",
         }),
         ("ALTER TABLE {name} REBUILD PARTITION =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ", false, true, false, false, new string[]
         {
@@ -10071,6 +10298,10 @@ internal static class SqlKeywordCatalogData
         ("BULK INSERT {name}", SqlKeywordPosition.StatementStart, "BULK INSERT t ", true, false, false, false, new string[]
         {
             "FROM",
+        }),
+        ("BULK INSERT {name} FROM {value}", SqlKeywordPosition.StatementStart, "BULK INSERT t FROM 1 ", true, false, false, true, new string[]
+        {
+            "WITH",
         }),
         ("INDEX {name} CLUSTERED COLUMNSTORE", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE ", true, false, false, false, new string[]
         {
@@ -10465,6 +10696,10 @@ internal static class SqlKeywordCatalogData
         {
             "PASSWORD",
         }),
+        ("CREATE CERTIFICATE {name} ENCRYPTION BY PASSWORD = {value}", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t ENCRYPTION BY PASSWORD = 'x' ", true, false, false, false, new string[]
+        {
+            "WITH",
+        }),
         ("CREATE DATABASE SCOPED", SqlKeywordPosition.StatementStart, "CREATE DATABASE SCOPED ", true, false, false, true, new string[]
         {
             "AS", "COLLATE", "CONTAINMENT", "CREDENTIAL", "FOR", "KEY", "LOG", "ON",
@@ -10480,6 +10715,14 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE SCOPED CREDENTIAL {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CREDENTIAL t ", true, false, false, false, new string[]
         {
             "WITH IDENTITY",
+        }),
+        ("FOR SYSTEM_TIME BETWEEN {value}", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME BETWEEN 'x' ", true, false, false, false, new string[]
+        {
+            "AND",
+        }),
+        ("FOR SYSTEM_TIME FROM {value}", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME FROM 'x' ", true, false, false, false, new string[]
+        {
+            "TO",
         }),
         ("NEXT VALUE", SqlKeywordPosition.Any, "SELECT NEXT VALUE ", true, false, false, false, new string[]
         {
@@ -10498,6 +10741,14 @@ internal static class SqlKeywordCatalogData
         ("WITHIN", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN ", true, false, false, false, new string[]
         {
             "GROUP",
+        }),
+        ("IGNORE", SqlKeywordPosition.FunctionCallTail, "SELECT (LAG(a) IGNORE ", true, false, false, false, new string[]
+        {
+            "NULLS",
+        }),
+        ("RESPECT", SqlKeywordPosition.FunctionCallTail, "SELECT (LAG(a) RESPECT ", true, false, false, false, new string[]
+        {
+            "NULLS",
         }),
         ("GROUP", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP ", true, false, false, false, new string[]
         {
@@ -10523,6 +10774,206 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
+        ("FETCH", SqlKeywordPosition.OrderByTail, "SELECT * FROM t ORDER BY a FETCH ", true, false, false, false, new string[]
+        {
+            "APPROX", "APPROXIMATE", "FIRST", "FROM", "NEXT",
+        }),
+        ("JSON_OBJECT (* {value} : {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 NULL ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_OBJECT (* {value} : {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 NULL ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_OBJECT (* {value} : {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 NULL ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_OBJECT (* {value} : {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 ABSENT ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_OBJECT (* {value} : {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 ABSENT ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_OBJECT (* {value} : {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 ABSENT ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_OBJECT (* NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "ON NULL",
+        }),
+        ("JSON_OBJECT (* NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (NULL ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_OBJECT (* NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (NULL ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_OBJECT (* ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (ABSENT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "ON NULL",
+        }),
+        ("JSON_OBJECT (* ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (ABSENT ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_OBJECT (* ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (ABSENT ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAY (* {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 NULL ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_ARRAY (* {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 NULL ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAY (* {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 NULL ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAY (* {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 ABSENT ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_ARRAY (* {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 ABSENT ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAY (* {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 ABSENT ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAY (* NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (NULL ", true, false, true, false, new string[]
+        {
+            "COLLATE", "NULL", "ON NULL",
+        }),
+        ("JSON_ARRAY (* NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (NULL ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAY (* NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (NULL ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAY (* ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (ABSENT ", true, false, true, false, new string[]
+        {
+            "COLLATE", "NULL", "ON NULL",
+        }),
+        ("JSON_ARRAY (* ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (ABSENT ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAY (* ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (ABSENT ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_OBJECTAGG (* {value} : {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 NULL ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_OBJECTAGG (* {value} : {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 NULL ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_OBJECTAGG (* {value} : {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 NULL ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_OBJECTAGG (* {value} : {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 ABSENT ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 ABSENT ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 ABSENT ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_OBJECTAGG (* NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "ON NULL",
+        }),
+        ("JSON_OBJECTAGG (* NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_OBJECTAGG (* NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_OBJECTAGG (* ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "ON NULL",
+        }),
+        ("JSON_OBJECTAGG (* ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_OBJECTAGG (* ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_ARRAYAGG (* {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAYAGG (* {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_ARRAYAGG (* {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAYAGG (* {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER ", true, false, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER BY {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER BY {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER BY {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER BY {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER BY {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAYAGG (* {value} ORDER BY {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
         ("ROWS", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS ", true, false, false, false, new string[]
         {
             "BETWEEN", "CURRENT", "UNBOUNDED",
@@ -10531,9 +10982,37 @@ internal static class SqlKeywordCatalogData
         {
             "CURRENT", "UNBOUNDED",
         }),
-        ("ROWS BETWEEN UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED ", true, false, false, false, new string[]
+        ("ROWS BETWEEN UNBOUNDED PRECEDING", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING ", true, false, false, false, new string[]
         {
-            "FOLLOWING", "PRECEDING AND",
+            "AND",
+        }),
+        ("ROWS BETWEEN UNBOUNDED PRECEDING AND", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND ", true, false, false, false, new string[]
+        {
+            "CURRENT", "UNBOUNDED",
+        }),
+        ("ROWS BETWEEN {value} PRECEDING", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 PRECEDING ", true, false, false, false, new string[]
+        {
+            "AND",
+        }),
+        ("ROWS BETWEEN {value} PRECEDING AND", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 PRECEDING AND ", true, false, false, false, new string[]
+        {
+            "CURRENT", "UNBOUNDED",
+        }),
+        ("ROWS BETWEEN {value} FOLLOWING", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 FOLLOWING ", true, false, false, false, new string[]
+        {
+            "AND",
+        }),
+        ("ROWS BETWEEN {value} FOLLOWING AND", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 FOLLOWING AND ", true, false, false, false, new string[]
+        {
+            "CURRENT", "UNBOUNDED",
+        }),
+        ("ROWS BETWEEN CURRENT ROW", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ROW ", true, false, false, false, new string[]
+        {
+            "AND",
+        }),
+        ("ROWS BETWEEN CURRENT ROW AND", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ROW AND ", true, false, false, false, new string[]
+        {
+            "CURRENT", "UNBOUNDED",
         }),
         ("RANGE", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE ", true, false, false, false, new string[]
         {
@@ -10543,9 +11022,21 @@ internal static class SqlKeywordCatalogData
         {
             "CURRENT", "UNBOUNDED",
         }),
-        ("RANGE BETWEEN UNBOUNDED", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN UNBOUNDED ", true, false, false, false, new string[]
+        ("RANGE BETWEEN UNBOUNDED PRECEDING", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN UNBOUNDED PRECEDING ", true, false, false, false, new string[]
         {
-            "FOLLOWING", "PRECEDING AND",
+            "AND",
+        }),
+        ("RANGE BETWEEN UNBOUNDED PRECEDING AND", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN UNBOUNDED PRECEDING AND ", true, false, false, false, new string[]
+        {
+            "CURRENT", "UNBOUNDED",
+        }),
+        ("RANGE BETWEEN CURRENT ROW", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN CURRENT ROW ", true, false, false, false, new string[]
+        {
+            "AND",
+        }),
+        ("RANGE BETWEEN CURRENT ROW AND", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN CURRENT ROW AND ", true, false, false, false, new string[]
+        {
+            "CURRENT", "UNBOUNDED",
         }),
         ("APPLICATION", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON APPLICATION ", true, false, false, false, new string[]
         {
@@ -10694,11 +11185,11 @@ internal static class SqlKeywordCatalogData
     {
         (SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC" }),
         (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE" }),
-        (SqlKeywordPosition.None, "CREATE TABLE t (a datetime2 ", new string[] { "GENERATED", "ENCRYPTED" }),
+        (SqlKeywordPosition.None, "CREATE TABLE t (a datetime2 ", new string[] { "GENERATED", "ENCRYPTED", "FIRST" }),
         (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD" }),
         (SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD" }),
         (SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),
-        (SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN" }),
+        (SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN", "IGNORE", "RESPECT" }),
     };
 
     /// <summary>

@@ -12,9 +12,10 @@
 | 目錄的快取鍵（伺服器＋資料庫＋連結伺服器） | `Metadata/Querying/SqlConnectionCacheKey.cs` |
 | 略過 SQL 註解與空白 | `Core/Parsing/SqlTrivia.cs` |
 | 括號配對、未關上的左括號、括號後是不是查詢、往回跳過限定名稱 | `Core/Parsing/SqlTokenNavigator.cs` |
+| 運算式從哪裡開始 | `Core/Keywords/SqlOperand.cs` |
 | 分辨 `ON` 後面是資料表還是述詞 | `Core/Parsing/SqlDdlTarget.cs` |
 | 讀出暫存資料表與資料表變數的資料行 | `Core/Parsing/SqlScriptTableCollector.cs` |
-| 指令碼宣告的物件建議（井號名稱分成暫存資料表或暫存程序、資料指標） | `Core/Completion/SqlScriptObjectSuggestions.cs` |
+| 指令碼宣告的物件建議 | `Core/Completion/SqlScriptObjectSuggestions.cs` |
 | 資料指標名稱；視窗規格的左括號與 WINDOW 子句的名稱 | `Core/Parsing/SqlCursorDeclaration.cs`；`SqlWindowClause.cs` |
 | 指令碼宣告的資料來源換成物件明細（含宣告原文） | `Metadata/Model/SqlScriptTableDetail.cs` |
 | 拿名稱向這份指令碼換宣告（Hover、預覽、F12 共用，名稱決定種類） | `Metadata/Model/SqlScriptDeclarations.cs` |
@@ -22,7 +23,7 @@
 | 區塊配對與祖先查詢 | `Core/Parsing/BlockMatcher.cs` |
 | 模糊比對與命中高亮 | `Core/Matching/FuzzyMatcher.cs` |
 | 建議清單開不開、軟硬選；排名、無前綴可見度、分類篩選 | `Core/Completion/SqlCompletionPolicy.cs`；`SuggestionList.cs` |
-| 識別字加括號與拿掉括號（形狀、保留字、指令碼自己宣告的名稱）；正在打的左方括號與它的右半截 | `Core/Parsing/SqlIdentifier.cs` |
+| 識別字加括號與拿掉括號（形狀、保留字、宣告的名稱）；正在打的左方括號與它的右半截 | `Core/Parsing/SqlIdentifier.cs` |
 | 提交建議時寫進編輯器的文字（補不補結構描述、要不要方括號） | `Core/Completion/SqlInsertionText.cs` |
 | 候選分派（資料庫由介面注入）、中繼資料轉建議項 | `Core/Completion/SqlCompletionCandidates.cs`；`Metadata/Completion/` |
 | 定序、語言、時區名單的位置、已用值、排名 | `Core/Completion/SqlInstanceList.cs` |
@@ -40,7 +41,7 @@
 | 片段上的高亮區段平移到整份文字 | `Core/Matching/MatchProjection.cs` 的 `Shift` |
 | 名稱與資料行的命中怎麼比（沒開修飾走模糊，開了大小寫或全字走字面） | `Core/Search/SearchIdentifierMatch.cs` |
 | 搜尋索引的位元組預算、版本戳與失效 | `Metadata/Search/SqlCatalogSearchIndexCache.cs` |
-| Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs`（語法可重用，資料每次重新比對） |
+| Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs` |
 | 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
 | 浮動預覽的落點、避障與方向遲滯；搬動、縮放與收進界內 | `Core/Preview/PreviewPlacementEngine.cs`、`PreviewDragEngine.cs` |
 | 浮動預覽何時收、釘住的窗借用與還回、膠囊停多久 | `Core/Preview/PreviewLifecycle.cs`、`PreviewReveal.cs` |

@@ -85,7 +85,8 @@ internal static class PositionTemplates
         new("WindowClauseTail", "SELECT a FROM t WINDOW w AS (ORDER BY a) "),
 
         // 函式呼叫之後的 OVER、COLLATE。包在括號裡，選取清單尾端的 FROM、別名這些字就接不上。
-        new("FunctionCallTail", "SELECT (SUM(a) "),
+        // 第二個樣板給只有位移函式接得上的 IGNORE NULLS、RESPECT NULLS（SUM(a) IGNORE 剖析器不收）。
+        new("FunctionCallTail", "SELECT (SUM(a) ", "SELECT (LAG(a) "),
 
         // 外部索引鍵的參考寫完之後：ON（DELETE、UPDATE）、NOT（FOR REPLICATION）與其他資料行條件約束。
         new("ReferencesTail", "CREATE TABLE t (a int REFERENCES u (a) "),

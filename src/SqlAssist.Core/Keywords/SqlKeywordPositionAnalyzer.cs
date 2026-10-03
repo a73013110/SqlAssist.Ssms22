@@ -803,7 +803,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 打 <c>@</c> 之後資料表變數也照資料來源提交。
     ///
     /// UPDATE 的 FROM 所屬的動詞是 SET：帶資料行指派的 SET（<see cref="IntroducesOptions"/>）算 UPDATE。
-    /// 判不出動詞時照舊當成資料來源：<c>TRIM(' ' FROM x)</c> 那種在括號裡，範圍分析本來就不讀。
+    /// 寫在簽章有 FROM 的函式括號裡的不是：<c>TRIM(' ' FROM x)</c> 的 FROM 是函式引數的文法，之後是運算式。
+    /// 只看沒關上的括號不夠——寫到一半的 <c>SELECT COUNT(u.| FROM t u</c> 括號也沒關上。其餘判不出動詞的照舊當成資料來源。
     ///
     /// 位置分析（FROM、INTO 之後，以它們為錨點的清單與子句尾端）、上下文分析的目標與範圍分析的資料來源
     /// 都問這一條。
@@ -814,7 +815,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         if (verb < 0)
         {
-            return true;
+            var open = FindUnclosedParenthesis(keyword - 1);
+
+            return !(tokens[keyword].IsKeyword("FROM") &&
+                open >= 1 &&
+                SqlFunctionCatalog.TryGetSignature(tokens[open - 1].Value, out var signature) &&
+                signature.Contains(" FROM"));
         }
 
         var token = tokens[verb];

@@ -64,8 +64,8 @@ SQL Server 2025 才有的 `JSON`、`VECTOR` 同樣照收、不看連線的版本
 |---|---|
 | `DECLARE @a INT = NULL, @b `、`CREATE PROCEDURE p @x int OUTPUT, @y `、`CREATE AGGREGATE g (@a ` | 前一個詞元是落在[宣告位置](completion-variables.md#宣告的位置仍然不開清單)上的變數 |
 | `RETURNS ` | 一個詞元就決定得了 |
-| `CAST(x AS `、`TRY_CAST`、`PARSE`、`TRY_PARSE` | `AS` 而且還沒關上的那個左括號屬於這幾個函式 |
-| `CONVERT(`、`TRY_CONVERT(` | 左括號前面是這兩個名字 |
+| `CAST(x AS `、`TRY_CAST`、`PARSE`、`TRY_PARSE` | `AS` 而且還沒關上的那個左括號屬於簽章寫 `AS type` 的函式 |
+| `CONVERT(`、`TRY_CONVERT(`、`SELECT IDENTITY(` | 左括號前面是簽章第一個參數為 `type` 的函式；資料行定義裡的 `IDENTITY(1, 1)` 是屬性，不算 |
 | `CREATE TABLE t (Id `、`DECLARE @t TABLE (Id `、`ALTER TABLE t ADD Id `、`WITH RESULT SETS ((Id ` | 名稱前面那一格是資料行定義的開頭（位置分析的 `ColumnDefinition`、`AlterTableAdd`、`ResultSetColumn`）；名稱可加方括號 |
 | `ALTER TABLE t ALTER COLUMN c ` | 前兩個詞元是 `ALTER COLUMN`；`DROP COLUMN c` 之後不是 |
 | `CREATE SEQUENCE s AS `、`CREATE TYPE t FROM ` | 以型別為底的物件，名稱之後的那個字 |

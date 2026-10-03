@@ -318,6 +318,32 @@ public sealed class SqlClausePhraseTests
     [InlineData("DBCC SQLPERF ('sys.dm_os_wait_stats', ", "CLEAR")]
     [InlineData("DBCC SHRINKFILE (LibArchive_log, ", "EMPTYFILE", "NOTRUNCATE", "TRUNCATEONLY")]
     [InlineData("DBCC CHECKTABLE ('dbo.Loan', ", "NOINDEX", "REPAIR_REBUILD")]
+    [InlineData("SELECT JSON_OBJECT('Title': Title ", "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON")]
+    [InlineData("SELECT JSON_OBJECT('Title': UPPER(Title) + 'x' ABSENT ", "ON NULL")]
+    [InlineData("SELECT JSON_ARRAY(1, @n * 2 NULL ON NULL ", "RETURNING JSON")]
+    [InlineData("SELECT JSON_ARRAY(", "NULL", "ABSENT")]
+    [InlineData("SELECT JSON_OBJECT(NULL ", "ON NULL")]
+    [InlineData("SELECT JSON_ARRAYAGG(CopyNo ORDER BY DueDate ", "NULL ON NULL", "RETURNING JSON")]
+    [InlineData("SELECT JSON_OBJECTAGG(CopyNo: DueDate RETURNING ", "JSON")]
+    [InlineData("SELECT LAG(Fee) ", "IGNORE", "RESPECT", "OVER")]
+    [InlineData("SELECT LAG(Fee) IGNORE ", "NULLS")]
+    [InlineData("SELECT FIRST_VALUE(Fee) RESPECT NULLS ", "OVER")]
+    [InlineData("SELECT SUM(a) OVER (ORDER BY a ROWS ", "BETWEEN", "UNBOUNDED", "CURRENT")]
+    [InlineData("SELECT SUM(a) OVER (ORDER BY a ROWS 2 ", "PRECEDING")]
+    [InlineData("SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 2 ", "PRECEDING AND", "FOLLOWING AND")]
+    [InlineData("SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ROW ", "AND")]
+    [InlineData("SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ROW AND ", "UNBOUNDED", "CURRENT")]
+    [InlineData("SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN 1 FOLLOWING AND @n + 1 ", "FOLLOWING")]
+    [InlineData("SELECT SUM(a) OVER (w RANGE BETWEEN UNBOUNDED PRECEDING AND ", "UNBOUNDED", "CURRENT")]
+    [InlineData("SELECT a FROM t FOR SYSTEM_TIME BETWEEN @From ", "AND")]
+    [InlineData("SELECT a FROM t FOR SYSTEM_TIME FROM '2026-01-01' ", "TO")]
+    [InlineData("SELECT a FROM t ORDER BY a FETCH ", "APPROX", "APPROXIMATE")]
+    [InlineData("SELECT a FROM t ORDER BY a FETCH APPROXIMATE ", "NEXT", "FIRST")]
+    [InlineData("SELECT a FROM t ORDER BY a FETCH APPROX FIRST 10 ", "ROWS ONLY", "ROW ONLY")]
+    [InlineData("SELECT a FROM t ORDER BY a OFFSET @a - 1 ROWS FETCH NEXT @a - @b + 1 ROWS ", "ONLY")]
+    [InlineData("SELECT * FROM PREDICT(", "MODEL")]
+    [InlineData("SELECT * FROM PREDICT(MODEL = @Model, ", "DATA")]
+    [InlineData("SELECT * FROM PREDICT(MODEL = @Model, DATA = dbo.Copy AS d, RUNTIME = ", "ONNX")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -520,6 +546,23 @@ public sealed class SqlClausePhraseTests
         Assert.False(context.ClausePhrase!.IsCertain);
         Assert.Contains(phraseWord, offered);
         Assert.Contains(nextStatementWord, offered);
+    }
+
+    /// <summary>
+    /// 前一格同時是幾個位置時，同一條尾巴在每個位置接的字都算：查詢寫完換了行，FETCH 可以是 FETCH APPROX，
+    /// 也可以是下一句資料指標的 FETCH。
+    /// </summary>
+    /// <remarks>只取第一個對上的話，換行寫的 <c>FETCH APPROXIMATE</c> 列不出 APPROXIMATE。</remarks>
+    [Fact]
+    public void 同一條尾巴在幾個位置成立時字取聯集()
+    {
+        var match = SqlKeywordPositionAnalyzer.Analyze("SELECT a FROM t ORDER BY a\nFETCH ").Phrase;
+
+        Assert.NotNull(match);
+        Assert.True(match!.IsCertain);
+        Assert.Contains("APPROXIMATE", match.Phrase.Words);
+        Assert.Contains("PRIOR", match.Phrase.Words);
+        Assert.Same(match.Phrase, SqlKeywordPositionAnalyzer.Analyze("SELECT b FROM u ORDER BY b\nFETCH ").Phrase!.Phrase);
     }
 
     /// <summary>
