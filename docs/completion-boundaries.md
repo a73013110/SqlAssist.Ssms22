@@ -13,8 +13,7 @@
   述詞位置上的括號（`WHEN a = 1 AND (b = 2 OR c `）仍是同一個條件，接 `IS`、`THEN`。
 - **`IIF(` 的第一個引數是述詞**：左括號就是它的 `WHERE`，`IIF(Fee > 2 ` 接 `AND`、`OR`，`IIF(@a ` 接 `IS`；
   逗號之後的引數是一般的值。穿出去借外層的話只剩選取清單尾端。
-- **逗號代表清單再來一項**，位置回到清單的**起點**：`SELECT a, ` 與 `SELECT ` 同一個位置；
-  判成尾端的話 `CASE` 不見。沒關上的左括號也是起點（引數、`VALUES` 的一列），
+- **逗號之後回到清單的起點**：`SELECT a, ` 與 `SELECT ` 同一個位置，判成尾端的話 `CASE` 不見。沒關上的左括號也是起點（引數、`VALUES` 的一列），
   不借外層：`VALUES (1, ` 才列得出 `NULL`。
 - **TOP 子句不是選取清單的一項**：`SELECT TOP 10 ` 之後仍是起點，另接 `PERCENT`、`WITH TIES`。
 - **`ON` 的述詞寫完之後是兩個位置的聯集**：述詞尾端（`AND`、`OR`）與資料來源尾端
@@ -45,10 +44,13 @@
 | `MaybeName` | 名字或關鍵字都可能 | `FROM dbo.T `、`SELECT PublCode `、`CREATE PROCEDURE ` | 開，軟選 |
 | `Grammar` | 其餘 | `SELECT `、`WHERE a = ` | 開，打了字才硬選 |
 
-`MaybeName` 的 `FROM dbo.T W` 可能是別名也可能是打到一半的 `WHERE`，軟選讓 Enter 保住別名，
-代價是 `FR`＋Enter 不再補成 `FROM`。它寫得出清單外的新名字，所以不封閉：打了字才開。
+以數字開頭的詞元是數值常值，歸 `Inert`：`Fine - 10` 的 `10` 模糊比對會對到 `LOG10`，Enter 就換成函式。
+點號前那一段以數字開頭也算（`1.`，否則平台以限定字 `1` 開清單），方括號裡的不算（`[192.0.2.10].` 是連結伺服器）。
 
-- **`Name`**：`AS ` 之後的別名、`DECLARE @`（見[變數](completion-variables.md)）、`CREATE <種類> ` 列不出東西的那一段（見下文）、`WITH ` 與 `WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
+`MaybeName` 的 `FROM dbo.T W` 可能是別名也可能是打到一半的 `WHERE`，軟選讓 Enter 保住別名，
+代價是 `FR`＋Enter 不再補成 `FROM`。它寫得出清單外的新名字，不封閉。
+
+- **`Name`**：`AS ` 之後的別名、`DECLARE @`（見[變數](completion-variables.md)）、`CREATE <種類> ` 列不出東西的那一段、`WITH ` 與 `WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
   （`INSERT INTO `、`MERGE INTO ` 要既有資料表，是 `Grammar`）、`RESULT SETS ((` 的資料行名稱。
 - **`MaybeName`**：同一行沒有 AS 的別名、文法強制別名的括號之後（衍生資料表、`PIVOT (…) `、
   `UNPIVOT (…) `）、`CREATE <種類> ` 列得出東西的那一段、資料行定義的起點（`CREATE TABLE t (`、逗號之後、
@@ -95,8 +97,10 @@
 
 - **明確的**：前一格含語句開頭、區塊開頭或區塊的 END——`;`、GO、`BEGIN`、`ELSE`、模組標頭的
   `AS`、IF 的條件、SET 選項的值、寫完一整句的字（`BREAK`）。
-- **隱含的**：子句尾端又換了行（下一節），或前一句判不出位置而寫到一個運算元（換了行時那一格就是語句開頭，片語比對得確定）。
-  但剖析器不看換行：前一句的[片語](completion-phrases.md)確定接得上的字仍屬於前一句
+- **隱含的**：沒有分號時換行就是界線。`WHERE a = 1⏎` 之後是 `AND` 還是下一句的 `SELECT`，詞元分不出來，
+  所以**子句已到尾端又換了行**就聯集 `StatementStart`（尾端見 `StatementEndPositions`，含選取清單：
+  `SELECT dbo.fn_Fee('')` 不需要 `FROM`）；前一句判不出位置而寫完一個運算元也一樣。同一行、括號沒關、
+  名字那一格前面不補。剖析器不看換行：前一句的[片語](completion-phrases.md)確定接得上的字仍屬於前一句
   （`OFFSET 0 ROWS⏎FETCH`、`ALTER DATABASE d⏎SET`）。
 - `WITH` 只認明確的：CTE 前一句必須以分號結束。
 
@@ -106,20 +110,3 @@
 - **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c ` 接 `INTO`
   （`FetchTail`），`RESTORE`、`REVOKE`、`BULK INSERT` 的 FROM 是 `Any`。位置、目標與範圍分析
   共用 `IntroducesDataSource`，分岔時 `DISK` 被收成一張表。
-
-### 沒有分號時，換行就是界線
-
-`WHERE a = 1` 之後換行寫 `SELECT` 或 `AND`，詞元分不出差別；只給子句尾端會濾光下一句的片段。所以**子句已到尾端又換了行**就補上 `StatementStart`，同一行不補。
-
-補的是旗標聯集，續寫的 `FROM`、`AND` 照樣在；括號還沒關、名字那一格前面不補。
-認的尾端見 `StatementEndPositions`，含選取清單：`SELECT dbo.fn_Fee('')` 不需要 `FROM`。
-
-## 數值常值不開清單
-
-`SET Fine = Fine - 10` 打到 `10` 時模糊比對會對到 `LOG10`，Enter 就把數字換成函式。
-以數字開頭的詞元必然是數值常值，歸 `Inert`；點號前那一段以數字開頭也算（`1.`，否則平台以限定字 `1`
-開清單），方括號裡的不算（`[192.0.2.10].` 是連結伺服器）。
-
-變數後的點號只有資料表變數算限定字：`@rows.` 列它的資料行（提交時改寫成 `[@rows].`，
-見[插入文字](completion-insertion.md#欄位的限定字另有一條)），純量變數的 `@x.value(`
-是 xml 方法，歸 `Inert`。

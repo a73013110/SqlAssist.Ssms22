@@ -16,6 +16,10 @@ DECLARE @rows TABLE (Id INT, CopyNo NVARCHAR(20));
 以及提交 `INSERT INTO`／`MERGE INTO` 之後的整句展開。各自接一條的話，漏掉的那一條
 沒有徵兆——使用者只是在那裡又得把每個欄位重打一遍。
 
+變數後的點號只有資料表變數算限定字：`@rows.` 列它的資料行（提交時改寫成 `[@rows].`，
+見[插入文字](completion-insertion.md#欄位的限定字另有一條)）；純量變數的 `@x.value(` 是 xml 方法，
+歸 `Inert`，不開清單。
+
 只認**帶著資料行定義**的兩種寫法。`SELECT … INTO #Loan` 不在這一份名冊裡：
 那裡沒有型別，而少了型別的 `INSERT` 骨架會替使用者猜錯字面值。
 `RETURNS @rows TABLE (…)` 則免費一起認得，因為認的是「變數 `[AS] TABLE (`」這個形狀。
