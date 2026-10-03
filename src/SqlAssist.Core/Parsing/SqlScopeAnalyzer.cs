@@ -968,7 +968,7 @@ public static class SqlScopeAnalyzer
     /// </remarks>
     private static void SkipTableSourceTail(IReadOnlyList<SqlToken> tokens, ref int index, int end)
     {
-        SkipTemporalClause(tokens, ref index, end);
+        SkipTableNameSuffix(tokens, ref index, end);
 
         while (index < end &&
                (tokens[index].IsKeyword("WITH") ||
@@ -999,15 +999,21 @@ public static class SqlScopeAnalyzer
     }
 
     /// <summary>
-    /// 跳過時態表的 <c>FOR SYSTEM_TIME …</c>：<c>AS OF x</c>、<c>FROM x TO y</c>、<c>BETWEEN x AND y</c>、
-    /// <c>CONTAINED IN (x, y)</c>、<c>ALL</c>。
+    /// 跳過資料表名稱的 <c>FOR</c> 後綴：圖形查詢的 <c>FOR PATH</c>，時態表的 <c>FOR SYSTEM_TIME …</c>
+    /// （<c>AS OF x</c>、<c>FROM x TO y</c>、<c>BETWEEN x AND y</c>、<c>CONTAINED IN (x, y)</c>、<c>ALL</c>）。
     /// </summary>
     /// <remarks>
     /// 文法把它排在別名前面；跳不過的話 <c>FOR</c> 讀不成別名，<c>JOIN Loan FOR SYSTEM_TIME AS OF @d AS a</c>
-    /// 的 <c>a</c> 就不見了。寫到一半時停在讀得到的地方。
+    /// 的 <c>a</c> 就不見了，逗號清單也在這裡斷掉，之後的來源全部讀不到。寫到一半時停在讀得到的地方。
     /// </remarks>
-    private static void SkipTemporalClause(IReadOnlyList<SqlToken> tokens, ref int index, int end)
+    private static void SkipTableNameSuffix(IReadOnlyList<SqlToken> tokens, ref int index, int end)
     {
+        if (index + 1 < end && tokens[index].IsKeyword("FOR") && tokens[index + 1].IsKeyword("PATH"))
+        {
+            index += 2;
+            return;
+        }
+
         if (index + 2 >= end || !tokens[index].IsKeyword("FOR") || !tokens[index + 1].IsKeyword("SYSTEM_TIME"))
         {
             return;

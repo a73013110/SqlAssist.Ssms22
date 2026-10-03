@@ -14,7 +14,7 @@
 - **`IIF(` 的第一個引數是述詞**：左括號就是它的 `WHERE`，`IIF(Fee > 2 ` 接 `AND`、`OR`，`IIF(@a ` 接 `IS`；
   逗號之後的引數是一般的值。穿出去借外層的話只剩選取清單尾端。
 - **逗號之後回到清單的起點**：`SELECT a, ` 與 `SELECT ` 同一個位置，判成尾端的話 `CASE` 不見。沒關上的左括號也是起點（引數、`VALUES` 的一列），
-  不借外層：`VALUES (1, ` 才列得出 `NULL`。
+  不借外層：`VALUES (1, ` 才列得出 `NULL`。資料行定義清單的逗號之前是上一項（`… CASCADE, CONSTRAINT c ` 不借它的 `ON`）。
 - **TOP 子句不是選取清單的一項**：`SELECT TOP 10 ` 之後仍是起點，另接 `PERCENT`、`WITH TIES`。
 - **`ON` 的述詞寫完之後是兩個位置的聯集**：述詞尾端（`AND`、`OR`）與資料來源尾端
   （`WHERE`、`JOIN`）。
@@ -28,7 +28,7 @@
 - **`NOT` 也是聯集**：`WHERE NOT ` 開一個述詞，`a NOT ` 之後接 `IN`、`LIKE`。
 - **`IF`、`WHILE` 是錨點**：條件寫完是主體的開頭，也接 `AND`、`OR`；括號沒關上時只算條件。
   IF 的單句主體寫完另接 `ELSE`（`IfBodyEnd`）；以分號結束也一樣，分號只說前一句寫完了
-  （`IF @a = 1 PRINT 'x'; ELSE`、`BEGIN … END; ELSE`）。
+  （`IF @a = 1 PRINT 'x'; ELSE`）。
 - **區塊邊界之後是下一句**：`BEGIN TRY`、`END CATCH`、IF 的 `ELSE`。`BEGIN … END` 的 END
   另接 `ELSE`、`TRY`、`CATCH`（`BlockEnd`）；CASE 的 ELSE 與 END 不算。
 
@@ -47,7 +47,7 @@
 以數字開頭的詞元是數值常值，歸 `Inert`：`Fine - 10` 的 `10` 模糊比對會對到 `LOG10`，Enter 就換成函式。
 點號前那一段以數字開頭也算（`1.`，否則平台以限定字 `1` 開清單），方括號裡的不算（`[192.0.2.10].` 是連結伺服器）。
 
-`MaybeName` 的 `FROM dbo.T W` 可能是別名也可能是打到一半的 `WHERE`，軟選讓 Enter 保住別名，
+`MaybeName` 的 `FROM dbo.T W` 可能是別名或打到一半的 `WHERE`，軟選讓 Enter 保住別名，
 代價是 `FR`＋Enter 不再補成 `FROM`。它寫得出清單外的新名字，不封閉。
 
 - **`Name`**：`AS ` 之後的別名、`DECLARE @`（見[變數](completion-variables.md)）、`CREATE <種類> ` 列不出東西的那一段、`WITH ` 與 `WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
@@ -66,7 +66,7 @@
 
 資料來源與選取清單共用一條：**同一行、一項剛寫完、還沒有別名**就是 `MaybeName`。
 
-- 一項：資料來源是名稱或資料表值函式呼叫，連同後綴 `FOR SYSTEM_TIME …` 與函式的
+- 一項：資料來源是名稱或資料表值函式呼叫，連同後綴 `FOR PATH`、`FOR SYSTEM_TIME …` 與函式的
   `WITH (…)` 資料行結構描述（`OPENJSON(@j) WITH (a int) `），前面直接是 `FROM`、`JOIN`、
   `APPLY`、`USING`、`MERGE [INTO]` 或 FROM 清單的逗號；選取清單是一整個運算式，
   往回到 `SELECT`、逗號或 TOP 子句。
@@ -74,14 +74,13 @@
   （`Grammar`）：`DELETE [TOP (5)] FROM t `、`FETCH NEXT FROM c `。`DELETE a FROM t ` 照常。
 - 項目結尾是識別字、變數、`)`、常值或 `CASE … END` 的 `END`；`*` 後面不接別名。
 - 還沒有別名：最後一個運算元前面不緊鄰另一個運算元或 `AS`。
-- 同一行：前一個詞元結尾到游標之間沒有換行（註解前的也算），
-  這是分開別名與 `WHE` 的唯一線索。
+- 同一行：前一個詞元結尾到游標之間沒有換行（註解前的也算）。
 
 ### CREATE 的名稱格
 
 名稱只有最後一段是新的：**列得出東西的那一段是 `MaybeName`，列不出才是 `Name`**（`CreatedNameSlot`）。
 列得出的是既有物件（`CREATE OR ALTER `）、同一格的字（`CREATE DATABASE SCOPED`），或還沒寫限定字時的
-結構描述（種類由[產生器](phrase-generator.md)探出）。
+結構描述。
 其餘是 `Name`：`CREATE PROCEDURE dbo.`、`CREATE INDEX `。
 
 取捨：不列資料庫（跨庫建立少見）。打了字才開，否則片段 `cp` 名稱欄位的 Tab 把 `dbo` 提交進
@@ -93,7 +92,7 @@
 借上一句的話，`WHERE b = 1⏎EXEC p @x ` 打不出 `OUTPUT`。
 
 **語句開頭**是能開始一句的關鍵字，而且前一格是界線。這種字也寫在句中（`WITH (NOLOCK)`、
-`DROP TABLE IF`、`THEN UPDATE`），分開它們的是前一格：
+`DROP TABLE IF`、`THEN UPDATE`）：
 
 - **明確的**：前一格含語句開頭、區塊開頭或區塊的 END——`;`、GO、`BEGIN`、`ELSE`、模組標頭的
   `AS`、IF 的條件、SET 選項的值、寫完一整句的字（`BREAK`）。

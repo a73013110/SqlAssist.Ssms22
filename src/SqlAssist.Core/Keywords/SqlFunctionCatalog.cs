@@ -274,7 +274,12 @@ public static class SqlFunctionCatalog
 
         // 向量與模型
         ("VECTOR_SEARCH", "VECTOR_SEARCH(TABLE = table AS alias, COLUMN = column, SIMILAR_TO = vector, METRIC = 'cosine', TOP_N = n)"),
-        ("PREDICT", "PREDICT(MODEL = model, DATA = source AS alias [, RUNTIME = ONNX]) WITH (column type, ...)")
+        ("PREDICT", "PREDICT(MODEL = model, DATA = source AS alias [, RUNTIME = ONNX]) WITH (column type, ...)"),
+
+        // 圖形查詢：MATCH 寫在 WHERE，另外兩個只寫在 MATCH 的圖樣裡。
+        ("MATCH", "MATCH(node-(edge)->node [AND ...])"),
+        ("SHORTEST_PATH", "SHORTEST_PATH(node(-(edge)->node)+)"),
+        ("LAST_NODE", "LAST_NODE(node)")
     };
 
     private static IReadOnlyList<SqlSuggestion>? _suggestions;

@@ -680,6 +680,26 @@
     "examples.basic.title": "Basic usage",
     "examples.onnx.title": "ONNX model"
   },
+  "MATCH": {
+    "summary": "Graph match condition in WHERE; -( )-> links nodes and edges",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT c.CopyNo FROM Lib_Reader r, Loan l, Copy c WHERE MATCH(r-(l)->c)   -- Borrowed",
+    "examples.reverse.title": "Reverse direction",
+    "examples.reverse.sql": "SELECT r.Id FROM Lib_Reader r, Loan l, Copy c WHERE MATCH(c<-(l)-r)   -- Same as r-(l)->c"
+  },
+  "SHORTEST_PATH": {
+    "summary": "Shortest path in MATCH; tables on the path use FOR PATH",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "WHERE MATCH(SHORTEST_PATH(a(-(l)->b)+))   -- l and b use FOR PATH in FROM",
+    "examples.graph-path.title": "Listing the path",
+    "examples.graph-path.sql": "SELECT a.Id, STRING_AGG(b.Id, '->') WITHIN GROUP (GRAPH PATH) AS Path\nFROM Lib_Reader AS a, Loan FOR PATH AS l, Lib_Reader FOR PATH AS b\nWHERE MATCH(SHORTEST_PATH(a(-(l)->b){1,3}))   -- Up to three hops"
+  },
+  "LAST_NODE": {
+    "summary": "Last node of a SHORTEST_PATH; chains the next pattern",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "WHERE MATCH(SHORTEST_PATH(a(-(l)->b)+) AND LAST_NODE(b)-(m)->h)   -- One more hop",
+    "examples.chain.title": "Chaining the next pattern"
+  },
   "AI_GENERATE_CHUNKS": {
     "summary": "Splits text into fixed-size chunks; used after FROM or APPLY",
     "examples.basic.title": "Basic usage"

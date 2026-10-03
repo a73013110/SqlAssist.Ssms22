@@ -19,7 +19,8 @@ DDL 觸發程序的事件（`ON DATABASE FOR`）也是，事件依標頭而不�
 對上了才找動詞，探測代入 `Gap`。仍各佔一個位置的：
 
 - 括號清單：CREATE INDEX 的 `WITH (…)`，前面還夾著 `INCLUDE (…)` 與篩選 `WHERE`。標頭固定的括號清單
-  （`ALTER TABLE t SET (`、`OPENROWSET (`）寫成 `(*` 片語。執行期分不出游標在 `(` 還是逗號之後，
+  （`ALTER TABLE t SET (`、`OPENROWSET (`）寫成 `(*` 片語；定義清單裡一項自己的括號清單也是（`CONNECTION (* {name}` 接 `TO`，
+  前一格是 `ColumnDefinition`）。執行期分不出游標在 `(` 還是逗號之後，
   字取兩者聯集。括號裡是子句的
   （`WITHIN GROUP (ORDER BY …)`）寫 `Clause`，不取聯集。
 - 選項寫完還要回報位置（模組的 `AS`、觸發程序的 `FOR`）；`EXECUTE AS` 這類多字選項以位置為鍵，掛到共用位置會漏進每一份清單。

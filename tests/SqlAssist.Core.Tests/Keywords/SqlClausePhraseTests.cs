@@ -223,6 +223,15 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT a FROM t GROUP BY ", "ROLLUP", "CUBE", "GROUPING SETS")]
     [InlineData("CREATE TABLE t (a int REFERENCES u (a) ON DELETE ", "CASCADE", "NO", "SET")]
     [InlineData("CREATE TABLE t (a int REFERENCES u (a) ON DELETE NO ", "ACTION")]
+    [InlineData("CREATE TABLE t (CONNECTION (dbo.Lib_Reader ", "TO")]
+    [InlineData("CREATE TABLE t (CONNECTION (dbo.Lib_Reader TO dbo.Copy, dbo.Copy ", "TO")]
+    [InlineData("CREATE TABLE t (CONNECTION (dbo.Lib_Reader TO dbo.Copy) ON ", "DELETE")]
+    [InlineData("CREATE TABLE t (CONNECTION (dbo.Lib_Reader TO dbo.Copy) ON DELETE CASCADE, CONSTRAINT c CONNECTION (dbo.Copy ", "TO")]
+    [InlineData("CREATE TABLE t (CONNECTION (dbo.Lib_Reader TO dbo.Copy) ON DELETE ", "CASCADE", "NO")]
+    [InlineData("CREATE TABLE t (a int) AS ", "NODE", "EDGE")]
+    [InlineData("CREATE TABLE t AS ", "EDGE")]
+    [InlineData("SELECT STRING_AGG(a, ',') WITHIN GROUP (", "GRAPH PATH", "ORDER BY")]
+    [InlineData("SELECT STRING_AGG(a, ',') WITHIN GROUP (GRAPH ", "PATH")]
     [InlineData("CREATE PROCEDURE p AS\nSET NOCOUNT ", "ON", "OFF")]
     [InlineData("SELECT a FROM t FOR ", "XML", "JSON", "BROWSE", "SYSTEM_TIME")]
     [InlineData("SELECT PUBL_CODE\nFROM dbo.PUBLISHER\nFOR ", "XML", "JSON", "BROWSE", "SYSTEM_TIME")]
@@ -402,18 +411,6 @@ public sealed class SqlClausePhraseTests
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
-    }
-
-    /// <summary>
-    /// 剖析器在字後面當掉（46001）不算接得上。
-    /// </summary>
-    /// <remarks>
-    /// <c>WITHIN GROUP (GRAPH</c> 在檔案結尾只報內部錯誤、一個拒收都沒有，以前 GRAPH 因此與 ORDER 並列。
-    /// </remarks>
-    [Fact]
-    public void 剖析器當掉的字不算接得上()
-    {
-        Assert.DoesNotContain("GRAPH", Offered("SELECT PERCENTILE_CONT(0.5) WITHIN GROUP ("));
     }
 
     /// <summary>

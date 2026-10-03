@@ -916,3 +916,19 @@ DECLARE @Skip INT = 1, @Take INT = 5; SELECT CopyNo FROM dbo.Copy ORDER BY CopyN
 
 SELECT CopyNo FROM dbo.Copy ORDER BY CopyNo
 FETCH APPROXIMATE FIRST 5 ROWS ONLY
+
+CREATE TABLE dbo.Lib_Reader (ReaderId INT, Name NVARCHAR(50)) AS NODE
+
+CREATE TABLE dbo.Loan (LoanDate DATE, CONSTRAINT EC_Loan CONNECTION (dbo.Lib_Reader TO dbo.Copy, dbo.Copy TO dbo.Branch) ON DELETE CASCADE, CONNECTION (dbo.Branch TO dbo.Lib_Reader)) AS EDGE
+
+CREATE TABLE dbo.LoanDetail (CONNECTION (dbo.Copy TO dbo.Branch) ON DELETE NO ACTION, CONSTRAINT EC_Return CONNECTION (dbo.Branch TO dbo.Copy)) AS EDGE
+
+CREATE TABLE dbo.Lib_Tag AS EDGE
+
+ALTER TABLE dbo.Loan ADD CONSTRAINT EC_Copy CONNECTION (dbo.Copy TO dbo.Lib_Reader)
+
+SELECT r.ReaderId, STRING_AGG(c.CopyNo, '->') WITHIN GROUP (GRAPH PATH) AS Copies, LAST_VALUE(c.CopyNo) WITHIN GROUP (GRAPH PATH) AS LastCopy
+FROM dbo.Lib_Reader AS r, dbo.Loan FOR PATH AS l, dbo.Copy FOR PATH c, dbo.Branch AS b, dbo.LoanDetail AS m
+WHERE MATCH(SHORTEST_PATH(r(-(l)->c)+) AND LAST_NODE(c)-(m)->b)
+
+SELECT r.ReaderId FROM dbo.Lib_Reader AS r, dbo.Loan AS l, dbo.Copy AS c, dbo.LoanDetail AS m, dbo.Branch AS b WHERE MATCH(r-(l)->c AND b<-(m)-c)

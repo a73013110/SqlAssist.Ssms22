@@ -360,7 +360,7 @@ public sealed class SqlKeywordPositionTests
     /// 唯一分得開的線索是換行：別名一定寫在資料來源的同一行，
     /// 而子句與下一個敘述幾乎總是換行寫。別名寫完之後接的是資料來源尾端。
     ///
-    /// 資料來源的後綴屬於同一項：別名寫在 <c>FOR SYSTEM_TIME …</c> 與資料表值函式的
+    /// 資料來源的後綴屬於同一項：別名寫在 <c>FOR PATH</c>、<c>FOR SYSTEM_TIME …</c> 與資料表值函式的
     /// <c>WITH (…)</c> 資料行結構描述之後。MERGE 的目標與 USING 的來源同一條規則。
     /// </remarks>
     [Theory]
@@ -380,6 +380,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT * FROM t FOR SYSTEM_TIME BETWEEN '2020' AND '2021' ")]
     [InlineData("SELECT * FROM t FOR SYSTEM_TIME CONTAINED IN ('2020', '2021') ")]
     [InlineData("SELECT * FROM t FOR SYSTEM_TIME ALL ")]
+    [InlineData("SELECT * FROM dbo.Loan FOR PATH ")]
     [InlineData("MERGE dbo.Loan ")]
     [InlineData("MERGE INTO dbo.Loan ")]
     [InlineData("MERGE dbo.Loan AS t USING dbo.LoanDetail ")]

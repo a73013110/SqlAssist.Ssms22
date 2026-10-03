@@ -73,7 +73,8 @@ internal static class QueryPhrases
         // 才收 WITHIN，WITHIN 由整段證據補到函式呼叫之後；WITHIN GROUP 之後只接左括號。
         // LAG、FIRST_VALUE 這類函式的呼叫之後可以寫 IGNORE NULLS、RESPECT NULLS，再接 OVER；以位移函式的樣板探測。
         new("WITHIN GROUP") { After = ["FunctionCallTail"] },
-        new("WITHIN GROUP (*") { After = ["FunctionCallTail"], Clause = true },
+        // 圖形彙總的 WITHIN GROUP (GRAPH PATH)：GRAPH 要看到 PATH 與兩層右括號才驗。
+        new("WITHIN GROUP (*") { After = ["FunctionCallTail"], Clause = true, Endings = [" PATH))"], Expand = 1 },
         new("IGNORE NULLS") { After = ["FunctionCallTail"], Template = 1 },
         new("RESPECT NULLS") { After = ["FunctionCallTail"], Template = 1 },
 

@@ -947,15 +947,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 聯結，兩者後面都不接別名。
     ///
     /// 資料來源的後綴屬於同一個運算元，別名寫在整個後綴之後：
-    /// <c>FOR SYSTEM_TIME …</c>（見 <see cref="FindTemporalClause"/>），以及資料表值函式
+    /// <c>FOR PATH</c>、<c>FOR SYSTEM_TIME …</c>（見 <see cref="FindTableNameSuffix"/>），以及資料表值函式
     /// 呼叫後面緊接的 <c>WITH (…)</c> 資料行結構描述（<c>OPENJSON(@j) WITH (a int)</c>）。
     /// 名稱後面的 <c>WITH (…)</c> 是資料表提示，不是這一種。
     /// </param>
     private int FindOperandStart(int last, bool dataSource)
     {
-        if (dataSource && FindTemporalClause(last) is var temporal and >= 1)
+        if (dataSource && FindTableNameSuffix(last) is var suffix and >= 1)
         {
-            last = temporal - 1;
+            last = suffix - 1;
         }
 
         var token = tokens[last];
@@ -1209,16 +1209,22 @@ public sealed partial class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>
-    /// <paramref name="last"/> 結束一個 <c>FOR SYSTEM_TIME</c> 子句時回傳那個 FOR；否則 -1。
+    /// <paramref name="last"/> 結束資料表名稱的 <c>FOR</c> 後綴時回傳那個 FOR；否則 -1。
     /// </summary>
     /// <remarks>
-    /// 五種寫法：<c>ALL</c>、<c>AS OF v</c>、<c>FROM v TO v</c>、<c>BETWEEN v AND v</c>、
+    /// 兩種後綴都寫在名稱與別名之間：圖形查詢的 <c>FOR PATH</c>，與時態表的 <c>FOR SYSTEM_TIME</c>。
+    /// 後者五種寫法：<c>ALL</c>、<c>AS OF v</c>、<c>FROM v TO v</c>、<c>BETWEEN v AND v</c>、
     /// <c>CONTAINED IN (v, v)</c>，v 是常值或變數。只認寫完的：<c>AS OF </c> 還在等值，
     /// 那時的位置與名字都照一般規則判——<c>FOR SYSTEM_TIME AS </c> 不能被當成別名。
     /// </remarks>
-    private int FindTemporalClause(int last)
+    private int FindTableNameSuffix(int last)
     {
         var index = last;
+
+        if (index >= 1 && tokens[index].IsKeyword("PATH") && tokens[index - 1].IsKeyword("FOR"))
+        {
+            return index - 1;
+        }
 
         if (tokens[index].IsPunctuation(")"))
         {
@@ -1730,10 +1736,10 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 : SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail);
         }
 
-        // FOR SYSTEM_TIME … 是資料表名稱的後綴，寫完之後的位置與名稱之後相同。
-        if (FindTemporalClause(last) is var temporal and >= 1)
+        // FOR PATH、FOR SYSTEM_TIME … 是資料表名稱的後綴，寫完之後的位置與名稱之後相同。
+        if (FindTableNameSuffix(last) is var suffix and >= 1)
         {
-            return AnalyzeAt(temporal - 1, followAlias);
+            return AnalyzeAt(suffix - 1, followAlias);
         }
 
         var token = tokens[last];
@@ -2325,6 +2331,13 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 }
 
                 pastComma = token.IsPunctuation(",") || (pastComma && !token.IsPunctuation("("));
+
+                // 資料行定義清單的逗號之前是上一項：CONNECTION (a TO b) ON DELETE CASCADE, CONSTRAINT x 借到上一項的 ON
+                // 會被當成聯結條件，這一項的位置判不出來。
+                if (token.IsPunctuation(",") && OpensColumnDefinitions(FindUnclosedParenthesis(index - 1)))
+                {
+                    return SqlKeywordPosition.Any;
+                }
 
                 // 清單的下一項回到清單的起點，而沒關上的左括號本身就是一份清單的起點（引數、
                 // VALUES 的一列、IN 的值）：穿出去借外層子句的清單，VALUES (1, 會拿到 INTO 的資料來源、

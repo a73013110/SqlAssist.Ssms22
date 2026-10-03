@@ -230,14 +230,16 @@ public sealed class SqlScopeAnalyzerTests
         Assert.Equal(new[] { "a", "b" }, Analyze(sqlWithCaret).Tables.Select(table => table.Alias));
     }
 
-    /// <summary>時態表的 FOR SYSTEM_TIME 排在別名前面，跳過之後別名照讀。</summary>
+    /// <summary>資料表名稱的 FOR 後綴（時態表的 FOR SYSTEM_TIME、圖形查詢的 FOR PATH）排在別名前面，跳過之後別名照讀。</summary>
     [Theory]
+    [InlineData("SELECT | FROM dbo.Loan FOR PATH AS a, dbo.Copy b WHERE MATCH(SHORTEST_PATH(b(-(a)->b)+))")]
+    [InlineData("SELECT | FROM dbo.Loan FOR PATH a JOIN dbo.Copy FOR PATH AS b ON a.CopyNo = b.CopyNo")]
     [InlineData("SELECT | FROM dbo.Loan FOR SYSTEM_TIME AS OF @d AS a JOIN dbo.Copy b ON a.CopyNo = b.CopyNo")]
     [InlineData("SELECT | FROM dbo.Loan FOR SYSTEM_TIME FROM '2020-01-01' TO SYSDATETIME() a JOIN dbo.Copy b ON a.CopyNo = b.CopyNo")]
     [InlineData("SELECT | FROM dbo.Loan FOR SYSTEM_TIME BETWEEN @s AND @e a JOIN dbo.Copy b ON a.CopyNo = b.CopyNo")]
     [InlineData("SELECT | FROM dbo.Loan FOR SYSTEM_TIME CONTAINED IN (@s, @e) a JOIN dbo.Copy b ON a.CopyNo = b.CopyNo")]
     [InlineData("SELECT | FROM dbo.Loan FOR SYSTEM_TIME ALL a JOIN dbo.Copy b ON a.CopyNo = b.CopyNo")]
-    public void 時態子句之後讀得到別名(string sqlWithCaret)
+    public void 資料表名稱的FOR後綴之後讀得到別名(string sqlWithCaret)
     {
         Assert.Equal(new[] { "a", "b" }, Analyze(sqlWithCaret).Tables.Select(table => table.Alias));
     }

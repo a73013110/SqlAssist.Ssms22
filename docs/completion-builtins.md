@@ -26,6 +26,8 @@ token 列舉裡根本沒有它——任何工具在這一塊都只能自己維�
 位置不該冒出 `COUNT`。運算式位置不手寫，取產生器量到的 `COALESCE` 位置——函式呼叫與它同形；
 手寫那份漏了 `OrderByColumn`，`ORDER BY DATEPART(` 與視窗的 `ORDER BY` 都列不出函式。`OPENJSON` 反過來只在資料來源位置，見[物件種類](completion-object-kinds.md)。`ALTER FUNCTION` 之後也不列——內建函式沒有定義可以改，
 出現在那裡只會讓使用者選到一個改不了的東西。
+圖形查詢的 `MATCH`、`SHORTEST_PATH`、`LAST_NODE` 只寫得在 `WHERE` 與圖樣裡，照樣用運算式位置：圖樣的括號裡位置判不出來，
+另立一份窄的位置只會在那裡漏掉。
 
 自動大寫涵蓋內建函式，但**只在打出左括號時**：`max(` 得到 `MAX(`，`sum(`、
 `count(`、`dateadd(` 同理。`max ` 與 `max,` 一個都不動——`year`、`month`、`day`、

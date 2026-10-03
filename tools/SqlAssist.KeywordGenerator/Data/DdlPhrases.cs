@@ -123,6 +123,13 @@ internal static class DdlPhrases
         new("INDEX {name} CLUSTERED COLUMNSTORE WITH (*") { Lead = "CREATE TABLE t (a int, " },
         new("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (*") { Lead = "CREATE TABLE t (a int, " },
 
+        // 圖形資料表：名稱或定義之後的 AS NODE、AS EDGE；邊緣條件約束 CONNECTION (a TO b, …) ON DELETE CASCADE
+        // 是定義裡的一項，括號裡是逗號清單、每一項是 名稱 TO 名稱。TO 要看到另一個名稱與兩層右括號才驗。
+        new("CREATE TABLE {name} AS"),
+        new("CREATE TABLE {name} () AS") { Group = "(a int)" },
+        new("CONNECTION (* {name}") { After = ["ColumnDefinition", "AlterTableAdd"], Endings = [" x))"] },
+        new("CONNECTION ()") { After = ["ColumnDefinition", "AlterTableAdd"], Group = "(a TO b)", Expand = 2 },
+
         // Always Encrypted 的資料行：型別之後判不出位置，ENCRYPTED WITH ( 這條尾巴本身認得出來。ENCRYPTION_TYPE 的值
         // 剖析器要看到下一項才驗，續尾把清單寫完。
         new("ENCRYPTED WITH (*") { Lead = "CREATE TABLE t (a int " },

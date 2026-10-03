@@ -64,6 +64,9 @@ public sealed class SqlFunctionCatalogTests
     [InlineData("DATETRUNC")]
     [InlineData("PERCENTILE_CONT")]
     [InlineData("JSON_OBJECT")]
+    [InlineData("MATCH")]
+    [InlineData("SHORTEST_PATH")]
+    [InlineData("LAST_NODE")]
     public void 同一族的其餘名稱也在清單裡(string name)
     {
         Assert.Equal(SuggestionKind.BuiltInFunction, Get(name).Kind);

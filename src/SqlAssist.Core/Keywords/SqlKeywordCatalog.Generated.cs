@@ -6921,6 +6921,34 @@ internal static class SqlKeywordCatalogData
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
+        ("CREATE TABLE {name} AS", SqlKeywordPosition.StatementStart, "CREATE TABLE t AS ", true, false, false, false, new string[]
+        {
+            "EDGE", "FILETABLE", "SELECT", "WITH",
+        }),
+        ("CREATE TABLE {name} () AS", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) AS ", true, false, false, false, new string[]
+        {
+            "EDGE", "NODE",
+        }),
+        ("CONNECTION (* {name}", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (CONNECTION (t ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
+        ("CONNECTION ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (CONNECTION (a TO b) ", true, false, false, false, new string[]
+        {
+            "ON DELETE",
+        }),
+        ("CONNECTION () ON", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (CONNECTION (a TO b) ON ", true, false, false, false, new string[]
+        {
+            "DELETE",
+        }),
+        ("CONNECTION () ON DELETE", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (CONNECTION (a TO b) ON DELETE ", true, false, false, false, new string[]
+        {
+            "CASCADE", "NO",
+        }),
+        ("CONNECTION ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD CONNECTION (a TO b) ", true, false, false, true, new string[]
+        {
+            "ON DELETE",
+        }),
         ("ENCRYPTED WITH (*", SqlKeywordPosition.Any, "CREATE TABLE t (a int ENCRYPTED WITH (", true, false, false, false, new string[]
         {
             "ALGORITHM", "COLUMN_ENCRYPTION_KEY", "ENCRYPTION_TYPE",
@@ -9153,7 +9181,15 @@ internal static class SqlKeywordCatalogData
         }),
         ("WITHIN GROUP (*", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (", true, false, false, false, new string[]
         {
-            "ORDER",
+            "GRAPH PATH", "ORDER BY",
+        }),
+        ("WITHIN GROUP (* GRAPH", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (GRAPH ", true, false, false, false, new string[]
+        {
+            "PATH",
+        }),
+        ("WITHIN GROUP (* ORDER", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (ORDER ", true, false, false, false, new string[]
+        {
+            "BY",
         }),
         ("IGNORE NULLS", SqlKeywordPosition.FunctionCallTail, "SELECT (LAG(a) IGNORE NULLS ", true, false, false, false, new string[]
         {
@@ -11186,8 +11222,8 @@ internal static class SqlKeywordCatalogData
         (SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC" }),
         (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE" }),
         (SqlKeywordPosition.None, "CREATE TABLE t (a datetime2 ", new string[] { "GENERATED", "ENCRYPTED", "FIRST" }),
-        (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD" }),
-        (SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD" }),
+        (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
+        (SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),
         (SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),
         (SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN", "IGNORE", "RESPECT" }),
     };
