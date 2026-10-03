@@ -66,16 +66,12 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `CROSS APPLY`、`OUTER APPLY` | 資料表值函式 | 補上括號 |
 | `INSERT INTO` | Table、View | 展開欄位清單與 `VALUES` |
 | `MERGE`／`MERGE INTO` | Table、View | 展開比對鍵、`UPDATE SET`、`INSERT` 與 `VALUES` |
-| `ALTER PROCEDURE`／`PROC` | Procedure | 展開完整 ALTER 定義 |
-| `ALTER FUNCTION` | 兩種函式 | 展開完整 ALTER 定義 |
-| `ALTER VIEW` | View | 展開完整 ALTER 定義 |
-| `ALTER TRIGGER` | Trigger | 展開完整 ALTER 定義 |
-| `DROP PROCEDURE`／`PROC`、`DROP FUNCTION`、`DROP VIEW` | 同上各一類 | 插入名稱 |
+| `ALTER`（含 `CREATE OR ALTER`）之後的種類，見[第一層物件](completion-catalog-names.md#第一層物件) | 那一類；`TABLE` 是 Table、View，函式兩種 | 模組展開完整 ALTER 定義 |
+| `DROP`、`TRUNCATE`、`ENABLE`、`DISABLE` 之後的種類 | 同上 | 插入名稱 |
 | 其餘位置選到自訂函式（`SELECT `、`WHERE `…） | — | 補上括號 |
-| `DROP`、`DISABLE`、`ENABLE TRIGGER` | Trigger | 插入名稱 |
-| `ALTER`／`DROP`／`TRUNCATE TABLE`、`WITH RESULT SETS (AS OBJECT` | Table、View | 插入名稱 |
+| `WITH RESULT SETS (AS OBJECT` | Table、View | 插入名稱 |
 | `WITH RESULT SETS (AS TYPE` | 使用者自訂資料表型別 | 插入名稱 |
-| `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
+| `NEXT VALUE FOR` | Sequence | 插入名稱 |
 | `EXEC`、`EXECUTE` | Procedure | 展開具名參數清單 |
 | `CREATE`／`ALTER`／`DROP INDEX`／`STATISTICS`／`TRIGGER` 之後的 `ON` | Table、View | 插入名稱 |
 | 開始一句的 `USE`（函式引數裡的 `USE MODEL` 不是） | 這台伺服器上的資料庫 | 插入名稱 |

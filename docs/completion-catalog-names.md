@@ -1,7 +1,8 @@
 # 目錄物件名稱
 
 本頁處理登入、使用者、角色、結構描述、憑證、金鑰這類只有目錄檢視列得出名稱的位置（`ALTER LOGIN `、
-`DEFAULT_SCHEMA = `、`GRANT … TO `）；第一層的物件清單見[中繼資料](metadata.md)，語言名單見[名單](completion-instance-lists.md)。
+`DEFAULT_SCHEMA = `、`GRANT … TO `），以及同一條規則推出的第一層物件名稱格（`ALTER PROCEDURE `、`DROP TABLE `）；
+第一層的物件清單見[中繼資料](metadata.md)，語言名單見[名單](completion-instance-lists.md)。
 
 ## 一條規則
 
@@ -23,6 +24,19 @@
 
 判定成立時目標是 `CatalogEntity`，種類放在 `SqlCompletionContext.CatalogEntities`，排在封閉片語之前：
 擁有者那一格（`CREATE CERTIFICATE c AUTHORIZATION `）的片語寫不完整句。
+
+## 第一層物件
+
+同一條規則換一份名冊：種類是 `PROCEDURE`／`PROC`、`FUNCTION`、`VIEW`、`TRIGGER`、`TABLE`、`SEQUENCE` 時，那一格列程序、函式、
+檢視、觸發程序、資料來源或序列（`SqlCatalogEntityPosition.ResolveObject`）。動詞不手寫，認的是產生器的名稱格片語：
+`ALTER`、`DROP` 由 `Kinds` 展開，`TRUNCATE TABLE`、`ENABLE`／`DISABLE TRIGGER`（含 `ALTER TABLE t ENABLE TRIGGER`）另外宣告。
+動詞沒有片語就是在產生器補宣告，不在執行期補一條比對。動詞與種類之間夾註解或換行照樣認得。
+
+- `CREATE OR ALTER` 之後可能是既有的那一個，照 `ALTER` 算；只有 `CREATE` 之後是新名字。
+- 意圖照動詞：`ALTER` 是改定義，關鍵字起點落在動詞上；展不展開由物件自己答，見[整句展開](statement-expansion.md)。
+- 限定字（`ALTER PROCEDURE dbo.`）問限定字之前那一格的片語：游標處的片語已經走過 `dbo.`。
+- 最長的種類不在名冊裡就不是這一格：`DROP EXTERNAL TABLE `、`ALTER MATERIALIZED VIEW `。
+- `NEXT VALUE FOR`、`WITH RESULT SETS (AS OBJECT`／`AS TYPE` 前面寫的不是種類，照[上下文](completion-context.md#依上下文縮小建議範圍)的字面比對。
 
 ## 主體的範圍
 

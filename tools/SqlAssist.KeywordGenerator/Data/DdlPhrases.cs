@@ -35,7 +35,12 @@ internal static class DdlPhrases
         new("UPDATE") { Closed = false },
         new("DELETE"),
         new("MERGE") { Closed = false },
+        // TRUNCATE 不在 Kinds 裡（後面只有 TABLE），名稱格要有片語，執行期才認得出「種類之後是既有的名稱」。
+        new("TRUNCATE TABLE"),
         new("DROP") { After = ["AlterTableAction"], Expand = 2 },
+        // 資料表上的觸發程序：TRIGGER 之後是既有的名稱，同樣要有名稱格片語。
+        new("ENABLE TRIGGER") { After = ["AlterTableAction"] },
+        new("DISABLE TRIGGER") { After = ["AlterTableAction"] },
         // XML 結構描述集合與可用性群組：XML、AVAILABILITY 剖析器要看到整段才收，CREATE、ALTER、DROP 的展開探不出來，整段是證據。
         // 從 CREATE 寫到名稱的宣告也把種類交給 CreatedKinds，權限 ON 之後的類別（XML SCHEMA COLLECTION::）由它探。
         new("CREATE XML SCHEMA COLLECTION {name} AS"),

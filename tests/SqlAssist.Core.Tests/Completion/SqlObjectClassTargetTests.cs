@@ -56,6 +56,9 @@ public sealed class SqlObjectClassTargetTests
     [InlineData("INSERT INTO dbo.Loan (LoanId) VALUES (NEXT VALUE FOR ")]
     [InlineData("ALTER SEQUENCE ")]
     [InlineData("DROP SEQUENCE ")]
+    [InlineData("DROP SEQUENCE IF EXISTS ")]
+    [InlineData("SELECT NEXT VALUE FOR dbo.")]
+    [InlineData("ALTER /* 改 */ SEQUENCE dbo.")]
     public void 序列的位置(string textBeforeCaret)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);

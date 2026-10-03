@@ -23,7 +23,8 @@ namespace SqlAssist.Core.Completion;
 /// <c>LOGIN = </c>、<c>CREDENTIAL = </c>。語言不在名冊裡，由 <see cref="SqlInstanceList"/> 給。</item>
 /// <item>主體的位置（權限的 <c>TO</c>、<c>FROM</c>，含 <c>TO a, </c>）：範圍依 ON 的類別，沒有 ON 時兩層都列。</item>
 /// </list>
-/// 名冊沒有的種類（資料表、程序）不走這裡，由第一層的物件清單與其餘目標給。
+/// 第一層物件（程序、資料表、序列）是同一條規則的另一份名冊：<see cref="ResolveObject"/> 認同一種名稱格片語，
+/// 種類換成清單的目標。
 /// </remarks>
 internal static class SqlCatalogEntityPosition
 {
@@ -34,6 +35,42 @@ internal static class SqlCatalogEntityPosition
         .Select(kind => kind.Split(' '))
         .OrderByDescending(words => words.Length)
         .ToArray();
+
+    /// <summary>第一層物件的種類與清單目標；<c>TABLE</c> 之後要的是資料來源。</summary>
+    private static readonly Dictionary<string, CompletionTarget> ObjectTargets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["PROCEDURE"] = CompletionTarget.Procedure,
+        ["PROC"] = CompletionTarget.Procedure,
+        ["FUNCTION"] = CompletionTarget.Function,
+        ["VIEW"] = CompletionTarget.View,
+        ["TRIGGER"] = CompletionTarget.Trigger,
+        ["TABLE"] = CompletionTarget.DataSource,
+        ["SEQUENCE"] = CompletionTarget.Sequence,
+    };
+
+    /// <summary>
+    /// 游標那一格是不是第一層物件的既有名稱：名稱格片語的尾巴是種類（<c>ALTER PROCEDURE </c>、<c>DROP TABLE IF EXISTS </c>、
+    /// <c>TRUNCATE TABLE </c>、<c>ALTER TABLE t ENABLE TRIGGER </c>），與目錄物件同一條規則。
+    /// </summary>
+    /// <remarks>
+    /// 限定字那一支（<c>ALTER PROCEDURE dbo.</c>）由呼叫端傳限定字之前的詞元與那裡的片語。
+    /// <c>CREATE OR ALTER</c> 之後可能是既有的那一個，照 ALTER 算；最長的種類不在名冊裡（<c>DROP EXTERNAL TABLE </c>、
+    /// <c>ALTER MATERIALIZED VIEW </c>）就不是這一格。<c>NEXT VALUE FOR</c> 前面沒有種類，不在這裡。
+    /// </remarks>
+    /// <param name="tokens">名稱那一格之前的詞元。</param>
+    /// <param name="phrase">位置分析在那一格比對到的片語。</param>
+    /// <returns>那一格要的目標；不是第一層物件的名稱格時為 <c>null</c>。</returns>
+    public static SqlObjectNameSlot? ResolveObject(IReadOnlyList<SqlToken> tokens, SqlClausePhraseMatch? phrase)
+    {
+        if (NamedKind(tokens, phrase, out var start) is not { } kind ||
+            !ObjectTargets.TryGetValue(kind, out var target))
+        {
+            return null;
+        }
+
+        var verb = tokens[start >= 1 ? start - 1 : start];
+        return new SqlObjectNameSlot(target, verb.Start, verb.IsKeyword("ALTER"));
+    }
 
     /// <param name="tokens">游標<b>之前</b>、不含正在輸入的那個詞元的詞法單元。</param>
     /// <param name="textBeforeToken">同一段原文；清單的錨點與主體的範圍要問位置分析。</param>
@@ -59,10 +96,8 @@ internal static class SqlCatalogEntityPosition
                 : null;
         }
 
-        // 封閉的片語收不了名稱：ALTER AUTHORIZATION ON LOGIN 之後只有 ::，名稱要寫在類別之後。
         // 名稱格的尾巴不是種類的（DEFAULT_SCHEMA = 也是名稱格）照下面兩種問。
-        if (caret.Phrase is { IsCertain: true, Phrase: { TakesName: true, IsClosed: false } phrase } &&
-            FromPhrase(tokens, phrase) is { } named)
+        if (FromPhrase(tokens, caret.Phrase) is { } named)
         {
             return new SqlCatalogEntitySlot(named, caret.Keywords, caret.Phrase);
         }
@@ -82,8 +117,50 @@ internal static class SqlCatalogEntityPosition
                 : null;
     }
 
-    private static IReadOnlyList<SqlCatalogEntity>? FromPhrase(IReadOnlyList<SqlToken> tokens, SqlClausePhrase phrase)
+    private static IReadOnlyList<SqlCatalogEntity>? FromPhrase(IReadOnlyList<SqlToken> tokens, SqlClausePhraseMatch? match)
     {
+        if (NameSlotEnd(tokens, match) is not { } end)
+        {
+            return null;
+        }
+
+        if (tokens[end].IsKeyword("AUTHORIZATION") || tokens[end].IsKeyword("MEMBER"))
+        {
+            return SqlCatalogEntity.Principals(StatementKind(match!.Phrase)?.Scope ?? SqlCatalogScope.Database);
+        }
+
+        return NamedKind(tokens, match, out _) is { } kind && SqlCatalogEntity.ForKind(kind) is { } entity
+            ? new[] { entity }
+            : null;
+    }
+
+    /// <summary>
+    /// 名稱格片語的尾巴寫的種類（最長的那一個）；<paramref name="start"/> 是種類第一個字。
+    /// <c>CREATE 種類</c> 之後是新名字，不算。
+    /// </summary>
+    private static string? NamedKind(IReadOnlyList<SqlToken> tokens, SqlClausePhraseMatch? match, out int start)
+    {
+        start = -1;
+
+        return NameSlotEnd(tokens, match) is { } end &&
+            LongestKindEndingAt(tokens, end, out start) is { } kind &&
+            !(start >= 1 && tokens[start - 1].IsKeyword("CREATE"))
+                ? kind
+                : null;
+    }
+
+    /// <summary>
+    /// 確定比對到的名稱格片語（<see cref="SqlClausePhrase.TakesName"/>）的尾巴，<c>IF EXISTS</c> 之前那個詞元；
+    /// 不是名稱格時為 <c>null</c>。
+    /// </summary>
+    /// <remarks>封閉的片語收不了名稱：ALTER AUTHORIZATION ON LOGIN 之後只有 ::，名稱要寫在類別之後。</remarks>
+    private static int? NameSlotEnd(IReadOnlyList<SqlToken> tokens, SqlClausePhraseMatch? match)
+    {
+        if (match is not { IsCertain: true, Phrase: { TakesName: true, IsClosed: false } })
+        {
+            return null;
+        }
+
         var end = tokens.Count - 1;
 
         if (end >= 1 && tokens[end].IsKeyword("EXISTS") && tokens[end - 1].IsKeyword("IF"))
@@ -91,19 +168,7 @@ internal static class SqlCatalogEntityPosition
             end -= 2;
         }
 
-        if (end < 0)
-        {
-            return null;
-        }
-
-        if (tokens[end].IsKeyword("AUTHORIZATION") || tokens[end].IsKeyword("MEMBER"))
-        {
-            return SqlCatalogEntity.Principals(StatementKind(phrase)?.Scope ?? SqlCatalogScope.Database);
-        }
-
-        return KindEndingAt(tokens, end, out var start) is { } entity && !CreatesNew(tokens, start)
-            ? new[] { entity }
-            : null;
+        return end >= 0 ? end : null;
     }
 
     /// <summary>
@@ -200,7 +265,11 @@ internal static class SqlCatalogEntityPosition
     /// <summary>
     /// 以 <paramref name="end"/> 結尾的最長建立種類，在名冊裡的話是那一種；<paramref name="start"/> 是種類第一個字。
     /// </summary>
-    private static SqlCatalogEntity? KindEndingAt(IReadOnlyList<SqlToken> tokens, int end, out int start)
+    private static SqlCatalogEntity? KindEndingAt(IReadOnlyList<SqlToken> tokens, int end, out int start) =>
+        LongestKindEndingAt(tokens, end, out start) is { } kind ? SqlCatalogEntity.ForKind(kind) : null;
+
+    /// <summary>以 <paramref name="end"/> 結尾的最長建立種類；<paramref name="start"/> 是種類第一個字。</summary>
+    private static string? LongestKindEndingAt(IReadOnlyList<SqlToken> tokens, int end, out int start)
     {
         start = -1;
 
@@ -214,7 +283,7 @@ internal static class SqlCatalogEntityPosition
             }
 
             start = first;
-            return SqlCatalogEntity.ForKind(string.Join(" ", words));
+            return string.Join(" ", words);
         }
 
         return null;
@@ -233,11 +302,6 @@ internal static class SqlCatalogEntityPosition
 
         return true;
     }
-
-    /// <summary>種類從 <paramref name="start"/> 寫起，前面是 <c>CREATE</c>（或 <c>CREATE OR ALTER</c>）：那一格是新名字。</summary>
-    private static bool CreatesNew(IReadOnlyList<SqlToken> tokens, int start) =>
-        (start >= 1 && tokens[start - 1].IsKeyword("CREATE")) ||
-        (start >= 3 && tokens[start - 1].IsKeyword("ALTER") && tokens[start - 2].IsKeyword("OR") && tokens[start - 3].IsKeyword("CREATE"));
 
     /// <summary>
     /// 片語那一句建立或修改的種類（<c>ALTER ROLE {name} ADD MEMBER</c> 的 ROLE）；擁有者與成員的範圍取它住的那一層。
@@ -281,3 +345,9 @@ internal sealed record SqlCatalogEntitySlot(
     IReadOnlyList<SqlCatalogEntity> Entities,
     SqlKeywordPosition Keywords,
     SqlClausePhraseMatch? Phrase);
+
+/// <summary>第一層物件的名稱格：列哪一類、動詞是哪個詞元、是不是改定義。</summary>
+/// <param name="Target">那一格的清單目標。</param>
+/// <param name="VerbStart">種類前面那個詞元（ALTER、DROP、TRUNCATE、ENABLE）在原文的起點；整句展開從它蓋起。</param>
+/// <param name="Alters">動詞是 ALTER（含 <c>CREATE OR ALTER</c>）：提交放進完整定義，放不放得進由物件自己答。</param>
+internal sealed record SqlObjectNameSlot(CompletionTarget Target, int VerbStart, bool Alters);

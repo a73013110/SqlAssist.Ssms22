@@ -222,6 +222,7 @@ public static class SqlCompletionContextAnalyzer
                 qualifierPath is null ? beforeToken : beforeQualifier,
                 tokens,
                 textBeforeToken,
+                ObjectNameSlot(tokens, textBeforeToken, caret, qualifierPath is null ? -1 : qualifierStart),
                 out targetKeywordStart,
                 out intent)
             : CompletionTarget.Any;
@@ -500,10 +501,12 @@ public static class SqlCompletionContextAnalyzer
         //
         // 只收資料來源位置：EXEC dbo.p @ 的 @ 後面是引數而不是那句話的目標，
         // 在那裡帶著 ExecuteCall 會讓提交去展開一個變數。
+        // 變數那一格不會是第一層物件的名稱（DROP TABLE @t 不是 T-SQL），不問種類。
         var statementTarget = DetermineTarget(
             CodeBefore(textBeforeToken, tokens),
             tokens,
             textBeforeToken,
+            objectName: null,
             out var keywordStart,
             out var intent);
 
@@ -603,23 +606,51 @@ public static class SqlCompletionContextAnalyzer
     }
 
     /// <summary>
+    /// 名稱那一格是不是第一層物件的既有名稱（<c>ALTER PROCEDURE </c>、<c>DROP TABLE IF EXISTS dbo.</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 判斷與目錄物件同一條（<see cref="SqlCatalogEntityPosition.ResolveObject"/>）。限定字那一支問的是限定字之前那一格：
+    /// 游標處的片語已經走到 <c>dbo.</c> 之後，認不出前面寫的種類。只有這一支要再做一次位置分析。
+    /// </remarks>
+    /// <param name="qualifierStart">限定字的起點；沒有限定字時為 -1。</param>
+    private static SqlObjectNameSlot? ObjectNameSlot(
+        IReadOnlyList<SqlToken> tokens,
+        string textBeforeToken,
+        SqlCaretPosition caret,
+        int qualifierStart)
+    {
+        if (qualifierStart < 0)
+        {
+            return SqlCatalogEntityPosition.ResolveObject(tokens, caret.Phrase);
+        }
+
+        var count = 0;
+
+        while (count < tokens.Count && tokens[count].Start < qualifierStart)
+        {
+            count++;
+        }
+
+        var before = tokens.Take(count).ToArray();
+        var phrase = SqlKeywordPositionAnalyzer.Analyze(before, textBeforeToken.Substring(0, qualifierStart)).Phrase;
+        return SqlCatalogEntityPosition.ResolveObject(before, phrase);
+    }
+
+    /// <summary>
     /// 依游標前方的關鍵字判斷應該建議哪一類物件，並回報該關鍵字的起點。
     /// </summary>
     /// <param name="text"><paramref name="textBeforeToken"/> 去掉尾端空白，或再剝掉限定字的那一段。</param>
     /// <param name="tokens"><paramref name="textBeforeToken"/> 的詞元：FROM 要問它所屬的動詞。</param>
     /// <param name="textBeforeToken">游標前、不含正在輸入的詞元的文字。</param>
+    /// <param name="objectName">第一層物件的名稱格；變數那一格不問。</param>
     private static CompletionTarget DetermineTarget(
         string text,
         IReadOnlyList<SqlToken> tokens,
         string textBeforeToken,
+        SqlObjectNameSlot? objectName,
         out int keywordStart,
         out CompletionIntent intent)
     {
-        // IF EXISTS 是 DROP 家族共用的修飾字，先剝一次就不必為 DROP TABLE、
-        // DROP TRIGGER、DROP SEQUENCE 各寫一條加長版比對。只砍尾端，前面每個詞元的
-        // 位置都沒有位移，因此底下算出來的 keywordStart 仍然指得回原文。
-        text = TrimTrailingIfExists(text);
-
         // 游標名稱那一格：OPEN、CLOSE、DEALLOCATE、FETCH [… FROM]、WHERE CURRENT OF 之後，中間可以夾 GLOBAL。
         // 判準與位置分析同一條（SqlStatementBoundaries.IntroducesCursor）；排在 FROM 之前，
         // FETCH NEXT FROM 才不會被那一條收成「判不出名稱種類」。
@@ -631,32 +662,14 @@ public static class SqlCompletionContextAnalyzer
             return CompletionTarget.Cursor;
         }
 
-        // ALTER 之後要放進完整定義，因此與 EXEC 之類的單純參考分開表示。
-        intent = CompletionIntent.AlterDefinition;
-
-        if (EndsWithKeywords(text, "ALTER", "PROCEDURE", out keywordStart) ||
-            EndsWithKeywords(text, "ALTER", "PROC", out keywordStart))
+        // ALTER、DROP、TRUNCATE、ENABLE 這些動詞之後的種類（ALTER PROCEDURE、DROP TABLE IF EXISTS）由名稱格片語推出，
+        // 與目錄物件同一條規則，不逐句手寫：漏掉的那一種沒有任何徵兆，只是使用者在那個位置沒有清單。
+        // ALTER 之後要放進完整定義，因此與 EXEC 之類的單純參考分開表示；放不放得進由物件自己答（IsModule）。
+        if (objectName is not null)
         {
-            return CompletionTarget.Procedure;
-        }
-
-        if (EndsWithKeywords(text, "ALTER", "FUNCTION", out keywordStart))
-        {
-            return CompletionTarget.Function;
-        }
-
-        // 檢視與觸發程序在 SqlObjectKinds.IsModule 裡與程序、函式同一類，
-        // OBJECT_DEFINITION 一樣拿得到定義，因此 ALTER 之後同樣放進完整定義。
-        // 少了檢視這一條的症狀不是「清單怪怪的」而是 ALTER VIEW 之後整份清單
-        // 都是資料表與關鍵字，選中的名稱在那個語句裡一定失敗。
-        if (EndsWithKeywords(text, "ALTER", "VIEW", out keywordStart))
-        {
-            return CompletionTarget.View;
-        }
-
-        if (EndsWithKeywords(text, "ALTER", "TRIGGER", out keywordStart))
-        {
-            return CompletionTarget.Trigger;
+            keywordStart = objectName.VerbStart;
+            intent = objectName.Alters ? CompletionIntent.AlterDefinition : CompletionIntent.Reference;
+            return objectName.Target;
         }
 
         // INSERT INTO 之後選一張資料表，要的幾乎不會是「只把名稱補上」——那句話還沒寫完。
@@ -691,40 +704,9 @@ public static class SqlCompletionContextAnalyzer
 
         intent = CompletionIntent.Reference;
 
-        if (EndsWithKeywords(text, "DROP", "TRIGGER", out keywordStart) ||
-            EndsWithKeywords(text, "DISABLE", "TRIGGER", out keywordStart) ||
-            EndsWithKeywords(text, "ENABLE", "TRIGGER", out keywordStart))
-        {
-            return CompletionTarget.Trigger;
-        }
-
-        // DROP 之後要的只是一個名稱，因此與同名的 ALTER 分在不同的意圖。
-        // 模組家族每一種都要各寫一條：漏掉的那一種沒有任何徵兆，只是使用者在
-        // 那個位置沒有清單，而那正是 ALTER VIEW 之前的處境。
-        if (EndsWithKeywords(text, "DROP", "VIEW", out keywordStart))
-        {
-            return CompletionTarget.View;
-        }
-
-        if (EndsWithKeywords(text, "DROP", "PROCEDURE", out keywordStart) ||
-            EndsWithKeywords(text, "DROP", "PROC", out keywordStart))
-        {
-            return CompletionTarget.Procedure;
-        }
-
-        if (EndsWithKeywords(text, "DROP", "FUNCTION", out keywordStart))
-        {
-            return CompletionTarget.Function;
-        }
-
-        // 這三個位置文法上只接得了既有的資料表。ALTER 家族的 PROCEDURE／FUNCTION／
-        // TRIGGER 與 DROP 家族的 TRIGGER／SEQUENCE 都已經在這裡，只差資料表——
-        // 少的那一條沒有任何症狀，只是使用者在最常改的位置沒有清單。
         // EXEC … WITH RESULT SETS (AS OBJECT 取的是資料表、檢視或資料表值函式的資料行形狀，AS TYPE 取資料表型別的。
-        if (EndsWithKeywords(text, "ALTER", "TABLE", out keywordStart) ||
-            EndsWithKeywords(text, "DROP", "TABLE", out keywordStart) ||
-            EndsWithKeywords(text, "TRUNCATE", "TABLE", out keywordStart) ||
-            EndsWithKeywords(text, "AS", "OBJECT", out keywordStart))
+        // 這兩格與 NEXT VALUE FOR 前面寫的不是種類，名稱格的規則推不出來。
+        if (EndsWithKeywords(text, "AS", "OBJECT", out keywordStart))
         {
             return CompletionTarget.DataSource;
         }
@@ -735,9 +717,7 @@ public static class SqlCompletionContextAnalyzer
         }
 
         // NEXT VALUE FOR 的尾巴就是 VALUE FOR；再往前的 NEXT 不必看。
-        if (EndsWithKeywords(text, "VALUE", "FOR", out keywordStart) ||
-            EndsWithKeywords(text, "ALTER", "SEQUENCE", out keywordStart) ||
-            EndsWithKeywords(text, "DROP", "SEQUENCE", out keywordStart))
+        if (EndsWithKeywords(text, "VALUE", "FOR", out keywordStart))
         {
             return CompletionTarget.Sequence;
         }
@@ -832,18 +812,6 @@ public static class SqlCompletionContextAnalyzer
         }
 
         return -1;
-    }
-
-    /// <summary>剝掉尾端的 <c>IF EXISTS</c>；沒有的話原樣回傳。</summary>
-    /// <remarks>
-    /// <c>IF EXISTS (SELECT …)</c> 那種流程控制不會誤傷：剝完是空字串或另一個
-    /// 語句的尾巴，兩者都推不出目標，結果與剝之前一樣是 <see cref="CompletionTarget.Any"/>。
-    /// </remarks>
-    private static string TrimTrailingIfExists(string text)
-    {
-        return EndsWithKeywords(text, "IF", "EXISTS", out var start)
-            ? text.Substring(0, start).TrimEnd()
-            : text;
     }
 
     private static bool EndsWithKeywords(string text, string first, string second, out int keywordStart)

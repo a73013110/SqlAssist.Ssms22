@@ -2718,6 +2718,9 @@ internal static class SqlKeywordCatalogData
         {
             "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "TOP",
         }),
+        ("TRUNCATE TABLE", SqlKeywordPosition.StatementStart, "TRUNCATE TABLE ", false, false, true, false, new string[]
+        {
+        }),
         ("DROP", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP ", false, false, true, false, new string[]
         {
             "COLUMN", "CONSTRAINT", "INDEX", "PERIOD",
@@ -2748,6 +2751,14 @@ internal static class SqlKeywordCatalogData
         ("DROP PERIOD FOR", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP PERIOD FOR ", true, false, false, false, new string[]
         {
             "SYSTEM_TIME",
+        }),
+        ("ENABLE TRIGGER", SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.StatementStart, "ALTER TABLE t ENABLE TRIGGER ", false, false, true, false, new string[]
+        {
+            "ALL",
+        }),
+        ("DISABLE TRIGGER", SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.StatementStart, "ALTER TABLE t DISABLE TRIGGER ", false, false, true, false, new string[]
+        {
+            "ALL",
         }),
         ("CREATE XML SCHEMA COLLECTION {name} AS", SqlKeywordPosition.StatementStart, "CREATE XML SCHEMA COLLECTION t AS ", false, true, false, false, new string[]
         {
@@ -6744,14 +6755,6 @@ internal static class SqlKeywordCatalogData
         {
             "CALLER", "LOGIN", "USER",
         }),
-        ("ENABLE TRIGGER", SqlKeywordPosition.StatementStart, "ENABLE TRIGGER ", false, false, true, false, new string[]
-        {
-            "ALL",
-        }),
-        ("DISABLE TRIGGER", SqlKeywordPosition.StatementStart, "DISABLE TRIGGER ", false, false, true, false, new string[]
-        {
-            "ALL",
-        }),
         ("ON DELETE", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE ", true, false, false, false, new string[]
         {
             "CASCADE", "NO ACTION", "SET",
@@ -9580,6 +9583,18 @@ internal static class SqlKeywordCatalogData
         ("CREATE OR", SqlKeywordPosition.StatementStart, "CREATE OR ", true, false, false, false, new string[]
         {
             "ALTER",
+        }),
+        ("TRUNCATE", SqlKeywordPosition.StatementStart, "TRUNCATE ", true, false, false, false, new string[]
+        {
+            "TABLE",
+        }),
+        ("ENABLE", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t ENABLE ", true, false, false, false, new string[]
+        {
+            "CHANGE_TRACKING", "FILETABLE_NAMESPACE", "TRIGGER",
+        }),
+        ("DISABLE", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DISABLE ", true, false, false, false, new string[]
+        {
+            "CHANGE_TRACKING", "FILETABLE_NAMESPACE", "TRIGGER",
         }),
         ("CREATE XML", SqlKeywordPosition.StatementStart, "CREATE XML ", true, false, false, false, new string[]
         {

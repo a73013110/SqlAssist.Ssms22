@@ -46,6 +46,57 @@ public sealed class SqlCompletionContextAnalyzerTests
         Assert.Equal(expected, context.Target);
     }
 
+    /// <summary>
+    /// 第一層物件的名稱格由種類的字推出，與目錄物件同一條規則：認的是詞元，不是游標前兩個字面值。
+    /// </summary>
+    /// <remarks>
+    /// 動詞與種類中間夾註解、換行一樣是同一格；限定字那一支問的是限定字之前的那一格。
+    /// 意圖照動詞：ALTER 之後是改定義（展不展開由物件自己答），其餘只是引用名稱。
+    /// 關鍵字起點落在動詞上：整句展開要從那裡蓋起。
+    /// </remarks>
+    [Theory]
+    [InlineData("ALTER /* 改 */ PROCEDURE ", CompletionTarget.Procedure, CompletionIntent.AlterDefinition, "ALTER")]
+    [InlineData("ALTER\r\n  -- 改\r\n  FUNCTION ", CompletionTarget.Function, CompletionIntent.AlterDefinition, "ALTER")]
+    [InlineData("DROP /* 舊的 */ VIEW IF EXISTS ", CompletionTarget.View, CompletionIntent.Reference, "DROP")]
+    [InlineData("TRUNCATE /* 清空 */ TABLE ", CompletionTarget.DataSource, CompletionIntent.Reference, "TRUNCATE")]
+    [InlineData("DISABLE /* 停用 */ TRIGGER ", CompletionTarget.Trigger, CompletionIntent.Reference, "DISABLE")]
+    [InlineData("ALTER TABLE dbo.Loan ENABLE TRIGGER ", CompletionTarget.Trigger, CompletionIntent.Reference, "ENABLE")]
+    [InlineData("DROP /* 舊的 */ SEQUENCE ", CompletionTarget.Sequence, CompletionIntent.Reference, "DROP")]
+    [InlineData("CREATE OR ALTER PROCEDURE ", CompletionTarget.Procedure, CompletionIntent.AlterDefinition, "ALTER")]
+    [InlineData("ALTER /* 改 */ PROCEDURE dbo.", CompletionTarget.Procedure, CompletionIntent.AlterDefinition, "ALTER")]
+    [InlineData("DROP PROC IF EXISTS dbo.", CompletionTarget.Procedure, CompletionIntent.Reference, "DROP")]
+    [InlineData("TRUNCATE TABLE dbo.", CompletionTarget.DataSource, CompletionIntent.Reference, "TRUNCATE")]
+    [InlineData("DISABLE TRIGGER dbo.", CompletionTarget.Trigger, CompletionIntent.Reference, "DISABLE")]
+    [InlineData("SELECT 1\nDROP /* x */ TABLE LibArchive.dbo.", CompletionTarget.DataSource, CompletionIntent.Reference, "DROP")]
+    public void 第一層物件的名稱格由種類推出(
+        string textBeforeCaret,
+        CompletionTarget expectedTarget,
+        CompletionIntent expectedIntent,
+        string expectedKeyword)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(expectedTarget, context.Target);
+        Assert.Equal(expectedIntent, context.Intent);
+        Assert.True(context.TargetKeywordStart >= 0);
+        Assert.Equal(expectedKeyword, textBeforeCaret.Substring(context.TargetKeywordStart, expectedKeyword.Length));
+    }
+
+    /// <summary>種類的字前面是 CREATE 的是新名字；不是名稱格片語的種類字不算。</summary>
+    [Theory]
+    [InlineData("CREATE PROCEDURE ")]
+    [InlineData("CREATE /* 新的 */ TABLE ")]
+    [InlineData("GRANT CREATE TABLE ")]
+    [InlineData("GRANT VIEW ")]
+    public void 不是既有物件的名稱格(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.NotEqual(CompletionTarget.DataSource, context.Target);
+        Assert.NotEqual(CompletionTarget.Procedure, context.Target);
+        Assert.Equal(CompletionIntent.Reference, context.Intent);
+    }
+
     /// <summary>函式引數裡的 USE 不開始一句，接的是片語的 MODEL，不是資料庫。</summary>
     [Theory]
     [InlineData("SELECT AI_GENERATE_EMBEDDINGS(N'x' USE ")]
