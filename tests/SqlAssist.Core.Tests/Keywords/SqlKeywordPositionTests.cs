@@ -512,7 +512,7 @@ public sealed class SqlKeywordPositionTests
     /// <remarks>
     /// 以前 CASE 的裡面一律判成外層子句的尾端，<c>THEN b </c> 之後列的是 FROM 而沒有
     /// ELSE、END；<c>END </c> 之後則因為 END 是認得但沒有位置的字而整個放行。
-    /// 括號裡的另一個運算式不受外層 CASE 影響。
+    /// 括號裡的另一個運算式不受外層 CASE 影響；述詞位置上的括號（<c>AND (</c>）不是另一個運算式。
     /// </remarks>
     [Theory]
     [InlineData("SELECT CASE WHEN a ", SqlKeywordPosition.CaseArm)]
@@ -526,11 +526,30 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT CASE WHEN a = 1 THEN 2 END ", SqlKeywordPosition.SelectListTail)]
     [InlineData("SELECT * FROM t WHERE x = CASE WHEN a = 1 THEN 2 END ", SqlKeywordPosition.ExpressionTail)]
     [InlineData("SELECT CASE WHEN a IN (1, ", SqlKeywordPosition.Any)]
+    [InlineData("SELECT CASE WHEN a = 1 AND (b = 2 OR c ", SqlKeywordPosition.CaseArm)]
+    [InlineData("SELECT CASE WHEN COALESCE(a ", SqlKeywordPosition.SelectListTail)]
     [InlineData("BEGIN SELECT 1 END ", SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart)]
     [InlineData("IF @a = 1 PRINT 'x' ELSE PRINT 'y' ", SqlKeywordPosition.Any)]
     public void CASE的位置(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
+    /// <c>IIF(</c> 的第一個引數是述詞，位置與 WHERE 相同；逗號之後的引數是一般的值。
+    /// </summary>
+    /// <remarks>以前穿出去借選取清單尾端，比較寫完打不出 AND、OR，運算元之後打不出 IS。</remarks>
+    [Theory]
+    [InlineData("SELECT IIF(Fee > 2 ", "AND", true)]
+    [InlineData("SELECT IIF(@Due ", "IS", true)]
+    [InlineData("SELECT IIF(l.Fee > 2 OR l.Fee ", "IS", true)]
+    [InlineData("SELECT IIF((Fee > 2 ", "OR", true)]
+    [InlineData("SELECT a FROM t WHERE IIF(Fee ", "BETWEEN", true)]
+    [InlineData("SELECT IIF(Fee > 2, 1 ", "AND", false)]
+    [InlineData("SELECT IIF(Fee > 2, 1, 0) ", "AND", false)]
+    public void IIF的第一個引數是述詞(string textBeforeToken, string keyword, bool expected)
+    {
+        Assert.Equal(expected, AllowedAt(textBeforeToken, keyword));
     }
 
     /// <summary>
@@ -1733,7 +1752,11 @@ public sealed class SqlKeywordPositionTests
     [InlineData("IF @a = 1 SELECT 1\nSELECT 2 ", false)]
     [InlineData("IF @a = 1 SELECT 1 ELSE SELECT 2 ", false)]
     [InlineData("IF @a = 1 SELECT 1 ELSE ", false)]
-    [InlineData("IF @a = 1 SELECT 1; ", false)]
+    [InlineData("IF @a = 1 SELECT 1; ", true)]
+    [InlineData("IF @a = 1 PRINT 'x';\n", true)]
+    [InlineData("IF @a = 1 BEGIN SELECT 1 END; ", true)]
+    [InlineData("IF @a = 1 SELECT 1; SELECT 2; ", false)]
+    [InlineData("SELECT 1; ", false)]
     [InlineData("IF @a = 1 BEGIN TRY ", false)]
     [InlineData("WHILE @a = 1 SELECT 1 ", false)]
     [InlineData("IF @a = 1 IF @b = 1 ", false)]

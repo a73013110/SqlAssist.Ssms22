@@ -240,15 +240,10 @@ public static class SqlClausePhraseCatalog
                 break;
             }
 
-            // 換行之後判得出下一句的位置，那一格就是下一句；判不出來時（CREATE USER u 之後換行）也可能還是這一句，
-            // 片語的字只加進來，與前一格判不出位置同一條規則。
-            if (phrase.EndsStatement && onNewLine && caret != SqlKeywordPosition.Any)
-            {
-                continue;
-            }
-
             var start = phrase.MatchTail(tokens, count, analyzer);
 
+            // 語句到片語為止已經完整又換了行：可能是下一句，也可能還是這一句（CREATE SEQUENCE s⏎START WITH、
+            // CREATE DATABASE d ON (…)⏎LOG ON），片語只算可能、字加進那一格。換行是不是界線由位置分析決定，這裡不另判。
             if (start >= 0 && Qualify(phrase, start == count ? caret : analyzer.PositionBefore(start)) is { } match)
             {
                 return phrase.EndsStatement && onNewLine ? phrase.Tentative : match;

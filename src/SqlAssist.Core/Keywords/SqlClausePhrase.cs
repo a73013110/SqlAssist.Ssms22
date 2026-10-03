@@ -87,9 +87,9 @@ public sealed class SqlClausePhrase
     /// 語句寫到片語為止已經完整（<c>CREATE INDEX i ON t (a) </c>、<c>OFFSET 10 ROWS </c>）。
     /// </summary>
     /// <remarks>
-    /// 這種片語的字不含下一句的開頭（產生器扣掉了），所以換了行就不算數：
-    /// 換行之後的那一格更可能是下一句，那裡要的是語句開頭的整份清單。判不出那一格的位置時片語只算可能，
-    /// 字照樣加進來：<c>CREATE USER u</c> 換行之後還寫得出 <c>WITHOUT LOGIN</c>。
+    /// 這種片語的字不含下一句的開頭（產生器扣掉了），所以換了行就只算可能：
+    /// 換行之後的那一格可能是下一句，也可能還是這一句，字加進那一格的整份清單——<c>CREATE USER u</c>
+    /// 換行之後還寫得出 <c>WITHOUT LOGIN</c>，<c>CREATE SEQUENCE s</c> 換行之後是 <c>START WITH</c>。
     /// 產生器手寫補回的字例外（<c>OFFSET 10 ROWS </c> 的 FETCH）：清單照樣略過片語，那個字仍在
     /// 語句開頭的清單裡；但寫出來之後它屬於這一句，見 <see cref="SqlClausePhraseCatalog.Continues"/>。
     /// </remarks>

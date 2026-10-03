@@ -29,7 +29,7 @@
 
 探測文字本身已是完整語句時（`CREATE INDEX i ON t (a) `），接得上的字也含下一句的開頭；
 產生器扣掉在 `SELECT 1; ` 探到的那一份（`(` 之後扣 `SELECT 1; (` 的），被誤扣的（`WITH` 也是 CTE 的開頭）由更長的片語或 `Values` 補回。
-這種片語帶 `EndsStatement`，游標換了行就不算數。
+這種片語帶 `EndsStatement`，游標換了行就只算可能，見[片語](completion-phrases.md#執行期)。
 
 - `Expand`：每個接得上的字接在後面成為新片語。語句標頭寫完了照樣往下（`CREATE MASTER KEY` 之後的 `ENCRYPTION`），
   扣掉下一句的開頭沒有字就不立；子句裡的不往下，由位置分析說（立了會藏掉索引篩選 `IS NOT NULL` 之後的 `WITH`）。

@@ -501,6 +501,28 @@ public sealed class SqlClausePhraseTests
     }
 
     /// <summary>
+    /// 語句寫到片語為止已經完整又換了行：下一句與這一句的續寫都可能，片語只加字。
+    /// </summary>
+    /// <remarks>
+    /// 以前只在前一格判不出位置時這樣做，判得出時略過片語，<c>CREATE SEQUENCE</c> 換行之後的選項、
+    /// <c>CREATE DATABASE … ON (…)</c> 換行之後的 <c>LOG ON</c> 都列不出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("CREATE SEQUENCE dbo.LoanNo\n", "START", "SELECT")]
+    [InlineData("CREATE SEQUENCE dbo.LoanNo AS int\nSTART WITH 1\n", "INCREMENT", "SELECT")]
+    [InlineData("CREATE DATABASE LibArchive\nON (NAME = LibData, FILENAME = 'x')\n", "LOG", "SELECT")]
+    [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo)\n", "INCLUDE", "SELECT")]
+    public void 語句寫完又換行時片語只加字(string textBeforeCaret, string phraseWord, string nextStatementWord)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+        var offered = Offered(textBeforeCaret);
+
+        Assert.False(context.ClausePhrase!.IsCertain);
+        Assert.Contains(phraseWord, offered);
+        Assert.Contains(nextStatementWord, offered);
+    }
+
+    /// <summary>
     /// 一格同時是幾個位置時，接得上的附加片語全部算數：函式呼叫之後是選取清單尾端，也是函式呼叫之後。
     /// </summary>
     /// <remarks>只取第一個對上的話，<c>AT</c> 與 <c>WITHIN</c> 只剩一個。</remarks>

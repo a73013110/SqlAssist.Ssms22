@@ -509,9 +509,25 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 這一句還停在自己的條件裡（<c>IF a IF b = 1 </c>）時不算，ELSE、<c>BEGIN TRY</c>
     /// 這種打開下一句的邊界之後也還沒有寫完的一句。主體是 <c>BEGIN … END</c> 時由
     /// <see cref="SqlKeywordPosition.BlockEnd"/> 給 ELSE。
+    ///
+    /// 分號說它前面那一句寫完了，問的就是那一句：<c>IF @a = 1 PRINT 'x'; </c> 之後仍接 ELSE。
+    /// 那一句自己判不出位置（<c>PRINT</c>）也一樣，分號已經替它說了；<c>BEGIN … END;</c> 的 END 之後本來就接 ELSE。
     /// </remarks>
     private bool EndsIfBody(SqlKeywordPosition position, int last)
     {
+        if (last >= 1 && tokens[last].IsPunctuation(";"))
+        {
+            var before = KeywordsBefore(last);
+
+            if (before != SqlKeywordPosition.Any && (before & SqlKeywordPosition.BlockEnd) != SqlKeywordPosition.None)
+            {
+                return true;
+            }
+
+            last--;
+            position = SqlKeywordPosition.StatementStart;
+        }
+
         if (last < 0 ||
             position == SqlKeywordPosition.Any ||
             (position & (StatementEndPositions | SqlKeywordPosition.StatementStart)) == SqlKeywordPosition.None ||
@@ -2244,7 +2260,10 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// WHEN 的條件不借用述詞尾端：那會帶進 WHERE、GROUP、UNION 這些 CASE 裡寫不出的
     /// 子句字；IN、LIKE、THEN、AND 由產生器的樣板直接分到 CaseArm。
     /// 穿過沒關上的左括號之後就不再認：那時游標在括號裡的另一個運算式，
-    /// 外層 CASE 走到哪一段與它無關，照舊由子句錨點決定。
+    /// 外層 CASE 走到哪一段與它無關，照舊由子句錨點決定。述詞位置上的括號例外（<see cref="GroupsPredicates"/>）：
+    /// <c>WHEN a = 1 AND (b = 2 OR c </c> 還在同一個條件裡，接 IS、THEN。
+    ///
+    /// <c>IIF(</c> 的第一個引數是述詞，那個左括號就是它的 WHERE；逗號之後的引數是一般的值。
     ///
     /// 錨點只在游標所在的這一句裡找：分號、GO 與這一句的開頭（<see cref="IsStatementHead"/>）
     /// 之前是別的敘述。走到那裡還沒有錨點，就是這一句自己沒有子句關鍵字（<c>EXEC</c>、
@@ -2261,6 +2280,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
     {
         SqlKeywordPosition? caseArm = null;
         var insideGroup = false;
+
+        // 穿過的括號裡有一組不是述詞（函式引數、IN 的值）：游標在另一個運算式裡，外層 CASE 走到哪一段與它無關。
+        var insideOperand = false;
+
+        // 清單的下一項是從逗號之後問起的：游標不在那個括號的第一項裡。
+        var pastComma = anchors == ListAnchors;
 
         for (var index = from; index >= 0; index--)
         {
@@ -2286,6 +2311,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
             if (token.Kind != SqlTokenKind.Identifier || token.IsQuoted)
             {
+                // IIF 的第一個引數是述詞，左括號就是它的 WHERE：IIF(Fee > 2 之後接 AND、OR，IIF(@a 之後接 IS。
+                // 穿出去借外層的話只剩選取清單尾端。逗號之後是一般的值，照常。
+                if (token.IsPunctuation("(") && !pastComma && index >= 1 && tokens[index - 1].IsKeyword("IIF"))
+                {
+                    return anchors["WHERE"];
+                }
+
+                pastComma = token.IsPunctuation(",") || (pastComma && !token.IsPunctuation("("));
+
                 // 清單的下一項回到清單的起點，而沒關上的左括號本身就是一份清單的起點（引數、
                 // VALUES 的一列、IN 的值）：穿出去借外層子句的清單，VALUES (1, 會拿到 INTO 的資料來源、
                 // SET @a = IIF(x, 會拿到指派目標，兩邊都列不出 NULL。
@@ -2302,6 +2336,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 }
 
                 insideGroup |= token.IsPunctuation("(");
+                insideOperand |= token.IsPunctuation("(") && !GroupsPredicates(index);
                 continue;
             }
 
@@ -2311,7 +2346,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 continue;
             }
 
-            if (!insideGroup)
+            if (!insideOperand)
             {
                 if (caseArm is null && token.IsKeyword("WHEN"))
                 {
@@ -2374,6 +2409,19 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
 
         return SqlKeywordPosition.Any;
+    }
+
+    /// <summary>
+    /// <paramref name="open"/> 的左括號在述詞的位置上（<c>AND (</c>、<c>WHEN (</c>、<c>NOT (</c>）：
+    /// 括號裡是一組述詞，不是另一個運算式。
+    /// </summary>
+    private bool GroupsPredicates(int open)
+    {
+        return open >= 1 &&
+            tokens[open - 1].Kind == SqlTokenKind.Identifier &&
+            !tokens[open - 1].IsQuoted &&
+            AfterKeyword.TryGetValue(tokens[open - 1].Value, out var position) &&
+            (position & SqlKeywordPosition.Predicate) != SqlKeywordPosition.None;
     }
 
     /// <summary>

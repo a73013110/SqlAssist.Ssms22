@@ -9,7 +9,10 @@
   `FROM (SELECT … ON a = b) d ` 撈到內層的 `ON` 就打不出 `WHERE`。
   配對不起來時放行成 `Any`。
 - **寫完的 `CASE … END` 也是運算元**，後面照外層位置。還沒寫完的 CASE 是游標
-  那一層：`CASE WHEN a = 1 THEN b ` 之後接 `WHEN`、`ELSE`、`END`。
+  那一層：`CASE WHEN a = 1 THEN b ` 之後接 `WHEN`、`ELSE`、`END`。穿過函式引數或 `IN` 的括號就不是了，
+  述詞位置上的括號（`WHEN a = 1 AND (b = 2 OR c `）仍是同一個條件，接 `IS`、`THEN`。
+- **`IIF(` 的第一個引數是述詞**：左括號就是它的 `WHERE`，`IIF(Fee > 2 ` 接 `AND`、`OR`，`IIF(@a ` 接 `IS`；
+  逗號之後的引數是一般的值。穿出去借外層的話只剩選取清單尾端。
 - **逗號代表清單再來一項**，位置回到清單的**起點**：`SELECT a, ` 與 `SELECT ` 同一個位置；
   判成尾端的話 `CASE` 不見。沒關上的左括號也是起點（引數、`VALUES` 的一列），
   不借外層：`VALUES (1, ` 才列得出 `NULL`。
@@ -25,7 +28,8 @@
   與名稱分不開，換行才補語句開頭。
 - **`NOT` 也是聯集**：`WHERE NOT ` 開一個述詞，`a NOT ` 之後接 `IN`、`LIKE`。
 - **`IF`、`WHILE` 是錨點**：條件寫完是主體的開頭，也接 `AND`、`OR`；括號沒關上時只算條件。
-  IF 的單句主體寫完另接 `ELSE`（`IfBodyEnd`）。
+  IF 的單句主體寫完另接 `ELSE`（`IfBodyEnd`）；以分號結束也一樣，分號只說前一句寫完了
+  （`IF @a = 1 PRINT 'x'; ELSE`、`BEGIN … END; ELSE`）。
 - **區塊邊界之後是下一句**：`BEGIN TRY`、`END CATCH`、IF 的 `ELSE`。`BEGIN … END` 的 END
   另接 `ELSE`、`TRY`、`CATCH`（`BlockEnd`）；CASE 的 ELSE 與 END 不算。
 
