@@ -239,6 +239,7 @@ internal static partial class SqlIcons
         SuggestionKind.Snippet => Snippet,
         SuggestionKind.Schema => Schema,
         SuggestionKind.Table => Table,
+        SuggestionKind.Synonym => Synonym,
         SuggestionKind.View => View,
         SuggestionKind.Procedure => Procedure,
         SuggestionKind.Function => ScalarFunction,

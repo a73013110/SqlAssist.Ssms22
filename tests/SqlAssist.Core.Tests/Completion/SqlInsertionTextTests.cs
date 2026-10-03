@@ -141,6 +141,7 @@ public sealed class SqlInsertionTextTests
     [InlineData(SuggestionKind.TableFunction)]
     [InlineData(SuggestionKind.Trigger)]
     [InlineData(SuggestionKind.Sequence)]
+    [InlineData(SuggestionKind.Synonym)]
     [InlineData(SuggestionKind.UserDefinedType)]
     public void 資料庫物件都照結構描述規則補(SuggestionKind kind)
     {

@@ -53,7 +53,10 @@ public static class SuggestionCategories
     public static SuggestionCategory? Of(SuggestionKind kind) => kind switch
     {
         SuggestionKind.Column => SuggestionCategory.Column,
-        SuggestionKind.Table or SuggestionKind.ScriptDataSource or SuggestionKind.Alias => SuggestionCategory.Table,
+        SuggestionKind.Table
+            or SuggestionKind.Synonym
+            or SuggestionKind.ScriptDataSource
+            or SuggestionKind.Alias => SuggestionCategory.Table,
         SuggestionKind.View => SuggestionCategory.View,
         SuggestionKind.Procedure => SuggestionCategory.Procedure,
         SuggestionKind.Function => SuggestionCategory.ScalarFunction,

@@ -175,6 +175,9 @@ internal static class SuggestionScore
             // 他會去 FROM 後面補字，正是因為還沒背起來。
             SuggestionKind.ScriptDataSource => 22,
             SuggestionKind.Table => 20,
+
+            // 同義字與資料表同格、同一個分數：它就是另一個名字的資料表。
+            SuggestionKind.Synonym => 20,
             SuggestionKind.View => 18,
             SuggestionKind.Procedure => 16,
 

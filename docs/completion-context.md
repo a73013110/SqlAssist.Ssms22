@@ -67,7 +67,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `INSERT INTO` | Table、View | 展開欄位清單與 `VALUES` |
 | `MERGE`／`MERGE INTO` | Table、View | 展開比對鍵、`UPDATE SET`、`INSERT` 與 `VALUES` |
 | `ALTER`（含 `CREATE OR ALTER`）之後的種類，見[第一層物件](completion-catalog-names.md#第一層物件) | 那一類；`TABLE` 是 Table、View，函式兩種 | 模組展開完整 ALTER 定義 |
-| `DROP`、`TRUNCATE`、`ENABLE`、`DISABLE` 之後的種類 | 同上 | 插入名稱 |
+| `DROP`、`TRUNCATE`、`ENABLE`、`DISABLE` 之後的種類 | 同上；`SYNONYM` 是同義字，`TYPE` 是資料表型別 | 插入名稱 |
 | 其餘位置選到自訂函式（`SELECT `、`WHERE `…） | — | 補上括號 |
 | `WITH RESULT SETS (AS OBJECT` | Table、View | 插入名稱 |
 | `WITH RESULT SETS (AS TYPE` | 使用者自訂資料表型別 | 插入名稱 |

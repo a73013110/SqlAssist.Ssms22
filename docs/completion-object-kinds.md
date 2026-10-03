@@ -89,6 +89,9 @@
 程序一定執行失敗。觸發程序算模組（`OBJECT_DEFINITION` 拿得到定義），所以
 `ALTER TRIGGER` 與 `ALTER PROCEDURE` 一樣直接展開完整定義。
 
+同義字反過來：有自己的種類（`SuggestionKind.Synonym`），但與資料表同格，`FROM` 之後照列，`DROP SYNONYM` 只列它。
+`EXEC` 之後不列：中繼資料說不出它指向資料表還是程序。
+
 這三種都不在 `sys.objects` 的原白名單裡，第一層查詢因此多收 `TR`、`TA`、`SO`，
 並把 `sys.table_types` 另外 UNION 進來貼上 `TT` 標籤——與同義字的 `SN` 同一個做法。
 資料表型別取的是 `type_table_object_id` 而不是 `user_type_id`：快取以 object_id 為鍵，

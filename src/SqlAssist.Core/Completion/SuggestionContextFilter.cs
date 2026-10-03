@@ -101,6 +101,7 @@ public static class SuggestionContextFilter
             SuggestionKind.Database => true,
             SuggestionKind.Trigger => true,
             SuggestionKind.Sequence => true,
+            SuggestionKind.Synonym => true,
             SuggestionKind.UserDefinedType => true,
             SuggestionKind.LinkedServer => true,
             SuggestionKind.Alias => true,
@@ -224,6 +225,7 @@ public static class SuggestionContextFilter
             // 游標<b>這一格</b>是另一個問題，由 IsAllowedForSchema 依限定字停在哪一格
             // 決定——這裡只說「這個目標接不接得住這個類別」。
             CompletionTarget.DataSource => kind is SuggestionKind.Table
+                or SuggestionKind.Synonym
                 or SuggestionKind.View
                 or SuggestionKind.TableFunction
                 or SuggestionKind.ScriptDataSource ||
@@ -250,6 +252,7 @@ public static class SuggestionContextFilter
                 or SuggestionKind.UserDefinedType,
             CompletionTarget.TableType => kind == SuggestionKind.UserDefinedType,
             CompletionTarget.View => kind == SuggestionKind.View,
+            CompletionTarget.Synonym => kind == SuggestionKind.Synonym,
             CompletionTarget.Trigger => kind == SuggestionKind.Trigger,
             CompletionTarget.Sequence => kind == SuggestionKind.Sequence,
             CompletionTarget.Cursor => kind == SuggestionKind.Cursor,
@@ -395,6 +398,7 @@ public static class SuggestionContextFilter
             or CompletionTarget.Function
             or CompletionTarget.TableFunction
             or CompletionTarget.Sequence
+            or CompletionTarget.Synonym
             or CompletionTarget.View;
     }
 

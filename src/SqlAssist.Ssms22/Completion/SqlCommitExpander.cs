@@ -246,6 +246,12 @@ internal sealed class SqlCommitExpander
             // 使用者打的 LibArchive. 連同整句一起被換掉，剩下一句語法完全正確、
             // 執行起來卻改到「目前連線」裡同名的那個模組。維持只插入名稱。
             case CompletionIntent.AlterDefinition:
+                // ALTER TABLE、ALTER SEQUENCE 也是這個意圖；只有模組有定義可放，其餘不必再往下問。
+                if (!objectInfo.Kind.IsModule())
+                {
+                    return null;
+                }
+
                 if (context.QualifierPath is { IsLocal: false })
                 {
                     SqlAssistDiagnostics.Write(
@@ -253,9 +259,7 @@ internal sealed class SqlCommitExpander
                     return null;
                 }
 
-                return canReplaceStatement &&
-                       settings.ExpandAlterDefinition &&
-                       objectInfo.Kind.IsModule()
+                return canReplaceStatement && settings.ExpandAlterDefinition
                     ? new SqlAlterStatementExpansion(objectInfo)
                     : null;
 

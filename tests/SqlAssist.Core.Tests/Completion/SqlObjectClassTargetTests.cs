@@ -125,6 +125,41 @@ public sealed class SqlObjectClassTargetTests
         Assert.Empty(SuggestionContextFilter.Filter(candidates, context));
     }
 
+    /// <summary>
+    /// 同義字與資料表同一格（<c>FROM</c> 之後列得出來），自己的位置（<c>DROP SYNONYM</c>）只列同義字：
+    /// 那裡選到資料表一定執行失敗。
+    /// </summary>
+    [Theory]
+    [InlineData("DROP SYNONYM ", true)]
+    [InlineData("DROP SYNONYM IF EXISTS ", true)]
+    [InlineData("DROP SYNONYM dbo.", true)]
+    [InlineData("SELECT * FROM ", false)]
+    public void 同義字的位置(string textBeforeCaret, bool synonymsOnly)
+    {
+        var synonym = new SqlSuggestion("syn_Loan", "syn_Loan", "", "", SuggestionKind.Synonym, schemaName: "dbo");
+        var table = new SqlSuggestion("Loan", "Loan", "", "", SuggestionKind.Table, schemaName: "dbo");
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(
+            synonymsOnly ? new[] { synonym } : new[] { synonym, table },
+            SuggestionContextFilter.Filter(new[] { synonym, table }, context).ToArray());
+    }
+
+    /// <summary>
+    /// <c>DROP TYPE</c> 之後是使用者自訂型別；中繼資料載入的自訂型別只有資料表型別，與 <c>AS TYPE</c> 同一個目標。
+    /// </summary>
+    [Theory]
+    [InlineData("DROP TYPE ")]
+    [InlineData("DROP TYPE IF EXISTS ")]
+    [InlineData("DROP TYPE dbo.")]
+    public void 型別的位置(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(CompletionTarget.TableType, context.Target);
+        Assert.Equal(CompletionIntent.Reference, context.Intent);
+    }
+
     [Fact]
     public void 各自的位置列得出來()
     {

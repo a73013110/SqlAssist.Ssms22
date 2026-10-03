@@ -175,8 +175,8 @@ public static class SqlCatalogSuggestions
         return kind switch
         {
             SqlObjectKind.Table => SuggestionKind.Table,
-            // 同義字幾乎都指向資料表或檢視，放在資料來源清單裡才找得到。
-            SqlObjectKind.Synonym => SuggestionKind.Table,
+            // 同義字幾乎都指向資料表或檢視，資料來源清單收它（SuggestionContextFilter）；自己的種類讓 DROP SYNONYM 只列它。
+            SqlObjectKind.Synonym => SuggestionKind.Synonym,
             SqlObjectKind.View => SuggestionKind.View,
             SqlObjectKind.Procedure => SuggestionKind.Procedure,
             SqlObjectKind.ScalarFunction => SuggestionKind.Function,

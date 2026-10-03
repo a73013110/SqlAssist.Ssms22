@@ -84,9 +84,13 @@ public enum CompletionTarget
     /// </remarks>
     DataType,
 
-    /// <summary><c>EXEC … WITH RESULT SETS (AS TYPE </c> 之後：只建議使用者自訂的資料表型別。</summary>
+    /// <summary><c>EXEC … WITH RESULT SETS (AS TYPE </c> 與 <c>DROP TYPE</c> 之後：只建議使用者自訂的資料表型別。</summary>
     /// <remarks>那一格借的是一組資料行的形狀，內建型別描述不出來。</remarks>
     TableType,
+
+    /// <summary><c>DROP SYNONYM</c> 之後：只建議同義字。</summary>
+    /// <remarks>同義字也是資料來源，<see cref="DataSource"/> 裡本來就有它；分出來的理由與 <see cref="View"/> 相同。</remarks>
+    Synonym,
 
     /// <summary><c>ALTER</c>、<c>DROP VIEW</c> 之後。</summary>
     /// <remarks>

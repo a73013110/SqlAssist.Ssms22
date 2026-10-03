@@ -27,15 +27,17 @@
 
 ## 第一層物件
 
-同一條規則換一份名冊：種類是 `PROCEDURE`／`PROC`、`FUNCTION`、`VIEW`、`TRIGGER`、`TABLE`、`SEQUENCE` 時，那一格列程序、函式、
-檢視、觸發程序、資料來源或序列（`SqlCatalogEntityPosition.ResolveObject`）。動詞不手寫，認的是產生器的名稱格片語：
+同一條規則換一份名冊：種類是 `PROCEDURE`／`PROC`、`FUNCTION`、`VIEW`、`TRIGGER`、`TABLE`、`SEQUENCE`、`SYNONYM`、`TYPE` 時，
+那一格列程序、函式、檢視、觸發程序、資料來源、序列、同義字或資料表型別（`SqlCatalogEntityPosition.ResolveObject`）。
+`TYPE` 只列資料表型別：中繼資料只載入這一種自訂型別。動詞不手寫，認的是產生器的名稱格片語：
 `ALTER`、`DROP` 由 `Kinds` 展開，`TRUNCATE TABLE`、`ENABLE`／`DISABLE TRIGGER`（含 `ALTER TABLE t ENABLE TRIGGER`）另外宣告。
 動詞沒有片語就是在產生器補宣告，不在執行期補一條比對。動詞與種類之間夾註解或換行照樣認得。
 
 - `CREATE OR ALTER` 之後可能是既有的那一個，照 `ALTER` 算；只有 `CREATE` 之後是新名字。
 - 意圖照動詞：`ALTER` 是改定義，關鍵字起點落在動詞上；展不展開由物件自己答，見[整句展開](statement-expansion.md)。
 - 限定字（`ALTER PROCEDURE dbo.`）問限定字之前那一格的片語：游標處的片語已經走過 `dbo.`。
-- 最長的種類不在名冊裡就不是這一格：`DROP EXTERNAL TABLE `、`ALTER MATERIALIZED VIEW `。
+- 最長的種類不在名冊裡就不是這一格。`DROP EXTERNAL TABLE ` 不列：第一層快照分不出外部資料表，列資料表的話選到一般資料表就失敗；
+  `ALTER MATERIALIZED VIEW ` 只有 Synapse 有。
 - `NEXT VALUE FOR`、`WITH RESULT SETS (AS OBJECT`／`AS TYPE` 前面寫的不是種類，照[上下文](completion-context.md#依上下文縮小建議範圍)的字面比對。
 
 ## 主體的範圍

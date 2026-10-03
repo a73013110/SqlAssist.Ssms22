@@ -46,6 +46,10 @@ internal static class SqlCatalogEntityPosition
         ["TRIGGER"] = CompletionTarget.Trigger,
         ["TABLE"] = CompletionTarget.DataSource,
         ["SEQUENCE"] = CompletionTarget.Sequence,
+        ["SYNONYM"] = CompletionTarget.Synonym,
+
+        // 中繼資料載入的自訂型別只有資料表型別；別名型別哪裡都不列，這裡不例外。
+        ["TYPE"] = CompletionTarget.TableType,
     };
 
     /// <summary>
@@ -54,8 +58,9 @@ internal static class SqlCatalogEntityPosition
     /// </summary>
     /// <remarks>
     /// 限定字那一支（<c>ALTER PROCEDURE dbo.</c>）由呼叫端傳限定字之前的詞元與那裡的片語。
-    /// <c>CREATE OR ALTER</c> 之後可能是既有的那一個，照 ALTER 算；最長的種類不在名冊裡（<c>DROP EXTERNAL TABLE </c>、
-    /// <c>ALTER MATERIALIZED VIEW </c>）就不是這一格。<c>NEXT VALUE FOR</c> 前面沒有種類，不在這裡。
+    /// <c>CREATE OR ALTER</c> 之後可能是既有的那一個，照 ALTER 算。最長的種類不在名冊裡就不是這一格：
+    /// <c>DROP EXTERNAL TABLE </c> 列資料表的話混進一般資料表（第一層快照分不出外部資料表），選到就失敗；
+    /// <c>ALTER MATERIALIZED VIEW </c> 只有 Synapse 有。<c>NEXT VALUE FOR</c> 前面沒有種類，不在這裡。
     /// </remarks>
     /// <param name="tokens">名稱那一格之前的詞元。</param>
     /// <param name="phrase">位置分析在那一格比對到的片語。</param>

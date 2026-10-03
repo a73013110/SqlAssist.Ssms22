@@ -179,6 +179,15 @@ public enum SuggestionKind
     /// 結構描述與資料庫在那一格也是這一類，與多段名稱第一段的 <see cref="Schema"/>、<see cref="Database"/> 分開：
     /// 插入時不接點號，過濾也不看限定字。
     /// </remarks>
-    CatalogEntity
+    CatalogEntity,
+
+    /// <summary>同義字；與資料表同格（<c>FROM</c> 之後），自己的位置是 <c>DROP SYNONYM</c>。</summary>
+    /// <remarks>
+    /// 與 <see cref="Table"/> 分開：<c>DROP SYNONYM</c> 之後選到資料表一定執行失敗。
+    /// 同義字也可能指向程序，但 <c>EXEC</c> 之後不列：中繼資料不知道它指向哪一種，列出來多半是錯的。
+    ///
+    /// 加在列舉最後面，理由見 <see cref="LinkedServer"/>：使用紀錄以 <c>(int)Kind</c> 當鍵。
+    /// </remarks>
+    Synonym
 }
 
