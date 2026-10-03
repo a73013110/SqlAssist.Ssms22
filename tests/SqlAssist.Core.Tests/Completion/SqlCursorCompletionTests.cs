@@ -51,18 +51,34 @@ public sealed class SqlCursorCompletionTests
         Assert.Equal("c", context.Prefix);
     }
 
-    /// <summary>ISO 選項、方括號名稱都認；游標變數是變數，不在這一份。</summary>
+    /// <summary>
+    /// ISO 選項、方括號名稱都認；游標變數也是游標（<c>DEALLOCATE @c</c>），宣告清單的一項與
+    /// <c>SET @c = CURSOR</c> 都算。其他型別的變數不在這一份。
+    /// </summary>
     [Fact]
-    public void 名冊只收具名游標()
+    public void 名冊收具名游標與游標變數()
     {
         Assert.Equal(
-            new[] { "c1", "Loan cursor" },
+            new[] { "c1", "Loan cursor", "@v", "@w", "@x" },
             ScriptSources(
                 "DECLARE c1 INSENSITIVE SCROLL CURSOR FOR SELECT 1;\r\n" +
                 "DECLARE [Loan cursor] CURSOR LOCAL FAST_FORWARD FOR SELECT 1;\r\n" +
                 "DECLARE @v CURSOR;\r\n" +
+                "DECLARE @n int, @w CURSOR;\r\n" +
+                "SET @x = CURSOR LOCAL FOR SELECT 3;\r\n" +
                 "DECLARE c1 CURSOR FOR SELECT 2;\r\n" +
                 "OPEN |"));
+    }
+
+    [Theory]
+    [InlineData("DECLARE @c CURSOR;\r\nDEALLOCATE @|")]
+    [InlineData("DECLARE @c CURSOR;\r\nFETCH NEXT FROM @|")]
+    public void 游標變數在游標那一格(string sqlWithCaret)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(CompletionTarget.Cursor, context.Target);
+        Assert.Equal(new[] { "@c" }, context.ScriptSources.Select(suggestion => suggestion.DisplayText));
     }
 
     /// <summary>

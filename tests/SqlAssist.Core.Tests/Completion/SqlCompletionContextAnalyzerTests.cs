@@ -20,6 +20,9 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("ALTER TABLE ", CompletionTarget.DataSource)]
     [InlineData("DROP TABLE ", CompletionTarget.DataSource)]
     [InlineData("DROP TABLE IF EXISTS ", CompletionTarget.DataSource)]
+    [InlineData("DROP TABLE #a, ", CompletionTarget.DataSource)]
+    [InlineData("DROP TABLE IF EXISTS dbo.a, LibArchive.dbo.b, ", CompletionTarget.DataSource)]
+    [InlineData("DROP VIEW v1, ", CompletionTarget.View)]
     [InlineData("TRUNCATE TABLE ", CompletionTarget.DataSource)]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS (AS OBJECT ", CompletionTarget.DataSource)]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((CopyNo int), AS TYPE ", CompletionTarget.TableType)]
@@ -44,6 +47,17 @@ public sealed class SqlCompletionContextAnalyzerTests
 
         Assert.True(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
         Assert.Equal(expected, context.Target);
+    }
+
+    /// <summary>
+    /// 名稱清單的逗號只在 DROP 回到同一格：其他動詞一次只有一個名稱，逗號之後不是那一種物件。
+    /// </summary>
+    [Theory]
+    [InlineData("TRUNCATE TABLE a, ")]
+    [InlineData("ALTER TABLE a, ")]
+    public void 只有DROP的名稱清單接得了下一個(string textBeforeCaret)
+    {
+        Assert.NotEqual(CompletionTarget.DataSource, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Target);
     }
 
     /// <summary>

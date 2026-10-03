@@ -36,13 +36,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// </remarks>
     private static readonly OptionList[] OptionLists =
     {
-        // DECLARE c [SCROLL] CURSOR [LOCAL FAST_FORWARD …]：選項是一串非關鍵字的識別字，不以逗號分隔。
-        // DECLARE @c CURSOR 是游標變數，後面不接 FOR，不在這裡。
+        // DECLARE c [SCROLL] CURSOR、SET @c = CURSOR [LOCAL FAST_FORWARD …]：選項是一串非關鍵字的識別字，不以逗號分隔。
         new(
             isAnchor: (analyzer, index) => analyzer.IsBareKeyword(index) && analyzer.tokens[index].IsKeyword("CURSOR"),
             isPart: (analyzer, index) => analyzer.IsPlainWord(index),
             endsItem: (_, _) => true,
-            header: (analyzer, cursor) => SqlCursorDeclaration.FindName(analyzer.tokens, cursor) >= 0
+            header: (analyzer, cursor) => SqlCursorDeclaration.TakesOptions(analyzer.tokens, cursor)
                 ? new OptionSlots(SqlKeywordPosition.CursorOption, SqlKeywordPosition.CursorOption)
                 : null,
             separatedByCommas: false),
@@ -516,7 +515,20 @@ public sealed partial class SqlKeywordPositionAnalyzer
     {
         return tokens[last].IsKeyword("WHEN") &&
             FindUnclosedCase(last - 1) < 0 &&
-            tokens[FindStatementStart(last)].IsKeyword("MERGE");
+            InMerge(last);
+    }
+
+    /// <summary><paramref name="index"/> 所在的那一句以 MERGE 開頭。</summary>
+    /// <remarks>
+    /// MERGE 可以寫在 FROM 的括號裡、以 OUTPUT 交出資料列（<c>INSERT … SELECT … FROM (MERGE … OUTPUT …) AS c</c>）：
+    /// 那一句從還開著的左括號之後算起。只問整句的開頭的話，括號裡的 WHEN 屬於外層的 INSERT，動作寫完列不出下一個 WHEN。
+    /// </remarks>
+    private bool InMerge(int index)
+    {
+        var start = FindStatementStart(index);
+        var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, index);
+
+        return tokens[open >= start ? open + 1 : start].IsKeyword("MERGE");
     }
 
     /// <summary>
@@ -689,7 +701,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
             if (token.IsKeyword("WHEN") || token.IsKeyword("THEN"))
             {
-                if (FindUnclosedCase(index - 1) >= 0 || !tokens[FindStatementStart(index)].IsKeyword("MERGE"))
+                if (FindUnclosedCase(index - 1) >= 0 || !InMerge(index))
                 {
                     return null;
                 }
@@ -756,13 +768,22 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return null;
     }
 
-    /// <summary><paramref name="on"/> 的 ON 前面是 MERGE 的 <c>USING 來源 [AS] [別名]</c>。</summary>
+    /// <summary><paramref name="on"/> 的 ON 前面是 MERGE 的 <c>USING 來源 [AS] [別名 [(資料行清單)]]</c>。</summary>
+    /// <remarks>
+    /// 資料行清單只接在別名後面（<c>USING (SELECT @a, @b) AS s (Code, Title) ON</c>）；不跳過它的話右括號被當成來源本身，
+    /// 往回走到 AS 就停，ON 之後的述詞寫完列不出 <c>WHEN</c>。
+    /// </remarks>
     private bool FollowsMergeSource(int on)
     {
         var index = on - 1;
 
-        if (index >= 0 && tokens[index].Kind == SqlTokenKind.Identifier && !IsBareKeyword(index) &&
-            index >= 1 && !tokens[index - 1].IsPunctuation(".") && !tokens[index - 1].IsKeyword("USING"))
+        if (index >= 0 && tokens[index].IsPunctuation(")") &&
+            SqlTokenNavigator.FindOpeningParenthesis(tokens, index) is var columns && NamesMergeSourceAlias(columns - 1))
+        {
+            index = columns - 1;
+        }
+
+        if (NamesMergeSourceAlias(index))
         {
             index--;
         }
@@ -772,19 +793,24 @@ public sealed partial class SqlKeywordPositionAnalyzer
             index--;
         }
 
-        if (index < 0)
+        // 衍生資料表的括號，或函式的引數清單（USING dbo.fn_Copies(1) ON）之後是函式名稱。
+        if (index >= 0 && tokens[index].IsPunctuation(")"))
         {
-            return false;
+            index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index) - 1;
         }
 
-        index = tokens[index].IsPunctuation(")")
-            ? SqlTokenNavigator.FindOpeningParenthesis(tokens, index) - 1
-            : tokens[index].Kind == SqlTokenKind.Identifier
-                ? SqlTokenNavigator.SkipQualifiedNameBackward(tokens, index) - 1
-                : -1;
+        if (index >= 0 && tokens[index].Kind == SqlTokenKind.Identifier && !tokens[index].IsKeyword("USING"))
+        {
+            index = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, index) - 1;
+        }
 
         return index >= 0 && tokens[index].IsKeyword("USING");
     }
+
+    /// <summary><paramref name="index"/> 是 MERGE 來源的別名：不是來源的名稱本身，也不是限定名稱的一段。</summary>
+    private bool NamesMergeSourceAlias(int index) =>
+        index >= 1 && tokens[index].Kind == SqlTokenKind.Identifier && !IsBareKeyword(index) &&
+        !tokens[index - 1].IsPunctuation(".") && !tokens[index - 1].IsKeyword("USING");
 
     /// <summary>
     /// <paramref name="last"/> 寫完一個運算元：名稱、變數、常值、右括號，或 NULL 這種自成一項的關鍵字。

@@ -67,7 +67,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `INSERT INTO` | Table、View | 展開欄位清單與 `VALUES` |
 | `MERGE`／`MERGE INTO` | Table、View | 展開比對鍵、`UPDATE SET`、`INSERT` 與 `VALUES` |
 | `ALTER`（含 `CREATE OR ALTER`）之後的種類，見[第一層物件](completion-catalog-names.md#第一層物件) | 那一類；`TABLE` 是 Table、View，函式兩種 | 模組展開完整 ALTER 定義 |
-| `DROP`、`TRUNCATE`、`ENABLE`、`DISABLE` 之後的種類 | 同上；`SYNONYM` 是同義字，`TYPE` 是資料表型別 | 插入名稱 |
+| `DROP`、`TRUNCATE`、`ENABLE`、`DISABLE` 之後的種類，`DROP` 名稱清單的逗號之後（`DROP TABLE #a, `） | 同上；`SYNONYM` 是同義字，`TYPE` 是資料表型別 | 插入名稱 |
 | 其餘位置選到自訂函式（`SELECT `、`WHERE `…） | — | 補上括號 |
 | `WITH RESULT SETS (AS OBJECT` | Table、View | 插入名稱 |
 | `WITH RESULT SETS (AS TYPE` | 使用者自訂資料表型別 | 插入名稱 |
@@ -75,7 +75,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `EXEC`、`EXECUTE` | Procedure | 展開具名參數清單 |
 | `CREATE`／`ALTER`／`DROP INDEX`／`STATISTICS`／`TRIGGER` 之後的 `ON` | Table、View | 插入名稱 |
 | 開始一句的 `USE`（函式引數裡的 `USE MODEL` 不是） | 這台伺服器上的資料庫 | 插入名稱 |
-| `OPEN`、`CLOSE`、`DEALLOCATE`、`FETCH [… FROM]`、`WHERE CURRENT OF`，可夾 `GLOBAL` | 指令碼 `DECLARE c CURSOR` 宣告的資料指標，另列片語的字（`FETCH ` 的方向、`OPEN `／`CLOSE ` 的金鑰） | 插入名稱 |
+| `OPEN`、`CLOSE`、`DEALLOCATE`、`FETCH [… FROM]`、`WHERE CURRENT OF`，可夾 `GLOBAL` | 指令碼 `DECLARE c CURSOR` 宣告的資料指標與資料指標變數，另列片語的字（`FETCH ` 的方向、`OPEN `／`CLOSE ` 的金鑰） | 插入名稱 |
 | `OVER`、`OVER (`、`WINDOW w AS (` | 這個查詢 WINDOW 子句取的具名視窗；括號之後另列 `PARTITION`、`ORDER` | 插入名稱 |
 | `COLLATE`、`SET LANGUAGE`、`DEFAULT_LANGUAGE =`、`AT TIME ZONE` | [執行個體名單](completion-instance-lists.md)與指令碼已用值 | 依名單的寫法 |
 | `FROM a, `、`FROM a, LibArchive.` | 同 `FROM` 那一列 | 插入名稱 |
@@ -93,8 +93,9 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 `FROM` 只算 SELECT、UPDATE、DELETE 的：`FETCH NEXT FROM ` 之後是資料指標，`REVOKE … FROM ` 之後
 不列資料表；`INTO` 不算 FETCH 的，那裡列指令碼變數。判準見[語句的界線](completion-boundaries.md#語句的界線)。資料指標那一格由位置分析的
 `IntroducesCursor` 一條認，位置與目標共用；名稱前的 `GLOBAL` 是修飾字，當成名稱就只剩 `INTO`。
-名稱只在指令碼裡，不查資料庫；宣告的認法（`Parsing/SqlCursorDeclaration`）與 `CursorOption` 共用，
-`DECLARE @c CURSOR` 是變數。
+名稱只在指令碼裡，不查資料庫；宣告的認法（`Parsing/SqlCursorDeclaration`）與 `CursorOption` 共用。
+資料指標變數也收（`DECLARE @c CURSOR`、`SET @c = CURSOR`），`DEALLOCATE @` 照樣是這一格；
+選項只接在給內容的地方（具名宣告、`SET @c = CURSOR`），變數的宣告後面只有逗號或下一句。
 
 逗號那一列不靠前導關鍵字：前一、兩個詞元只有一個逗號，答案來自
 `SqlKeywordPositionAnalyzer` 的位置（逗號回到清單起點），這裡不再自己回頭找 `FROM`。

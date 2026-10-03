@@ -117,6 +117,25 @@ public sealed class CompletionAuditorTests
         Assert.Contains(result.Misses, miss => miss.TokenClass == AuditTokenClass.Column && miss.Word == "PUBL_CODE");
     }
 
+    /// <summary>
+    /// 內層的表寫在連線看不到的資料庫：表一定存在、欄位可能是它的，外層的表說不上是擁有者。
+    /// 名稱索引沒有的內層表照上一條不擋。
+    /// </summary>
+    [Fact]
+    public async Task 內層的表在看不到的資料庫_外層的表不算擁有者()
+    {
+        var catalog = new FakeCatalog(
+            ("PUBL_CODE", AuditTokenClass.Column),
+            ("Lib_Reader", AuditTokenClass.Object),
+            ("Lib_Tag", AuditTokenClass.Object));
+
+        var result = await AuditAsync(
+            "UPDATE r SET Name = 1 FROM Lib_Reader r WHERE EXISTS (SELECT 1 FROM LibArchive.dbo.Lib_Tag WHERE PUBL_CODE = 1)",
+            catalog);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == "PUBL_CODE");
+    }
+
     [Theory]
     [InlineData("CREATE TABLE Lib_Tag (ReaderId int,\n    PUBL_CODE int,\n    PRIMARY KEY (ReaderId,\n    PUBL_CODE))")]
     [InlineData("CREATE TABLE Lib_Tag (ReaderId int,\n    PUBL_CODE int NOT NULL -- 出版者\n    PRIMARY KEY (ReaderId,\n    PUBL_CODE))")]

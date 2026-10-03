@@ -20,7 +20,7 @@ namespace SqlAssist.Core.Completion;
 /// <c>INCLUDE (|</c>；外部索引鍵的 <c>REFERENCES u (|</c>。</item>
 /// <item><c>ALTER TABLE t ALTER COLUMN |</c>、<c>DROP COLUMN |</c>。</item>
 /// <item>資料表元素的資料行清單：<c>PRIMARY KEY (|</c>、<c>UNIQUE (|</c>、<c>FOREIGN KEY (|</c>、
-/// <c>INDEX ix (|</c> 與它的 <c>INCLUDE (|</c>、<c>PERIOD FOR SYSTEM_TIME (|</c>，屬於所在的資料表定義
+/// <c>INDEX ix [NONCLUSTERED HASH] (|</c> 與它的 <c>INCLUDE (|</c>、<c>PERIOD FOR SYSTEM_TIME (|</c>，屬於所在的資料表定義
 /// （<c>CREATE TABLE t (</c>、<c>@t [AS] TABLE (</c>、<c>CREATE TYPE t AS TABLE (</c>，資料表或資料行層級都算）
 /// 或 <c>ALTER TABLE t ADD</c> 的 <c>t</c>。定義裡的資料行由全文分析從同一份定義讀
 /// （<see cref="SqlScriptTableCollector.FindDefinition"/>）。</item>
@@ -193,12 +193,13 @@ internal static class SqlColumnOwner
 
     /// <summary>
     /// 從清單左括號前一個詞元往回認元素的開頭：<c>PRIMARY KEY</c>／<c>FOREIGN KEY</c>／<c>UNIQUE</c>
-    /// （可接 <c>CLUSTERED</c>、<c>NONCLUSTERED</c>）、<c>INDEX ix [UNIQUE] [NONCLUSTERED] [COLUMNSTORE]</c>、
+    /// （可接 <c>CLUSTERED</c>、<c>NONCLUSTERED</c>、記憶體最佳化的 <c>HASH</c>）、
+    /// <c>INDEX ix [UNIQUE] [NONCLUSTERED] [COLUMNSTORE|HASH]</c>、
     /// <c>PERIOD FOR SYSTEM_TIME</c>；不是時回傳 -1。
     /// </summary>
     private static int FindElementHead(IReadOnlyList<SqlToken> tokens, int index)
     {
-        if (index >= 0 && tokens[index].IsKeyword("COLUMNSTORE"))
+        if (index >= 0 && (tokens[index].IsKeyword("COLUMNSTORE") || tokens[index].IsKeyword("HASH")))
         {
             index--;
         }

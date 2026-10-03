@@ -72,7 +72,7 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 | `INSERT [INTO] t (`、逗號之後 | `t` |
 | `CREATE INDEX`／`STATISTICS … ON t (`、`INCLUDE (`、`REFERENCES u (` | `t`、`u` |
 | `ALTER TABLE t ALTER COLUMN `／`DROP COLUMN ` | `t` |
-| `PRIMARY KEY (`、`UNIQUE (`、`FOREIGN KEY (`、`INDEX ix (`／`INCLUDE (`、`PERIOD FOR SYSTEM_TIME (` | 所在的定義或 `ALTER TABLE t ADD` 的 `t` |
+| `PRIMARY KEY (`、`UNIQUE (`、`FOREIGN KEY (`、`INDEX ix (`／`INCLUDE (`、`PERIOD FOR SYSTEM_TIME (`；`HASH (`、`COLUMNSTORE (` 同一格 | 所在的定義或 `ALTER TABLE t ADD` 的 `t` |
 
 定義指 `CREATE TABLE t (`、`@t [AS] TABLE (`、`CREATE TYPE t AS TABLE (`，資料表與資料行層級的元素都算。那張表
 還不存在（或中繼資料是改之前的樣子），資料行讀同一份括號（`SqlScriptTableCollector.FindDefinition`）：
@@ -80,7 +80,8 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 
 不算的位置：`ORDER BY `、`GROUP BY ` 接得了運算式與序號；`EXEC p ` 的位置引數可以直接寫常值，
 `WITH` 也接在那裡（打 `@` 才列參數）。
-指派左邊寫限定字的（`SET t.Fee`）打 `t.` 就重開成同一份，別名本身不列。
+指派的左邊寫得出限定字（`SET t.Fee`、`UPDATE l SET l.Fee … FROM dbo.Loan l`），所以 `SET ` 與指派的逗號之後
+另列範圍裡的別名（MERGE 兩邊的都在）；打 `t.` 就重開成同一份。其他資料行的位置不寫限定字，不列別名。
 
 `UPDATE t⏎SET` 的 SET 仍是指派：片語前一格的換行只給真的開始一句的字，
 見[子句片語](phrase-generator.md#前一格)。

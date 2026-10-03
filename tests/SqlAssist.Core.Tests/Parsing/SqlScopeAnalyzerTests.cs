@@ -503,6 +503,23 @@ public sealed class SqlScopeAnalyzerTests
         Assert.Contains(scope.Tables, t => t.ObjectName is "Lib_Reader" or "a" && t.Alias is null);
     }
 
+    /// <summary>省略 FROM 的 <c>DELETE t WHERE</c>：目標就是資料來源，與 <c>UPDATE t SET</c> 同一條。</summary>
+    [Fact]
+    public void 省略FROM的DELETE目標是資料來源()
+    {
+        var table = Assert.Single(Analyze("DELETE dbo.Lib_Reader WHERE |").Tables);
+
+        Assert.Equal("Lib_Reader", table.ObjectName);
+    }
+
+    [Fact]
+    public void MERGE的DELETE動作不收來源()
+    {
+        var scope = Analyze("MERGE dbo.Loan t USING dbo.Copy s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN DELETE WHEN NOT MATCHED THEN INSERT (|");
+
+        Assert.Equal(new[] { "Loan", "Copy" }, scope.Tables.Select(t => t.ObjectName));
+    }
+
     [Fact]
     public void DELETE的FROM子句仍可解析()
     {

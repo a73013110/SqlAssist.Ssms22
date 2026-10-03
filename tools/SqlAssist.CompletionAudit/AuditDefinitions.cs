@@ -52,7 +52,7 @@ public sealed class AuditDefinitions
     private readonly List<(int Start, int From)> _aliasedTargets = new();
     private readonly Dictionary<int, (string Name, string? Database)> _aliasSources = new();
     private readonly Dictionary<string, (string Name, string? Database)> _starSources = new(StringComparer.Ordinal);
-    private readonly Dictionary<int, IReadOnlyList<(string Name, string? Database)>> _columnOwners = new();
+    private readonly Dictionary<int, IReadOnlyList<IReadOnlyList<(string Name, string? Database)>>> _columnOwners = new();
     private readonly Dictionary<int, string> _listOwners = new();
     private readonly List<(int Start, int End, List<(string Name, string? Database)?> Sources, HashSet<string> Names)> _sourceScopes = new();
     private readonly List<(int Start, int End, int Scope)> _barriers = new();
@@ -222,7 +222,7 @@ public sealed class AuditDefinitions
         AuditText.Normalize(name) is "INSERTED" or "DELETED" && InnermostChangeRange(start) is not null;
 
     /// <summary>
-    /// <paramref name="start"/> 起頭的欄位可能屬於的資料表（最後一段）與寫出來的資料庫；說不出來時是 null。
+    /// <paramref name="start"/> 起頭的欄位可能屬於的資料表（最後一段）與寫出來的資料庫，由內往外一層一份；說不出來時是 null。
     /// </summary>
     /// <remarks>
     /// <c>INSERT INTO Other.dbo.Loan (CopyNo)</c>、<c>CREATE INDEX … ON Copy (CopyNo)</c> 的 CopyNo 只屬於那一張表；
@@ -230,9 +230,12 @@ public sealed class AuditDefinitions
     /// 看不到它所在那一層的來源（APPLY 右邊除外）。來源裡有一個不是具名資料表（衍生資料表、函式、資料表變數、
     /// <c>inserted</c>）就說不出來；指令碼取過的名稱（別名、CTE 的資料行）不是資料庫的欄位，也不在此列。
     /// 暫存資料表與 <see cref="SourceOf"/> 一樣看 <c>SELECT * INTO</c> 的那張表。
+    /// 分層是因為 T-SQL 由內往外找：內層查不到的表可能就有這個欄位，外層的表就說不上是它的擁有者。
     /// </remarks>
-    public IReadOnlyList<(string Name, string? Database)>? ColumnOwners(int start) =>
-        _columnOwners.TryGetValue(start, out var owners) ? owners.Select(Project).ToArray() : null;
+    public IReadOnlyList<IReadOnlyList<(string Name, string? Database)>>? ColumnOwners(int start) =>
+        _columnOwners.TryGetValue(start, out var levels)
+            ? levels.Select(level => (IReadOnlyList<(string Name, string? Database)>)level.Select(Project).ToArray()).ToArray()
+            : null;
 
     /// <summary>暫存資料表是 <c>SELECT * INTO</c> 一張表時換成那張表。</summary>
     private (string Name, string? Database) Project((string Name, string? Database) table) =>
@@ -498,7 +501,7 @@ public sealed class AuditDefinitions
             return;
         }
 
-        var owners = new[] { (name, owner.DatabaseIdentifier?.Value) };
+        var owners = new[] { new[] { (name, owner.DatabaseIdentifier?.Value) } };
 
         foreach (var identifier in identifiers)
         {
@@ -646,15 +649,17 @@ public sealed class AuditDefinitions
     }
 
     /// <summary>
-    /// <paramref name="offset"/> 這裡沒寫限定字的欄位可能屬於的資料表：最內層查詢往外每一層的來源，
+    /// <paramref name="offset"/> 這裡沒寫限定字的欄位可能屬於的資料表：最內層查詢往外每一層的來源，一層一份，
     /// 被衍生資料表擋住的那一層不算；有一個說不出是哪張表、或一個來源都沒有時是 null。
     /// </summary>
-    private IReadOnlyList<(string Name, string? Database)>? VisibleSources(int offset)
+    private IReadOnlyList<IReadOnlyList<(string Name, string? Database)>>? VisibleSources(int offset)
     {
-        var owners = new List<(string Name, string? Database)>();
+        var levels = new List<IReadOnlyList<(string Name, string? Database)>>();
 
         foreach (var scope in EnclosingSourceScopes(offset))
         {
+            var owners = new List<(string Name, string? Database)>();
+
             foreach (var source in _sourceScopes[scope].Sources)
             {
                 if (source is not { } named)
@@ -664,9 +669,14 @@ public sealed class AuditDefinitions
 
                 owners.Add(named);
             }
+
+            if (owners.Count > 0)
+            {
+                levels.Add(owners);
+            }
         }
 
-        return owners.Count == 0 ? null : owners;
+        return levels.Count == 0 ? null : levels;
     }
 
     /// <summary><paramref name="offset"/> 看得到來源的每一層，由內往外；被衍生資料表擋住的那一層不算。</summary>

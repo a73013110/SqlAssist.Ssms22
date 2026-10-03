@@ -50,6 +50,30 @@ public sealed class SqlColumnOwnerTests
         Assert.True(SqlCompletionPolicy.Participates(context, 2));
     }
 
+    /// <summary>
+    /// 指派的左邊寫得出限定字（<c>SET t.Fee =</c>）：範圍裡的別名與資料行同列，MERGE 兩邊的都在。
+    /// 其他資料行的位置不寫限定字，不列。
+    /// </summary>
+    [Theory]
+    [InlineData("MERGE dbo.Loan AS t USING (SELECT 1, 2) AS s (CopyNo, Fee) ON t.CopyNo = s.CopyNo WHEN MATCHED THEN UPDATE SET |", "t", "s")]
+    [InlineData("MERGE dbo.Loan AS t USING dbo.Copy AS s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN UPDATE SET t.Fee = s.Fee, |", "t", "s")]
+    [InlineData("UPDATE l SET | FROM dbo.Loan l JOIN dbo.Copy c ON c.CopyNo = l.CopyNo", "l", "c")]
+    public void 指派的左邊另列別名(string sqlWithCaret, params string[] aliases)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(CompletionTarget.Column, context.Target);
+        Assert.Equal(aliases, context.ScriptSources.Select(item => item.DisplayText));
+    }
+
+    [Theory]
+    [InlineData("MERGE INTO dbo.Loan t USING dbo.Copy s ON t.CopyNo = s.CopyNo WHEN NOT MATCHED THEN INSERT (|")]
+    [InlineData("INSERT INTO dbo.Loan (|")]
+    public void 資料行清單不列別名(string sqlWithCaret)
+    {
+        Assert.Empty(Analyze(sqlWithCaret).ScriptSources);
+    }
+
     [Theory]
     [InlineData("ALTER TABLE dbo.Loan ADD CONSTRAINT pk PRIMARY KEY CLUSTERED (|")]
     [InlineData("ALTER TABLE dbo.Loan ADD UNIQUE (CopyNo, |")]
@@ -80,6 +104,10 @@ public sealed class SqlColumnOwnerTests
     [InlineData("DECLARE @Loan TABLE (CopyNo int, Branch int, PRIMARY KEY (|")]
     [InlineData("CREATE FUNCTION dbo.fn_Loan() RETURNS @Loan TABLE (CopyNo int, Branch int UNIQUE (|")]
     [InlineData("CREATE TYPE dbo.LoanList AS TABLE (CopyNo int, Branch int, INDEX ix (|")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, Branch int, INDEX ix NONCLUSTERED HASH (|")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, Branch int, INDEX ix UNIQUE HASH (CopyNo, |")]
+    [InlineData("CREATE TABLE dbo.Loan (CopyNo int, Branch int INDEX ix HASH (|")]
+    [InlineData("CREATE TYPE dbo.LoanList AS TABLE (CopyNo int, Branch int, PRIMARY KEY NONCLUSTERED HASH (|")]
     public void 資料表定義的條件約束清單列同一份定義的資料行(string sqlWithCaret)
     {
         var context = Analyze(sqlWithCaret);

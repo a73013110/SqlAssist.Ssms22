@@ -517,7 +517,7 @@ public sealed class CompletionAuditor
 
             // INSERT INTO Other.dbo.Loan (CopyNo)、FROM Other.dbo.Loan GROUP BY CopyNo：名稱索引只比名字，
             // 欄位可能屬於的表全都查不到時，碰巧同名的欄位不算列得出來。
-            if (_definitions.ColumnOwners(token.Start) is { } owners && owners.All(owner => IsUnresolved(owner, token.Start)))
+            if (_definitions.ColumnOwners(token.Start) is { } owners && !HasKnownOwner(owners, token.Start))
             {
                 return shape.Excluded(AuditExclusion.Unresolved);
             }
@@ -558,11 +558,37 @@ public sealed class CompletionAuditor
         }
 
         /// <summary>
+        /// 欄位可能屬於的表認得出一張。T-SQL 由內往外找：一層裡有寫在連線看不到的資料庫的表時，那張表一定存在、
+        /// 欄位可能就是它的，外層的表不算（<c>UPDATE l … WHERE EXISTS (SELECT * FROM Other.dbo.Copy WHERE CopyNo</c>
+        /// 的 CopyNo 不知道是不是 l 的）。名稱索引沒有的表照舊不擋：它不存在，欄位不會是它的。
+        /// </summary>
+        private bool HasKnownOwner(IReadOnlyList<IReadOnlyList<(string Name, string? Database)>> levels, int start)
+        {
+            foreach (var level in levels)
+            {
+                if (level.Any(owner => !IsUnresolved(owner, start)))
+                {
+                    return true;
+                }
+
+                if (level.Any(InUnseenDatabase))
+                {
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// 資料表查不到存在：名稱索引沒有、指令碼在 <paramref name="start"/> 之前也沒取過（暫存資料表、CTE），
         /// 或寫出來的資料庫不在連線的伺服器上。
         /// </summary>
         private bool IsUnresolved((string Name, string? Database) table, int start) =>
-            _index.Find(table.Name) is null && !_definitions.IsDefinedBefore(table.Name, start) ||
+            _index.Find(table.Name) is null && !_definitions.IsDefinedBefore(table.Name, start) || InUnseenDatabase(table);
+
+        /// <summary>寫出來的資料庫不在連線的伺服器上。</summary>
+        private bool InUnseenDatabase((string Name, string? Database) table) =>
             table.Database is { Length: > 0 } database && _index.Find(database) != AuditTokenClass.Database;
 
         /// <summary>佔位符起到那一句結束的詞元。</summary>

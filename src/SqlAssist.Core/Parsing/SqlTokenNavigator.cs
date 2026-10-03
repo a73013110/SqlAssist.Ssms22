@@ -156,7 +156,7 @@ public static class SqlTokenNavigator
     }
 
     /// <summary>寫得進多段式名稱的一段：識別字，保留字要加引號。</summary>
-    private static bool IsNamePart(SqlToken token) =>
+    public static bool IsNamePart(SqlToken token) =>
         token.Kind == SqlTokenKind.Identifier && (token.IsQuoted || !SqlKeywordCatalog.IsKeyword(token.Value));
 
     /// <summary>從 <paramref name="open"/> 起找出對應的右括號；配不起來時回傳 -1。</summary>

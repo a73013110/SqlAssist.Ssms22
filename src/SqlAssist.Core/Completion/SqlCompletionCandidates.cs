@@ -163,13 +163,11 @@ public static class SqlCompletionCandidates
 
         if (context.Target == CompletionTarget.Column)
         {
-            // 片語的字照接上來：DROP COLUMN 之後還有 IF EXISTS。
+            // 片語的字照接上來：DROP COLUMN 之後還有 IF EXISTS。指派的左邊另有寫得出的限定字（別名）。
             var columns = await GetColumnsAsync(context.ColumnSources, settings, metadata, cancellationToken)
                 .ConfigureAwait(false);
 
-            return context.ClausePhrase is { } phrase
-                ? columns.Concat(phrase.Suggestions).ToArray()
-                : columns;
+            return columns.Concat(PhraseOf(context)).Concat(context.ScriptSources).ToArray();
         }
 
         // 跨資料庫或跨伺服器的限定字：清單只能來自那個地方。混進本地的物件、

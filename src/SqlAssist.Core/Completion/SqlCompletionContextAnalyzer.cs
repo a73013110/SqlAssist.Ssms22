@@ -342,7 +342,13 @@ public static class SqlCompletionContextAnalyzer
         if (context.ColumnOwner is { } owner &&
             ResolveColumnOwner(owner, scope, resolver, tokens, caretPosition) is { } ownerColumns)
         {
-            return withScope.AsColumnsOf(ownerColumns);
+            // 指派的左邊寫得出限定字（UPDATE l SET l.Fee =、MERGE 的 THEN UPDATE SET t.Fee =），別名與資料行同列：
+            // 與 WHERE | 列別名同一份範圍。
+            var ofOwner = withScope.AsColumnsOf(ownerColumns);
+
+            return context.KeywordPosition == SqlKeywordPosition.SetTarget
+                ? ofOwner.WithScriptSources(SqlScopeAliasSuggestions.Create(scope, resolver))
+                : ofOwner;
         }
 
         if (context.QualifierPath is null)
@@ -510,6 +516,12 @@ public static class SqlCompletionContextAnalyzer
             out var keywordStart,
             out var intent);
 
+        // 游標那一格（DEALLOCATE @、FETCH NEXT FROM @）要的是游標變數，名冊與具名游標同一份。
+        if (statementTarget == CompletionTarget.Cursor)
+        {
+            return new SqlCompletionContext(SqlCompletionSlot.Grammar, tokenStart, prefix, CompletionTarget.Cursor);
+        }
+
         if (statementTarget != CompletionTarget.DataSource)
         {
             keywordStart = -1;
@@ -606,11 +618,13 @@ public static class SqlCompletionContextAnalyzer
     }
 
     /// <summary>
-    /// 名稱那一格是不是第一層物件的既有名稱（<c>ALTER PROCEDURE </c>、<c>DROP TABLE IF EXISTS dbo.</c>）。
+    /// 名稱那一格是不是第一層物件的既有名稱（<c>ALTER PROCEDURE </c>、<c>DROP TABLE IF EXISTS dbo.</c>、<c>DROP TABLE #a, </c>）。
     /// </summary>
     /// <remarks>
-    /// 判斷與目錄物件同一條（<see cref="SqlCatalogEntityPosition.ResolveObject"/>）。限定字那一支問的是限定字之前那一格：
-    /// 游標處的片語已經走到 <c>dbo.</c> 之後，認不出前面寫的種類。只有這一支要再做一次位置分析。
+    /// 判斷與目錄物件同一條（<see cref="SqlCatalogEntityPosition.ResolveObject"/>），問的是這個名稱起點之前那一格：
+    /// 限定字之後（<c>dbo.</c>）與 DROP 名稱清單的逗號之後（<c>DROP TABLE #a, </c>）游標處的片語都已經走過種類，
+    /// 認不出前面寫的是哪一種。DROP 一次刪得了幾個，清單往回退到第一個名稱；其他動詞一次只有一個名稱。
+    /// 只有起點往前退了才要再做一次位置分析。
     /// </remarks>
     /// <param name="qualifierStart">限定字的起點；沒有限定字時為 -1。</param>
     private static SqlObjectNameSlot? ObjectNameSlot(
@@ -619,21 +633,33 @@ public static class SqlCompletionContextAnalyzer
         SqlCaretPosition caret,
         int qualifierStart)
     {
-        if (qualifierStart < 0)
-        {
-            return SqlCatalogEntityPosition.ResolveObject(tokens, caret.Phrase);
-        }
-
         var count = 0;
 
-        while (count < tokens.Count && tokens[count].Start < qualifierStart)
+        while (count < tokens.Count && (qualifierStart < 0 || tokens[count].Start < qualifierStart))
         {
             count++;
         }
 
+        var listed = false;
+
+        while (count >= 2 && tokens[count - 1].IsPunctuation(",") && SqlTokenNavigator.IsNamePart(tokens[count - 2]))
+        {
+            count = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, count - 2);
+            listed = true;
+        }
+
+        if (count == tokens.Count)
+        {
+            return SqlCatalogEntityPosition.ResolveObject(tokens, caret.Phrase);
+        }
+
         var before = tokens.Take(count).ToArray();
-        var phrase = SqlKeywordPositionAnalyzer.Analyze(before, textBeforeToken.Substring(0, qualifierStart)).Phrase;
-        return SqlCatalogEntityPosition.ResolveObject(before, phrase);
+        var phrase = SqlKeywordPositionAnalyzer.Analyze(before, textBeforeToken.Substring(0, tokens[count].Start)).Phrase;
+        var slot = SqlCatalogEntityPosition.ResolveObject(before, phrase);
+
+        return listed && slot is not null && !before.Any(token => token.Start == slot.VerbStart && token.IsKeyword("DROP"))
+            ? null
+            : slot;
     }
 
     /// <summary>

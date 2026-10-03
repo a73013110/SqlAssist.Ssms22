@@ -96,7 +96,7 @@ public sealed class AuditDefinitionsTests
     {
         const string sql = "UPDATE LibArchive.dbo.Loan SET CopyNo = 1 FROM LibArchive.dbo.Loan JOIN Copy c ON 1 = 1";
 
-        Assert.Equal(new[] { ("Loan", (string?)"LibArchive") }, AuditDefinitions.Collect(sql).ColumnOwners(At(sql, "CopyNo", 1)));
+        Assert.Equal(new[] { ("Loan", (string?)"LibArchive") }, Assert.Single(AuditDefinitions.Collect(sql).ColumnOwners(At(sql, "CopyNo", 1))!));
     }
 
     [Fact]
@@ -166,19 +166,19 @@ public sealed class AuditDefinitionsTests
     {
         var owners = AuditDefinitions.Collect(sql).ColumnOwners(sql.LastIndexOf("CopyNo", System.StringComparison.Ordinal));
 
-        Assert.Equal(new[] { (table, database) }, owners);
+        Assert.Equal(new[] { (table, database) }, Assert.Single(owners!));
     }
 
     [Theory]
     [InlineData("SELECT 1 FROM LibArchive.dbo.Loan GROUP BY CopyNo", "Loan")]
     [InlineData("SELECT 1 FROM Copy c JOIN (SELECT 1 AS n FROM LibArchive.dbo.Loan GROUP BY CopyNo) d ON 1 = 1", "Loan")]
-    [InlineData("SELECT 1 FROM Copy c WHERE EXISTS (SELECT 1 FROM LibArchive.dbo.Loan WHERE CopyNo = 1)", "Loan,Copy")]
+    [InlineData("SELECT 1 FROM Copy c WHERE EXISTS (SELECT 1 FROM LibArchive.dbo.Loan WHERE CopyNo = 1)", "Loan|Copy")]
     [InlineData("UPDATE Copy SET Branch = 1 FROM Copy JOIN LibArchive.dbo.Loan l ON 1 = 1 WHERE CopyNo = 1", "Copy,Copy,Loan")]
-    public void 查詢裡沒寫限定字的欄位屬於範圍內的來源_衍生資料表看不到它那一層(string sql, string tables)
+    public void 查詢裡沒寫限定字的欄位屬於範圍內的來源_衍生資料表看不到它那一層(string sql, string levels)
     {
         var owners = AuditDefinitions.Collect(sql).ColumnOwners(sql.LastIndexOf("CopyNo", System.StringComparison.Ordinal));
 
-        Assert.Equal(tables.Split(','), owners!.Select(owner => owner.Name));
+        Assert.Equal(levels, string.Join("|", owners!.Select(level => string.Join(",", level.Select(owner => owner.Name)))));
     }
 
     [Theory]

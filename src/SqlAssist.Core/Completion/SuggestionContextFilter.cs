@@ -239,7 +239,8 @@ public static class SuggestionContextFilter
             // APPLY 之後只有資料表值函式接得上；別名是 a.Doc.nodes('…') 的開頭。
             CompletionTarget.TableFunction => kind is SuggestionKind.TableFunction or SuggestionKind.Alias ||
                 IsRowsetFunction(suggestion),
-            CompletionTarget.Column => kind == SuggestionKind.Column,
+            // 指派的左邊（SET |）另列限定字的別名，見 SqlCompletionContextAnalyzer。
+            CompletionTarget.Column => kind is SuggestionKind.Column or SuggestionKind.Alias,
             CompletionTarget.Database => kind == SuggestionKind.Database,
 
             // 新物件名稱的第一段只有結構描述，上面 IsQualifiedNameStart 已經放行。

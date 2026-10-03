@@ -46,8 +46,16 @@ CREATE TRIGGER tr ON t AFTER DELETE | → 不是資料表；ON 之後只跳過�
 之後接著獨立的 `UPDATE`，那個 `UPDATE` 仍然必須切斷範圍。T-SQL 裡 `THEN` 只出現在
 CASE 與 MERGE，而 CASE 的 `THEN` 後面是運算式，不會是這三個關鍵字。
 
-目標不寫 INTO 時（`MERGE dbo.Loan t USING …`）MERGE 本身就接資料來源，與 `UPDATE t` 同理；
-不收的症狀是 `ON |` 列不出 `t`。聯結提示 `INNER MERGE JOIN` 後面讀不出名稱，不會多一個來源。
+目標不寫 INTO 時（`MERGE dbo.Loan t USING …`）MERGE 本身就接資料來源，與 `UPDATE t`、省略 FROM 的
+`DELETE t WHERE` 同理；不收的症狀是 `ON |` 列不出 `t`。聯結提示 `INNER MERGE JOIN` 後面讀不出名稱，不會多一個來源。
+
+`ON` 述詞寫完之後接 `WHEN`，認的是 `ON` 前面是 `USING 來源 [AS] [別名 [(資料行清單)]]`（`FollowsMergeSource`）。
+資料行清單只接在別名後面，要先跳過；不跳的話右括號被當成來源本身，`USING (SELECT @a, @b) AS s (a, b) ON …`
+之後列不出 `WHEN`。MERGE 也寫得進 FROM 的括號、以 OUTPUT 交出資料列（`INSERT … SELECT … FROM (MERGE … ) AS c`）：
+那一句從還開著的左括號之後算起（`InMerge`），只問整句開頭的話括號裡的 `WHEN` 屬於外層的 INSERT。
+
+`THEN UPDATE SET ` 的左邊寫得出限定字（`SET t.Fee = s.Fee`），兩邊的別名與目標的資料行同列，
+規則與一般的 UPDATE 共用，見[欄位](completion-columns.md#文法指定的所屬資料表)。
 
 `INSERT (` 括號裡文法上只該有 target 的欄位，但範圍解析給的是整個 MERGE 的兩張表。
 收斂成一張要另外記住「這個括號屬於 INSERT 子句」；多幾個選不中的名稱是多按幾下，
