@@ -403,7 +403,7 @@ public sealed class CompletionAuditor
                 case SqlTokenKind.String:
                     return new Shape("‹lit›", exclusion: AuditExclusion.Literal);
                 case SqlTokenKind.Variable:
-                    return ClassifyName(token, qualified: false);
+                    return ClassifyName(token, qualifier: null);
                 case SqlTokenKind.Identifier:
                     return ClassifyIdentifier(index, token);
                 default:
@@ -433,16 +433,17 @@ public sealed class CompletionAuditor
                 _index.Find(token.Value) is null &&
                 !_definitions.IsDefinedBefore(token.Value, token.Start) &&
                 (_fragment.WordsInUpperCase
-                    ? AuditWords.Contains(token.Value) || AuditWords.IsWrittenAsWord(token.Text)
+                    ? AuditWords.IsWrittenAsWord(token.Text) || !AuditWords.IsMixedCase(token.Text) && AuditWords.Contains(token.Value)
                     : AuditWords.Contains(token.Value) && !_definitions.IsNameReference(token.Start)))
             {
                 return new Shape(token.Value.ToUpperInvariant(), AuditTokenClass.Word);
             }
 
-            return ClassifyName(token, afterDot);
+            return ClassifyName(token, afterDot ? (index >= 2 ? Tokens[index - 2].Text : string.Empty) : null);
         }
 
-        private Shape ClassifyName(SqlToken token, bool qualified)
+        /// <param name="qualifier">名稱接在點號之後時，點號前的那一段。</param>
+        private Shape ClassifyName(SqlToken token, string? qualifier)
         {
             if (_definitions.IsDefinition(token.Start))
             {
@@ -454,10 +455,10 @@ public sealed class CompletionAuditor
                 return new Shape(token.Text.ToUpperInvariant(), AuditTokenClass.GlobalVariable);
             }
 
-            if (_definitions.IsDefinedBefore(token.Text, token.Start, qualified))
+            if (_definitions.IsDefinedBefore(token.Text, token.Start, qualifier))
             {
                 // 外層取過同名的，這裡指的卻是內層之後才取的那一個：形狀照舊，只加排除。
-                return _definitions.IsDefinedLater(token.Text, token.Start, qualified)
+                return _definitions.IsDefinedLater(token.Text, token.Start, qualifier)
                     ? Name(AuditTokenClass.ScriptName).Excluded(AuditExclusion.Truncated)
                     : Name(AuditTokenClass.ScriptName);
             }
@@ -489,17 +490,30 @@ public sealed class CompletionAuditor
                 return shape.Excluded(AuditExclusion.Placeholder);
             }
 
-            if (_definitions.IsUnparsed(Tokens[position].Start))
+            var token = Tokens[position];
+
+            if (_definitions.IsUnparsed(token.Start))
             {
                 return shape.Excluded(AuditExclusion.Unparsed);
             }
 
-            if (tokenClass is AuditTokenClass.Word or AuditTokenClass.GlobalVariable)
+            // SIZE = 20MB：緊貼數值的字是常值的一部分，編輯器裡打 20M 是在寫數字，清單不開；寫成 20 MB 才是一格。
+            if (position >= 1 && Tokens[position - 1].Kind == SqlTokenKind.Number && Tokens[position - 1].End == token.Start)
             {
-                return shape;
+                return shape.Excluded(AuditExclusion.Literal);
             }
 
-            var token = Tokens[position];
+            if (tokenClass is AuditTokenClass.Word or AuditTokenClass.GlobalVariable)
+            {
+                // 不守大寫慣例的語料靠語法樹分字與名稱；剖析不過的那一句（錯之前也是）不在樹上，
+                // 只有保留字確定是字，INSERT INTO t (Name 的 Name 說不出是欄位還是 NAME。
+                return tokenClass == AuditTokenClass.Word &&
+                    !_fragment.WordsInUpperCase &&
+                    !_definitions.HasRole(token.Start) &&
+                    !SqlKeywordCatalog.IsReservedIdentifier(token.Value)
+                        ? shape.Excluded(AuditExclusion.Unparsed)
+                        : shape;
+            }
 
             // INSERT INTO Other.dbo.Loan (CopyNo)、FROM Other.dbo.Loan GROUP BY CopyNo：名稱索引只比名字，
             // 欄位可能屬於的表全都查不到時，碰巧同名的欄位不算列得出來。

@@ -19,21 +19,23 @@ namespace SqlAssist.CompletionAudit;
 ///
 /// 「之前取過」要看範圍，否則同名就算：資料表別名只在它那一個查詢（含子查詢）裡，選取清單的別名只在
 /// 同一句的 ORDER BY 裡，CTE 只在它那一句，變數、資料表變數、暫存資料表與資料指標到批次結束。UNION 的下一個
-/// 分支還沒寫 FROM 時，上一個分支的同名別名不算數。點號之後只有衍生資料表與 CTE 的資料行清單算——
-/// <c>e.OrganizationNode</c> 是 e 的欄位，不是同一句裡叫 OrganizationNode 的選取別名。資料行、條件約束與索引的定義只記「這裡是新取的」：引用它們要先知道是
+/// 分支還沒寫 FROM 時，上一個分支的同名別名不算數。衍生資料表與 CTE 的資料行清單是那張表的欄位：沒寫限定字時
+/// 只在那張表是這個欄位可能屬於的表之一時引用得到（與 <see cref="ColumnOwners"/> 同一條規則），點號之後要限定字指它——
+/// <c>e.OrganizationNode</c> 是 e 的欄位，不是同一句裡叫 OrganizationNode 的選取別名；CTE 自己的查詢裡、
+/// <c>UPDATE t SET</c> 的 t 不是它時，同名的詞是別張表的欄位。資料行、條件約束與索引的定義只記「這裡是新取的」：引用它們要先知道是
 /// 哪一張表，與資料庫的欄位同一類（<see cref="IAuditNameIndex"/>），只看名字相同會認錯——
 /// <c>CREATE TABLE Loan (CopyNo int REFERENCES Copy (CopyNo))</c> 的第二個 CopyNo 是 Copy 的欄位。
 ///
 /// <c>inserted</c>／<c>deleted</c> 不是誰取的名字，卻在兩種範圍裡引用得到：DML 觸發程序的整句（指父資料表）
 /// 與 OUTPUT 子句（指那句 DML 的目標）。範圍外的同名詞照一般名稱判斷。
 ///
-/// 欄位要知道屬於哪一張表（<see cref="ColumnOwners"/>）：資料行清單（INSERT／MERGE 的資料行、索引、條件約束與
+/// 欄位要知道屬於哪一張表（<see cref="ColumnOwners"/>）：資料行清單（INSERT／MERGE 的資料行、SET 的左邊、索引、條件約束與
 /// 統計資料的欄位）屬於它指定的那張表，查詢裡沒寫限定字的欄位屬於範圍內的資料來源。名稱索引只比名字，
 /// 那些表全都查不到時，碰巧同名的欄位不算列得出來。資料表定義（<c>CREATE TABLE</c>、資料表變數、資料表型別）
 /// 自己的條件約束與索引清單例外：資料行就定義在同一份括號裡，在那幾份清單裡引用得到。
 ///
 /// 剖析不過的那一句（<see cref="IsUnparsed"/>）挖成空白再剖析，其餘的句子照常認；那一句裡的名稱認不出來，
-/// 在稽核裡歸成不明，不算漏。
+/// 在稽核裡歸成不明，不算漏，詞元在語法樹上也沒有角色（<see cref="HasRole"/>）。
 /// </remarks>
 public sealed class AuditDefinitions
 {
@@ -42,7 +44,7 @@ public sealed class AuditDefinitions
     private readonly HashSet<int> _notNames = new();
     private readonly HashSet<int> _unparsed = new();
     private readonly Dictionary<string, List<Visibility>> _scoped = new(StringComparer.Ordinal);
-    private readonly List<(TSqlFragment Name, Scope Scope, bool Qualifiable)> _pending = new();
+    private readonly List<(TSqlFragment Name, Scope Scope, string? Table)> _pending = new();
     private readonly List<(int Start, int End)> _queries = new();
     private readonly List<(int Start, int End)> _statements = new();
     private readonly List<(int Start, int End)> _orderBys = new();
@@ -51,7 +53,8 @@ public sealed class AuditDefinitions
     private readonly Dictionary<int, (string Name, string? Database)> _aliasSources = new();
     private readonly Dictionary<string, (string Name, string? Database)> _starSources = new(StringComparer.Ordinal);
     private readonly Dictionary<int, IReadOnlyList<(string Name, string? Database)>> _columnOwners = new();
-    private readonly List<(int Start, int End, List<(string Name, string? Database)?> Sources)> _sourceScopes = new();
+    private readonly Dictionary<int, string> _listOwners = new();
+    private readonly List<(int Start, int End, List<(string Name, string? Database)?> Sources, HashSet<string> Names)> _sourceScopes = new();
     private readonly List<(int Start, int End, int Scope)> _barriers = new();
     private readonly List<Identifier> _columnReferences = new();
     private readonly List<(int Start, int End, SchemaObjectName Name, IList<ColumnDefinition> Columns)> _createdTables = new();
@@ -85,12 +88,12 @@ public sealed class AuditDefinitions
     /// <summary>一個名稱從哪裡取、在哪一段文字裡引用得到。</summary>
     private readonly struct Visibility
     {
-        public Visibility(int definedAt, int from, int to, bool qualifiable)
+        public Visibility(int definedAt, int from, int to, string? table)
         {
             DefinedAt = definedAt;
             From = from;
             To = to;
-            Qualifiable = qualifiable;
+            Table = table;
         }
 
         public int DefinedAt { get; }
@@ -99,8 +102,8 @@ public sealed class AuditDefinitions
 
         public int To { get; }
 
-        /// <summary>點號之後也算（衍生資料表與 CTE 的資料行清單）。</summary>
-        public bool Qualifiable { get; }
+        /// <summary>衍生資料表與 CTE 的資料行清單：這個名稱是那張表（別名或 CTE 名稱）的欄位。</summary>
+        public string? Table { get; }
     }
 
     /// <summary>剖析不過、從錯的那個詞起不稽核的句數。</summary>
@@ -113,6 +116,12 @@ public sealed class AuditDefinitions
     /// </summary>
     public bool IsUnparsed(int start) => _unparsed.Contains(start);
 
+    /// <summary>
+    /// <paramref name="start"/> 起頭的詞元在語法樹的某一句裡，<see cref="IsNameReference"/> 說得出它是不是名稱；
+    /// 剖析不過的那一句（錯之前也是）不在樹上。
+    /// </summary>
+    public bool HasRole(int start) => InnermostRange(_statements, start) is not null;
+
     /// <summary><paramref name="start"/> 起頭的那個名稱是新取的。</summary>
     public bool IsDefinition(int start) => _starts.Contains(start);
 
@@ -123,12 +132,12 @@ public sealed class AuditDefinitions
     public bool IsNameReference(int start) => _nameReferences.Contains(start);
 
     /// <summary><paramref name="name"/> 在 <paramref name="start"/> 之前取過，而且這裡還在它的範圍內。</summary>
-    /// <param name="qualified">這個名稱接在點號之後。</param>
-    public bool IsDefinedBefore(string name, int start, bool qualified = false) =>
-        Nearest(name, start, qualified) is not null;
+    /// <param name="qualifier">這個名稱接在點號之後時，點號前的那一段。</param>
+    public bool IsDefinedBefore(string name, int start, string? qualifier = null) =>
+        Nearest(name, start, qualifier) is not null;
 
-    /// <summary><paramref name="name"/> 是之前取過的資料行名稱（CTE 或衍生資料表的資料行清單）。</summary>
-    public bool IsColumnDefinedBefore(string name, int start) => Nearest(name, start, qualified: true) is not null;
+    /// <summary><paramref name="name"/> 是之前取過、這裡引用得到的資料行名稱（CTE 或衍生資料表的資料行清單）。</summary>
+    public bool IsColumnDefinedBefore(string name, int start) => Nearest(name, start, qualifier: null) is { Table: not null };
 
     /// <summary>
     /// <paramref name="name"/> 在 <paramref name="start"/> 指的是之後才取的那一次：截斷的地方還沒寫到，
@@ -139,8 +148,8 @@ public sealed class AuditDefinitions
     /// 的 <c>a.</c> 是子查詢之後才取的 Copy，外層的 #Loan 被它遮住。只看「之前取過」的話，截斷處認得的外層
     /// 那一個會讓 Copy 的欄位看起來該列。
     /// </remarks>
-    /// <param name="qualified">這個名稱接在點號之後。</param>
-    public bool IsDefinedLater(string name, int start, bool qualified = false)
+    /// <param name="qualifier">這個名稱接在點號之後時，點號前的那一段。</param>
+    public bool IsDefinedLater(string name, int start, string? qualifier = null)
     {
         if (!_scoped.TryGetValue(AuditText.Normalize(name), out var definitions))
         {
@@ -153,7 +162,7 @@ public sealed class AuditDefinitions
         {
             if (definition.From > start ||
                 start >= definition.To ||
-                qualified && !definition.Qualifiable)
+                !Reaches(definition, start, qualifier))
             {
                 continue;
             }
@@ -190,7 +199,7 @@ public sealed class AuditDefinitions
             return ChangeTableOwner(start);
         }
 
-        if (Nearest(alias, start, qualified: false) is not { } definition ||
+        if (Nearest(alias, start, qualifier: null) is not { } definition ||
             !_aliasSources.TryGetValue(definition.DefinedAt, out var source))
         {
             return null;
@@ -284,7 +293,7 @@ public sealed class AuditDefinitions
     /// 與別名不同——別名取在哪一層就在哪一層看得到，CTE 名稱在整句裡都「取過」。
     /// </summary>
     public bool NamesTable(string qualifier, int start) =>
-        Nearest(qualifier, start, qualified: false) is { } definition && _tableNames.Contains(definition.DefinedAt);
+        Nearest(qualifier, start, qualifier: null) is { } definition && _tableNames.Contains(definition.DefinedAt);
 
     /// <summary>
     /// <paramref name="start"/> 在一個查詢的選取清單裡，而那個查詢的 FROM 寫在它後面：截斷之後
@@ -307,7 +316,7 @@ public sealed class AuditDefinitions
     }
 
     /// <summary>範圍內、<paramref name="start"/> 之前最近的那一次取名。</summary>
-    private Visibility? Nearest(string name, int start, bool qualified)
+    private Visibility? Nearest(string name, int start, string? qualifier)
     {
         if (!_scoped.TryGetValue(AuditText.Normalize(name), out var definitions))
         {
@@ -321,7 +330,7 @@ public sealed class AuditDefinitions
             if (definition.DefinedAt < start &&
                 definition.From <= start &&
                 start < definition.To &&
-                (!qualified || definition.Qualifiable) &&
+                Reaches(definition, start, qualifier) &&
                 (nearest is null || definition.DefinedAt > nearest.Value.DefinedAt))
             {
                 nearest = definition;
@@ -330,6 +339,33 @@ public sealed class AuditDefinitions
 
         return nearest;
     }
+
+    /// <summary>
+    /// 範圍內的取名在 <paramref name="start"/> 引用得到：點號之後只有資料行清單算，而且限定字要指那張表
+    /// （CTE 名稱、衍生資料表的別名，或別名指的 CTE）；沒寫限定字的資料行清單名稱，要那張表是這個欄位可能屬於的表之一。
+    /// </summary>
+    private bool Reaches(Visibility definition, int start, string? qualifier)
+    {
+        if (definition.Table is not { } table)
+        {
+            return qualifier is null;
+        }
+
+        if (qualifier is not null)
+        {
+            return Same(qualifier, table) || SourceOf(qualifier, start) is { } source && Same(source.Name, table);
+        }
+
+        if (_listOwners.TryGetValue(start, out var owner))
+        {
+            return Same(owner, table);
+        }
+
+        return EnclosingSourceScopes(start).Any(scope => _sourceScopes[scope].Names.Contains(AuditText.Normalize(table)));
+    }
+
+    private static bool Same(string left, string right) =>
+        string.Equals(AuditText.Normalize(left), AuditText.Normalize(right), StringComparison.Ordinal);
 
     public static AuditDefinitions Collect(string batch)
     {
@@ -364,11 +400,12 @@ public sealed class AuditDefinitions
 
     /// <summary>
     /// 記下 <paramref name="offset"/> 那個錯起到那一句結束的詞元，並把那一句整句挖成空白（位置不變）；
-    /// 錯在最後一個詞或結尾（寫到一半）時沒有要記的，回傳 false。
+    /// 已經挖掉的位置又報錯時回傳 false。
     /// </summary>
     /// <remarks>
     /// 截斷的指令碼，剖析器常在最後一個詞就報錯、不等到結尾（<c>IN (</c> 報在 <c>(</c>）；那是還沒寫完，
-    /// 不是寫錯。錯的後面還有詞才算剖析不過。
+    /// 不是寫錯，不記剖析失敗、照常稽核。錯的後面還有詞才算剖析不過。寫到一半的那一句一樣挖掉：
+    /// 剖析器有錯就不給語法樹，不挖的話之前寫完的句子也沒有角色（<see cref="HasRole"/>）。
     /// </remarks>
     private bool SkipStatement(ref string parsed, int offset, IReadOnlyList<SqlToken> tokens, IReadOnlyList<int> heads)
     {
@@ -379,21 +416,30 @@ public sealed class AuditDefinitions
             position++;
         }
 
+        var last = Math.Min(position, tokens.Count - 1);
+
         // 已經挖掉的位置不會再報錯；真的遇到就停，不重複剖析同一段。
-        if (position >= tokens.Count - 1 || char.IsWhiteSpace(parsed[tokens[position].Start]))
+        if (last < 0 || char.IsWhiteSpace(parsed[tokens[last].Start]))
         {
             return false;
         }
 
-        var head = heads.LastOrDefault(index => index <= position);
-        var next = heads.Where(index => index > position).DefaultIfEmpty(tokens.Count).First();
+        var head = heads.LastOrDefault(index => index <= last);
+        var next = heads.Where(index => index > last).DefaultIfEmpty(tokens.Count).First();
 
-        for (var index = position; index < next; index++)
+        // 錯的後面只剩挖掉的句子（IF … BEGIN 裡寫到一半的那一句）也是寫到一半。
+        var text = parsed;
+
+        if (tokens.Skip(position + 1).Any(token => !char.IsWhiteSpace(text[token.Start])))
         {
-            _unparsed.Add(tokens[index].Start);
+            for (var index = position; index < next; index++)
+            {
+                _unparsed.Add(tokens[index].Start);
+            }
+
+            UnparsedStatements++;
         }
 
-        UnparsedStatements++;
         var end = next < tokens.Count ? tokens[next].Start : parsed.Length;
         var blanked = parsed.ToCharArray();
 
@@ -409,7 +455,7 @@ public sealed class AuditDefinitions
         return true;
     }
 
-    private void Add(TSqlFragment? name, Scope scope, bool qualifiable = false)
+    private void Add(TSqlFragment? name, Scope scope, string? table = null)
     {
         if (name is null || name.StartOffset < 0)
         {
@@ -420,7 +466,7 @@ public sealed class AuditDefinitions
 
         if (scope != Scope.None)
         {
-            _pending.Add((name, scope, qualifiable));
+            _pending.Add((name, scope, table));
         }
     }
 
@@ -457,6 +503,7 @@ public sealed class AuditDefinitions
         foreach (var identifier in identifiers)
         {
             _columnOwners[identifier.StartOffset] = owners;
+            _listOwners[identifier.StartOffset] = name;
         }
     }
 
@@ -520,7 +567,7 @@ public sealed class AuditDefinitions
             _scoped[key] = list = new List<Visibility>();
         }
 
-        list.Add(new Visibility(name.StartOffset, from, to, qualifiable: false));
+        list.Add(new Visibility(name.StartOffset, from, to, table: null));
     }
 
     /// <summary>
@@ -534,44 +581,60 @@ public sealed class AuditDefinitions
         }
 
         var sources = new List<(string Name, string? Database)?>();
+        var names = new HashSet<string>(StringComparer.Ordinal);
         var scope = _sourceScopes.Count;
-        _sourceScopes.Add((node.StartOffset, node.StartOffset + node.FragmentLength, sources));
+        _sourceScopes.Add((node.StartOffset, node.StartOffset + node.FragmentLength, sources, names));
 
         foreach (var reference in references)
         {
-            AddSources(reference, sources, scope, wall: true);
+            AddSources(reference, sources, names, scope, wall: true);
         }
     }
 
-    private void AddSources(TableReference? reference, List<(string Name, string? Database)?> sources, int scope, bool wall)
+    /// <param name="names">
+    /// 資料行清單的表在這一層的名字：具名來源寫的名稱（CTE 寫成 <c>Parts AS p</c> 也是 Parts），其餘來源的別名。
+    /// </param>
+    private void AddSources(
+        TableReference? reference,
+        List<(string Name, string? Database)?> sources,
+        HashSet<string> names,
+        int scope,
+        bool wall)
     {
         switch (reference)
         {
             case null:
                 return;
             case JoinParenthesisTableReference group:
-                AddSources(group.Join, sources, scope, wall);
+                AddSources(group.Join, sources, names, scope, wall);
                 return;
             case QualifiedJoin join:
-                AddSources(join.FirstTableReference, sources, scope, wall);
-                AddSources(join.SecondTableReference, sources, scope, wall);
+                AddSources(join.FirstTableReference, sources, names, scope, wall);
+                AddSources(join.SecondTableReference, sources, names, scope, wall);
                 return;
             case UnqualifiedJoin join:
-                AddSources(join.FirstTableReference, sources, scope, wall);
+                AddSources(join.FirstTableReference, sources, names, scope, wall);
 
                 // APPLY 右邊看得到左邊的來源。
                 AddSources(
                     join.SecondTableReference,
                     sources,
+                    names,
                     scope,
                     wall && join.UnqualifiedJoinType is not (UnqualifiedJoinType.CrossApply or UnqualifiedJoinType.OuterApply));
                 return;
             case NamedTableReference { SchemaObject: { BaseIdentifier.Value: { } name } path }
                 when AuditText.Normalize(name) is not ("INSERTED" or "DELETED"):
                 sources.Add((name, path.DatabaseIdentifier?.Value));
+                names.Add(AuditText.Normalize(name));
                 return;
             default:
                 sources.Add(null);
+
+                if (reference is TableReferenceWithAlias { Alias.Value: { } alias })
+                {
+                    names.Add(AuditText.Normalize(alias));
+                }
 
                 if (wall && reference is QueryDerivedTable { StartOffset: >= 0 } derived)
                 {
@@ -588,21 +651,10 @@ public sealed class AuditDefinitions
     /// </summary>
     private IReadOnlyList<(string Name, string? Database)>? VisibleSources(int offset)
     {
-        var enclosing = Enumerable.Range(0, _sourceScopes.Count)
-            .Where(scope => _sourceScopes[scope].Start <= offset && offset < _sourceScopes[scope].End)
-            .OrderBy(scope => _sourceScopes[scope].End - _sourceScopes[scope].Start)
-            .ToList();
         var owners = new List<(string Name, string? Database)>();
 
-        for (var level = 0; level < enclosing.Count; level++)
+        foreach (var scope in EnclosingSourceScopes(offset))
         {
-            var scope = enclosing[level];
-
-            if (level > 0 && _barriers.Any(wall => wall.Scope == scope && wall.Start <= offset && offset < wall.End))
-            {
-                continue;
-            }
-
             foreach (var source in _sourceScopes[scope].Sources)
             {
                 if (source is not { } named)
@@ -617,18 +669,37 @@ public sealed class AuditDefinitions
         return owners.Count == 0 ? null : owners;
     }
 
-    private void Add(IEnumerable<Identifier>? names, Scope scope, bool qualifiable = false)
+    /// <summary><paramref name="offset"/> 看得到來源的每一層，由內往外；被衍生資料表擋住的那一層不算。</summary>
+    private IEnumerable<int> EnclosingSourceScopes(int offset)
+    {
+        var enclosing = Enumerable.Range(0, _sourceScopes.Count)
+            .Where(scope => _sourceScopes[scope].Start <= offset && offset < _sourceScopes[scope].End)
+            .OrderBy(scope => _sourceScopes[scope].End - _sourceScopes[scope].Start)
+            .ToList();
+
+        for (var level = 0; level < enclosing.Count; level++)
+        {
+            var scope = enclosing[level];
+
+            if (level == 0 || !_barriers.Any(wall => wall.Scope == scope && wall.Start <= offset && offset < wall.End))
+            {
+                yield return scope;
+            }
+        }
+    }
+
+    private void Add(IEnumerable<Identifier>? names, Scope scope, string? table = null)
     {
         foreach (var name in names ?? Array.Empty<Identifier>())
         {
-            Add(name, scope, qualifiable);
+            Add(name, scope, table);
         }
     }
 
     /// <summary>範圍要等整棵樹走完才知道查詢與語句的邊界。</summary>
     private void Resolve()
     {
-        foreach (var (name, scope, qualifiable) in _pending)
+        foreach (var (name, scope, table) in _pending)
         {
             var text = name switch
             {
@@ -656,7 +727,7 @@ public sealed class AuditDefinitions
 
                 foreach (var (from, to) in _orderBys.Where(range => range.Start > start && range.End <= statementEnd))
                 {
-                    list.Add(new Visibility(start, from, to, qualifiable));
+                    list.Add(new Visibility(start, from, to, table));
                 }
 
                 continue;
@@ -669,7 +740,7 @@ public sealed class AuditDefinitions
                 _ => (0, _batchEnd),
             };
 
-            list.Add(new Visibility(start, scopeStart, end, qualifiable));
+            list.Add(new Visibility(start, scopeStart, end, table));
         }
 
         // 範圍要先建好：指令碼取過的名稱（選取清單的別名、CTE 的資料行）不是資料庫的欄位。
@@ -678,7 +749,7 @@ public sealed class AuditDefinitions
             var start = reference.StartOffset;
 
             if (!_columnOwners.ContainsKey(start) &&
-                Nearest(reference.Value, start, qualified: false) is null &&
+                Nearest(reference.Value, start, qualifier: null) is null &&
                 VisibleSources(start) is { } owners)
             {
                 _columnOwners[start] = owners;
@@ -774,7 +845,7 @@ public sealed class AuditDefinitions
             _owner.AddSource(node.Alias, node);
         }
 
-        public override void Visit(TableReferenceWithAliasAndColumns node) => _owner.Add(node.Columns, Scope.Query, qualifiable: true);
+        public override void Visit(TableReferenceWithAliasAndColumns node) => _owner.Add(node.Columns, Scope.Query, node.Alias?.Value);
 
         /// <summary>MERGE 目標的別名不在 TableReferenceWithAlias 上，引用得到整句（ON、動作子句、OUTPUT）。</summary>
         public override void Visit(MergeSpecification node)
@@ -783,15 +854,23 @@ public sealed class AuditDefinitions
             _owner.AddSource(node.TableAlias, node.Target);
             _owner.AddSourceScope(node, new[] { node.Target, node.TableReference });
 
+            var target = (node.Target as NamedTableReference)?.SchemaObject;
+
             foreach (var clause in node.ActionClauses)
             {
-                if (clause.Action is InsertMergeAction insert)
+                switch (clause.Action)
                 {
-                    _owner.AddColumns(insert.Columns, (node.Target as NamedTableReference)?.SchemaObject);
+                    case InsertMergeAction insert:
+                        _owner.AddColumns(insert.Columns, target);
+                        break;
+                    case UpdateMergeAction update:
+                        _owner.AddColumns(SetColumns(update.SetClauses), target);
+                        break;
                 }
             }
         }
 
+        /// <summary>SET 的左邊屬於目標；目標是 FROM 才取的別名時說不出是哪一張，留給範圍內的來源。</summary>
         public override void Visit(UpdateSpecification node)
         {
             _owner.AddSourceScope(node, WithTarget(node.Target, node.FromClause));
@@ -800,7 +879,14 @@ public sealed class AuditDefinitions
             {
                 _owner._aliasedTargets.Add((node.StartOffset, from.StartOffset));
             }
+            else
+            {
+                _owner.AddColumns(SetColumns(node.SetClauses), (node.Target as NamedTableReference)?.SchemaObject);
+            }
         }
+
+        private static IEnumerable<TSqlFragment?> SetColumns(IEnumerable<SetClause> clauses) =>
+            clauses.OfType<AssignmentSetClause>().Select(clause => clause.Column);
 
         public override void Visit(DeleteSpecification node) => _owner.AddSourceScope(node, WithTarget(node.Target, node.FromClause));
 
@@ -950,7 +1036,7 @@ public sealed class AuditDefinitions
                 _owner._tableNames.Add(name.StartOffset);
             }
 
-            _owner.Add(node.Columns, Scope.Statement, qualifiable: true);
+            _owner.Add(node.Columns, Scope.Statement, node.ExpressionName?.Value);
         }
 
         public override void Visit(DeclareVariableElement node) => _owner.Add(node.VariableName, Scope.Batch);

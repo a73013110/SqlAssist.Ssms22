@@ -33,6 +33,12 @@ public static class AuditWords
             text.All(c => c is >= 'A' and <= 'Z' or >= '0' and <= '9' or '_');
     }
 
+    /// <summary>
+    /// 大小寫混合的詞：召回語料的名稱。片語把 <c>COPY</c> 收成字之後，<c>Copy</c> 資料表仍是名稱；
+    /// 全小寫的 <c>int</c>、<c>nvarchar</c> 照清單當字。
+    /// </summary>
+    public static bool IsMixedCase(string text) => text.Any(char.IsUpper) && text.Any(char.IsLower);
+
     private static HashSet<string> Build()
     {
         var words = new HashSet<string>(SqlKeywordCatalog.All, StringComparer.OrdinalIgnoreCase);

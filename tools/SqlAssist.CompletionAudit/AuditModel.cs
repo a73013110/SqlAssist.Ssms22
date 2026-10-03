@@ -75,7 +75,7 @@ public enum AuditTokenClass
 /// <summary>本來就不該列的詞元，分類排除、不算漏。</summary>
 public enum AuditExclusion
 {
-    /// <summary>字串與數字常值。</summary>
+    /// <summary>字串與數字常值，以及緊貼數值的字（<c>20MB</c> 的 MB）。</summary>
     Literal,
 
     /// <summary>新取的名稱：別名定義、CREATE 目標、宣告。</summary>
@@ -102,6 +102,7 @@ public enum AuditExclusion
     /// <summary>
     /// 剖析不過的那一句，從剖析器停下的那個詞起到那一句結束（<see cref="AuditDefinitions.IsUnparsed"/>）：
     /// 不是 T-SQL（文件裡的語法片段、打錯的指令碼），產品判斷不了那裡要什麼，硬列就是猜。
+    /// 錯之前不是保留字的字也算：不守大寫慣例的語料靠語法樹分字與名稱，那一句不在樹上。
     /// </summary>
     Unparsed,
 }

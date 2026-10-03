@@ -61,8 +61,66 @@ public sealed class AuditDefinitionsTests
         const string sql = "WITH c (a) AS (SELECT 1) SELECT Node = e.x, c.a FROM t e CROSS JOIN c ORDER BY e.Node";
         var definitions = AuditDefinitions.Collect(sql);
 
-        Assert.True(definitions.IsDefinedBefore("a", At(sql, "a FROM", 1), qualified: true));
-        Assert.False(definitions.IsDefinedBefore("Node", At(sql, "Node", 2), qualified: true));
+        Assert.True(definitions.IsDefinedBefore("a", At(sql, "a FROM", 1), qualifier: "c"));
+        Assert.False(definitions.IsDefinedBefore("Node", At(sql, "Node", 2), qualifier: "e"));
+    }
+
+    /// <summary>
+    /// CTE 與衍生資料表的資料行清單是那張表的欄位：沒寫限定字時要那張表是這個欄位可能屬於的表之一，
+    /// CTE 自己的查詢裡、SET 的目標是別張表時，同名的詞是別張表的欄位。
+    /// </summary>
+    [Theory]
+    [InlineData("WITH c (CopyNo) AS (SELECT CopyNo FROM Copy WHERE CopyNo = 1) SELECT 1 FROM c WHERE CopyNo = 1", 3, false)]
+    [InlineData("WITH c (CopyNo) AS (SELECT CopyNo FROM Copy WHERE CopyNo = 1) SELECT 1 FROM c WHERE CopyNo = 1", 4, true)]
+    [InlineData("WITH c (CopyNo) AS (SELECT 1) UPDATE Loan SET CopyNo = 1 FROM Loan JOIN c p ON 1 = 1", 2, false)]
+    [InlineData("WITH c (CopyNo) AS (SELECT 1) UPDATE c SET CopyNo = 1", 2, true)]
+    [InlineData("WITH c (CopyNo) AS (SELECT 1) UPDATE Loan SET Fee = 1 FROM Loan JOIN c p ON 1 = 1 WHERE CopyNo = 1", 2, true)]
+    [InlineData("SELECT 1 FROM (SELECT 1) d (CopyNo) JOIN (SELECT CopyNo FROM Copy) e ON 1 = 1", 2, false)]
+    [InlineData("SELECT 1 FROM (SELECT 1) d (CopyNo) WHERE CopyNo = 1", 2, true)]
+    public void 資料行清單的名稱只在那張表是來源時引用得到(string sql, int occurrence, bool defined)
+    {
+        Assert.Equal(defined, AuditDefinitions.Collect(sql).IsDefinedBefore("CopyNo", At(sql, "CopyNo", occurrence)));
+    }
+
+    [Theory]
+    [InlineData("WITH c (CopyNo) AS (SELECT 1) SELECT 1 FROM c p WHERE p.CopyNo = 1", "p", true)]
+    [InlineData("WITH c (CopyNo) AS (SELECT 1) SELECT 1 FROM c WHERE c.CopyNo = 1", "c", true)]
+    [InlineData("WITH c (CopyNo) AS (SELECT 1) SELECT 1 FROM c JOIN Loan l ON l.CopyNo = 1", "l", false)]
+    public void 點號之後的資料行清單名稱要限定字指那張表(string sql, string qualifier, bool defined)
+    {
+        Assert.Equal(defined, AuditDefinitions.Collect(sql).IsDefinedBefore("CopyNo", At(sql, "CopyNo", 2), qualifier));
+    }
+
+    [Fact]
+    public void SET的左邊屬於目標()
+    {
+        const string sql = "UPDATE LibArchive.dbo.Loan SET CopyNo = 1 FROM LibArchive.dbo.Loan JOIN Copy c ON 1 = 1";
+
+        Assert.Equal(new[] { ("Loan", (string?)"LibArchive") }, AuditDefinitions.Collect(sql).ColumnOwners(At(sql, "CopyNo", 1)));
+    }
+
+    [Fact]
+    public void 剖析不過的那一句不在語法樹上_錯之前也是()
+    {
+        const string sql = "SELECT 1\nINSERT INTO Loan (Name, CopyNo) VALUES (1, 2), (SELECT Name, CopyNo FROM Copy)\nSELECT 2";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.True(definitions.HasRole(At(sql, "SELECT", 1)));
+        Assert.False(definitions.HasRole(At(sql, "Name", 1)));
+        Assert.False(definitions.IsUnparsed(At(sql, "Name", 1)));
+        Assert.True(definitions.HasRole(At(sql, "SELECT", 3)));
+    }
+
+    [Fact]
+    public void 寫到一半的那一句沒有角色_之前寫完的句子照樣有()
+    {
+        const string sql = "SELECT name FROM Lib_Reader\nSELECT name FROM Lib_Reader WHERE ReaderId IN (";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.Equal(0, definitions.UnparsedStatements);
+        Assert.True(definitions.IsNameReference(At(sql, "name", 1)));
+        Assert.False(definitions.HasRole(At(sql, "name", 2)));
+        Assert.False(definitions.IsUnparsed(At(sql, "name", 2)));
     }
 
     [Fact]

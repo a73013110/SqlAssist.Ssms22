@@ -21,9 +21,14 @@ internal static class DatabasePhrases
         new("ALTER DATABASE {name} ADD LOG FILE ,* (*") { Expand = 2 },
         new("ALTER DATABASE {name} MODIFY FILE (*") { Expand = 2 },
 
-        // Azure SQL Database 的服務層級：EDITION、SERVICE_OBJECTIVE、MAXSIZE 寫在資料庫名稱之後的括號裡。
+        // Azure SQL Database 的服務層級：EDITION、SERVICE_OBJECTIVE、MAXSIZE 寫在資料庫名稱之後的括號裡，複製資料庫也一樣。
+        // SERVICE_OBJECTIVE = 之後是值，展開不往下走；彈性集區那一組括號手寫（值之後要關兩層括號），ELASTIC_POOL 由整段的證據補回等號之後。
         new("CREATE DATABASE {name} (*") { Expand = 2 },
+        new("CREATE DATABASE {name} (* SERVICE_OBJECTIVE = ELASTIC_POOL (*") { Endings = [" = p))"] },
+        new("CREATE DATABASE {name} AS COPY OF {name} (*") { Expand = 2 },
+        new("CREATE DATABASE {name} AS COPY OF {name} (* SERVICE_OBJECTIVE = ELASTIC_POOL (*") { Endings = [" = p))"] },
         new("ALTER DATABASE {name} MODIFY (*") { Expand = 2 },
+        new("ALTER DATABASE {name} MODIFY (* SERVICE_OBJECTIVE = ELASTIC_POOL (*") { Endings = [" = p))"] },
     ];
 
     private static PhraseDeclaration[] CreateDatabase(string head) =>

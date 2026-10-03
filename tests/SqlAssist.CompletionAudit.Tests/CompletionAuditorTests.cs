@@ -242,6 +242,36 @@ public sealed class CompletionAuditorTests
     }
 
     [Fact]
+    public async Task 緊貼數值的字是常值的一部分()
+    {
+        var result = await AuditAsync("ALTER DATABASE d MODIFY FILE (NAME = f, SIZE = 20MB, MAXSIZE = 40 MB)", AuditCatalog.None);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == "MB");
+        Assert.Equal(3, result.Tally.Excluded[AuditExclusion.Literal]);
+    }
+
+    [Fact]
+    public async Task 剖析不過的那一句錯之前_不是保留字的字說不出角色()
+    {
+        var result = await AuditAsync(
+            "INSERT INTO Lib_Tag (Name, PUBL_CODE) VALUES (1, 2), (SELECT Name, PUBL_CODE FROM Lib_Reader)",
+            AuditCatalog.None);
+
+        Assert.Contains(result.Misses, miss => miss.Word == "INSERT");
+        Assert.DoesNotContain(result.Misses, miss => miss.Word.Equals("NAME", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task 守大寫慣例的語料_大小寫混合的是名稱_同名的字不算()
+    {
+        var result = await new CompletionAuditor(new SqlAssistSettings(), Array.Empty<SqlSuggestion>(), AuditMask.None)
+            .AuditAsync(new AuditFragment("test", "t", "SELECT 1 FROM Copy WHERE 1 = 1", wordsInUpperCase: true), AuditCatalog.None, CancellationToken.None);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == "Copy");
+        Assert.Equal(1, result.Tally.Excluded[AuditExclusion.Unresolved]);
+    }
+
+    [Fact]
     public async Task 新取的名稱與常值不稽核()
     {
         var result = await AuditAsync("DECLARE @n int = 5", AuditCatalog.None);

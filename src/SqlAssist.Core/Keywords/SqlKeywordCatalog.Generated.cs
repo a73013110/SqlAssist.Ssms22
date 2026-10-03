@@ -3514,6 +3514,31 @@ internal static class SqlKeywordCatalogData
         ("CREATE DATABASE {name} (* SERVICE_OBJECTIVE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (SERVICE_OBJECTIVE ", true, false, false, false, new string[]
         {
         }),
+        ("CREATE DATABASE {name} (* SERVICE_OBJECTIVE = ELASTIC_POOL (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (SERVICE_OBJECTIVE = ELASTIC_POOL (", true, false, true, false, new string[]
+        {
+            "NAME",
+        }),
+        ("CREATE DATABASE {name} AS COPY OF {name} (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t AS COPY OF t (", true, false, false, false, new string[]
+        {
+            "EDITION", "MAXSIZE", "SERVICE_OBJECTIVE",
+        }),
+        ("CREATE DATABASE {name} AS COPY OF {name} (* EDITION", SqlKeywordPosition.StatementStart, "CREATE DATABASE t AS COPY OF t (EDITION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} AS COPY OF {name} (* MAXSIZE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t AS COPY OF t (MAXSIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} AS COPY OF {name} (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t AS COPY OF t (MAXSIZE = 1 ", true, false, false, false, new string[]
+        {
+            "GB", "MB",
+        }),
+        ("CREATE DATABASE {name} AS COPY OF {name} (* SERVICE_OBJECTIVE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t AS COPY OF t (SERVICE_OBJECTIVE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} AS COPY OF {name} (* SERVICE_OBJECTIVE = ELASTIC_POOL (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t AS COPY OF t (SERVICE_OBJECTIVE = ELASTIC_POOL (", true, false, true, false, new string[]
+        {
+            "NAME",
+        }),
         ("ALTER DATABASE {name} MODIFY (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY (", true, false, false, false, new string[]
         {
             "EDITION", "MAXSIZE", "SERVICE_OBJECTIVE",
@@ -3530,6 +3555,10 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER DATABASE {name} MODIFY (* SERVICE_OBJECTIVE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY (SERVICE_OBJECTIVE ", true, false, false, false, new string[]
         {
+        }),
+        ("ALTER DATABASE {name} MODIFY (* SERVICE_OBJECTIVE = ELASTIC_POOL (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY (SERVICE_OBJECTIVE = ELASTIC_POOL (", true, false, true, false, new string[]
+        {
+            "NAME",
         }),
         ("ALTER DATABASE {name} SET TARGET_RECOVERY_TIME = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TARGET_RECOVERY_TIME = 1 ", true, false, false, false, new string[]
         {
@@ -9660,6 +9689,26 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} MODIFY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY ", true, false, false, false, new string[]
         {
             "FILE", "FILEGROUP", "NAME",
+        }),
+        ("CREATE DATABASE {name} (* SERVICE_OBJECTIVE =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (SERVICE_OBJECTIVE = ", true, false, false, false, new string[]
+        {
+            "ELASTIC_POOL",
+        }),
+        ("CREATE DATABASE {name} AS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t AS ", true, false, true, false, new string[]
+        {
+            "COPY OF",
+        }),
+        ("CREATE DATABASE {name} AS COPY", SqlKeywordPosition.StatementStart, "CREATE DATABASE t AS COPY ", true, false, false, false, new string[]
+        {
+            "OF",
+        }),
+        ("CREATE DATABASE {name} AS COPY OF {name} (* SERVICE_OBJECTIVE =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t AS COPY OF t (SERVICE_OBJECTIVE = ", true, false, false, false, new string[]
+        {
+            "ELASTIC_POOL",
+        }),
+        ("ALTER DATABASE {name} MODIFY (* SERVICE_OBJECTIVE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY (SERVICE_OBJECTIVE = ", true, false, false, false, new string[]
+        {
+            "ELASTIC_POOL",
         }),
         ("ALTER DATABASE {name} SET CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ", true, false, false, false, new string[]
         {
