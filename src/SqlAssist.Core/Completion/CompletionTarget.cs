@@ -151,6 +151,16 @@ public enum CompletionTarget
     /// 字在 <see cref="SqlCompletionContext.ClausePhrase"/> 裡，由產生器以剖析器探測得到。
     /// 不封閉的片語不走這個目標：那裡只換掉關鍵字，名稱照常。
     /// </remarks>
-    ClauseKeyword
+    ClauseKeyword,
+
+    /// <summary>
+    /// 只有目錄檢視列得出名稱的那幾種（<c>ALTER LOGIN </c>、<c>DROP USER </c>、<c>DEFAULT_SCHEMA = </c>、
+    /// <c>GRANT … TO </c>）：是哪幾種在 <see cref="SqlCompletionContext.CatalogEntities"/>。
+    /// </summary>
+    /// <remarks>
+    /// 位置由「前面寫的是哪一種」推出，見 <see cref="SqlCatalogEntityPosition"/>；名稱只有中繼資料知道，
+    /// 片語的字（<c>ALTER DATABASE </c> 的 <c>CURRENT</c>、<c>DROP USER </c> 的 <c>IF</c>）照樣接上來。
+    /// </remarks>
+    CatalogEntity
 }
 

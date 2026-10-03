@@ -126,6 +126,25 @@ public static class SqlCompletionCandidates
             return instanceList.Suggestions(context.ScriptSources, server);
         }
 
+        // 登入、使用者、憑證這些名稱只有目錄檢視知道；片語的字照接上來（ALTER DATABASE 之後的 CURRENT、
+        // DROP USER 之後的 IF），目錄的關鍵字由上下文過濾照位置挑。關掉「列出資料庫物件與欄位」時只剩字，
+        // 與執行個體名單同一條。
+        if (context.Target == CompletionTarget.CatalogEntity)
+        {
+            var suggestions = builtIn.Where(item => item.Kind == SuggestionKind.Keyword).ToList();
+
+            if (settings.IncludeDatabaseObjects)
+            {
+                foreach (var entity in context.CatalogEntities)
+                {
+                    var names = await metadata.GetCatalogEntityNamesAsync(entity, cancellationToken).ConfigureAwait(false);
+                    suggestions.AddRange(entity.Suggestions(names));
+                }
+            }
+
+            return suggestions.Concat(PhraseOf(context)).ToArray();
+        }
+
         // 內建型別是一份封閉的清單，但使用者自訂的資料表型別在資料庫裡，
         // DECLARE @t dbo.XType 要的正是後者。片語的字照接上來：資料行定義的 PERIOD 之後還有 FOR。
         // 宣告的型別前面可以先寫 AS（DECLARE @x AS int），那個字從目錄接上來。

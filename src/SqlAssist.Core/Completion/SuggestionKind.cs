@@ -170,6 +170,15 @@ public enum SuggestionKind
 
     /// <summary>查詢的 WINDOW 子句取的具名視窗（<c>WINDOW w AS (…)</c> 的 <c>w</c>）。</summary>
     /// <remarks>只接在 <c>OVER</c> 與視窗規格的左括號之後，見 <see cref="CompletionTarget.Window"/>。</remarks>
-    Window
+    Window,
+
+    /// <summary>只有目錄檢視列得出名稱的東西：登入、使用者、角色、結構描述、憑證…。</summary>
+    /// <remarks>
+    /// 每一種共用這一類，是哪一種由 <see cref="SqlSuggestion.Tag"/> 上的 <see cref="SqlCatalogEntity"/> 分辨。
+    /// 只出現在 <see cref="CompletionTarget.CatalogEntity"/> 那一格：<c>FROM</c> 之後列出登入是寫不上去的名稱。
+    /// 結構描述與資料庫在那一格也是這一類，與多段名稱第一段的 <see cref="Schema"/>、<see cref="Database"/> 分開：
+    /// 插入時不接點號，過濾也不看限定字。
+    /// </remarks>
+    CatalogEntity
 }
 

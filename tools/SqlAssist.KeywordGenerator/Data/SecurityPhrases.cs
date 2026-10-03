@@ -3,6 +3,8 @@ namespace SqlAssist.KeywordGenerator.Data;
 /// <summary>安全性：稽核、安全性原則、金鑰與憑證、權限、登入與使用者。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
 internal static class SecurityPhrases
 {
+    private const string AllowEncryptedValueModifications = "ALLOW_ENCRYPTED_VALUE_MODIFICATIONS";
+
     internal static readonly PhraseDeclaration[] AuditAndPolicies =
     [
         // 稽核：ALTER SERVER AUDIT 的名稱剖析器要看到 TO、WITH 這些字才收，CREATE、ALTER 的展開到不了名稱之後。
@@ -168,6 +170,8 @@ internal static class SecurityPhrases
         new("CREATE CREDENTIAL {name} WITH ,*"),
         new("ALTER CREDENTIAL {name} WITH ,*"),
         new("CREATE DATABASE SCOPED CREDENTIAL {name} WITH ,*"),
+        // DROP DATABASE 之後的 SCOPED 剖析器也當成資料庫名稱讀，DROP 的展開到不了認證的名稱那一格。
+        new("DROP DATABASE SCOPED CREDENTIAL"),
         new("ALTER DATABASE SCOPED CREDENTIAL {name} WITH ,*"),
     ];
 
@@ -175,10 +179,10 @@ internal static class SecurityPhrases
     [
         // 權限 ON 之後的類別多半不是關鍵字（OBJECT、TYPE）；那一格也可以直接寫目標名稱，由人宣告不封閉。
         // 多字的類別（SEARCH PROPERTY LIST）由 Classes 補。ALTER AUTHORIZATION ON 的類別相同，那一格由 ALTER 的展開立，
-        // 在這裡補多字的類別，名稱照收；擁有者可以寫 SCHEMA OWNER，交還給結構描述的擁有者。
+        // 在這裡補多字的類別，名稱照收；擁有者那一格（主體的位置）可以寫 SCHEMA OWNER，交還給結構描述的擁有者。
         new("") { After = ["PermissionOn"], Closed = false, Classes = true },
         new("ALTER AUTHORIZATION ON") { Closed = false, Classes = true },
-        new("TO SCHEMA") { Lead = "ALTER AUTHORIZATION ON OBJECT::t " },
+        new("SCHEMA") { After = ["PermissionGrantee"], Template = 2 },
 
         // CREATE USER 寫完名稱已經是完整的一句，之後的 FOR、WITHOUT 各自接 LOGIN；CREATE LOGIN 之後是 WITH PASSWORD 或 FROM。
         // FROM EXTERNAL 之後是 PROVIDER（Microsoft Entra 的主體）。
@@ -186,16 +190,22 @@ internal static class SecurityPhrases
         new("CREATE USER {name}") { Expand = 2 },
         new("CREATE LOGIN {name}") { Expand = 2 },
 
+        // 角色成員：ALTER 的展開只到名稱之後一層（ADD、DROP、WITH），再往下一層才是 MEMBER 與 NAME =。
+        new("ALTER ROLE {name}") { Expand = 2 },
+        new("ALTER SERVER ROLE {name}") { Expand = 2 },
+
         // 登入與使用者的 WITH 選項清單：四種敘述接的選項各不相同（CREATE LOGIN 第一項只能是 PASSWORD、
         // ALTER LOGIN 另有 NAME、NO CREDENTIAL，USER 才有 DEFAULT_SCHEMA），由標頭分開；應用程式角色同理。
         new("CREATE LOGIN {name} WITH ,*"),
         new("CREATE LOGIN {name} FROM WINDOWS WITH ,*"),
         new("ALTER LOGIN {name} WITH ,*"),
-        new("CREATE USER {name} WITH ,*"),
-        new("CREATE USER {name} FOR LOGIN {name} WITH ,*"),
-        new("CREATE USER {name} FROM LOGIN {name} WITH ,*"),
-        new("CREATE USER {name} WITHOUT LOGIN WITH ,*"),
-        new("ALTER USER {name} WITH ,*"),
+        // ALLOW_ENCRYPTED_VALUE_MODIFICATIONS（Always Encrypted 的大量複製）官方語法圖寫得出來，ScriptDom TSql170 在值就報錯：
+        // 手寫補進清單（Lagging），只有這一處。
+        new("CREATE USER {name} WITH ,*") { Lagging = [AllowEncryptedValueModifications] },
+        new("CREATE USER {name} FOR LOGIN {name} WITH ,*") { Lagging = [AllowEncryptedValueModifications] },
+        new("CREATE USER {name} FROM LOGIN {name} WITH ,*") { Lagging = [AllowEncryptedValueModifications] },
+        new("CREATE USER {name} WITHOUT LOGIN WITH ,*") { Lagging = [AllowEncryptedValueModifications] },
+        new("ALTER USER {name} WITH ,*") { Lagging = [AllowEncryptedValueModifications] },
         new("CREATE APPLICATION ROLE {name} WITH ,*"),
         new("ALTER APPLICATION ROLE {name} WITH ,*"),
     ];

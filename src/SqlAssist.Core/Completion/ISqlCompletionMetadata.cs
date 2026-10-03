@@ -7,7 +7,7 @@ using SqlAssist.Core.Settings;
 namespace SqlAssist.Core.Completion;
 
 /// <summary>
-/// 建議清單要問資料庫的那一份：物件、欄位、參數與執行個體名單。
+/// 建議清單要問資料庫的那一份：物件、欄位、參數、執行個體名單與目錄物件。
 /// </summary>
 /// <remarks>
 /// 分派本身只看文字（<see cref="SqlCompletionCandidates"/>），資料庫由這個介面注入：產品接查詢視窗
@@ -50,4 +50,7 @@ public interface ISqlCompletionMetadata
 
     /// <summary>一份執行個體名單（定序、語言、時區）與在用的那一個。</summary>
     Task<SqlInstanceListData> GetInstanceListAsync(SqlInstanceList list, CancellationToken cancellationToken);
+
+    /// <summary>一種目錄物件（登入、使用者、結構描述…）的名稱；一律問目前這條連線。</summary>
+    Task<IReadOnlyList<string>> GetCatalogEntityNamesAsync(SqlCatalogEntity entity, CancellationToken cancellationToken);
 }

@@ -66,6 +66,14 @@ public sealed class SqlMetadataCatalog
     /// <summary>執行個體名單；只有游標落在那份名單的位置才載入，見 <see cref="GetInstanceListAsync"/>。</summary>
     private readonly Dictionary<CompletionTarget, SqlInstanceListData> _instanceLists = new();
 
+    private readonly SemaphoreSlim _catalogEntityGate = new(1, 1);
+
+    /// <summary>目錄物件的名稱與載入時刻；只有游標落在那一種的名稱格才載入，見 <see cref="GetCatalogEntityNamesAsync"/>。</summary>
+    private readonly Dictionary<SqlCatalogEntity, (IReadOnlyList<string> Names, DateTimeOffset LoadedAt)> _catalogEntities = new();
+
+    /// <summary>每一種上一次載入失敗的時刻；退避與第一層同一條規則。</summary>
+    private readonly Dictionary<SqlCatalogEntity, long> _catalogEntityFailures = new();
+
     public SqlMetadataCatalog(
         ISqlConnectionSource connectionSource,
         TimeSpan lifetime,
@@ -105,6 +113,12 @@ public sealed class SqlMetadataCatalog
     {
         // 系統物件沒有有效期，只有這裡會把它丟掉——換連線就是換一台伺服器。
         Volatile.Write(ref _systemObjects, null);
+
+        lock (_catalogEntities)
+        {
+            _catalogEntities.Clear();
+            _catalogEntityFailures.Clear();
+        }
 
         lock (_detailLock)
         {
@@ -545,6 +559,109 @@ public sealed class SqlMetadataCatalog
         {
             _instanceListGate.Release();
         }
+    }
+
+    /// <summary>
+    /// 一種目錄物件（登入、使用者、憑證…）的名稱；第一次被問到才查，之後與第一層同一個有效期。
+    /// </summary>
+    /// <remarks>
+    /// 與執行個體名單的差別在會變：<c>CREATE LOGIN</c> 剛執行完，下一句 <c>ALTER LOGIN</c> 就要列得出它，
+    /// 所以設有效期、跟著 <see cref="Invalidate"/> 清掉；每份目錄各存一份（使用者與結構描述屬於資料庫）。
+    /// 結構描述與資料庫已經在第一層快照裡，不另外查。
+    ///
+    /// 查不到（權限、這一版沒有那個檢視以外的錯誤、連不上）回空的、不進快取，並在退避期間內不再試，
+    /// 與第一層同一條理由：連不上的目標不該讓每一次按鍵都等滿逾時。那一格不會因此空掉，片語的字由 Core 補上。
+    /// 連結伺服器的目錄回空的：名稱寫進的是本機這一句。
+    /// </remarks>
+    public async Task<IReadOnlyList<string>> GetCatalogEntityNamesAsync(
+        SqlCatalogEntity entity,
+        CancellationToken cancellationToken)
+    {
+        if (entity is null)
+        {
+            throw new ArgumentNullException(nameof(entity));
+        }
+
+        if (_qualifier.IsRemote)
+        {
+            return Array.Empty<string>();
+        }
+
+        var query = SqlCatalogEntityQuery.For(entity);
+
+        if (query.FromSnapshot is { } select)
+        {
+            return select(await GetSnapshotAsync(cancellationToken).ConfigureAwait(false));
+        }
+
+        if (TryGetCachedCatalogEntity(entity, out var cached))
+        {
+            return cached;
+        }
+
+        await _catalogEntityGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            if (TryGetCachedCatalogEntity(entity, out var raced))
+            {
+                return raced;
+            }
+
+            var loaded = await Task
+                .Run(
+                    () => TryLoad(NotificationCatalog.LoadingCatalogEntities, NotificationOrigin.Typing,
+                        () => LoadCatalogEntity(query.Text!, cancellationToken), entity.KindText),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            lock (_catalogEntities)
+            {
+                if (loaded is null)
+                {
+                    _catalogEntityFailures[entity] = DateTimeOffset.UtcNow.UtcTicks;
+                    return Array.Empty<string>();
+                }
+
+                _catalogEntityFailures.Remove(entity);
+                _catalogEntities[entity] = (loaded, DateTimeOffset.UtcNow);
+            }
+
+            return loaded;
+        }
+        finally
+        {
+            _catalogEntityGate.Release();
+        }
+    }
+
+    /// <summary>快取裡還新鮮的名稱，或退避期間內的空名單；兩者都不必查。</summary>
+    private bool TryGetCachedCatalogEntity(SqlCatalogEntity entity, out IReadOnlyList<string> names)
+    {
+        lock (_catalogEntities)
+        {
+            if (_catalogEntities.TryGetValue(entity, out var hit) && DateTimeOffset.UtcNow - hit.LoadedAt < _lifetime)
+            {
+                names = hit.Names;
+                return true;
+            }
+
+            if (_catalogEntityFailures.TryGetValue(entity, out var failedAt) &&
+                DateTimeOffset.UtcNow.UtcTicks - failedAt < _failureBackoff.Ticks)
+            {
+                names = Array.Empty<string>();
+                return true;
+            }
+        }
+
+        names = null!;
+        return false;
+    }
+
+    private List<string> LoadCatalogEntity(string text, CancellationToken cancellationToken)
+    {
+        using var connection = _connectionSource.OpenConnection();
+        return ReadList(connection, text, record => record.GetString(0), cancellationToken);
     }
 
     private bool TryGetCachedInstanceList(SqlInstanceList list, out SqlInstanceListData data)

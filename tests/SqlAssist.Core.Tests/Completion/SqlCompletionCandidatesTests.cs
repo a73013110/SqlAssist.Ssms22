@@ -106,6 +106,12 @@ public sealed class SqlCompletionCandidatesTests
             return Task.FromResult(SqlInstanceListData.Empty);
         }
 
+        public Task<IReadOnlyList<string>> GetCatalogEntityNamesAsync(SqlCatalogEntity entity, CancellationToken cancellationToken)
+        {
+            Asked();
+            return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+        }
+
         private Task<IReadOnlyList<SqlSuggestion>> Nothing()
         {
             Asked();

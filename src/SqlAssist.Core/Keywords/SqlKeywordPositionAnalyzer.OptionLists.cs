@@ -141,8 +141,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <summary>
     /// <paramref name="last"/> 之後是清單片語的一項開頭時，那份清單的錨點；不是就回 -1。
     /// </summary>
-    /// <remarks>子句片語拿它比對是哪一句的清單，走訪與 <see cref="SqlKeywordPosition.OptionItem"/> 是同一條規則。</remarks>
-    private int FindPhraseListAnchor(int last)
+    /// <remarks>
+    /// 子句片語拿它比對是哪一句的清單，走訪與 <see cref="SqlKeywordPosition.OptionItem"/> 是同一條規則；
+    /// 目錄物件那一格拿它認 <c>DEFAULT_SCHEMA = </c> 是不是清單的一項。
+    /// </remarks>
+    internal int FindPhraseListAnchor(int last)
     {
         return PhraseList.FindAnchor(this, last, out _);
     }
@@ -155,6 +158,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// </remarks>
     private SqlKeywordPosition? FindStatementSlot(int last)
     {
+        if (IntroducesGrantee(last))
+        {
+            return SqlKeywordPosition.PermissionGrantee;
+        }
+
         if (IsTriggerTarget(last))
         {
             return SqlKeywordPosition.TriggerHeader;
@@ -509,6 +517,35 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return tokens[last].IsKeyword("WHEN") &&
             FindUnclosedCase(last - 1) < 0 &&
             tokens[FindStatementStart(last)].IsKeyword("MERGE");
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 之後是主體：權限或目標寫完之後的 TO、FROM、BY（稽核動作），或主體清單 <c>TO a, </c> 的逗號。
+    /// </summary>
+    /// <remarks>
+    /// 認的是前一格的位置，不是字：<c>SELECT … FROM</c>、<c>BACKUP … TO</c> 的前一格不是權限。
+    /// ALTER AUTHORIZATION 的 ON 目標與權限同一個位置，它的 TO 也在這裡。
+    /// </remarks>
+    private bool IntroducesGrantee(int last)
+    {
+        var index = last;
+
+        while (index >= 2 && tokens[index].IsPunctuation(",") && tokens[index - 1].Kind == SqlTokenKind.Identifier)
+        {
+            index -= 2;
+        }
+
+        var token = tokens[index];
+
+        if (index < 1 || !(token.IsKeyword("TO") || token.IsKeyword("FROM") || token.IsKeyword("BY")))
+        {
+            return false;
+        }
+
+        // 判不出前一格（Any）也帶著這兩個位元，那不算：SELECT * FROM 的前一格判不出來時不是權限。
+        var before = PositionBefore(index);
+        return before != SqlKeywordPosition.Any &&
+            (before & (SqlKeywordPosition.PermissionList | SqlKeywordPosition.PermissionTarget)) != SqlKeywordPosition.None;
     }
 
     /// <summary>GRANT、DENY、REVOKE 開始權限清單；<c>WITH GRANT OPTION</c> 的 GRANT 不是。</summary>

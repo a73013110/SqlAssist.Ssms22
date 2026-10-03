@@ -46,6 +46,7 @@ public sealed class PhraseDeclarationTests
     [InlineData("Items")]
     [InlineData("Clause")]
     [InlineData(",* 只能有一個")]
+    [InlineData("Lagging")]
     public void 錯的宣告一次全部報出來(string problem)
     {
         PhraseDeclaration[] phrases =
@@ -60,12 +61,13 @@ public sealed class PhraseDeclarationTests
             new("OPENROWSET (*") { Items = "BULK 'x', " },
             new("OPENROWSET ()") { Clause = true },
             new("FOR XML ,* AUTO ,*"),
+            new("SET NOCOUNT") { Lagging = ["ALLOW_ENCRYPTED_VALUE_MODIFICATIONS"] },
         ];
 
         var exception = Assert.Throws<InvalidOperationException>(() => PhraseDeclaration.Validate(phrases, Templates));
 
         Assert.Contains(problem, exception.Message);
-        Assert.StartsWith("片語宣告有 10 處錯誤", exception.Message);
+        Assert.StartsWith("片語宣告有 11 處錯誤", exception.Message);
     }
 
     [Fact]

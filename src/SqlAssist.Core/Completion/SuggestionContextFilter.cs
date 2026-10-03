@@ -106,6 +106,7 @@ public static class SuggestionContextFilter
             SuggestionKind.Alias => true,
             SuggestionKind.Cursor => true,
             SuggestionKind.Window => true,
+            SuggestionKind.CatalogEntity => true,
             _ => false
         };
     }
@@ -253,6 +254,9 @@ public static class SuggestionContextFilter
             CompletionTarget.Sequence => kind == SuggestionKind.Sequence,
             CompletionTarget.Cursor => kind == SuggestionKind.Cursor,
             CompletionTarget.Window => kind == SuggestionKind.Window,
+            // 目標只換掉名稱那一份：關鍵字照那一格的位置與片語過濾。主體的位置列得出 PUBLIC 與擁有者的 SCHEMA，
+            // 類別與選項的值之後位置是 None，一個都不列（見 SqlCatalogEntitySlot.Keywords）。
+            CompletionTarget.CatalogEntity => kind is SuggestionKind.CatalogEntity or SuggestionKind.Keyword,
             CompletionTarget.DatePart => kind == SuggestionKind.DatePart,
             CompletionTarget.TableHint => kind == SuggestionKind.TableHint,
             CompletionTarget.QueryHint => kind == SuggestionKind.QueryHint,
@@ -286,7 +290,8 @@ public static class SuggestionContextFilter
                 or SuggestionKind.InstanceListValue
                 or SuggestionKind.InstanceListValueInUse
                 or SuggestionKind.Cursor
-                or SuggestionKind.Window)
+                or SuggestionKind.Window
+                or SuggestionKind.CatalogEntity)
         };
     }
 
@@ -347,10 +352,11 @@ public static class SuggestionContextFilter
 
         // 批次第一句可以省略 EXEC：sp_helptext 't' 單獨一行就能執行。
         // 視窗名稱不是資料庫物件：視窗規格的括號裡寫不出資料表與欄位，卻寫得出基底視窗，
-        // 而它只在那一格進候選清單（CompletionTarget.Window）。
+        // 而它只在那一格進候選清單（CompletionTarget.Window）。目錄物件同理：GRANT … ON SCHEMA:: 的位置
+        // 不收一般名稱，那一格由 SqlCatalogEntityPosition 認出來才有它們。
         return context.KeywordPosition.AcceptsNames() ||
                (context.StartsBatch && suggestion.Kind == SuggestionKind.Procedure) ||
-               suggestion.Kind == SuggestionKind.Window;
+               suggestion.Kind is SuggestionKind.Window or SuggestionKind.CatalogEntity;
     }
 
     /// <summary>

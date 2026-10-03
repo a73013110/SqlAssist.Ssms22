@@ -24,6 +24,9 @@ public static class SqlCompletionMetadata
         private static readonly Task<IReadOnlyList<SqlSuggestion>> Nothing =
             Task.FromResult<IReadOnlyList<SqlSuggestion>>(Array.Empty<SqlSuggestion>());
 
+        private static readonly Task<IReadOnlyList<string>> NoNames =
+            Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+
         public Task<SqlCompletionContext> ResolveQualifierAsync(SqlCompletionContext context, CancellationToken cancellationToken) =>
             Task.FromResult(context);
 
@@ -49,5 +52,8 @@ public static class SqlCompletionMetadata
 
         public Task<SqlInstanceListData> GetInstanceListAsync(SqlInstanceList list, CancellationToken cancellationToken) =>
             Task.FromResult(SqlInstanceListData.Empty);
+
+        public Task<IReadOnlyList<string>> GetCatalogEntityNamesAsync(SqlCatalogEntity entity, CancellationToken cancellationToken) =>
+            NoNames;
     }
 }

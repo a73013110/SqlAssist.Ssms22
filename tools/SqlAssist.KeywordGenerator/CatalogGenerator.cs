@@ -219,6 +219,7 @@ public static class CatalogGenerator
         explorer.AddEvidence(ClausePhrases.All);
         explorer.AddStatementEvidence(docs.StatementNames, log.Info);
         explorer.AddDbccArguments(docs.DbccArguments);
+        explorer.OpenEmptyNameSlots();
         log.Progress(null);
 
         PhraseMerging.ChainUniqueContinuations(explorer.Phrases);

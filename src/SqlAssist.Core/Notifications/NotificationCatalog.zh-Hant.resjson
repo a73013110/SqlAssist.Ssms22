@@ -24,6 +24,9 @@
   "LoadingTimeZonesDone": "已載入時區名單",
   "LoadingServerTimeZone": "載入伺服器時區",
   "LoadingServerTimeZoneDone": "已載入伺服器時區",
+  // 登入、使用者、憑證這些只有目錄檢視列得出名稱的種類；主體是種類名稱。
+  "LoadingCatalogEntities": "載入目錄物件名單",
+  "LoadingCatalogEntitiesDone": "已載入目錄物件名單",
   "LoadingDatabases": "載入資料庫清單",
   "LoadingDatabasesDone": "已載入資料庫清單",
   "LoadingLinkedServers": "載入連結伺服器",

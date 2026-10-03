@@ -181,7 +181,7 @@ internal sealed class PhraseExplorer
                 if (declaration.IsList || declaration.IsTailList)
                 {
                     var head = ProbeText(lead, declaration.ListHead, declaration.Group, declaration.Gap, items: declaration.Items);
-                    AddList(declaration.Pattern, declaration.ListHead, head, position, declaration.Endings);
+                    AddList(declaration.Pattern, declaration.ListHead, head, position, declaration.Endings, declaration.Lagging);
                     continue;
                 }
 
@@ -207,6 +207,7 @@ internal sealed class PhraseExplorer
                 last.Words = leads.SelectMany(phrase => phrase.Words).Distinct(IgnoreCase).ToList();
                 last.Closed = leads.All(phrase => phrase.Closed);
                 last.TakesVariable = leads.Any(phrase => phrase.TakesVariable);
+                last.TakesName = leads.Any(phrase => phrase.TakesName);
             }
         }
     }
@@ -473,6 +474,23 @@ internal sealed class PhraseExplorer
         }
     }
 
+    /// <summary>
+    /// 封閉卻一個字都沒有、名稱又收得下的格子改成不封閉：CREATE CERTIFICATE c AUTHORIZATION 之後要寫擁有者再寫 FROM，
+    /// 照寫不寫得完判是封閉，而封閉的那一格什麼都不對。
+    /// </summary>
+    /// <remarks>
+    /// 要等證據補完字才判：剖析器當名稱讀的格子（ALTER DATABASE SCOPED CONFIGURATION FOR 的 SECONDARY）探測時也是零個字，
+    /// 字由整段剖析得過的片語補進來，補進來的就是那一格唯一對的字。手寫宣告封閉的不動。
+    /// 收值的格子（SET ROWCOUNT 之後的數字）不是名稱格，照樣封閉。
+    /// </remarks>
+    public void OpenEmptyNameSlots()
+    {
+        foreach (var phrase in Phrases.Values.Where(phrase => phrase.Closed && phrase.TakesName && phrase.Words.Count == 0 && !phrase.DeclaredClosed))
+        {
+            phrase.Closed = false;
+        }
+    }
+
     /// <summary>候選字裡接得上這段探測文字的字；extra 是只有這條片語用得上的續尾。</summary>
     internal string[] Words(string probe, string[]? extra = null)
     {
@@ -554,11 +572,15 @@ internal sealed class PhraseExplorer
             Phrases.Set(key, new ProbedPhrase(pattern, after, probe, words)
             {
                 // 物件種類之後的名稱要再寫一長段標頭才完整（CREATE SYMMETRIC KEY k WITH …），照寫不寫得完判的話
-                // 名稱那一格被判成封閉；種類的片語改問名稱在那裡收不收。
+                // 名稱那一格被判成封閉；種類的片語改問名稱在那裡收不收。其餘的格子照寫不寫得完判：選項的字在剖析器眼中
+                // 也是名稱（SET TRANSACTION ISOLATION 之後只有 LEVEL），只問收不收名稱的話每一格都不封閉。
+                // 寫不完卻收得下名稱、最後一個字都沒有的那幾格見 OpenEmptyNameSlots。
                 Closed = closed ?? (kinds != ObjectKinds.None
                     ? !takesName
                     : !_prober.AcceptsName(probe, Continuations.PlainName, _continuations)),
                 TakesVariable = _prober.AcceptsName(probe, Continuations.PlainVariable, _continuations),
+                TakesName = takesName,
+                DeclaredClosed = closed == true,
                 EndsStatement = endsStatement,
                 // 括號也是一個運算元：CREATE DATABASE d ON 之後是 PRIMARY 或 (，不能併成 ON PRIMARY。
                 // 類別之後的 :: 也是：ALTER AUTHORIZATION ON ASSEMBLY 之後是 ::，ASSEMBLY TO 只是名叫 ASSEMBLY 的物件。
@@ -574,6 +596,16 @@ internal sealed class PhraseExplorer
             !Explored(after, pattern + " {name}", 0))
         {
             Add(pattern + " {name}", probe + "t ", after, child: true);
+
+            // 建立的物件名稱之後接得上 AUTHORIZATION 的，擁有者那一格也是這一句的：CREATE SCHEMA s AUTHORIZATION 之後是主體。
+            // 只展開名稱之後一層的話那一格沒有片語，執行期認不出它收的是既有的名稱。
+            if (kinds == ObjectKinds.New &&
+                Phrases.TryGet(ProbedPhrase.Key(after, pattern + " {name}"), out var named) &&
+                named.Words.Contains("AUTHORIZATION", IgnoreCase) &&
+                !Explored(after, pattern + " {name} AUTHORIZATION", 0))
+            {
+                Add(pattern + " {name} AUTHORIZATION", probe + "t AUTHORIZATION ", after, child: true);
+            }
         }
 
         if (expand <= 0)
@@ -655,7 +687,8 @@ internal sealed class PhraseExplorer
     }
 
     // 清單片語（,*）與以尾巴比對的清單（,* ,）：第一項由標頭的片語給，這一條只說逗號之後。
-    private void AddList(string pattern, string headPattern, string head, string after, string[]? endings)
+    // 剖析器落後的選項（lagging）在探完之後補進兩格，見 PhraseDeclaration 的 Lagging；探測照舊只看剖析器收的字。
+    private void AddList(string pattern, string headPattern, string head, string after, string[]? endings, string[]? lagging)
     {
         var headKey = ProbedPhrase.Key(after, headPattern);
 
@@ -677,6 +710,71 @@ internal sealed class PhraseExplorer
             Closed = items.Closed,
             TakesVariable = items.TakesVariable,
         });
+
+        // 標頭中段可變（...）的清單不立：中段的 ,* 要從固定的標頭往回比對，見 PhraseDeclaration 的 ... 那一段。
+        if (pattern.EndsWith(" ,*", StringComparison.Ordinal) && !headPattern.Contains("..."))
+        {
+            AddItemValues(headPattern, after, [(head, firsts), (items.Probe!, items.Words)], endings);
+        }
+
+        foreach (var word in lagging ?? [])
+        {
+            foreach (var phrase in new[] { Phrases[headKey], Phrases[ProbedPhrase.Key(after, pattern)] })
+            {
+                if (!phrase.Words.Contains(word, IgnoreCase))
+                {
+                    phrase.Words.Add(word);
+                }
+            }
+        }
+    }
+
+    // 清單項的等號之後也是一格：CHECK_POLICY = 之後是 ON、OFF，PASSWORD = 'x' 之後是 HASHED、MUST_CHANGE。
+    // 那一格在第幾項都一樣，立成中段清單的片語（標頭 ,* 項 =），與檔案規格的 ADD FILE ,* (* 同一種寫法；等號之後照一般片語往下一層，
+    // 值之後的尾巴由那一條探得到。等號那一格列不出字的（PASSWORD = 之後是字串）不立，與展開時的值、名稱那一步同理，
+    // 往下照走。項在哪一段探測文字之後寫得出來就從那裡探：CREATE LOGIN 的第一項只能是 PASSWORD，CHECK_POLICY 要接在逗號之後。
+    private void AddItemValues(string headPattern, string after, (string Prefix, IReadOnlyList<string> Words)[] slots, string[]? endings)
+    {
+        var done = new HashSet<string>(IgnoreCase);
+
+        foreach (var (prefix, words) in slots)
+        {
+            foreach (var word in words.Where(word => StartsWord.IsMatch(word) && !word.Contains(' ')))
+            {
+                var written = prefix + word;
+
+                if (done.Contains(word) || _prober.FirstRejection(written + " = ") <= (written + " ").Length)
+                {
+                    continue;
+                }
+
+                // 探測文字相同就是同一格（見 AddEvidence）：展開已經立了那一格（CREATE SYMMETRIC KEY t WITH ALGORITHM =），
+                // 逗號之後那一格也由它的宣告說了，不另立一個互相搶比對。
+                if (Phrases.WithProbe(written + " = ").Any())
+                {
+                    done.Add(word);
+                    continue;
+                }
+
+                // 這一項在這份清單裡本身就不合法（FOR LOGIN 的使用者沒有 PASSWORD），剖析器在值之後不再檢查，
+                // 每個字都「接得上」：與 ListItemWords 同一條防線，逗號接逗號不被拒的不算。
+                var value = SelectValue(written + " = ") ?? Words(written + " = ").FirstOrDefault();
+                var item = written + " = " + (value ?? Continuations.PlainName) + ", ";
+
+                if (_prober.FirstRejection(item + ",") > item.Length)
+                {
+                    continue;
+                }
+
+                done.Add(word);
+                var itemPattern = headPattern + " ,* " + word + " =";
+
+                if (!Explored(after, itemPattern, 1))
+                {
+                    Add(itemPattern, written + " = ", after, expand: 1, child: true, step: true, extraEndings: endings);
+                }
+            }
+        }
     }
 
     // 括號清單（(*）在左括號與逗號之後都比對得上，執行期分不出是哪一個，所以字是兩者的聯集：

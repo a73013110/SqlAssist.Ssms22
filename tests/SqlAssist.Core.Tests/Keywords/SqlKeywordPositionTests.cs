@@ -1164,7 +1164,6 @@ public sealed class SqlKeywordPositionTests
     [Theory]
     [InlineData("SELECT C", "CURSOR", false)]
     [InlineData("SELECT * FROM t WHERE N", "NOLOCK", false)]
-    [InlineData("SELECT * FROM t ORDER BY P", "PUBLIC", false)]
     [InlineData("P", "PLAN", false)]
     [InlineData("SELECT * FROM t C", "CASCADE", false)]
     [InlineData("UPDATE t SET S", "STOPLIST", false)]
@@ -1172,7 +1171,6 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT * FROM t CROSS A", "APPLY", true)]
     [InlineData("DECLARE c C", "CURSOR", true)]
     [InlineData("CREATE FULLTEXT INDEX ON t (a) KEY INDEX pk ON c WITH S", "STOPLIST", true)]
-    [InlineData("GRANT SELECT ON t TO P", "PUBLIC", true)]
     [InlineData("SELECT * FROM t WHERE a = A", "ANY", true)]
     public void 判不出位置的關鍵字只在判不出位置時出現(string textBeforeCaret, string keyword, bool expected)
     {
@@ -1568,6 +1566,12 @@ public sealed class SqlKeywordPositionTests
     [InlineData("ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT, INSERT ", SqlKeywordPosition.PermissionList)]
     [InlineData("ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT ON ", SqlKeywordPosition.PermissionOn)]
     [InlineData("CREATE DATABASE AUDIT SPECIFICATION s FOR SERVER AUDIT a ADD (SCHEMA_OBJECT_ACCESS_GROUP), DROP (DELETE ON OBJECT::dbo.Loan ", SqlKeywordPosition.PermissionTarget)]
+    [InlineData("GRANT SELECT ON dbo.Loan TO ", SqlKeywordPosition.PermissionGrantee)]
+    [InlineData("GRANT SELECT ON dbo.Loan TO LibClerk, ", SqlKeywordPosition.PermissionGrantee)]
+    [InlineData("DENY VIEW DEFINITION TO ", SqlKeywordPosition.PermissionGrantee)]
+    [InlineData("ALTER AUTHORIZATION ON SCHEMA::Lib TO ", SqlKeywordPosition.PermissionGrantee)]
+    [InlineData("ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT ON dbo.Loan BY ", SqlKeywordPosition.PermissionGrantee)]
+    [InlineData("BACKUP DATABASE d TO ", SqlKeywordPosition.Any)]
     [InlineData("SELECT a INTO #t ", SqlKeywordPosition.SelectIntoTail)]
     [InlineData("FETCH NEXT FROM c ", SqlKeywordPosition.FetchTail)]
     [InlineData("FETCH NEXT FROM GLOBAL c ", SqlKeywordPosition.FetchTail)]
@@ -1757,7 +1761,7 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
-    /// FROM 接不接資料來源由它所屬的動詞決定：只有 SELECT、UPDATE、DELETE 的 FROM 是資料來源。
+    /// FROM 接不接資料來源由它所屬的動詞決定：只有 SELECT、UPDATE、DELETE 的 FROM 是資料來源；REVOKE 的 FROM 之後是主體。
     /// </summary>
     /// <remarks>
     /// 動詞往回找時，權限清單的一項（<c>REVOKE SELECT</c>）與 <c>WITH TIES</c> 的 WITH 不是動詞，
@@ -1772,8 +1776,8 @@ public sealed class SqlKeywordPositionTests
     [InlineData("DELETE FROM ", SqlKeywordPosition.DataSource)]
     [InlineData("FETCH NEXT FROM ", SqlKeywordPosition.Any)]
     [InlineData("RESTORE DATABASE LibArchive FROM ", SqlKeywordPosition.Any)]
-    [InlineData("REVOKE SELECT ON dbo.Loan FROM ", SqlKeywordPosition.Any)]
-    [InlineData("REVOKE SELECT (CopyNo) ON dbo.Loan FROM ", SqlKeywordPosition.Any)]
+    [InlineData("REVOKE SELECT ON dbo.Loan FROM ", SqlKeywordPosition.PermissionGrantee)]
+    [InlineData("REVOKE SELECT (CopyNo) ON dbo.Loan FROM ", SqlKeywordPosition.PermissionGrantee)]
     [InlineData("BULK INSERT dbo.Loan FROM ", SqlKeywordPosition.Any)]
     [InlineData("CREATE LOGIN Lib_Reader FROM ", SqlKeywordPosition.Any)]
     [InlineData("BULK INSERT dbo.Loan FROM 'x' ", SqlKeywordPosition.Any)]

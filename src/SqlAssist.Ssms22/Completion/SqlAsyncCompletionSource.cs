@@ -584,6 +584,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         CompletionTarget.Language => SqlKindText.Language,
         CompletionTarget.TimeZone => SqlKindText.TimeZone,
         CompletionTarget.ClauseKeyword => SqlKindText.Keyword,
+        CompletionTarget.CatalogEntity => SqlKindText.CatalogEntity,
         _ => "",
     };
 

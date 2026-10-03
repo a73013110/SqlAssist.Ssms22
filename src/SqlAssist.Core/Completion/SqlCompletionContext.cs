@@ -31,7 +31,8 @@ public sealed class SqlCompletionContext
         bool bracketed = false,
         SqlTableReference? columnOwner = null,
         string? textBeforeCaret = null,
-        bool acceptsTypeAs = false)
+        bool acceptsTypeAs = false,
+        IReadOnlyList<SqlCatalogEntity>? catalogEntities = null)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         Slot = slot;
@@ -53,6 +54,7 @@ public sealed class SqlCompletionContext
         ColumnOwner = columnOwner;
         TextBeforeCaret = textBeforeCaret;
         AcceptsTypeAs = acceptsTypeAs;
+        CatalogEntities = catalogEntities ?? Array.Empty<SqlCatalogEntity>();
     }
 
     /// <summary>
@@ -269,6 +271,12 @@ public sealed class SqlCompletionContext
     /// </remarks>
     public bool AcceptsTypeAs { get; }
 
+    /// <summary>
+    /// <see cref="CompletionTarget.CatalogEntity"/> 那一格要哪幾種名稱；其餘目標是空的。
+    /// </summary>
+    /// <remarks>主體那一格是兩種（使用者與角色），<c>GRANT SELECT TO </c> 說不出是哪一層時是四種。</remarks>
+    public IReadOnlyList<SqlCatalogEntity> CatalogEntities { get; }
+
     /// <summary>分析的那段文字；沒有經過 <see cref="SqlCompletionContextAnalyzer"/> 時為 <c>null</c>。</summary>
     /// <remarks>
     /// 片段開頭的字要逐字接得上時，後面的字接上文字再分析一次（見 <see cref="SuggestionContextFilter"/>）；
@@ -340,6 +348,7 @@ public sealed class SqlCompletionContext
             bracketed ?? Bracketed,
             ColumnOwner,
             textBeforeCaret ?? TextBeforeCaret,
-            AcceptsTypeAs);
+            AcceptsTypeAs,
+            CatalogEntities);
     }
 }

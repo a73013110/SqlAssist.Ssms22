@@ -50,6 +50,10 @@ internal static class PositionTemplates
         new("PermissionOn", "GRANT SELECT ON ", "REVOKE SELECT ON ", "ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT ON "),
         new("PermissionTarget", "GRANT SELECT ON t ", "REVOKE SELECT ON t ", "ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT ON t "),
 
+        // TO、FROM、BY 之後是主體：名稱由目錄物件給，關鍵字只剩 PUBLIC 與擁有者的 SCHEMA OWNER。
+        new("PermissionGrantee", "GRANT SELECT ON t TO ", "REVOKE SELECT ON t FROM ", "ALTER AUTHORIZATION ON OBJECT::t TO ",
+            "ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT ON t BY "),
+
         // 資料表之後的 TABLESAMPLE (10 是 PERCENT、ROWS；PIVOT 的彙總與 UNPIVOT 的值之後是 FOR，FOR 的資料行之後是 IN。
         new("TableSampleTail", "SELECT * FROM t TABLESAMPLE (10 "),
         new("PivotClause",

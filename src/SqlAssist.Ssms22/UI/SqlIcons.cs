@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.VisualStudio.Core.Imaging;
 using Microsoft.VisualStudio.Imaging;
@@ -91,6 +92,38 @@ internal static partial class SqlIcons
     private static readonly Definition SchemaOrDatabase =
         new(KnownMonikers.DatabaseSchema, () => CompletionText.FilterSchemasAndDatabases);
 
+    /// <summary>
+    /// 目錄物件每一種一顆，朗讀名稱就是種類名稱；影像目錄沒有的那幾種借最接近的：認證借鑰匙、
+    /// 全文檢索目錄借停用字詞表、外部檔案格式借文件格式。只有種類、沒有建議項時是 <see cref="Unknown"/>。
+    /// </summary>
+    private static readonly Dictionary<SqlCatalogEntity, Definition> CatalogEntities = new()
+    {
+        [SqlCatalogEntity.Login] = Entity(KnownMonikers.LoginUser, SqlCatalogEntity.Login),
+        [SqlCatalogEntity.ServerRole] = Entity(KnownMonikers.ServerRoleMembership, SqlCatalogEntity.ServerRole),
+        [SqlCatalogEntity.Credential] = Entity(KnownMonikers.Key, SqlCatalogEntity.Credential),
+        [SqlCatalogEntity.Endpoint] = Entity(KnownMonikers.EndPoint, SqlCatalogEntity.Endpoint),
+        [SqlCatalogEntity.EventSession] = Entity(KnownMonikers.EventSession, SqlCatalogEntity.EventSession),
+        [SqlCatalogEntity.ServerAudit] = Entity(KnownMonikers.LocalServerAudit, SqlCatalogEntity.ServerAudit),
+        [SqlCatalogEntity.ServerAuditSpecification] = Entity(KnownMonikers.LocalServerAudit, SqlCatalogEntity.ServerAuditSpecification),
+        [SqlCatalogEntity.Database] = Entity(KnownMonikers.Database, SqlCatalogEntity.Database),
+        [SqlCatalogEntity.User] = Entity(KnownMonikers.User, SqlCatalogEntity.User),
+        [SqlCatalogEntity.Role] = Entity(KnownMonikers.DatabaseRole, SqlCatalogEntity.Role),
+        [SqlCatalogEntity.ApplicationRole] = Entity(KnownMonikers.ApplicationRole, SqlCatalogEntity.ApplicationRole),
+        [SqlCatalogEntity.Schema] = Entity(KnownMonikers.Schema, SqlCatalogEntity.Schema),
+        [SqlCatalogEntity.Certificate] = Entity(KnownMonikers.Certificate, SqlCatalogEntity.Certificate),
+        [SqlCatalogEntity.AsymmetricKey] = Entity(KnownMonikers.AsymmetricKey, SqlCatalogEntity.AsymmetricKey),
+        [SqlCatalogEntity.SymmetricKey] = Entity(KnownMonikers.SymmetricKey, SqlCatalogEntity.SymmetricKey),
+        [SqlCatalogEntity.DatabaseScopedCredential] = Entity(KnownMonikers.Key, SqlCatalogEntity.DatabaseScopedCredential),
+        [SqlCatalogEntity.DatabaseAuditSpecification] =
+            Entity(KnownMonikers.DatabaseAuditSpecification, SqlCatalogEntity.DatabaseAuditSpecification),
+        [SqlCatalogEntity.PartitionFunction] = Entity(KnownMonikers.PartitionFunction, SqlCatalogEntity.PartitionFunction),
+        [SqlCatalogEntity.PartitionScheme] = Entity(KnownMonikers.PartitionScheme, SqlCatalogEntity.PartitionScheme),
+        [SqlCatalogEntity.FulltextCatalog] = Entity(KnownMonikers.FullTextStopList, SqlCatalogEntity.FulltextCatalog),
+        [SqlCatalogEntity.Assembly] = Entity(KnownMonikers.Assembly, SqlCatalogEntity.Assembly),
+        [SqlCatalogEntity.ExternalDataSource] = Entity(KnownMonikers.DataSource, SqlCatalogEntity.ExternalDataSource),
+        [SqlCatalogEntity.ExternalFileFormat] = Entity(KnownMonikers.FormatDocument, SqlCatalogEntity.ExternalFileFormat),
+    };
+
     // 建議清單列尾的例外標記。兩個警示用有色的狀態形狀，其餘用單色線條，讓一眼看得出輕重；
     // 系統物件借鎖頭，與物件總管替系統物件疊的那一顆同義。
     private static readonly Definition DestructiveMark = new(KnownMonikers.StatusWarning, () => CompletionText.MarkDestructive);
@@ -166,8 +199,11 @@ internal static partial class SqlIcons
         SqlObjectInfo objectInfo => GetImageElement(objectInfo.Kind),
         SqlScriptTable => ScriptDataSource.Element,
         SqlInstanceList list => GetDefinition(list).Element,
+        SqlCatalogEntity entity => CatalogEntities.TryGetValue(entity, out var definition) ? definition.Element : Unknown.Element,
         _ => GetImageElement(suggestion.Kind)
     };
+
+    private static Definition Entity(ImageMoniker moniker, SqlCatalogEntity entity) => new(moniker, () => entity.KindText);
 
     /// <remarks>
     /// 三份執行個體名單共用兩個 <see cref="SuggestionKind"/>，是哪一份由建議項帶著的

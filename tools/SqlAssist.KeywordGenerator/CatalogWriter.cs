@@ -124,17 +124,17 @@ internal static class CatalogWriter
 
         Line("    };");
         Line();
-        Line("    /// <summary>子句片語：游標前的尾巴、探測文字、是否封閉、是否收變數、語句到那裡是否已經完整，以及那裡接得上的字。</summary>");
+        Line("    /// <summary>子句片語：游標前的尾巴、探測文字、是否封閉、是否收變數、是否是名稱格、語句到那裡是否已經完整，以及那裡接得上的字。</summary>");
         Line("    /// <remarks>");
         Line("    /// 探測文字執行期用不到，輸出來是為了讓測試逐條回驗：片語比對對那段文字");
         Line("    /// 必須認出同一個片語，兩邊說的才是同一個位置。");
         Line("    /// </remarks>");
-        Line("    internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, bool Closed, bool TakesVariable, bool EndsStatement, string[] Words)[] ClausePhrases =");
+        Line("    internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, bool Closed, bool TakesVariable, bool TakesName, bool EndsStatement, string[] Words)[] ClausePhrases =");
         Line("    {");
 
         foreach (var phrase in data.Phrases)
         {
-            Line($"        ({Quote(phrase.Pattern)}, {Flags(phrase.After)}, {Quote(phrase.Probe)}, {Bool(phrase.Closed)}, {Bool(phrase.TakesVariable)}, {Bool(phrase.EndsStatement)}, new string[]");
+            Line($"        ({Quote(phrase.Pattern)}, {Flags(phrase.After)}, {Quote(phrase.Probe)}, {Bool(phrase.Closed)}, {Bool(phrase.TakesVariable)}, {Bool(phrase.TakesName)}, {Bool(phrase.EndsStatement)}, new string[]");
             Line("        {");
             AppendWrapped(builder, "           ", phrase.Words);
             Line("        }),");

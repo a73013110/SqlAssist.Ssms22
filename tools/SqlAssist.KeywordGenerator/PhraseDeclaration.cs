@@ -56,6 +56,9 @@ public enum ObjectKinds
 // Classes 宣告這一格寫的是安全性實體的類別（GRANT … ON OBJECT::、ALTER AUTHORIZATION ON SCHEMA::）：多字的類別
 // （SEARCH PROPERTY LIST、EXTERNAL MODEL）剖析器要看到整段才收，在第一個字就報錯，逐字探不出來。產生器拿 CREATE 展開
 // 探到的多字物件種類一一代入，整段剖析得過的就是證據，每一個字由它前面那段列出（見 PhraseExplorer 的證據那一段）。
+// Lagging 是清單片語才有的手寫選項：官方文件有、ScriptDom 還不收的（CREATE USER … WITH ALLOW_ENCRYPTED_VALUE_MODIFICATIONS = ON
+// 在 TSql170 的值就報錯）。剖析器證明不了，所以不驗字本身，只驗標頭剖析得過；補進第一項與逗號之後兩格。
+// 這是唯一一種不經剖析器證明的字，只收官方語法圖寫得出來、而剖析器落後的選項。
 // 同一條尾巴、同一個位置後寫的覆蓋先寫的，所以 Expand 展開出來的片語可以在後面補 Values。
 
 /// <summary>一條子句片語的宣告：手寫的只有這些，接得上的字全由剖析器決定。寫法見上方註解。</summary>
@@ -88,6 +91,8 @@ public sealed record PhraseDeclaration(string Pattern)
     public bool Clause { get; init; }
 
     public bool Classes { get; init; }
+
+    public string[]? Lagging { get; init; }
 
     internal bool IsList => Pattern.EndsWith(" ,*", StringComparison.Ordinal);
 
@@ -194,6 +199,11 @@ public sealed record PhraseDeclaration(string Pattern)
         if ((IsList || IsTailList) && (Expand != 0 || Values is { Length: > 0 } || Closed != null))
         {
             yield return $"清單片語「{Pattern}」的字全由探測決定，不收 Expand、Values、Closed。";
+        }
+
+        if (Lagging is { Length: > 0 } && !IsList)
+        {
+            yield return $"片語「{Pattern}」寫了 Lagging，卻不是以 ,* 結尾的清單片語。";
         }
     }
 }

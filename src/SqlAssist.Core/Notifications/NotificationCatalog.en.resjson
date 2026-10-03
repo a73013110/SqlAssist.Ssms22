@@ -19,6 +19,8 @@
   "LoadingTimeZonesDone": "Loaded time zones",
   "LoadingServerTimeZone": "Loading server time zone",
   "LoadingServerTimeZoneDone": "Loaded server time zone",
+  "LoadingCatalogEntities": "Loading catalog object names",
+  "LoadingCatalogEntitiesDone": "Loaded catalog object names",
   "LoadingDatabases": "Loading databases",
   "LoadingDatabasesDone": "Loaded databases",
   "LoadingLinkedServers": "Loading linked servers",

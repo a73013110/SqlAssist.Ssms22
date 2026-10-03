@@ -38,7 +38,7 @@ internal static class PhraseMerging
 
         foreach (var phrase in phrases)
         {
-            var key = string.Join("\t", phrase.Pattern, phrase.Closed, phrase.TakesVariable, phrase.EndsStatement, string.Join(" ", phrase.Words));
+            var key = string.Join("\t", phrase.Pattern, phrase.Closed, phrase.TakesVariable, phrase.TakesName, phrase.EndsStatement, string.Join(" ", phrase.Words));
 
             if (byResult.TryGetValue(key, out var first))
             {
@@ -50,6 +50,7 @@ internal static class PhraseMerging
             {
                 Closed = phrase.Closed,
                 TakesVariable = phrase.TakesVariable,
+                TakesName = phrase.TakesName,
                 EndsStatement = phrase.EndsStatement,
                 TakesOperand = phrase.TakesOperand,
             };

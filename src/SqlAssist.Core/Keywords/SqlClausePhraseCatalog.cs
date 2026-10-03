@@ -54,7 +54,8 @@ public static class SqlClausePhraseCatalog
     /// 游標在清單片語開的選項清單裡時，位置分析走訪到的錨點（標頭最後一個詞元）；不在清單裡是 -1。
     /// </param>
     /// <remarks>
-    /// 語句到片語為止已經完整、游標又換了行時不算，見 <see cref="SqlClausePhrase.EndsStatement"/>。
+    /// 語句到片語為止已經完整、游標又換了行時不算，見 <see cref="SqlClausePhrase.EndsStatement"/>；
+    /// 游標處判不出位置時只算可能。
     /// 片語前一格的位置過不了 <see cref="SqlClausePhrase.After"/> 時也不算。
     ///
     /// 同時比對得上時取項數多的：<c>OFFSET 0 ROWS </c> 是 <c>OFFSET {value} ROWS</c>
@@ -239,7 +240,9 @@ public static class SqlClausePhraseCatalog
                 break;
             }
 
-            if (phrase.EndsStatement && onNewLine)
+            // 換行之後判得出下一句的位置，那一格就是下一句；判不出來時（CREATE USER u 之後換行）也可能還是這一句，
+            // 片語的字只加進來，與前一格判不出位置同一條規則。
+            if (phrase.EndsStatement && onNewLine && caret != SqlKeywordPosition.Any)
             {
                 continue;
             }
@@ -248,7 +251,7 @@ public static class SqlClausePhraseCatalog
 
             if (start >= 0 && Qualify(phrase, start == count ? caret : analyzer.PositionBefore(start)) is { } match)
             {
-                return match;
+                return phrase.EndsStatement && onNewLine ? phrase.Tentative : match;
             }
         }
 
@@ -297,9 +300,9 @@ public static class SqlClausePhraseCatalog
 
         for (var index = 0; index < data.Length; index++)
         {
-            var (pattern, after, probe, closed, takesVariable, endsStatement, words) = data[index];
+            var (pattern, after, probe, closed, takesVariable, takesName, endsStatement, words) = data[index];
             phrases[index] = new SqlClausePhrase(
-                pattern, after, probe, closed, endsStatement, words, takesVariable: takesVariable);
+                pattern, after, probe, closed, endsStatement, words, takesVariable: takesVariable, takesName: takesName);
         }
 
         for (var index = 0; index < additive.Length; index++)

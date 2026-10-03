@@ -95,6 +95,20 @@ public static class SqlCompletionContextAnalyzer
                 clausePhrase: caret.Phrase);
         }
 
+        // 目錄物件的名稱格（ALTER LOGIN 、DEFAULT_SCHEMA = 、GRANT … TO ）排在封閉片語之前：擁有者那一格
+        // （CREATE CERTIFICATE c AUTHORIZATION ）的片語寫不完整句，照封閉判的話一個字都不列。片語的字照樣帶著。
+        if (qualifierPath is null && SqlCatalogEntityPosition.Resolve(tokens, textBeforeToken, caret) is { } entitySlot)
+        {
+            return new SqlCompletionContext(
+                SqlCompletionSlot.Grammar,
+                tokenStart,
+                prefix,
+                CompletionTarget.CatalogEntity,
+                keywordPosition: entitySlot.Keywords,
+                clausePhrase: entitySlot.Phrase is { Phrase.IsAdditive: false } ? entitySlot.Phrase : null,
+                catalogEntities: entitySlot.Entities);
+        }
+
         // 封閉的子句片語排在其他封閉清單之前：片語比對的是游標前的整條尾巴，
         // CREATE INDEX … WITH ( 是索引選項，只看「WITH 緊接著左括號」會當成資料表提示。
         // 名字那一格也在它之後問：片語說得出這裡要什麼，就不是使用者要取的名字。

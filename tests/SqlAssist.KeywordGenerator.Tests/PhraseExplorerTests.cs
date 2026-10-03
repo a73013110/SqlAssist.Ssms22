@@ -98,6 +98,79 @@ public sealed class PhraseExplorerTests : IDisposable
         Assert.Equal(["OFF", "ON"], phrase.Words);
         Assert.True(phrase.Closed);
         Assert.False(phrase.TakesOperand);
+        Assert.False(phrase.TakesName);
+    }
+
+    /// <summary>
+    /// 收名稱又一個字都沒有的格子不封閉：照「寫不寫得完」判的話憑證擁有者那一格（之後還要 FROM）被判成封閉；
+    /// 執行期拿 TakesName 認既有名稱那一格。選項的字收在名稱格裡的照樣封閉。
+    /// </summary>
+    [Fact]
+    public void 收名稱的格子記下來而且不封閉()
+    {
+        var explorer = Create();
+
+        explorer.Explore([new("CREATE CERTIFICATE {name} AUTHORIZATION"), new("DROP LOGIN")]);
+        explorer.OpenEmptyNameSlots();
+
+        var owner = explorer.Phrases[ProbedPhrase.Key("StatementStart", "CREATE CERTIFICATE {name} AUTHORIZATION")];
+        Assert.True(owner.TakesName);
+        Assert.False(owner.Closed);
+        Assert.True(explorer.Phrases[ProbedPhrase.Key("StatementStart", "DROP LOGIN")].TakesName);
+    }
+
+    [Fact]
+    public void 收名稱卻有字的格子照樣封閉()
+    {
+        var explorer = Create(pool: ["ISOLATION", "LEVEL"]);
+
+        explorer.Explore([new("SET TRANSACTION ISOLATION")]);
+        explorer.OpenEmptyNameSlots();
+
+        var phrase = explorer.Phrases[ProbedPhrase.Key("StatementStart", "SET TRANSACTION ISOLATION")];
+        Assert.Equal(["LEVEL"], phrase.Words);
+        Assert.True(phrase.Closed);
+    }
+
+    /// <summary>建立的種類寫完名稱之後接得上 AUTHORIZATION 的，擁有者那一格也立起來：CREATE SCHEMA s AUTHORIZATION 之後是主體。</summary>
+    [Fact]
+    public void 建立種類的名稱之後立擁有者那一格()
+    {
+        var explorer = Create(pool: ["AUTHORIZATION", "SCHEMA", "TABLE"]);
+
+        explorer.Explore([new("CREATE") { Expand = 1, Kinds = ObjectKinds.New }]);
+
+        var owner = explorer.Phrases[ProbedPhrase.Key("StatementStart", "CREATE SCHEMA {name} AUTHORIZATION")];
+        Assert.Equal("CREATE SCHEMA t AUTHORIZATION ", owner.Probe);
+        Assert.True(owner.TakesName);
+        Assert.False(explorer.Phrases.Contains(ProbedPhrase.Key("StatementStart", "CREATE TABLE {name} AUTHORIZATION")));
+    }
+
+    /// <summary>清單項的等號之後也是一格：開關的值與值之後的尾巴（PASSWORD = 'x' HASHED）在第幾項都一樣。</summary>
+    [Fact]
+    public void 清單項的等號之後另立中段清單的片語()
+    {
+        var explorer = Create(pool: ["CHECK_POLICY", "HASHED", "MUST_CHANGE", "NAME", "OFF", "OLD_PASSWORD", "ON", "PASSWORD", "UNLOCK"]);
+
+        explorer.Explore([new("ALTER LOGIN {name} WITH ,*")]);
+
+        var policy = explorer.Phrases[ProbedPhrase.Key("StatementStart", "ALTER LOGIN {name} WITH ,* CHECK_POLICY =")];
+        Assert.Equal(["OFF", "ON"], policy.Words.OrderBy(word => word, StringComparer.Ordinal));
+        Assert.True(policy.Closed);
+        var password = explorer.Phrases[ProbedPhrase.Key("StatementStart", "ALTER LOGIN {name} WITH ,* PASSWORD = {value}")];
+        Assert.Equal(["HASHED", "MUST_CHANGE", "OLD_PASSWORD", "UNLOCK"], password.Words.OrderBy(word => word, StringComparer.Ordinal));
+    }
+
+    /// <summary>官方有、剖析器還不收的選項手寫補進清單：只驗標頭剖析得過，字本身不驗。</summary>
+    [Fact]
+    public void 剖析器落後的選項補進清單的兩格()
+    {
+        var explorer = Create(pool: ["DEFAULT_SCHEMA", "NAME"]);
+
+        explorer.Explore([new("ALTER USER {name} WITH ,*") { Lagging = ["ALLOW_ENCRYPTED_VALUE_MODIFICATIONS"] }]);
+
+        Assert.Contains("ALLOW_ENCRYPTED_VALUE_MODIFICATIONS", explorer.Phrases[ProbedPhrase.Key("StatementStart", "ALTER USER {name} WITH")].Words);
+        Assert.Contains("ALLOW_ENCRYPTED_VALUE_MODIFICATIONS", explorer.Phrases[ProbedPhrase.Key("StatementStart", "ALTER USER {name} WITH ,*")].Words);
     }
 
     [Fact]
@@ -167,10 +240,11 @@ public sealed class PhraseExplorerTests : IDisposable
         Assert.Contains("SELECT FROM", exception.Message);
     }
 
-    private PhraseExplorer Create(string[]? functions = null)
+    private PhraseExplorer Create(string[]? functions = null, string[]? pool = null)
     {
         var prober = new KeywordProber(KeywordProberTests.Rejecting, _cachePath, loadCache: false);
-        return new PhraseExplorer(prober, Pool, ["ALTER", "OR", "PROCEDURE", "SELECT", "TABLE", "ON", "OFF"], Pool,
+        pool ??= Pool;
+        return new PhraseExplorer(prober, pool, ["ALTER", "OR", "PROCEDURE", "SELECT", "TABLE", "ON", "OFF"], pool,
             new Dictionary<string, List<string>>(), Templates, Continuations.Phrases)
         {
             BuiltInFunctions = functions ?? [],

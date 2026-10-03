@@ -310,6 +310,28 @@ public sealed class SqlCatalogCompletionMetadata : ISqlCompletionMetadata
         return data;
     }
 
+    /// <remarks>一律問目前這條連線的目錄，理由同 <see cref="GetInstanceListAsync"/>：名稱寫進的是這一句。</remarks>
+    [Localizable(false)]
+    public async Task<IReadOnlyList<string>> GetCatalogEntityNamesAsync(
+        SqlCatalogEntity entity,
+        CancellationToken cancellationToken)
+    {
+        if (entity is null)
+        {
+            throw new ArgumentNullException(nameof(entity));
+        }
+
+        if (_resolveCatalog() is not { } catalog)
+        {
+            return Array.Empty<string>();
+        }
+
+        var timer = Stopwatch.StartNew();
+        var names = await catalog.GetCatalogEntityNamesAsync(entity, cancellationToken).ConfigureAwait(false);
+        _reportTiming?.Invoke($"{entity.Kind} 名單（{names.Count} 筆）", timer);
+        return names;
+    }
+
     private static IReadOnlyList<SqlSuggestion> ToColumns(
         SqlResolvedTable resolved,
         SqlAssistSettings settings,

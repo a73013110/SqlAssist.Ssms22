@@ -161,6 +161,12 @@ public enum SqlKeywordPosition : long
     /// </remarks>
     PermissionOn = 1L << 56,
 
+    /// <summary>
+    /// GRANT／DENY／REVOKE 的 TO、FROM，ALTER AUTHORIZATION 的 TO 與稽核動作的 BY 之後（含 <c>TO a, </c>）——主體；
+    /// 關鍵字只有 PUBLIC、SCHEMA OWNER 這幾個，主體的名稱由目錄物件給。
+    /// </summary>
+    PermissionGrantee = 1L << 53,
+
     /// <summary>SELECT … INTO 的新資料表之後——FROM、WHERE、UNION。</summary>
     SelectIntoTail = 1L << 40,
 
@@ -341,7 +347,7 @@ public enum SqlKeywordPosition : long
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
         | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | SequenceOption | TriggerHeader
         | MergeWhen | MergeAction | MergeClause
-        | PermissionList | PermissionTarget | PermissionOn | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
+        | PermissionList | PermissionTarget | PermissionOn | PermissionGrantee | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
         | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
         | ReferencesTail | FunctionCallTail | WindowOrderTail | WindowSpecification | WindowName | WindowClauseTail

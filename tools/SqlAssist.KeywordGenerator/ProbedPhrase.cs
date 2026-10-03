@@ -26,6 +26,15 @@ public sealed class ProbedPhrase
 
     public bool TakesVariable { get; set; }
 
+    /// <summary>
+    /// 這一格是名稱格：接得了名稱、接不了值（不是運算式）。執行期拿它認既有名稱那一格（ALTER LOGIN 之後），
+    /// 種類由尾巴的字決定。清單片語一律是 false。
+    /// </summary>
+    public bool TakesName { get; set; }
+
+    /// <summary>宣告寫明了封閉（Closed = true）；探測的收尾不改它。不輸出。</summary>
+    public bool DeclaredClosed { get; init; }
+
     public bool EndsStatement { get; init; }
 
     /// <summary>這一格接得了名稱、值或括號：唯一接續的併項不跨過它。清單片語一律是 false。</summary>
