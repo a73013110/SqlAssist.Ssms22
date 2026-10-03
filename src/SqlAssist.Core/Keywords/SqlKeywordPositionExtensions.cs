@@ -55,7 +55,7 @@ public static class SqlKeywordPositionExtensions
     /// 函式參數清單的 <c>f (@a int) |</c> 之後是 <c>RETURNS</c>；<c>EXEC p WITH |</c>、CREATE INDEX 的 <c>WITH (|</c>
     /// 與清單片語的標頭（<c>RAISERROR (…) WITH |</c>、<c>FOR XML |</c>、<c>ALTER USER u WITH |</c>）之後是選項；
     /// <c>WITH RESULT SETS (|</c> 之後是 <c>AS</c> 或一組資料行定義，那一組的 <c>(|</c> 之後是新資料行名稱，
-    /// 型別寫完之後是 <c>COLLATE</c>、<c>NULL</c>、<c>NOT NULL</c>；
+    /// 型別寫完之後是 <c>COLLATE</c>、<c>NULL</c>、<c>NOT NULL</c>；資料行定義的型別與每個選項寫完之後是下一個選項；
     /// <c>TABLESAMPLE (10 |</c> 之後是 <c>PERCENT</c>；PIVOT 的 <c>(SUM(x) |</c> 之後是 <c>FOR</c>，<c>FOR y |</c> 之後是 <c>IN</c>。</item>
     /// </list>
     ///
@@ -112,6 +112,7 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.AlterTableAction |
         SqlKeywordPosition.AlterTableAdd |
         SqlKeywordPosition.ColumnDefinition |
+        SqlKeywordPosition.ColumnDefinitionTail |
         SqlKeywordPosition.SetOptionValue;
 
     /// <summary>

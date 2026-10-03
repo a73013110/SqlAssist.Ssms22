@@ -644,12 +644,56 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE TYPE dbo.T AS TABLE (", SqlKeywordPosition.ColumnDefinition)]
     [InlineData("CREATE FUNCTION f() RETURNS @t TABLE (", SqlKeywordPosition.ColumnDefinition)]
     [InlineData("ALTER TABLE t ADD ", SqlKeywordPosition.AlterTableAdd)]
+    [InlineData("CREATE TABLE Shelf (Kind int CONSTRAINT UqKind UNIQUE WITH FILLFACTOR = 80 ON Archive, ", SqlKeywordPosition.ColumnDefinition)]
     public void 資料行定義的起點可能是名字(string textBeforeToken, SqlKeywordPosition expected)
     {
         var caret = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken);
 
         Assert.Equal(SqlCompletionSlot.MaybeName, caret.Slot);
         Assert.Equal(expected, caret.Keywords);
+    }
+
+    /// <summary>
+    /// 資料行定義寫完型別或計算資料行的運算式之後，以及之後每一個寫完的選項之後，是同一個位置；
+    /// CREATE TABLE、資料表變數、ALTER TABLE ADD／ALTER COLUMN 與 OPENJSON 的 WITH 共用。
+    /// </summary>
+    [Theory]
+    [InlineData("CREATE TABLE t (a int ")]
+    [InlineData("CREATE TABLE t (Code char(10) ")]
+    [InlineData("CREATE TABLE t (a varchar(10) COLLATE Latin1_General_CI_AS ")]
+    [InlineData("CREATE TABLE t (a nvarchar(10) MASKED WITH (FUNCTION = 'default()') ")]
+    [InlineData("CREATE TABLE t (a int NOT NULL ")]
+    [InlineData("CREATE TABLE t (a int IDENTITY(1, 1) ")]
+    [InlineData("CREATE TABLE t (a national char varying(10) ")]
+    [InlineData("CREATE TABLE t (a double precision ")]
+    [InlineData("CREATE TABLE t (Neg AS -Fee ")]
+    [InlineData("CREATE TABLE t (Neg AS (Fee * 2) PERSISTED ")]
+    [InlineData("CREATE TABLE t ([Code] [char](10) ")]
+    [InlineData("CREATE TABLE t (Kind int CONSTRAINT UqKind UNIQUE WITH FILLFACTOR = 80 ON Archive ")]
+    [InlineData("DECLARE @t TABLE (a int ")]
+    [InlineData("ALTER TABLE t ADD a int ")]
+    [InlineData("ALTER TABLE t ADD a int NULL, b xml ")]
+    [InlineData("ALTER TABLE t ALTER COLUMN a varbinary(max) ")]
+    [InlineData("SELECT * FROM OPENJSON(@j) WITH (a int '$.a' ")]
+    public void 資料行型別之後是共用的尾巴(string textBeforeToken)
+    {
+        Assert.Equal(SqlKeywordPosition.ColumnDefinitionTail, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>還沒寫完型別、停在要接運算式或名稱的字上，或不是資料行的一項：不是型別之後的尾巴。</summary>
+    [Theory]
+    [InlineData("CREATE TABLE t (a ")]
+    [InlineData("CREATE TABLE t (a int DEFAULT ")]
+    [InlineData("CREATE TABLE t (a int CHECK (a > ")]
+    [InlineData("CREATE TABLE t (a int REFERENCES u (a) ")]
+    [InlineData("CREATE TABLE t (PRIMARY KEY (a) ")]
+    [InlineData("CREATE TABLE t (PERIOD FOR SYSTEM_TIME (a, b) ")]
+    [InlineData("CREATE TABLE t (a int) ")]
+    [InlineData("INSERT INTO t (a, b ")]
+    [InlineData("ALTER TABLE t ALTER COLUMN a ADD PERSISTED ")]
+    public void 不是型別之後的尾巴(string textBeforeToken)
+    {
+        Assert.NotEqual(SqlKeywordPosition.ColumnDefinitionTail, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
     }
 
     /// <summary>型別的括號與 INSERT 的資料行清單不是資料行定義。</summary>
@@ -910,13 +954,14 @@ public sealed class SqlKeywordPositionTests
     // INSERT 之後的 INTO 可以省略，所以那裡的資料表要留著。
     [InlineData("INSERT ", true)]
 
-    // 資料行定義的起點是新名字或條件約束，沒有既有物件是對的。
+    // 資料行定義的起點是新名字或條件約束，型別之後是選項，沒有既有物件是對的。
     [InlineData("CREATE TABLE t (", false)]
     [InlineData("CREATE TABLE t (a int, ", false)]
+    [InlineData("CREATE TABLE t (a int ", false)]
 
-    // 判不出位置時是 Any，那是 fail-open：名稱照列。資料行型別之後就落在這裡。
+    // 判不出位置時是 Any，那是 fail-open：名稱照列。
     [InlineData("SELECT * FROM t WHERE a = 1 AND ", true)]
-    [InlineData("CREATE TABLE t (a int ", true)]
+    [InlineData("CREATE TABLE t (a int DEFAULT ", true)]
 
     // 子句尾端：一項剛寫完，同一行只接運算子或關鍵字；別名是新名字，不是既有物件。
     [InlineData("SELECT * FROM t GROUP BY a ", false)]

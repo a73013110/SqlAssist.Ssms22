@@ -45,7 +45,8 @@ internal static class IndexPhrases
         new("ON PARTITIONS (* {value}") { Lead = "CREATE TABLE t (a int) WITH (DATA_COMPRESSION = ROW " },
 
         // 其餘帶 WITH (ONLINE = …) 的。DROP INDEX 一次刪得了幾個，… 從動詞跨過前面幾個；ALTER TABLE 裡的 DROP、ALTER
-        // 位置分析當成動詞，DROP CONSTRAINT、DROP COLUMN、ALTER COLUMN 之後長度不定的一段同樣以 … 跨過。
+        // 位置分析當成動詞，DROP CONSTRAINT、DROP COLUMN 之後長度不定的一段同樣以 … 跨過；ALTER COLUMN 型別之後的 WITH 屬於
+        // 型別之後那一格（DdlPhrases）。
         // DROP COLUMN 本身不帶 WITH：那是同一句後面 CONSTRAINT 的選項。
         // ALTER COLUMN 的名稱之後是型別或 ADD、DROP（PERSISTED、NOT FOR REPLICATION）。名稱之後不展開：型別那一格的
         // NATIONAL 之後接得上名稱，再往下每一個字都是一整輪探測（展開三層探了三百多萬次）；ADD、DROP 各展開一層。
@@ -58,7 +59,6 @@ internal static class IndexPhrases
         new("ALTER TABLE {name} ALTER COLUMN {name}"),
         new("ALTER TABLE {name} ALTER COLUMN {name} ADD") { Expand = 1 },
         new("ALTER TABLE {name} ALTER COLUMN {name} DROP") { Expand = 1 },
-        new("ALTER COLUMN ... WITH (*") { Lead = "ALTER TABLE t ", Gap = "a int" },
         new("ALTER TABLE {name} ALTER COLUMN {name} ADD PERSISTED WITH (*"),
         new("ALTER TABLE {name} ALTER COLUMN {name} DROP PERSISTED WITH (*"),
         new("ALTER TABLE {name} ALTER COLUMN {name} ADD SPARSE WITH (*"),

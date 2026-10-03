@@ -249,6 +249,20 @@ public sealed class SqlDataTypeCompletionTests
         Assert.Contains(list, item => item.Kind == SuggestionKind.DataType && item.DisplayText == "JSON");
     }
 
+    /// <summary>多字的 ANSI 寫法在型別位置列得出來，說明取它代表的型別。</summary>
+    [Theory]
+    [InlineData("NATIONAL CHARACTER VARYING", "NVARCHAR")]
+    [InlineData("NATIONAL CHAR", "NCHAR")]
+    [InlineData("CHARACTER VARYING", "VARCHAR")]
+    [InlineData("DOUBLE PRECISION", "FLOAT")]
+    public void 多字的ANSI寫法是型別的同義字(string synonym, string type)
+    {
+        Assert.Contains(SqlDataTypeCatalog.All, item => item.DisplayText == synonym);
+        Assert.True(SqlDataTypeCatalog.TryGetDescription(synonym, out var description));
+        Assert.True(SqlDataTypeCatalog.TryGetDescription(type, out var expected));
+        Assert.Equal(expected, description);
+    }
+
     [Fact]
     public void 新版型別的說明寫明版本且有英文()
     {

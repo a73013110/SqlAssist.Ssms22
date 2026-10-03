@@ -15,8 +15,7 @@ namespace SqlAssist.Core.Keywords;
 ///
 /// 位置的切法刻意對齊「游標前一個詞元」——分析器認得的就是那個。
 /// 每個位置都必須是分析器回得出來的：產生器的樣板交給分析器必須回報含該位置的值，
-/// 這一條由測試逐條回驗。只有產生器分得出、分析器判不出的位置放進去只是自欺——
-/// 資料行型別之後（<c>CREATE TABLE t (a int |</c>）因此沒有自己的位置，那裡是 <see cref="Any"/>。
+/// 這一條由測試逐條回驗。只有產生器分得出、分析器判不出的位置放進去只是自欺。
 /// 分析器判不出來時回 <see cref="Any"/>，所有字都放行：寧可多列幾個字，
 /// 也不要因為分析器看不懂上下文就把使用者要的關鍵字藏起來。
 /// 反過來，產生器判不出來的字（<see cref="None"/>）只在那個時候出現，
@@ -100,6 +99,17 @@ public enum SqlKeywordPosition : long
     /// 資料表層級的 <c>DEFAULT</c> 在 CREATE TABLE 裡卻不合法，兩者的字不一樣。
     /// </remarks>
     ColumnDefinition = 1 << 20,
+
+    /// <summary>
+    /// 資料行定義寫完型別（或計算資料行的運算式）之後，以及其後每一個寫完的選項之後——
+    /// NOT NULL、COLLATE、IDENTITY、條件約束，非關鍵字的 HIDDEN、SPARSE、MASKED、PERSISTED 由子句片語給。
+    /// </summary>
+    /// <remarks>
+    /// 定義的開頭在哪裡由 <see cref="ColumnDefinition"/> 與 <see cref="AlterTableAdd"/> 說（含 <c>DECLARE @t TABLE (</c>、
+    /// <c>OPENJSON(@j) WITH (</c>），<c>ALTER TABLE t ALTER COLUMN c</c> 也是一項；這幾種共用這一格，不各寫一份。
+    /// 結果集的資料行只寫得出定序與 NULL，另見 <see cref="ResultSetColumnTail"/>。
+    /// </remarks>
+    ColumnDefinitionTail = 1L << 30,
 
     /// <summary>BEGIN 之後——TRANSACTION、TRY、CATCH。</summary>
     BlockStart = 1 << 13,
@@ -345,7 +355,7 @@ public enum SqlKeywordPosition : long
     Any = StatementStart | SelectList | SelectListTail | DataSource
         | TableSourceTail | Predicate | ExpressionTail | OrderByTail | GroupByTail
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
-        | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | SequenceOption | TriggerHeader
+        | ColumnDefinition | ColumnDefinitionTail | BlockStart | BlockEnd | IfBodyEnd | CursorOption | SequenceOption | TriggerHeader
         | MergeWhen | MergeAction | MergeClause
         | PermissionList | PermissionTarget | PermissionOn | PermissionGrantee | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
         | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption

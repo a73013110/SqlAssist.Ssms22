@@ -220,7 +220,7 @@ internal sealed class PhraseExplorer
     /// <remarks>
     /// 前面那段已經是片語就把字補進去。還不是的另立一個，條件是那段尾巴認得出來：Lead 片語以字面字或等號結尾
     /// （以名稱或值結尾的一段，前一個字之後什麼都可能接，立了會封閉掉不相干的清單），而且至少兩項——
-    /// 執行期不看 Lead 的前一格，單獨一個 ON、NEXT 到處都比對得上。單獨一個不是關鍵字的（GENERATED）立得起來但不封閉：
+    /// 執行期不看 Lead 的前一格，單獨一個 ON、NEXT 到處都比對得上。單獨一個不是關鍵字的立得起來但不封閉：
     /// 它也可能是名稱，比對到只把字加進那一格的目錄。帶位置的片語從那個位置寫起，已經釘住了，
     /// 以名稱或值結尾的一段也立得起來：ALGORITHM = AES_128 之後的 ENCRYPTION 剖析器當名稱讀，只有整段是證據；
     /// 視窗框架 ROWS BETWEEN 2 之後的 PRECEDING 同理。
@@ -264,7 +264,7 @@ internal sealed class PhraseExplorer
                         continue;
                     }
 
-                    // Lead 片語的第一個字前面那一格判不出位置。關鍵字在那裡本來就全部進場，其餘的字（GENERATED）收進
+                    // Lead 片語的第一個字前面那一格判不出位置。關鍵字在那裡本來就全部進場，其餘的字收進
                     // 只在判不出位置時出現的附加片語：與產生器判不出位置的關鍵字（None）同一條規則。
                     // Lead 那一段已經有片語列得出的（索引鍵之後的 INCLUDE）不必。
                     if (lead != null && index == 0)
@@ -282,7 +282,8 @@ internal sealed class PhraseExplorer
                     var prefixProbe = ProbeText(leadText, prefix, declaration.Group, declaration.Gap, word, declaration.Items);
 
                     // Lead 片語的鍵不含 Lead：視窗框架的 ROWS 與 OFFSET 之後的 ROWS 同一個鍵，墊的文字不同就是別的片語。
-                    if (Phrases.TryGet(key, out var existing) && !IgnoreCase.Equals(existing.Probe, prefixProbe))
+                    // 帶 After 的鍵含位置，換一個樣板探（Template）仍是同一格：分析器分不開的格子，字取聯集。
+                    if (lead != null && Phrases.TryGet(key, out var existing) && !IgnoreCase.Equals(existing.Probe, prefixProbe))
                     {
                         continue;
                     }
@@ -476,6 +477,46 @@ internal sealed class PhraseExplorer
     }
 
     /// <summary>
+    /// 選項不以逗號分隔、會重複的位置（序列選項、資料行型別之後）：一個選項寫完就回到位置本身，接得上的字併進位置片語的。
+    /// 在唯一接續併項之後做，併進來的是位置片語已經併好的項。
+    /// </summary>
+    /// <remarks>
+    /// 寫完的判法照剖析器：位置樣板接上哪一條續尾就完整（CREATE TABLE t (a int 接 <c>)</c>），以那個位置為前一格的片語接上
+    /// 同一條續尾也完整，那個片語寫到這裡就是寫完一個選項（NULL、SPARSE、START WITH 1）；寫到一半的（NOT、NO）不完整，照舊。
+    /// 不接名稱與值的才算，那幾格之後還有東西要寫。片語只拿一個樣板探，位置片語的字由幾個樣板的證據補齊
+    /// （ALTER COLUMN 的 WITH、OPENJSON 的 AS JSON）；照自己探到的列的話，<c>ALTER COLUMN a int NOT NULL </c> 之後沒有 WITH。
+    /// </remarks>
+    public void ReturnCompletedOptionsToPosition()
+    {
+        foreach (var position in Phrases.Values.Where(phrase => phrase.Pattern.Length == 0).ToList())
+        {
+            var ending = Continuations.Phrases.FirstOrDefault(candidate => _prober.IsComplete(position.Probe.TrimEnd() + candidate));
+
+            if (ending == null)
+            {
+                continue;
+            }
+
+            foreach (var phrase in Phrases.Values)
+            {
+                if (phrase != position && phrase.After[0] == position.After[0] && phrase.Closed && !phrase.TakesName &&
+                    !phrase.TakesVariable && !phrase.TakesOperand && _prober.IsComplete(phrase.Probe.TrimEnd() + ending))
+                {
+                    // 唯一接續已經併過（MASKED WITH）：同一個字開頭的取位置片語那一項。
+                    var firsts = new HashSet<string>(position.Words.Select(FirstWord), IgnoreCase);
+                    phrase.Words = [.. position.Words, .. phrase.Words.Where(word => !firsts.Contains(FirstWord(word)))];
+                }
+            }
+        }
+    }
+
+    private static string FirstWord(string item)
+    {
+        var space = item.IndexOf(' ');
+        return space < 0 ? item : item.Substring(0, space);
+    }
+
+    /// <summary>
     /// 封閉卻一個字都沒有、名稱又收得下的格子改成不封閉：CREATE CERTIFICATE c AUTHORIZATION 之後要寫擁有者再寫 FROM，
     /// 照寫不寫得完判是封閉，而封閉的那一格什麼都不對。
     /// </summary>
@@ -621,12 +662,12 @@ internal sealed class PhraseExplorer
         {
             if (sample != null && !Explored(after, pattern + " {value}", expand))
             {
-                Add(pattern + " {value}", probe + sample + " ", after, expand, child: true, step: true);
+                Add(pattern + " {value}", probe + sample + " ", after, expand, child: true, step: true, extraEndings: extraEndings);
             }
 
             if (takesName && !Explored(after, pattern + " {name}", expand))
             {
-                Add(pattern + " {name}", probe + "t ", after, expand, child: true, step: true);
+                Add(pattern + " {name}", probe + "t ", after, expand, child: true, step: true, extraEndings: extraEndings);
             }
         }
 
@@ -639,18 +680,19 @@ internal sealed class PhraseExplorer
         {
             if (words.Count > 0 && !Explored(after, pattern + " {name}", expand - 1))
             {
-                Add(pattern + " {name}", probe + words[0] + " ", after, expand - 1, child: true, step: true);
+                Add(pattern + " {name}", probe + words[0] + " ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
             }
 
             if (sample != null && !Explored(after, pattern + " {value}", expand - 1))
             {
-                Add(pattern + " {value}", probe + sample + " ", after, expand - 1, child: true, step: true);
+                Add(pattern + " {value}", probe + sample + " ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
             }
 
             return;
         }
 
         // 手寫的值也往下：剖析器把它們當名稱看，之後的字同樣只有從這條路探得到。
+        // 宣告的續尾（Endings）跟著往下：展開出來的每一格都是同一條宣告，要整段寫完才驗的字（MASKED WITH (…)）在哪一格都一樣。
         foreach (var word in words)
         {
             var childPattern = pattern.Length > 0 ? pattern + " " + word : word;
@@ -674,7 +716,8 @@ internal sealed class PhraseExplorer
                 continue;
             }
 
-            Add(childPattern, childProbe, after, expand - 1, borrowed: completes ? nameReading : null, child: true, kinds: kinds);
+            Add(childPattern, childProbe, after, expand - 1, borrowed: completes ? nameReading : null, child: true, kinds: kinds,
+                extraEndings: extraEndings);
 
             // 選項名稱之後的等號與字算同一層：ALGORITHM = 之後的 AES_256、RSA_2048 由剖析器列。
             // 接得了值的格子是運算式，那裡的等號是比較（WHERE CURRENT = 1），不是選項。
@@ -682,7 +725,7 @@ internal sealed class PhraseExplorer
                 _prober.FirstRejection(childProbe + "=") > childProbe.Length &&
                 !Explored(after, childPattern + " =", expand - 1))
             {
-                Add(childPattern + " =", childProbe + "= ", after, expand - 1, child: true, step: true);
+                Add(childPattern + " =", childProbe + "= ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
             }
         }
     }
@@ -913,25 +956,38 @@ internal sealed class PhraseExplorer
     {
         if (!_additiveByPosition.TryGetValue(position, out var additive))
         {
-            _additiveByPosition.Add(position, additive = new AdditivePhrase(position, probe));
+            _additiveByPosition.Add(position, additive = new AdditivePhrase(position));
             Additive.Add(additive);
         }
 
-        if (!additive.Words.Contains(word))
-        {
-            additive.Words.Add(word);
-        }
+        additive.Add(word, probe);
     }
 
     private sealed record ListItems(string? Probe, bool Closed, bool TakesVariable, List<string> Words);
 }
 
 /// <summary>附加片語：只認位置、比對永遠是「可能」，把關鍵字目錄給不了的片語開頭加進那個位置。</summary>
-public sealed class AdditivePhrase(string after, string probe)
+public sealed class AdditivePhrase(string after)
 {
+    private readonly Dictionary<string, string> _probes = new(StringComparer.OrdinalIgnoreCase);
+
     public string After { get; } = after;
 
-    public string Probe { get; } = probe;
+    /// <summary>第一個字補進來時的探測文字。</summary>
+    /// <remarks>
+    /// 跟著字走：與別的附加片語重複的字會被拿掉（<c>DropUnpositionedDuplicates</c>），留下來的探測文字要是剩下那些字的。
+    /// 判不出位置的那一份借錯了的話，探測文字落在判得出的位置，附加片語在自己的探測文字上比對不到。
+    /// </remarks>
+    public string Probe => _probes[Words[0]];
 
     public List<string> Words { get; } = [];
+
+    public void Add(string word, string probe)
+    {
+        if (!_probes.ContainsKey(word))
+        {
+            _probes.Add(word, probe);
+            Words.Add(word);
+        }
+    }
 }

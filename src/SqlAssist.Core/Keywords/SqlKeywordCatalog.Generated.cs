@@ -23,40 +23,40 @@ internal static class SqlKeywordCatalogData
     /// <summary>全部關鍵字，以及各自可以出現的位置。</summary>
     internal static readonly KeyValuePair<string, SqlKeywordPosition>[] Keywords =
     {
-        new("ADD", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("ADD", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("ALL", SqlKeywordPosition.SelectList | SqlKeywordPosition.OrderByColumn),
-        new("ALTER", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("ALTER", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("AND", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
         new("ANY", SqlKeywordPosition.None),
         new("APPLY", SqlKeywordPosition.None),
-        new("AS", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.WindowName | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.ResultSetList | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.TriggerEventEnd),
+        new("AS", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.WindowName | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.ResultSetList | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.TriggerEventEnd),
         new("ASC", SqlKeywordPosition.IndexKeyTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowOrderTail),
         new("AUTHORIZATION", SqlKeywordPosition.DdlObject),
-        new("BACKUP", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("BEGIN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("BACKUP", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("BEGIN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("BETWEEN", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
-        new("BREAK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("BREAK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("BROWSE", SqlKeywordPosition.None),
-        new("BULK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause | SqlKeywordPosition.InsertTarget),
+        new("BULK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause | SqlKeywordPosition.InsertTarget),
         new("BY", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.ByAnchor),
         new("CASCADE", SqlKeywordPosition.None),
         new("CASE", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("CATCH", SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd),
-        new("CHECK", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.ColumnDefinition),
-        new("CHECKPOINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("CLOSE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("CHECK", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.ColumnDefinitionTail),
+        new("CHECKPOINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("CLOSE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("CLUSTERED", SqlKeywordPosition.DdlObject),
         new("COALESCE", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
-        new("COLLATE", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.TableSampleTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OffsetTail | SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.ResultSetColumnTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseArm | SqlKeywordPosition.CaseBody),
+        new("COLLATE", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.TableSampleTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OffsetTail | SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.ResultSetColumnTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseArm | SqlKeywordPosition.CaseBody | SqlKeywordPosition.ColumnDefinitionTail),
         new("COLUMN", SqlKeywordPosition.DdlObject),
-        new("COMMIT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("COMMIT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("COMPUTE", SqlKeywordPosition.None),
-        new("CONSTRAINT", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.ColumnDefinition),
+        new("CONSTRAINT", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.ColumnDefinitionTail),
         new("CONTAINS", SqlKeywordPosition.Predicate),
         new("CONTAINSTABLE", SqlKeywordPosition.DataSource),
-        new("CONTINUE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("CONTINUE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("CONVERT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
-        new("CREATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("CREATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("CROSS", SqlKeywordPosition.TableSourceTail),
         new("CURRENT", SqlKeywordPosition.Predicate),
         new("CURRENT_DATE", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
@@ -65,75 +65,75 @@ internal static class SqlKeywordCatalogData
         new("CURRENT_USER", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("CURSOR", SqlKeywordPosition.None),
         new("DATABASE", SqlKeywordPosition.PermissionOn | SqlKeywordPosition.DdlObject),
-        new("DBCC", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("DEALLOCATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("DECLARE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("DEFAULT", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject),
-        new("DELETE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.OptionItem | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
-        new("DENY", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("DBCC", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("DEALLOCATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("DECLARE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("DEFAULT", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinitionTail),
+        new("DELETE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.OptionItem | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
+        new("DENY", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("DESC", SqlKeywordPosition.IndexKeyTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowOrderTail),
         new("DISTINCT", SqlKeywordPosition.SelectList),
         new("DISTRIBUTED", SqlKeywordPosition.BlockStart),
         new("DOUBLE", SqlKeywordPosition.None),
-        new("DROP", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("DROP", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("ELSE", SqlKeywordPosition.CaseBody | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("END", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseBody | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("END", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseBody | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("ERRLVL", SqlKeywordPosition.SetTarget),
         new("ESCAPE", SqlKeywordPosition.ExpressionTail),
         new("EXCEPT", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail),
-        new("EXEC", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause | SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption),
-        new("EXECUTE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause | SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption),
+        new("EXEC", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause | SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption),
+        new("EXECUTE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause | SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption),
         new("EXISTS", SqlKeywordPosition.Predicate),
         new("EXIT", SqlKeywordPosition.None),
         new("EXTERNAL", SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.DdlObject),
-        new("FETCH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("FETCH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("FILE", SqlKeywordPosition.OptionItem),
         new("FILLFACTOR", SqlKeywordPosition.IndexOption),
         new("FOR", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.PivotClause | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CursorOption),
-        new("FOREIGN", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.ColumnDefinition),
+        new("FOREIGN", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.ColumnDefinitionTail),
         new("FREETEXT", SqlKeywordPosition.Predicate),
         new("FREETEXTTABLE", SqlKeywordPosition.DataSource),
         new("FROM", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.PermissionList | SqlKeywordPosition.PermissionTarget),
         new("FULL", SqlKeywordPosition.TableSourceTail),
         new("FUNCTION", SqlKeywordPosition.DdlObject),
         new("GO", SqlKeywordPosition.StatementStart),
-        new("GOTO", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("GRANT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("GOTO", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("GRANT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("GROUP", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail),
         new("HAVING", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.GroupByTail),
         new("HOLDLOCK", SqlKeywordPosition.TableSourceTail),
         new("IDENTIFIER", SqlKeywordPosition.None),
-        new("IDENTITY", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.ReferencesTail),
+        new("IDENTITY", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.ColumnDefinitionTail),
         new("IDENTITY_INSERT", SqlKeywordPosition.SetTarget),
-        new("IF", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableColumn | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("IF", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableColumn | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("IN", SqlKeywordPosition.PivotClause | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
-        new("INDEX", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition),
+        new("INDEX", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.ColumnDefinitionTail),
         new("INNER", SqlKeywordPosition.TableSourceTail),
-        new("INSERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.OptionItem | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
+        new("INSERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.OptionItem | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
         new("INTERSECT", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail),
         new("INTO", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.InsertTarget),
         new("IS", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
         new("JOIN", SqlKeywordPosition.TableSourceTail),
         new("KEY", SqlKeywordPosition.None),
-        new("KILL", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("KILL", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("LEFT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("LIKE", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
-        new("LINENO", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("MERGE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("LINENO", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("MERGE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("NATIONAL", SqlKeywordPosition.None),
         new("NEXT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("NOCHECK", SqlKeywordPosition.AlterTableAction),
         new("NOLOCK", SqlKeywordPosition.None),
         new("NONCLUSTERED", SqlKeywordPosition.DdlObject),
-        new("NOT", SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.ResultSetColumnTail | SqlKeywordPosition.CaseArm | SqlKeywordPosition.MergeWhen | SqlKeywordPosition.TriggerEventEnd),
-        new("NULL", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.PermissionGrantee | SqlKeywordPosition.Predicate | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.ResultSetColumnTail | SqlKeywordPosition.OrderByColumn),
+        new("NOT", SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.ResultSetColumnTail | SqlKeywordPosition.CaseArm | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.MergeWhen | SqlKeywordPosition.TriggerEventEnd),
+        new("NULL", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.PermissionGrantee | SqlKeywordPosition.Predicate | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.ResultSetColumnTail | SqlKeywordPosition.OrderByColumn | SqlKeywordPosition.ColumnDefinitionTail),
         new("NULLIF", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("OF", SqlKeywordPosition.None),
         new("OFF", SqlKeywordPosition.SetOptionValue),
         new("OFFSET", SqlKeywordPosition.OrderByTail),
         new("OFFSETS", SqlKeywordPosition.SetTarget),
-        new("ON", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.PermissionList | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.SetOptionValue),
-        new("OPEN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("ON", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.PermissionList | SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.SetOptionValue),
+        new("OPEN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("OPENDATASOURCE", SqlKeywordPosition.DataSource | SqlKeywordPosition.InsertTarget),
         new("OPENQUERY", SqlKeywordPosition.DataSource | SqlKeywordPosition.InsertTarget),
         new("OPENROWSET", SqlKeywordPosition.DataSource | SqlKeywordPosition.InsertTarget),
@@ -148,37 +148,37 @@ internal static class SqlKeywordCatalogData
         new("PERCENT", SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.TableSampleTail),
         new("PIVOT", SqlKeywordPosition.TableSourceTail),
         new("PLAN", SqlKeywordPosition.None),
-        new("PRIMARY", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition),
-        new("PRINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("PRIMARY", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.ColumnDefinitionTail),
+        new("PRINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("PROC", SqlKeywordPosition.DdlObject),
         new("PROCEDURE", SqlKeywordPosition.DdlObject),
         new("PUBLIC", SqlKeywordPosition.PermissionGrantee),
-        new("RAISERROR", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("RAISERROR", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("READ", SqlKeywordPosition.None),
-        new("READTEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("RECONFIGURE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("REFERENCES", SqlKeywordPosition.ReferencesTail),
+        new("READTEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("RECONFIGURE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("REFERENCES", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.ColumnDefinitionTail),
         new("REPLICATION", SqlKeywordPosition.None),
-        new("RESTORE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("RESTORE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("RESTRICT", SqlKeywordPosition.None),
-        new("RETURN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("REVERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("REVOKE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("RETURN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("REVERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("REVOKE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("RIGHT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
-        new("ROLLBACK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("ROLLBACK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("ROWCOUNT", SqlKeywordPosition.SetTarget),
         new("ROWS", SqlKeywordPosition.TableSampleTail | SqlKeywordPosition.OffsetTail | SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification),
         new("RULE", SqlKeywordPosition.DdlObject),
-        new("SAVE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("SAVE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("SCHEMA", SqlKeywordPosition.PermissionOn | SqlKeywordPosition.PermissionGrantee | SqlKeywordPosition.DdlObject),
-        new("SELECT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("SELECT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("SEMANTICKEYPHRASETABLE", SqlKeywordPosition.DataSource),
         new("SEMANTICSIMILARITYDETAILSTABLE", SqlKeywordPosition.DataSource),
         new("SEMANTICSIMILARITYTABLE", SqlKeywordPosition.DataSource),
         new("SESSION_USER", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
-        new("SET", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("SETUSER", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("SHUTDOWN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("SET", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("SETUSER", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("SHUTDOWN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("SOME", SqlKeywordPosition.None),
         new("STATISTICS", SqlKeywordPosition.DdlObject | SqlKeywordPosition.SetTarget),
         new("STOPLIST", SqlKeywordPosition.None),
@@ -187,34 +187,34 @@ internal static class SqlKeywordCatalogData
         new("TABLESAMPLE", SqlKeywordPosition.TableSourceTail),
         new("TEXTSIZE", SqlKeywordPosition.SetTarget),
         new("THEN", SqlKeywordPosition.CaseArm),
-        new("THROW", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("THROW", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
         new("TO", SqlKeywordPosition.PermissionList | SqlKeywordPosition.PermissionTarget),
         new("TOP", SqlKeywordPosition.SelectList | SqlKeywordPosition.InsertTarget),
         new("TRAN", SqlKeywordPosition.BlockStart | SqlKeywordPosition.SetTarget),
         new("TRANSACTION", SqlKeywordPosition.BlockStart | SqlKeywordPosition.SetTarget),
         new("TRIGGER", SqlKeywordPosition.DdlObject),
-        new("TRUNCATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("TRUNCATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("TRY", SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd),
         new("TRY_CONVERT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("TSEQUAL", SqlKeywordPosition.Predicate),
         new("UNION", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail),
-        new("UNIQUE", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition),
+        new("UNIQUE", SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.ColumnDefinitionTail),
         new("UNPIVOT", SqlKeywordPosition.TableSourceTail),
-        new("UPDATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.OptionItem | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
-        new("UPDATETEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
-        new("USE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("UPDATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.OptionItem | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeAction | SqlKeywordPosition.MergeClause | SqlKeywordPosition.TriggerEvent),
+        new("UPDATETEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("USE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("USER", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.PermissionOn | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn | SqlKeywordPosition.DdlObject),
         new("USING", SqlKeywordPosition.TableSourceTail),
         new("VALUES", SqlKeywordPosition.TableSourceTail),
-        new("VARYING", SqlKeywordPosition.ResultSetColumnTail),
+        new("VARYING", SqlKeywordPosition.ResultSetColumnTail | SqlKeywordPosition.ColumnDefinitionTail),
         new("VIEW", SqlKeywordPosition.DdlObject),
-        new("WAITFOR", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("WAITFOR", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("WHEN", SqlKeywordPosition.CaseBody | SqlKeywordPosition.MergeClause),
         new("WHERE", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.UpdateSetTail),
-        new("WHILE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("WHILE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("WINDOW", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.GroupByTail),
-        new("WITH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.TriggerHeader | SqlKeywordPosition.MergeClause),
-        new("WRITETEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("WITH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.TriggerHeader | SqlKeywordPosition.MergeClause),
+        new("WRITETEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
     };
 
     /// <summary>定位置所用的樣板：每個位置與它的樣板文字。</summary>
@@ -319,6 +319,15 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.CaseBody, "SELECT CASE WHEN a = 1 THEN 1 "),
         new(SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t ("),
         new(SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (a int, "),
+        new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int "),
+        new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a AS b "),
+        new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a varbinary(max) "),
+        new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int IDENTITY(1, 1) "),
+        new(SqlKeywordPosition.ColumnDefinitionTail, "SELECT * FROM OPENJSON(@j) WITH (a int "),
+        new(SqlKeywordPosition.ColumnDefinitionTail, "ALTER TABLE t ALTER COLUMN a int "),
+        new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int UNIQUE WITH FILLFACTOR = 80 "),
+        new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a xml "),
+        new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a nchar "),
         new(SqlKeywordPosition.BlockStart, "BEGIN "),
         new(SqlKeywordPosition.BlockStart, "BEGIN TRY SELECT 1 END TRY BEGIN "),
         new(SqlKeywordPosition.BlockEnd, "BEGIN SELECT 1 END "),
@@ -396,19 +405,20 @@ internal static class SqlKeywordCatalogData
     internal static readonly KeyValuePair<string, SqlKeywordPosition>[] StatementEndings =
     {
         new("AS", SqlKeywordPosition.None),
-        new("BREAK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
+        new("BREAK", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("CATCH", SqlKeywordPosition.BlockEnd),
-        new("CHECKPOINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
+        new("CHECKPOINT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("COMMIT", SqlKeywordPosition.None),
-        new("CONTINUE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
+        new("CONTINUE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
+        new("NULL", SqlKeywordPosition.ColumnDefinitionTail),
         new("OFF", SqlKeywordPosition.SetOptionValue),
         new("ON", SqlKeywordPosition.SetOptionValue),
-        new("RECONFIGURE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
+        new("RECONFIGURE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("RETURN", SqlKeywordPosition.None),
-        new("REVERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
+        new("REVERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("ROLLBACK", SqlKeywordPosition.None),
         new("SETUSER", SqlKeywordPosition.None),
-        new("SHUTDOWN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
+        new("SHUTDOWN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption),
         new("THROW", SqlKeywordPosition.None),
         new("TRAN", SqlKeywordPosition.None),
         new("TRANSACTION", SqlKeywordPosition.None),
@@ -4555,15 +4565,6 @@ internal static class SqlKeywordCatalogData
         {
             "FOR REPLICATION",
         }),
-        ("ALTER COLUMN ... WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ALTER COLUMN a int WITH (", true, false, false, false, new string[]
-        {
-            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
-            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
-            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
-            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
-            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
-            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
-        }),
         ("ALTER TABLE {name} ALTER COLUMN {name} ADD PERSISTED WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD PERSISTED WITH (", true, false, false, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
@@ -6819,39 +6820,207 @@ internal static class SqlKeywordCatalogData
         {
             "DEFAULT", "NULL",
         }),
-        ("NOT FOR", SqlKeywordPosition.Any, "CREATE TABLE t (a int IDENTITY NOT FOR ", true, false, false, false, new string[]
+        ("NOT FOR", SqlKeywordPosition.Any | SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int IDENTITY NOT FOR ", true, false, false, false, new string[]
         {
             "REPLICATION",
         }),
-        ("GENERATED ALWAYS AS ROW START HIDDEN", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ROW START HIDDEN ", true, false, false, false, new string[]
+        ("", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("CHECK", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int CHECK ", true, false, false, false, new string[]
+        {
+            "NOT",
+        }),
+        ("COLLATE", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("COLUMN_SET", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int COLUMN_SET ", true, false, false, false, new string[]
+        {
+            "FOR ALL_SPARSE_COLUMNS",
+        }),
+        ("CONSTRAINT", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int CONSTRAINT ", false, false, true, false, new string[]
+        {
+        }),
+        ("DEFAULT", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int DEFAULT ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("ENCRYPTED", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int ENCRYPTED ", true, false, false, false, new string[]
+        {
+            "WITH",
+        }),
+        ("FOREIGN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int FOREIGN ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("GENERATED", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ", true, false, false, false, new string[]
+        {
+            "ALWAYS AS",
+        }),
+        ("HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int HIDDEN ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("IDENTITY", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int IDENTITY ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("INDEX", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX ", false, false, true, false, new string[]
+        {
+        }),
+        ("MASKED", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int MASKED ", true, false, false, false, new string[]
+        {
+            "WITH",
+        }),
+        ("NOT", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int NOT ", true, false, false, false, new string[]
+        {
+            "NULL", "FOR REPLICATION",
+        }),
+        ("NULL", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int NULL ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("PRIMARY", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int PRIMARY ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("REFERENCES", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int REFERENCES ", false, false, true, false, new string[]
+        {
+        }),
+        ("SPARSE", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int SPARSE ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("UNIQUE", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int UNIQUE ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "CLUSTERED", "FILESTREAM_ON", "NONCLUSTERED",
+        }),
+        ("PERSISTED", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a AS b PERSISTED ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("FILESTREAM", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a varbinary(max) FILESTREAM ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("NOT FOR REPLICATION", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int IDENTITY(1, 1) NOT FOR REPLICATION ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("AS JSON", SqlKeywordPosition.ColumnDefinitionTail, "SELECT * FROM OPENJSON(@j) WITH (a int AS JSON ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("WITH (*", SqlKeywordPosition.ColumnDefinitionTail, "ALTER TABLE t ALTER COLUMN a int WITH (", true, false, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ON {name}", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int UNIQUE WITH FILLFACTOR = 80 ON t ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
+        }),
+        ("COLUMN_SET FOR ALL_SPARSE_COLUMNS", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a xml COLUMN_SET FOR ALL_SPARSE_COLUMNS ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("VARYING", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a nchar VARYING ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
+        ("INDEX {name}", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "CLUSTERED", "FILESTREAM_ON", "HASH", "NONCLUSTERED", "WHERE",
+        }),
+        ("MASKED WITH (*", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int MASKED WITH (", true, false, false, false, new string[]
+        {
+            "FUNCTION",
+        }),
+        ("GENERATED ALWAYS AS ROW START HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS ROW START HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
             "PRIMARY", "REFERENCES", "UNIQUE",
         }),
-        ("GENERATED ALWAYS AS ROW END HIDDEN", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ROW END HIDDEN ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS ROW END HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS ROW END HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
             "PRIMARY", "REFERENCES", "UNIQUE",
         }),
-        ("GENERATED ALWAYS AS SUSER_SID START HIDDEN", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS SUSER_SID START HIDDEN ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS SUSER_SID START HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SID START HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
             "PRIMARY", "REFERENCES", "UNIQUE",
         }),
-        ("GENERATED ALWAYS AS SUSER_SNAME END HIDDEN", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS SUSER_SNAME END HIDDEN ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS SUSER_SNAME END HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME END HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
             "PRIMARY", "REFERENCES", "UNIQUE",
         }),
-        ("GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN ", true, false, false, false, new string[]
         {
-            "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
-            "PRIMARY", "REFERENCES", "UNIQUE",
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
-        ("GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN ", true, false, false, false, new string[]
         {
-            "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
-            "PRIMARY", "REFERENCES", "UNIQUE",
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("PERIOD FOR SYSTEM_TIME ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (PERIOD FOR SYSTEM_TIME (a, b) ", true, false, false, false, new string[]
         {
@@ -6949,17 +7118,13 @@ internal static class SqlKeywordCatalogData
         {
             "ON DELETE",
         }),
-        ("ENCRYPTED WITH (*", SqlKeywordPosition.Any, "CREATE TABLE t (a int ENCRYPTED WITH (", true, false, false, false, new string[]
+        ("ENCRYPTED WITH (*", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int ENCRYPTED WITH (", true, false, false, false, new string[]
         {
             "ALGORITHM", "COLUMN_ENCRYPTION_KEY", "ENCRYPTION_TYPE",
         }),
-        ("ENCRYPTED WITH (* ENCRYPTION_TYPE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int ENCRYPTED WITH (ENCRYPTION_TYPE = ", true, false, false, false, new string[]
+        ("ENCRYPTED WITH (* ENCRYPTION_TYPE =", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int ENCRYPTED WITH (ENCRYPTION_TYPE = ", true, false, false, false, new string[]
         {
             "DETERMINISTIC", "RANDOMIZED",
-        }),
-        ("ALTER COLUMN ... ENCRYPTED WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ALTER COLUMN a int ENCRYPTED WITH (", true, false, false, false, new string[]
-        {
-            "ALGORITHM", "COLUMN_ENCRYPTION_KEY", "ENCRYPTION_TYPE",
         }),
         ("CREATE PARTITION FUNCTION {name} ()", SqlKeywordPosition.StatementStart, "CREATE PARTITION FUNCTION t (int) ", true, false, false, false, new string[]
         {
@@ -8244,7 +8409,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("START WITH {value}", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t START WITH 1 ", true, false, false, true, new string[]
         {
-            "AS", "CACHE", "CYCLE", "INCREMENT", "MAXVALUE", "MINVALUE", "NO",
+            "AS", "CACHE", "CYCLE", "INCREMENT BY", "MAXVALUE", "MINVALUE", "NO", "START WITH",
         }),
         ("WAITFOR", SqlKeywordPosition.StatementStart, "WAITFOR ", true, false, true, false, new string[]
         {
@@ -9582,6 +9747,10 @@ internal static class SqlKeywordCatalogData
         {
             "CHECK", "CONNECTION", "DEFAULT", "FOREIGN", "PRIMARY", "UNIQUE",
         }),
+        ("CONSTRAINT {name}", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int CONSTRAINT t ", true, false, false, false, new string[]
+        {
+            "CHECK", "DEFAULT", "FOREIGN", "NOT", "NULL", "PRIMARY", "REFERENCES", "UNIQUE",
+        }),
         ("ROWS", SqlKeywordPosition.OffsetTail, "SELECT * FROM t ORDER BY a OFFSET 10 ROWS ", true, false, false, true, new string[]
         {
             "FOR", "OPTION", "FETCH",
@@ -9606,27 +9775,27 @@ internal static class SqlKeywordCatalogData
         {
             "FIRST", "NEXT",
         }),
-        ("NEXT {value}", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ", true, false, false, false, new string[]
+        ("NEXT {value}", SqlKeywordPosition.Any, "SELECT * FROM t ORDER BY a OFFSET 10 ROWS FETCH NEXT 1 ", true, false, false, false, new string[]
         {
             "COLLATE", "ROW ONLY", "ROWS ONLY",
         }),
-        ("FIRST {value}", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ", true, false, false, false, new string[]
+        ("FIRST {value}", SqlKeywordPosition.Any, "SELECT * FROM t ORDER BY a OFFSET 10 ROWS FETCH FIRST 1 ", true, false, false, false, new string[]
         {
             "COLLATE", "ROW ONLY", "ROWS ONLY",
         }),
-        ("NEXT {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROWS ", true, false, false, false, new string[]
+        ("NEXT {value} ROWS", SqlKeywordPosition.Any, "SELECT * FROM t ORDER BY a OFFSET 10 ROWS FETCH NEXT 1 ROWS ", true, false, false, false, new string[]
         {
             "ONLY",
         }),
-        ("NEXT {value} ROW", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROW ", true, false, false, false, new string[]
+        ("NEXT {value} ROW", SqlKeywordPosition.Any, "SELECT * FROM t ORDER BY a OFFSET 10 ROWS FETCH NEXT 1 ROW ", true, false, false, false, new string[]
         {
             "ONLY",
         }),
-        ("FIRST {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ROWS ", true, false, false, false, new string[]
+        ("FIRST {value} ROWS", SqlKeywordPosition.Any, "SELECT * FROM t ORDER BY a OFFSET 10 ROWS FETCH FIRST 1 ROWS ", true, false, false, false, new string[]
         {
             "ONLY",
         }),
-        ("FIRST {value} ROW", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ROW ", true, false, false, false, new string[]
+        ("FIRST {value} ROW", SqlKeywordPosition.Any, "SELECT * FROM t ORDER BY a OFFSET 10 ROWS FETCH FIRST 1 ROW ", true, false, false, false, new string[]
         {
             "ONLY",
         }),
@@ -10253,67 +10422,75 @@ internal static class SqlKeywordCatalogData
         {
             "DELETE", "UPDATE",
         }),
-        ("GENERATED", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ", false, false, false, false, new string[]
+        ("AS", SqlKeywordPosition.ColumnDefinitionTail, "SELECT * FROM OPENJSON(@j) WITH (a int AS ", true, false, false, false, new string[]
         {
-            "ALWAYS AS",
+            "JSON",
         }),
-        ("GENERATED ALWAYS", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS ", true, false, false, false, new string[]
+        ("COLUMN_SET FOR", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a xml COLUMN_SET FOR ", true, false, false, false, new string[]
+        {
+            "ALL_SPARSE_COLUMNS",
+        }),
+        ("GENERATED ALWAYS", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS ", true, false, false, false, new string[]
         {
             "AS",
         }),
-        ("GENERATED ALWAYS AS", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ", true, false, true, false, new string[]
+        ("GENERATED ALWAYS AS", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS ", true, false, true, false, new string[]
         {
             "ROW", "SUSER_SID", "SUSER_SNAME", "TRANSACTION_ID", "SEQUENCE_NUMBER",
         }),
-        ("GENERATED ALWAYS AS ROW", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ROW ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS ROW", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS ROW ", true, false, false, false, new string[]
         {
             "END", "START",
         }),
-        ("GENERATED ALWAYS AS ROW START", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ROW START ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS ROW START", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS ROW START ", true, false, false, false, new string[]
         {
-            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FILESTREAM", "FOREIGN", "HIDDEN",
-            "IDENTITY", "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
+            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
         }),
-        ("GENERATED ALWAYS AS ROW END", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS ROW END ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS ROW END", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS ROW END ", true, false, false, false, new string[]
         {
-            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FILESTREAM", "FOREIGN", "HIDDEN",
-            "IDENTITY", "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
+            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
         }),
-        ("GENERATED ALWAYS AS SUSER_SID", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS SUSER_SID ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS SUSER_SID", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SID ", true, false, false, false, new string[]
         {
             "END", "START",
         }),
-        ("GENERATED ALWAYS AS SUSER_SID START", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS SUSER_SID START ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS SUSER_SID START", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SID START ", true, false, false, false, new string[]
         {
-            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FILESTREAM", "FOREIGN", "HIDDEN",
-            "IDENTITY", "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
+            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
         }),
-        ("GENERATED ALWAYS AS SUSER_SNAME", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS SUSER_SNAME ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS SUSER_SNAME", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME ", true, false, false, false, new string[]
         {
             "END", "START",
         }),
-        ("GENERATED ALWAYS AS SUSER_SNAME END", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS SUSER_SNAME END ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS SUSER_SNAME END", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME END ", true, false, false, false, new string[]
         {
-            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FILESTREAM", "FOREIGN", "HIDDEN",
-            "IDENTITY", "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
+            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
         }),
-        ("GENERATED ALWAYS AS TRANSACTION_ID", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS TRANSACTION_ID ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS TRANSACTION_ID", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS TRANSACTION_ID ", true, false, false, false, new string[]
         {
             "END", "START",
         }),
-        ("GENERATED ALWAYS AS TRANSACTION_ID START", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS TRANSACTION_ID START ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS TRANSACTION_ID START", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS TRANSACTION_ID START ", true, false, false, false, new string[]
         {
-            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FILESTREAM", "FOREIGN", "HIDDEN",
-            "IDENTITY", "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
-        ("GENERATED ALWAYS AS SEQUENCE_NUMBER", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS SEQUENCE_NUMBER ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS SEQUENCE_NUMBER", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER ", true, false, false, false, new string[]
         {
             "END", "START",
         }),
-        ("GENERATED ALWAYS AS SEQUENCE_NUMBER END", SqlKeywordPosition.Any, "CREATE TABLE t (a datetime2 GENERATED ALWAYS AS SEQUENCE_NUMBER END ", true, false, false, false, new string[]
+        ("GENERATED ALWAYS AS SEQUENCE_NUMBER END", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER END ", true, false, false, false, new string[]
         {
-            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FILESTREAM", "FOREIGN", "HIDDEN",
-            "IDENTITY", "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
+            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("PERIOD", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (PERIOD ", false, false, true, false, new string[]
         {
@@ -10346,14 +10523,6 @@ internal static class SqlKeywordCatalogData
         ("INDEX {name} NONCLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED ", true, false, false, false, new string[]
         {
             "COLUMNSTORE",
-        }),
-        ("ENCRYPTED", SqlKeywordPosition.Any, "CREATE TABLE t (a int ENCRYPTED ", false, false, false, false, new string[]
-        {
-            "WITH",
-        }),
-        ("ALTER COLUMN ... ENCRYPTED", SqlKeywordPosition.Any, "ALTER TABLE t ALTER COLUMN a int ENCRYPTED ", true, false, false, false, new string[]
-        {
-            "WITH",
         }),
         ("ALTER SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t ", true, false, false, false, new string[]
         {
@@ -11221,7 +11390,6 @@ internal static class SqlKeywordCatalogData
     {
         (SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC" }),
         (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE" }),
-        (SqlKeywordPosition.None, "CREATE TABLE t (a datetime2 ", new string[] { "GENERATED", "ENCRYPTED", "FIRST" }),
         (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
         (SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),
         (SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),

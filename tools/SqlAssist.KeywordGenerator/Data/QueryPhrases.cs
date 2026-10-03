@@ -104,7 +104,7 @@ internal static class QueryPhrases
 
     // FETCH 的列數之後（NEXT 10 ROWS ONLY）不看前面是 OFFSET … ROWS 還是 SQL Server 2025 的 FETCH APPROX：尾巴從 NEXT、FIRST 寫起，
     // 兩種寫法共用。剖析器只收直接接在 ORDER BY 之後的 FETCH APPROX，與 OFFSET 並用就報錯。
-    // 列數是運算式，比對見 SqlOperand。
+    // 列數是運算式，比對見 SqlOperand。墊的文字與 OFFSET 的 ROWS FETCH 那一格相同，NEXT、FIRST 才認得是那一格列的字。
     internal static readonly PhraseDeclaration[] OffsetFetch =
     [
         new("ROWS") { After = ["OffsetTail"], Values = ["FETCH"] },
@@ -141,5 +141,5 @@ internal static class QueryPhrases
             .Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT " });
 
     private static IEnumerable<PhraseDeclaration> RowCounts(string[] patterns) =>
-        patterns.Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH " });
+        patterns.Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT * FROM t ORDER BY a OFFSET 10 ROWS FETCH " });
 }

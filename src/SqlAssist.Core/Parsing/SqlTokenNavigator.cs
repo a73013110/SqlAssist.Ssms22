@@ -343,14 +343,17 @@ public static class SqlTokenNavigator
     /// 從 <paramref name="index"/> 跳過一個資料型別，回傳型別之後的位置；那裡不是名稱時原樣回傳。
     /// </summary>
     /// <remarks>
-    /// 型別可以帶結構描述（<c>dbo.CopyList</c>），也可以帶長度或有效位數（<c>varchar(10)</c>）。
+    /// 型別可以帶結構描述（<c>dbo.CopyList</c>），也可以帶長度或有效位數（<c>varchar(10)</c>），
+    /// 也可以是多字的 ANSI 寫法（<c>national char varying(10)</c>，見 <see cref="SqlDataTypeCatalog.CountWords"/>）。
     /// 資料行定義的每一種讀法都走這一份，各寫一份的症狀是其中一份不認得自訂型別。
     /// </remarks>
     public static int SkipDataType(IReadOnlyList<SqlToken> tokens, int index, int end)
     {
         var start = index;
+        var words = SqlDataTypeCatalog.CountWords(tokens, index, end);
+        index += words;
 
-        while (index < end && tokens[index].Kind == SqlTokenKind.Identifier)
+        while (words == 0 && index < end && tokens[index].Kind == SqlTokenKind.Identifier)
         {
             index++;
 

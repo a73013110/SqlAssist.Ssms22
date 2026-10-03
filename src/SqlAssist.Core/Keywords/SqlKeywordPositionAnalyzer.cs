@@ -396,7 +396,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <summary>這些位置又換了行時，這裡同時也可能是下一個敘述的開頭。</summary>
     /// <remarks>
     /// 子句尾端之外還有 SET 選項名稱之後：識別字的選項值（<c>SET DATEFORMAT dmy</c>）
-    /// 在詞元上與名稱分不開，見 <see cref="FindSetOptionPart"/>。
+    /// 在詞元上與名稱分不開，見 <see cref="FindSetOptionPart"/>；以及資料行定義的尾端，
+    /// <c>ALTER TABLE t ADD a int</c> 寫在括號外，一句就寫完了（括號裡的由 <see cref="AddStatementStartOnNewLine"/> 排除）。
     /// </remarks>
     private const SqlKeywordPosition StatementEndPositions =
         SqlKeywordPosition.SelectListTail |
@@ -407,6 +408,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
         SqlKeywordPosition.SelectIntoTail |
         SqlKeywordPosition.FetchTail |
         SqlKeywordPosition.UpdateSetTail |
+        SqlKeywordPosition.ColumnDefinitionTail |
         SqlKeywordPosition.SetOptionValue;
 
     /// <summary>

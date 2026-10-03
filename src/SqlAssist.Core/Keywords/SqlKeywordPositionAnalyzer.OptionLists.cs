@@ -215,7 +215,140 @@ public sealed partial class SqlKeywordPositionAnalyzer
             }
         }
 
-        return null;
+        // 排在選項清單之後：外部索引鍵寫完的那一格（ReferencesTail）多接 ON DELETE。
+        return EndsColumnDefinitionPart(last) ? SqlKeywordPosition.ColumnDefinitionTail : null;
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 寫完一項資料行定義的型別（或計算資料行的運算式），或之後的一個選項。
+    /// </summary>
+    /// <remarks>
+    /// 一項從哪裡開始見 <see cref="FindColumnDefinitionStart"/>；開頭是新資料行的名稱，名稱之後是型別或 <c>AS</c> 運算式。
+    /// 之後的選項不逐一認：寫完一個運算元（名稱、常值、右括號、<c>NULL</c>）就是寫完一個選項。
+    /// 寫到一半的（<c>NOT</c>、<c>MASKED</c>、<c>CONSTRAINT c</c>）由以這一格為前一格的片語接手；
+    /// 停在其餘關鍵字上的（<c>DEFAULT</c>、<c>COLLATE</c>、<c>IDENTITY</c>）照舊判不出位置——<c>DEFAULT </c>之後要的是運算式。
+    /// </remarks>
+    private bool EndsColumnDefinitionPart(int last)
+    {
+        if (!SqlOperand.Ends(tokens, last) && !IsBareKeyword(last))
+        {
+            return false;
+        }
+
+        var start = FindColumnDefinitionStart(last);
+
+        if (start < 0 || start >= last)
+        {
+            return false;
+        }
+
+        var head = SkipColumnHead(start, last);
+
+        return head == last + 1 || (head > start && head <= last && SqlOperand.Ends(tokens, last));
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 所在那一項資料行定義的第一個詞元；不在資料行定義裡回 -1。
+    /// </summary>
+    /// <remarks>
+    /// 定義清單的左括號與那一層的逗號（<c>CREATE TABLE t (</c>、<c>DECLARE @t TABLE (</c>、<c>OPENJSON(@j) WITH (</c>，
+    /// 見 <see cref="OpensColumnDefinitions"/>）、<c>ALTER TABLE t ADD</c> 與新增清單的逗號、<c>ALTER TABLE t ALTER COLUMN</c>。
+    /// 一組括號整組跳過；走到別的括號、分號或動詞（<see cref="FindVerb"/>）就不在這裡。
+    /// </remarks>
+    private int FindColumnDefinitionStart(int last)
+    {
+        for (var index = last; index >= 0; index--)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation(")"))
+            {
+                index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
+
+                if (index < 0)
+                {
+                    return -1;
+                }
+
+                continue;
+            }
+
+            if (token.IsPunctuation("("))
+            {
+                return OpensColumnDefinitions(index) ? index + 1 : -1;
+            }
+
+            if (token.IsPunctuation(","))
+            {
+                return OpensColumnDefinitions(FindUnclosedParenthesis(index - 1)) || ContinuesAlterTableAdd(index)
+                    ? index + 1
+                    : -1;
+            }
+
+            if (token.IsPunctuation(";"))
+            {
+                return -1;
+            }
+
+            if (!IsBareKeyword(index))
+            {
+                continue;
+            }
+
+            if (token.IsKeyword("ADD"))
+            {
+                return IsAlterTableTarget(index - 1) ? index + 1 : -1;
+            }
+
+            if (token.IsKeyword("COLUMN") && index >= 1 && tokens[index - 1].IsKeyword("ALTER"))
+            {
+                return IsAlterTableTarget(index - 2) ? index + 1 : -1;
+            }
+
+            // WITH 帶不出子句（MASKED WITH (…)、UNIQUE WITH FILLFACTOR = 80），與 FindVerb 同一條。
+            if (IsVerbCandidate(index) && !token.IsKeyword("WITH"))
+            {
+                return -1;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// 從 <paramref name="start"/> 的新資料行名稱跳過型別或計算資料行的 <c>AS</c> 運算式，回傳之後的位置；
+    /// 不是這種開頭（<c>CONSTRAINT</c>、<c>INDEX</c>、<c>PERIOD FOR</c>）或還沒寫完時回 -1。
+    /// </summary>
+    private int SkipColumnHead(int start, int last)
+    {
+        var name = tokens[start];
+
+        if (name.Kind != SqlTokenKind.Identifier || IsBareKeyword(start))
+        {
+            return -1;
+        }
+
+        // 計算資料行：運算式寫到哪裡為止，取 AS 之後整段是一個運算式的最後一個詞元。
+        if (tokens[start + 1].IsKeyword("AS") && IsBareKeyword(start + 1))
+        {
+            for (var end = last; end > start + 1; end--)
+            {
+                if (SqlOperand.SkipBackward(tokens, end) == start + 2)
+                {
+                    return end + 1;
+                }
+            }
+
+            return -1;
+        }
+
+        // 型別不是關鍵字；是關鍵字的只有多字型別的第一個字（NATIONAL）。
+        var type = SqlTokenNavigator.SkipDataType(tokens, start + 1, last + 1);
+
+        return type > start + 1 &&
+            (!IsBareKeyword(start + 1) || SqlDataTypeCatalog.CountWords(tokens, start + 1, last + 1) > 0)
+                ? type
+                : -1;
     }
 
     /// <summary><paramref name="last"/> 寫完 ORDER BY 的 <c>OFFSET</c> 值，一個運算式（<see cref="SqlOperand.SkipBackward"/>）。</summary>

@@ -117,7 +117,7 @@ public static class SuggestionContextFilter
     /// </summary>
     /// <remarks>
     /// 附加片語只補目錄給不了的字，比對永遠只是「可能」，所以與目錄的關鍵字一樣照目標過濾：
-    /// 判不出位置時才出現的 GENERATED 不該列在資料指標名稱那一格。
+    /// 選取清單尾端附加的 AT 不該列在資料指標名稱那一格。
     /// </remarks>
     private static bool IsProvenPhraseWord(SqlSuggestion suggestion)
     {

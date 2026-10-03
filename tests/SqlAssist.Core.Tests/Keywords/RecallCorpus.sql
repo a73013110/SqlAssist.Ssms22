@@ -932,3 +932,13 @@ FROM dbo.Lib_Reader AS r, dbo.Loan FOR PATH AS l, dbo.Copy FOR PATH c, dbo.Branc
 WHERE MATCH(SHORTEST_PATH(r(-(l)->c)+) AND LAST_NODE(c)-(m)->b)
 
 SELECT r.ReaderId FROM dbo.Lib_Reader AS r, dbo.Loan AS l, dbo.Copy AS c, dbo.LoanDetail AS m, dbo.Branch AS b WHERE MATCH(r-(l)->c AND b<-(m)-c)
+
+CREATE TABLE dbo.Shelf (Code char(10) COLLATE Latin1_General_CI_AS SPARSE NULL, Fee int MASKED WITH (FUNCTION = 'default()') HIDDEN NOT NULL, Neg AS -Fee PERSISTED NOT NULL, ShelfNo int IDENTITY(1, 1) NOT FOR REPLICATION CONSTRAINT PkShelf PRIMARY KEY, Kind int CONSTRAINT UqKind UNIQUE WITH FILLFACTOR = 80 ON [PRIMARY], Title NATIONAL CHARACTER VARYING(40) NULL, Doc varbinary(max) FILESTREAM NULL, Props xml COLUMN_SET FOR ALL_SPARSE_COLUMNS)
+
+ALTER TABLE dbo.Shelf ADD Note CHAR VARYING(20) SPARSE NULL, Rate DOUBLE PRECISION NULL
+
+ALTER TABLE dbo.Shelf ALTER COLUMN Title nvarchar(40) MASKED WITH (FUNCTION = 'partial(1, "x", 0)') NULL
+
+DECLARE @Shelf AS TABLE (Code int SPARSE NULL, Title NATIONAL CHAR(10) NOT NULL)
+
+SELECT * FROM OPENJSON(@Doc) WITH (Code nvarchar(10) COLLATE Latin1_General_CI_AS '$.code', Tags nvarchar(max) '$.tags' AS JSON)

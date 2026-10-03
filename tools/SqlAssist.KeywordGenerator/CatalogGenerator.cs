@@ -55,7 +55,7 @@ public sealed class GeneratorLog(Action<string> info, Action<string> warning, Ac
 /// 把字塞進識別字的洞裡（SELECT ? FROM t、FROM ?、CREATE TABLE t (? int)…），被拒的就是插入時一定要加方括號的保留字。
 /// 目錄裡有 13 個字是非保留字（APPLY、OUTPUT、ROWS、GO…），當欄位名寫完全合法，靠這一階段才不會被多加一層括號。</para>
 /// <para>三、定位置：把關鍵字塞進樣板的洞裡剖析，依錯誤碼判定它在該位置合不合法：
-/// 46005 必須是 X 卻發現 Y、46010 語法不正確、46014 只可存在於資料行層級、46001 剖析器內部錯誤 → 不合法；
+/// 46005 必須是 X 卻發現 Y、46010 語法不正確、46014 只可存在於資料行層級（46004、46051 同類的型別限制）、46001 剖析器內部錯誤 → 不合法；
 /// 46029 出現未預期的檔案結尾 → 合法，只是語句還沒寫完。
 /// 單一續尾會誤判——BACKUP 之後是檔案結尾、SELECT 之後卻是語法錯誤，兩者都合法。因此每個位置試一組續尾取聯集：
 /// 任一組能過就算合法。非保留字另有一條：同一組續尾換成普通名稱也過的話，那一次只證明它能當名字，不算它屬於這個位置。
@@ -223,6 +223,7 @@ public static class CatalogGenerator
         log.Progress(null);
 
         PhraseMerging.ChainUniqueContinuations(explorer.Phrases);
+        explorer.ReturnCompletedOptionsToPosition();
         var phrases = PhraseMerging.MergePositions(explorer.Phrases.Values);
         var keywordSet = new HashSet<string>(keywords, IgnoreCase);
         var phraseWords = SortUnique(phrases.SelectMany(phrase => phrase.Words).Where(word => !keywordSet.Contains(word)));
@@ -276,6 +277,9 @@ public static class CatalogGenerator
     // 46001 = "剖析器內部錯誤"。剖析器在報錯的詞元上當掉、之後都沒檢查，與 46010 一樣是它過不去的地方。
     //         不算進來的話 WITHIN GROUP (GRAPH 在檔案結尾只報這一條、一個拒收都沒有，GRAPH 不必寫完 PATH 就接得上。
     //         算在它報的位置而不是整段作廢：換一條續尾剖析器照常走完的話，那個字仍然成立（GRAPH 由 PATH)) 的續尾證明）。
+    // 46004 = "X 資料類型不得有 Varying 關鍵字"、46051 = "只有 VARBINARY(MAX) 資料行可以宣告 FILESTREAM"：
+    //         與 46014 同一種，字寫得出來但不配樣板的型別。剖析器報完就停，之後的續尾一個都沒驗，
+    //         不算進來的話 CREATE TABLE t (a int FILESTREAM 之後什麼字都接得上。要這些字的格子換一個配得上的樣板探。
     // 46029 = "出現未預期的檔案結尾"，代表吃下去了、只是語句沒寫完，那是合法的。
     //
     // 另有一族訊息說「這個字不是這裡的選項」（{0} is not a WITH option for a procedure.）：
@@ -300,7 +304,7 @@ public static class CatalogGenerator
         }
 
         log.Info($"選項拒收訊息：{string.Join(", ", optionRejections)}");
-        return [46001, 46005, 46010, 46014, .. optionRejections];
+        return [46001, 46004, 46005, 46010, 46014, 46051, .. optionRejections];
     }
 
     private static List<string> SortUnique(IEnumerable<string> words)

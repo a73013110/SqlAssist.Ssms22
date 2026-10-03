@@ -141,9 +141,17 @@ internal static class PositionTemplates
 
         // 資料行定義清單的每一項開頭：新資料行名稱，或 CONSTRAINT、PRIMARY KEY 這些字。
         // DECLARE @t TABLE (、RETURNS @t TABLE ( 得到的字與 CREATE TABLE 相同，不必另列。
-        // 型別寫完之後（a int |）沒有樣板：分析器在那裡判不出位置，NOT NULL、IDENTITY、
-        // REFERENCES 照樣靠 Any 列得出來；放一個分析器回不出的位置只是自欺。
         new("ColumnDefinition", "CREATE TABLE t (", "CREATE TABLE t (a int, "),
+
+        // 型別或計算資料行的運算式寫完之後：NOT NULL、IDENTITY、條件約束；HIDDEN、SPARSE、PERSISTED 由子句片語給。
+        // 只配某些寫法的字各探自己的樣板，由 DdlPhrases 的證據補進同一格（計算資料行、varbinary(max)、IDENTITY (…)、OPENJSON、
+        // ALTER COLUMN、條件約束選項、xml、字元型別）。ALTER COLUMN 寫到型別就完整，這裡多出整份語句開頭的字；
+        // 不影響清單：這一格一定比對得到位置片語，關鍵字只由片語給。
+        new("ColumnDefinitionTail",
+            "CREATE TABLE t (a int ", "CREATE TABLE t (a AS b ", "CREATE TABLE t (a varbinary(max) ",
+            "CREATE TABLE t (a int IDENTITY(1, 1) ", "SELECT * FROM OPENJSON(@j) WITH (a int ",
+            "ALTER TABLE t ALTER COLUMN a int ", "CREATE TABLE t (a int UNIQUE WITH FILLFACTOR = 80 ", "CREATE TABLE t (a xml ",
+            "CREATE TABLE t (a nchar "),
         new("BlockStart", "BEGIN ", "BEGIN TRY SELECT 1 END TRY BEGIN "),
 
         // 區塊寫完：下一句，以及 IF 的 ELSE、TRY／CATCH 區塊的 END TRY、END CATCH。

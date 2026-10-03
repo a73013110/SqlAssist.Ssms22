@@ -38,17 +38,9 @@ public static class SqlKeywordCatalog
     /// 但著色不能因此把型別畫成一般文字——結構預覽裡的 CREATE TABLE
     /// 有一半的字是型別，全部變黑就等於沒有著色。
     ///
-    /// 這份沒有跟著自動產生：ScriptDom 把型別名稱當識別字掃，token 列舉裡沒有它們。
+    /// 名稱取自型別目錄（<see cref="SqlDataTypeCatalog"/>），不另抄一份：抄的那份漏了 JSON、VECTOR。
     /// </remarks>
-    private static readonly HashSet<string> DataTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "BIGINT", "BINARY", "BIT", "CHAR", "DATE", "DATETIME", "DATETIME2",
-        "DATETIMEOFFSET", "DECIMAL", "FLOAT", "GEOGRAPHY", "GEOMETRY",
-        "HIERARCHYID", "IMAGE", "INT", "MONEY", "NCHAR", "NTEXT", "NUMERIC",
-        "NVARCHAR", "REAL", "ROWVERSION", "SMALLDATETIME", "SMALLINT",
-        "SMALLMONEY", "SQL_VARIANT", "SYSNAME", "TEXT", "TIME", "TIMESTAMP",
-        "TINYINT", "UNIQUEIDENTIFIER", "VARBINARY", "VARCHAR", "XML"
-    };
+    private static readonly HashSet<string> DataTypes = new(SqlDataTypeCatalog.Names, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 不能直接當識別字書寫的字。

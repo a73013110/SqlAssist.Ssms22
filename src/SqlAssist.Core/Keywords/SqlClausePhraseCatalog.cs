@@ -150,7 +150,7 @@ public static class SqlClausePhraseCatalog
             return best;
         }
 
-        // 判不出位置時整份目錄進場，附加片語的字也一樣：產生器判不出位置的字（GENERATED）只在這裡出現。
+        // 判不出位置時整份目錄進場，附加片語的字也一樣：None 的附加片語只在這裡出現。
         if (caret == SqlKeywordPosition.Any)
         {
             return best ?? MatchAdditive(caret);
@@ -250,7 +250,8 @@ public static class SqlClausePhraseCatalog
             var before = start == count ? caret : analyzer.PositionBefore(start);
 
             // 語句到片語為止已經完整又換了行：可能是下一句，也可能還是這一句（CREATE SEQUENCE s⏎START WITH、
-            // CREATE DATABASE d ON (…)⏎LOG ON），片語只算可能、字加進那一格。換行是不是界線由位置分析決定，這裡不另判。
+            // CREATE DATABASE d ON (…)⏎LOG ON），片語只算可能、字加進那一格。換行是不是界線由位置分析決定，這裡不另判：
+            // 游標處的位置因換行補上了語句開頭（ALTER TABLE t ADD a int⏎），片語的探測文字寫不完一句也一樣。
             if (start >= 0 && Qualify(phrase, before) is { } match)
             {
                 if (match.IsCertain)
@@ -259,12 +260,18 @@ public static class SqlClausePhraseCatalog
                     match = phrase.Certain;
                 }
 
-                return phrase.EndsStatement && onNewLine ? phrase.Tentative : match;
+                return onNewLine && (phrase.EndsStatement || NewLineStartsStatement(caret, phrase)) ? phrase.Tentative : match;
             }
         }
 
         return null;
     }
+
+    /// <summary>游標處的位置含語句開頭，而片語不是語句開頭的片語：那是換行補上的界線。</summary>
+    private static bool NewLineStartsStatement(SqlKeywordPosition caret, SqlClausePhrase phrase) =>
+        caret != SqlKeywordPosition.Any &&
+        (caret & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None &&
+        (phrase.After & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None;
 
     /// <summary>
     /// 同一條尾巴在 <paramref name="before"/> 的其他位置也確定成立的片語，與 <paramref name="phrase"/> 合成一個：字取聯集。

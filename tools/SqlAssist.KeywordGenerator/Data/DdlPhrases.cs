@@ -95,21 +95,40 @@ internal static class DdlPhrases
 
     internal static readonly PhraseDeclaration[] Tables =
     [
-        // 外部索引鍵的參考動作；資料行型別之後判不出位置（CREATE TABLE t (a int IDENTITY |）。
+        // 外部索引鍵的參考動作。
         new("ON DELETE") { After = ["ReferencesTail"], Expand = 1 },
         new("ON UPDATE") { After = ["ReferencesTail"], Expand = 1 },
+
+        // NOT FOR 之後一定是 REPLICATION：尾巴本身認得出來，寫在 IDENTITY、外部索引鍵、CHECK、觸發程序、安全性原則的述詞之後都一樣。
         new("NOT FOR") { Lead = "CREATE TABLE t (a int IDENTITY " },
 
-        // 時態表：期間資料行（GENERATED ALWAYS AS ROW START）寫在型別之後，同樣判不出位置；PERIOD FOR SYSTEM_TIME
+        // 資料行定義的型別之後（CREATE TABLE、ALTER TABLE ADD、ALTER COLUMN、OPENJSON WITH 共用）：選項不以逗號分隔、
+        // 順序不限，與序列選項同一種格子。HIDDEN、SPARSE、MASKED 這些字與下一層（NOT FOR、MASKED WITH）由展開探出；
+        // 只配某些寫法的字各探自己的樣板，由證據補進同一格：PERSISTED、FILESTREAM、NOT FOR REPLICATION、AS JSON、
+        // ALTER COLUMN 的線上選項、條件約束的 ON 檔案群組、字元型別的 VARYING（nchar varying）。
+        // 寫完一個選項之後回到這一格，見 ReturnCompletedOptionsToPosition；資料行層級的索引名稱之後是 CLUSTERED、WHERE。
+        // MASKED 要寫完 WITH (FUNCTION = …) 才驗，續尾把它寫完；只配 xml 的 COLUMN_SET 整段是證據（ALL_SPARSE_COLUMNS 在展開的第二層）。
+        new("") { After = ["ColumnDefinitionTail"], Expand = 1, Endings = [" WITH (FUNCTION = 'default()'))"] },
+        new("PERSISTED") { After = ["ColumnDefinitionTail"], Template = 1 },
+        new("FILESTREAM") { After = ["ColumnDefinitionTail"], Template = 2 },
+        new("NOT FOR REPLICATION") { After = ["ColumnDefinitionTail"], Template = 3 },
+        new("AS JSON") { After = ["ColumnDefinitionTail"], Template = 4 },
+        new("WITH (*") { After = ["ColumnDefinitionTail"], Template = 5 },
+        new("ON {name}") { After = ["ColumnDefinitionTail"], Template = 6 },
+        new("COLUMN_SET FOR ALL_SPARSE_COLUMNS") { After = ["ColumnDefinitionTail"], Template = 7 },
+        new("VARYING") { After = ["ColumnDefinitionTail"], Template = 8 },
+        new("INDEX {name}") { After = ["ColumnDefinitionTail"] },
+        new("MASKED WITH (*") { After = ["ColumnDefinitionTail"] },
+
+        // 時態表：期間資料行（GENERATED ALWAYS AS ROW START）寫在型別之後；PERIOD FOR SYSTEM_TIME
         // 是資料表層級的一項。資料表選項 WITH (…)、ALTER TABLE SET (…) 與 SYSTEM_VERSIONING = ON (…) 是括號清單。
-        new("GENERATED ALWAYS AS ROW START HIDDEN") { Lead = "CREATE TABLE t (a datetime2 " },
-        new("GENERATED ALWAYS AS ROW END HIDDEN") { Lead = "CREATE TABLE t (a datetime2 " },
-        // AS 之後的 SUSER_SID、TRANSACTION_ID 這些字剖析器要看到 START／END 才收，逐字探不出來，整段是證據；
-        // 墊的文字要與上面相同，才補得進同一個 GENERATED ALWAYS AS。
-        new("GENERATED ALWAYS AS SUSER_SID START HIDDEN") { Lead = "CREATE TABLE t (a datetime2 " },
-        new("GENERATED ALWAYS AS SUSER_SNAME END HIDDEN") { Lead = "CREATE TABLE t (a datetime2 " },
-        new("GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN") { Lead = "CREATE TABLE t (a datetime2 " },
-        new("GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN") { Lead = "CREATE TABLE t (a datetime2 " },
+        // AS 之後的 ROW、SUSER_SID、TRANSACTION_ID 這些字剖析器要看到 START／END 才收，逐字探不出來，整段是證據。
+        new("GENERATED ALWAYS AS ROW START HIDDEN") { After = ["ColumnDefinitionTail"] },
+        new("GENERATED ALWAYS AS ROW END HIDDEN") { After = ["ColumnDefinitionTail"] },
+        new("GENERATED ALWAYS AS SUSER_SID START HIDDEN") { After = ["ColumnDefinitionTail"] },
+        new("GENERATED ALWAYS AS SUSER_SNAME END HIDDEN") { After = ["ColumnDefinitionTail"] },
+        new("GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN") { After = ["ColumnDefinitionTail"] },
+        new("GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN") { After = ["ColumnDefinitionTail"] },
         new("PERIOD FOR SYSTEM_TIME ()") { After = ["ColumnDefinition", "AlterTableAdd"], Group = "(a, b)" },
         new("CREATE TABLE {name} () WITH (*") { Group = "(a int)" },
         new("ALTER TABLE {name} SET (*"),
@@ -130,12 +149,9 @@ internal static class DdlPhrases
         new("CONNECTION (* {name}") { After = ["ColumnDefinition", "AlterTableAdd"], Endings = [" x))"] },
         new("CONNECTION ()") { After = ["ColumnDefinition", "AlterTableAdd"], Group = "(a TO b)", Expand = 2 },
 
-        // Always Encrypted 的資料行：型別之後判不出位置，ENCRYPTED WITH ( 這條尾巴本身認得出來。ENCRYPTION_TYPE 的值
-        // 剖析器要看到下一項才驗，續尾把清單寫完。
-        new("ENCRYPTED WITH (*") { Lead = "CREATE TABLE t (a int " },
-        new("ENCRYPTED WITH (* ENCRYPTION_TYPE =") { Lead = "CREATE TABLE t (a int ", Endings = [", ALGORITHM = 'x', COLUMN_ENCRYPTION_KEY = k))"] },
-        // ALTER COLUMN 的 … WITH (*（線上選項）項數比上面多，比對取它；寫到 ENCRYPTED 的這一條更長。
-        new("ALTER COLUMN ... ENCRYPTED WITH (*") { Lead = "ALTER TABLE t ", Gap = "a int" },
+        // Always Encrypted 的資料行：ENCRYPTION_TYPE 的值剖析器要看到下一項才驗，續尾把清單寫完。
+        new("ENCRYPTED WITH (*") { After = ["ColumnDefinitionTail"] },
+        new("ENCRYPTED WITH (* ENCRYPTION_TYPE =") { After = ["ColumnDefinitionTail"], Endings = [", ALGORITHM = 'x', COLUMN_ENCRYPTION_KEY = k))"] },
 
         // 資料分割函式：參數只寫型別，之後是 AS RANGE LEFT／RIGHT FOR VALUES；ALTER 的 SPLIT、MERGE 之後接 RANGE。
         // AS 之後剖析器什麼名稱都先收，逐字探不出 RANGE，整段是證據；之後的字要看到 FOR VALUES 才驗，續尾把整句寫完。
@@ -154,7 +170,7 @@ internal static class DdlPhrases
 
     internal static readonly PhraseDeclaration[] Constraint =
     [
-        // 資料表層級的條件約束：CONSTRAINT 名稱之後是 PRIMARY KEY、UNIQUE、CHECK、FOREIGN KEY。
-        new("CONSTRAINT {name}") { After = ["ColumnDefinition", "AlterTableAdd"] },
+        // 條件約束：CONSTRAINT 名稱之後是 PRIMARY KEY、UNIQUE、CHECK、FOREIGN KEY；寫在型別之後的是資料行層級，多一個 DEFAULT。
+        new("CONSTRAINT {name}") { After = ["ColumnDefinition", "AlterTableAdd", "ColumnDefinitionTail"] },
     ];
 }

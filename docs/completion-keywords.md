@@ -16,7 +16,7 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
    camelCase 的再試補底線的寫法（`CURRENT_TIMESTAMP`、`IDENTITY_INSERT`）。
 
 2. **定位置**：把每個關鍵字塞進樣板的洞裡剖析，依錯誤碼判定它在該位置合不合法。
-   46001、46005、46010、46014 與「不是這裡的選項」那一族（從剖析器的訊息資源撈）= 不合法；
+   46001、46005、46010、46014、型別限制（46004、46051：報完就停，續尾都沒驗）與「不是這裡的選項」那一族（從剖析器的訊息資源撈）= 不合法；
    46029（未預期的檔案結尾）= 合法，只是語句沒寫完。單一續尾會誤判，所以每個位置試一組續尾取聯集。非保留字要以**關鍵字身分**過才算
    屬於那個位置：同一組續尾換成普通名稱也過的話，那一次只證明它能當名字。
    MERGE 少了分號只報 46097、之後不再檢查：補上分號重剖析，整段比對仍有 46097 就算拒收。
@@ -27,7 +27,7 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
 
 手寫的只有每個位置的樣板，分類全部由剖析器決定。樣板必須是分析器判得出、
 而且回報含該位置的文字：樣板表隨產物輸出成 `SqlKeywordCatalogData.Templates`，
-由 Core 測試逐條回驗。只有產生器分得出的位置是自欺——型別寫完之後（`CREATE TABLE t (a int |`）因此沒有樣板，是 `Any`。
+由 Core 測試逐條回驗。只有產生器分得出的位置是自欺。
 
 非保留字是唯一的例外：`THROW`、`APPLY`、`NOLOCK` 不在 token 列舉裡，由產生器
 `Data/KeywordSupplements.cs` 手寫，位置一樣自動分類。
@@ -56,11 +56,7 @@ ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CH
 CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFAULT（ColumnDefinition）
 CREATE TRIGGER tr ON t AFTER → INSERT、UPDATE、DELETE（TriggerEvent）
 OVER (ORDER BY a      → ASC、DESC、ROWS、RANGE（WindowOrderTail）
-GRANT EXECUTE ON      → SCHEMA、OBJECT…與名稱（PermissionOn）
-CREATE INDEX … WITH ( → ONLINE、FILLFACTOR…（IndexOption）
 FOR XML RAW,          → TYPE、ROOT、ELEMENTS（OptionItem）
-TABLESAMPLE (10       → PERCENT、ROWS（TableSampleTail）
-PIVOT (SUM(x) FOR y   → IN（PivotClause）
 ```
 
 位置切在「游標前一個詞元」之後，那是分析器認得的粒度——它分不出
@@ -87,6 +83,8 @@ PIVOT (SUM(x) FOR y   → IN（PivotClause）
 `AlterTableAction`／`AlterTableAdd`／`AlterTableColumn`、`BlockEnd`、`IfBodyEnd`、`CursorOption` 這類敘述自己的格子
 都是**自己的成員**，不借用 `Any`。欄位之後是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`）。
 `SELECT a INTO t `、`OFFSET 10 `、`REFERENCES u (a) ` 這類子句尾端也各有位置，不借長得像的 `OrderByTail`。
+資料行的型別或計算運算式之後是 `ColumnDefinitionTail`，CREATE TABLE、`ALTER TABLE t ADD`／`ALTER COLUMN` 與 OPENJSON 的 `WITH (` 共用；
+之後每寫完一個運算元（`NULL`、右括號）仍是它，寫到一半的（`NOT`、`MASKED`）交給片語，停在 `DEFAULT` 上的照舊 `Any`。
 `FunctionCallTail` 是疊加位元：函式呼叫之後多接 `OVER`，`WITHIN GROUP (…)` 之後也是；限定名稱（`dbo.fn_Fee(a)`）是 UDF，不加。
 
 `ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個含點號的名稱單位」，

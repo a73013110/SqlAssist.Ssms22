@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Localization;
+using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Keywords;
 
@@ -85,6 +87,28 @@ public static class SqlDataTypeCatalog
         ("CURSOR", () => DataTypeText.Cursor, false)
     };
 
+    /// <summary>多字的 ANSI 同義字與它代表的型別；說明與要不要接左括號都取那個型別的。</summary>
+    /// <remarks>
+    /// 只收多字的：單字的 <c>INTEGER</c>、<c>DEC</c> 只是多一個寫法，型別清單多列它們只是雜訊；多字的少了它們，
+    /// 第一個字（<c>NATIONAL</c>）在型別的位置就列不出來。型別之後的位置也要認得整段才知道型別寫完了，
+    /// 見 <see cref="CountWords"/>。
+    /// </remarks>
+    private static readonly (string Name, string Type)[] Synonyms =
+    {
+        ("NATIONAL CHARACTER VARYING", "NVARCHAR"),
+        ("NATIONAL CHAR VARYING", "NVARCHAR"),
+        ("NATIONAL CHARACTER", "NCHAR"),
+        ("NATIONAL CHAR", "NCHAR"),
+        ("NATIONAL TEXT", "NTEXT"),
+        ("CHARACTER VARYING", "VARCHAR"),
+        ("CHAR VARYING", "VARCHAR"),
+        ("BINARY VARYING", "VARBINARY"),
+        ("DOUBLE PRECISION", "FLOAT")
+    };
+
+    private static readonly string[][] SynonymWords =
+        Synonyms.Select(synonym => synonym.Name.Split(' ')).OrderByDescending(words => words.Length).ToArray();
+
     private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> SuggestionCache =
         new(_ => Build());
 
@@ -96,20 +120,76 @@ public static class SqlDataTypeCatalog
     /// </remarks>
     public static bool TryGetDescription(string? name, out string description)
     {
-        if (!string.IsNullOrEmpty(name))
+        if (!string.IsNullOrEmpty(name) && Find(name!) is { } definition)
         {
-            foreach (var (candidate, value, _) in Definitions)
-            {
-                if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
-                {
-                    description = value();
-                    return true;
-                }
-            }
+            description = definition.Description();
+            return true;
         }
 
         description = string.Empty;
         return false;
+    }
+
+    /// <summary>內建型別的名稱，不含同義字；語法著色用。</summary>
+    internal static IEnumerable<string> Names => Definitions.Select(definition => definition.Name);
+
+    /// <summary>
+    /// 從 <paramref name="index"/> 起是多字型別（<c>NATIONAL CHARACTER VARYING</c>、<c>DOUBLE PRECISION</c>）時的字數，
+    /// 取最長的；不是就回 0。
+    /// </summary>
+    /// <param name="end">不含的上限。</param>
+    public static int CountWords(IReadOnlyList<SqlToken> tokens, int index, int end)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        foreach (var words in SynonymWords)
+        {
+            if (index + words.Length > end)
+            {
+                continue;
+            }
+
+            var matched = true;
+
+            for (var offset = 0; offset < words.Length && matched; offset++)
+            {
+                var token = tokens[index + offset];
+                matched = token.Kind == SqlTokenKind.Identifier && !token.IsQuoted &&
+                    string.Equals(token.Value, words[offset], StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (matched)
+            {
+                return words.Length;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>名稱是內建型別或同義字時，型別的定義；同義字回它代表的那個型別。</summary>
+    private static (string Name, Func<string> Description, bool TakesArguments)? Find(string name)
+    {
+        foreach (var (synonym, type) in Synonyms)
+        {
+            if (string.Equals(synonym, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return Find(type);
+            }
+        }
+
+        foreach (var definition in Definitions)
+        {
+            if (string.Equals(definition.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return definition;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>內建型別的建議項。</summary>
@@ -117,9 +197,9 @@ public static class SqlDataTypeCatalog
 
     private static IReadOnlyList<SqlSuggestion> Build()
     {
-        var suggestions = new List<SqlSuggestion>(Definitions.Length);
+        var suggestions = new List<SqlSuggestion>(Definitions.Length + Synonyms.Length);
 
-        foreach (var (name, describe, takesArguments) in Definitions)
+        foreach (var (name, describe, takesArguments) in Definitions.Concat(Synonyms.Select(Expand)))
         {
             var description = describe();
 
@@ -132,5 +212,11 @@ public static class SqlDataTypeCatalog
         }
 
         return suggestions;
+    }
+
+    private static (string Name, Func<string> Description, bool TakesArguments) Expand((string Name, string Type) synonym)
+    {
+        var type = Find(synonym.Type)!.Value;
+        return (synonym.Name, type.Description, type.TakesArguments);
     }
 }

@@ -246,6 +246,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("DECLARE c SCROLL CURSOR FOR ", "SELECT")]
     [InlineData("CREATE USER u FOR ", "LOGIN")]
     [InlineData("CREATE TABLE t (a int IDENTITY NOT FOR ", "REPLICATION")]
+    [InlineData("CREATE TABLE t (a int IDENTITY(1, 1) NOT FOR ", "REPLICATION")]
     [InlineData("BACKUP DATABASE LibArchive ", "TO")]
     [InlineData("BACKUP DATABASE LibArchive TO ", "DISK", "URL")]
     [InlineData("BACKUP DATABASE @db TO ", "DISK", "URL")]
@@ -316,7 +317,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (", "ORDER")]
     [InlineData("SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY Fee) ", "OVER")]
     [InlineData("SELECT Branch FROM dbo.Copy ORDER BY STRING_AGG(Title, ', ') ", "WITHIN")]
-    [InlineData("PRINT @a ", "AT", "GENERATED", "VECTOR_SEARCH")]
+    [InlineData("PRINT @a ", "AT", "VECTOR_SEARCH")]
     [InlineData("DELETE FROM dbo.Loan WHERE ", "CURRENT")]
     [InlineData("DELETE FROM dbo.Loan WHERE CURRENT ", "OF")]
     [InlineData("UPDATE dbo.Loan SET Fee = 0 WHERE CURRENT ", "OF")]
@@ -353,6 +354,20 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT * FROM PREDICT(", "MODEL")]
     [InlineData("SELECT * FROM PREDICT(MODEL = @Model, ", "DATA")]
     [InlineData("SELECT * FROM PREDICT(MODEL = @Model, DATA = dbo.Copy AS d, RUNTIME = ", "ONNX")]
+    [InlineData("CREATE TABLE Shelf (Code char(10) ", "HIDDEN", "MASKED", "SPARSE", "COLLATE", "NOT", "NULL", "CONSTRAINT")]
+    [InlineData("CREATE TABLE Shelf (Code char(10) COLLATE Latin1_General_CI_AS SPARSE ", "MASKED", "NULL")]
+    [InlineData("CREATE TABLE Shelf (Fee int MASKED WITH (", "FUNCTION")]
+    [InlineData("CREATE TABLE Shelf (Fee int MASKED WITH (FUNCTION = 'default()') ", "HIDDEN", "NOT")]
+    [InlineData("CREATE TABLE Shelf (Doc varbinary(max) ", "FILESTREAM")]
+    [InlineData("CREATE TABLE Shelf (Doc xml ", "COLUMN_SET")]
+    [InlineData("CREATE TABLE Shelf (Fee int, Neg AS -Fee ", "PERSISTED")]
+    [InlineData("CREATE TABLE Shelf (Fee int IDENTITY(1, 1) NOT ", "FOR", "NULL")]
+    [InlineData("CREATE TABLE Shelf (Fee int CONSTRAINT DfFee ", "DEFAULT", "PRIMARY")]
+    [InlineData("DECLARE @Shelf AS TABLE (Code int ", "SPARSE")]
+    [InlineData("ALTER TABLE Shelf ADD Doc xml ", "COLUMN_SET")]
+    [InlineData("ALTER TABLE Shelf ALTER COLUMN Code nvarchar(10) ", "MASKED", "HIDDEN")]
+    [InlineData("SELECT * FROM OPENJSON(@j) WITH (Code nvarchar(10) ", "COLLATE", "AS")]
+    [InlineData("SELECT * FROM OPENJSON(@j) WITH (Tags nvarchar(max) '$.tags' ", "AS")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -535,6 +550,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE SEQUENCE dbo.LoanNo AS int\nSTART WITH 1\n", "INCREMENT", "SELECT")]
     [InlineData("CREATE DATABASE LibArchive\nON (NAME = LibData, FILENAME = 'x')\n", "LOG", "SELECT")]
     [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo)\n", "INCLUDE", "SELECT")]
+    [InlineData("ALTER TABLE dbo.Loan ADD Note varchar(100)\n", "SPARSE", "SELECT")]
+    [InlineData("ALTER TABLE dbo.Loan ALTER COLUMN Note varchar(100) NOT NULL\n", "WITH", "SELECT")]
     public void 語句寫完又換行時片語只加字(string textBeforeCaret, string phraseWord, string nextStatementWord)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);

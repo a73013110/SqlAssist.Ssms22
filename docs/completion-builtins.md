@@ -53,6 +53,9 @@ token 列舉裡根本沒有它——任何工具在這一塊都只能自己維�
 `@@REMSERVER` 不衝突——那個變數回報的功能整個被拿掉了，打出來也得不到有意義的值。
 標準是「還有用就收，只是標清楚」。
 
+多字的 ANSI 寫法（`NATIONAL CHARACTER VARYING`、`CHAR VARYING`、`DOUBLE PRECISION`）是同義字，說明與左括號取它代表的型別；
+單字的 `INTEGER`、`DEC` 不收，只是多一個寫法。跳過型別的 `SqlTokenNavigator.SkipDataType` 認得整段，型別之後的位置才知道型別寫完了。
+
 SQL Server 2025 才有的 `JSON`、`VECTOR` 同樣照收、不看連線的版本：這份清單本來就不查資料庫，
 而寫給新版的指令碼常在舊版的連線上編輯；版本寫在說明欄。`VECTOR` 一定要寫維度，帶左括號。
 
