@@ -1376,6 +1376,13 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return true;
         }
 
+        // 具名視窗與 CTE 同一種格子：WINDOW 之後與上一項寫完的逗號之後是新取的名字。
+        if ((token.IsKeyword("WINDOW") && IsBareKeyword(last)) || SqlWindowClause.EndsDefinition(tokens, last))
+        {
+            caret = new SqlCaretPosition(SqlKeywordPosition.Any, SqlCompletionSlot.Name);
+            return true;
+        }
+
         // 新資料表寫完之後接的是 FROM、WHERE。
         if (token.IsKeyword("INTO") && IsSelectInto(last))
         {
@@ -1808,6 +1815,18 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return FindAnchorPosition(last - 1, ListAnchors);
         }
 
+        // OVER (、WINDOW w AS ( 之後是 PARTITION、ORDER 或基底視窗的名稱。
+        if (token.IsPunctuation("(") && SqlWindowClause.OpensSpecification(tokens, last))
+        {
+            return SqlKeywordPosition.WindowSpecification;
+        }
+
+        // WINDOW w 之後只有 AS；名稱可以加方括號，排在「加引號的是名稱」那幾條之前。
+        if (SqlWindowClause.NamesDefinition(tokens, last))
+        {
+            return SqlKeywordPosition.WindowName;
+        }
+
         if (token.Kind is SqlTokenKind.Punctuation or SqlTokenKind.Operator)
         {
             return SqlKeywordPosition.Any;
@@ -2144,6 +2163,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return new SqlCaretPosition(SqlKeywordPosition.TableSourceTail, SqlCompletionSlot.MaybeName);
         }
 
+        // WINDOW 子句的一項寫完：逗號或查詢之後的子句，不借 WINDOW 前面那個子句的尾端。
+        if (SqlWindowClause.OpensDefinition(tokens, open))
+        {
+            return new SqlCaretPosition(SqlKeywordPosition.WindowClauseTail);
+        }
+
         // CTE 寫完之後是它自己那一句的開頭：SELECT、INSERT、UPDATE、DELETE、MERGE。
         if (EndsCommonTableExpression(close))
         {
@@ -2269,6 +2294,13 @@ public sealed partial class SqlKeywordPositionAnalyzer
                     return KeywordsAfter(index);
                 }
 
+                // 視窗規格的括號自己就是一個子句：OVER (w |、OVER (PARTITION BY a | 之後還接 ORDER 與框架，
+                // 不穿出去借選取清單的尾端。
+                if (!insideGroup && token.IsPunctuation("(") && SqlWindowClause.OpensSpecification(tokens, index))
+                {
+                    return SqlKeywordPosition.WindowSpecification;
+                }
+
                 insideGroup |= token.IsPunctuation("(");
                 continue;
             }
@@ -2299,10 +2331,13 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
             if (IsOrderOrGroupBy(index))
             {
-                // 視窗 OVER (… ORDER BY a 的排序項之後接視窗框架，不接查詢的 OFFSET、UNION。
-                if (anchors == ClauseAnchors && !insideGroup && OrdersWindow(index - 1))
+                // 視窗規格裡 ORDER BY 的排序項之後接框架，不接查詢的 OFFSET、UNION；PARTITION BY 的一項寫完
+                // 回到視窗規格。逗號之後兩者都與 GROUP BY 一樣是下一個欄位。
+                if (anchors == ClauseAnchors && !insideGroup && InWindowSpecification(index - 1))
                 {
-                    return SqlKeywordPosition.WindowOrderTail;
+                    return tokens[index - 1].IsKeyword("ORDER")
+                        ? SqlKeywordPosition.WindowOrderTail
+                        : SqlKeywordPosition.WindowSpecification;
                 }
 
                 return anchors[tokens[index - 1].IsKeyword("ORDER") ? OrderBy : GroupBy];
@@ -2452,14 +2487,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
             tokens[index].IsKeyword("VALUES") ||
             tokens[index].IsKeyword("DEFAULT"));
 
-    /// <summary><paramref name="order"/> 的 ORDER 在視窗 <c>OVER (</c> 裡。</summary>
-    private bool OrdersWindow(int order)
-    {
-        var open = FindUnclosedParenthesis(order - 1);
-        return open >= 1 && tokens[open - 1].IsKeyword("OVER");
-    }
+    /// <summary><paramref name="index"/> 在視窗規格（<c>OVER (</c>、<c>WINDOW w AS (</c>）的括號裡。</summary>
+    private bool InWindowSpecification(int index) =>
+        SqlWindowClause.OpensSpecification(tokens, FindUnclosedParenthesis(index - 1));
 
-    /// <summary><paramref name="index"/> 是不是 ORDER BY／GROUP BY 的那個 BY。</summary>
+    /// <summary><paramref name="index"/> 是不是 ORDER BY、GROUP BY 或視窗 PARTITION BY 的那個 BY：之後是一份欄位清單。</summary>
     private bool IsOrderOrGroupBy(int index)
     {
         if (index < 1 || !tokens[index].IsKeyword("BY"))
@@ -2468,6 +2500,6 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
 
         var previous = tokens[index - 1];
-        return previous.IsKeyword("ORDER") || previous.IsKeyword("GROUP");
+        return previous.IsKeyword("ORDER") || previous.IsKeyword("GROUP") || previous.IsKeyword("PARTITION");
     }
 }

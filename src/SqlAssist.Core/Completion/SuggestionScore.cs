@@ -153,6 +153,7 @@ internal static class SuggestionScore
             SuggestionKind.QueryHint => 25,
             SuggestionKind.InstanceListValue => 25,
             SuggestionKind.Cursor => 25,
+            SuggestionKind.Window => 25,
 
             // 唯一與同類別比大小的一個：定序那份清單有五千多筆，而名稱長得幾乎
             // 一樣（只差 _CI_AS、_CS_AS 這種尾巴），模糊比對的順序沒有意義。伺服器

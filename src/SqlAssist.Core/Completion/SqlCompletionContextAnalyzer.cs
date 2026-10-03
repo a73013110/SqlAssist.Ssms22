@@ -82,6 +82,19 @@ public static class SqlCompletionContextAnalyzer
             out var beforeQualifier,
             out var qualifierStart);
 
+        // 視窗名稱那一格：OVER 之後與視窗規格的左括號之後（基底視窗）。排在封閉片語之前：
+        // 括號之後的 PARTITION、ORDER 由封閉的片語給，指令碼取的視窗名稱也要列。
+        if (qualifierPath is null && SqlWindowClause.IntroducesReference(tokens, tokens.Count - 1))
+        {
+            return new SqlCompletionContext(
+                SqlCompletionSlot.Grammar,
+                tokenStart,
+                prefix,
+                CompletionTarget.Window,
+                keywordPosition: keywordPosition,
+                clausePhrase: caret.Phrase);
+        }
+
         // 封閉的子句片語排在其他封閉清單之前：片語比對的是游標前的整條尾巴，
         // CREATE INDEX … WITH ( 是索引選項，只看「WITH 緊接著左括號」會當成資料表提示。
         // 名字那一格也在它之後問：片語說得出這裡要什麼，就不是使用者要取的名字。
@@ -300,6 +313,11 @@ public static class SqlCompletionContextAnalyzer
         if (context.Target == CompletionTarget.Cursor)
         {
             return context.WithScriptSources(SqlScriptObjectSuggestions.Cursors(tokens));
+        }
+
+        if (context.Target == CompletionTarget.Window)
+        {
+            return context.WithScriptSources(SqlScriptObjectSuggestions.Windows(sql, tokens, caretPosition));
         }
 
         var scope = SqlScopeAnalyzer.Analyze(sql, tokens, caretPosition);
@@ -688,13 +706,18 @@ public static class SqlCompletionContextAnalyzer
         // 這三個位置文法上只接得了既有的資料表。ALTER 家族的 PROCEDURE／FUNCTION／
         // TRIGGER 與 DROP 家族的 TRIGGER／SEQUENCE 都已經在這裡，只差資料表——
         // 少的那一條沒有任何症狀，只是使用者在最常改的位置沒有清單。
-        // EXEC … WITH RESULT SETS (AS OBJECT 取的是資料表、檢視或資料表值函式的資料行形狀。
+        // EXEC … WITH RESULT SETS (AS OBJECT 取的是資料表、檢視或資料表值函式的資料行形狀，AS TYPE 取資料表型別的。
         if (EndsWithKeywords(text, "ALTER", "TABLE", out keywordStart) ||
             EndsWithKeywords(text, "DROP", "TABLE", out keywordStart) ||
             EndsWithKeywords(text, "TRUNCATE", "TABLE", out keywordStart) ||
             EndsWithKeywords(text, "AS", "OBJECT", out keywordStart))
         {
             return CompletionTarget.DataSource;
+        }
+
+        if (EndsWithKeywords(text, "AS", "TYPE", out keywordStart))
+        {
+            return CompletionTarget.TableType;
         }
 
         // NEXT VALUE FOR 的尾巴就是 VALUE FOR；再往前的 NEXT 不必看。

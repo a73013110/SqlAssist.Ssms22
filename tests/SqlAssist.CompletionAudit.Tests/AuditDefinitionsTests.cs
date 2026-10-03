@@ -17,6 +17,35 @@ public sealed class AuditDefinitionsTests
         Assert.True(definitions.IsDefinedBefore("x", At(sql, "x", 3)));
     }
 
+    /// <summary>視窗與 WITHIN GROUP 的 ORDER BY 看不到選取清單的別名，同名的詞是來源的欄位。</summary>
+    [Fact]
+    public void 視窗的ORDERBY看不到選取清單的別名()
+    {
+        const string sql =
+            "SELECT ROUND(Fee, 2) AS Fee, ROW_NUMBER() OVER (ORDER BY Fee), " +
+            "STRING_AGG(Code, ',') WITHIN GROUP (ORDER BY Fee) FROM Loan ORDER BY Fee";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.False(definitions.IsDefinedBefore("Fee", At(sql, "Fee", 3)));
+        Assert.False(definitions.IsDefinedBefore("Fee", At(sql, "Fee", 4)));
+        Assert.True(definitions.IsDefinedBefore("Fee", At(sql, "Fee", 5)));
+    }
+
+    /// <summary>具名視窗在它那個查詢裡引用得到；寫在 WINDOW 子句之前的引用是截斷的盲點。</summary>
+    [Fact]
+    public void 具名視窗在它那個查詢裡引用得到()
+    {
+        const string sql =
+            "SELECT SUM(Fee) OVER ByCopy FROM Loan WINDOW ByCopy AS (ORDER BY Fee), ByDate AS (ByCopy) " +
+            "ORDER BY SUM(Fee) OVER ByDate";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.True(definitions.IsDefinedLater("ByCopy", At(sql, "ByCopy", 1)));
+        Assert.True(definitions.IsDefinition(At(sql, "ByCopy", 2)));
+        Assert.True(definitions.IsDefinedBefore("ByCopy", At(sql, "ByCopy", 3)));
+        Assert.True(definitions.IsDefinedBefore("ByDate", At(sql, "ByDate", 2)));
+    }
+
     [Fact]
     public void UNION的下一個分支看不到上一個分支的別名()
     {

@@ -15,7 +15,7 @@ internal static class KeywordSupplements
     internal static readonly string[] NonReserved =
     [
         "APPLY", "CATCH", "NEXT", "NOLOCK", "OFFSET", "OUTPUT",
-        "PARTITION", "ROWS", "THROW", "TRY", "USING",
+        "PARTITION", "ROWS", "THROW", "TRY", "USING", "WINDOW",
     ];
 
     // 插入識別字時要不要加方括號，問的是「這個字當名字寫，剖析器吃不吃」，

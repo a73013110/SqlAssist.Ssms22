@@ -55,6 +55,8 @@
   "Alias": "別名",
   // DECLARE c CURSOR 宣告的具名資料指標；與內建語句說明同一個譯名，「游標」留給編輯器的插入點。
   "Cursor": "資料指標",
+  // 查詢的 WINDOW 子句取的名稱（WINDOW w AS (…) 的 w）。
+  "Window": "具名視窗",
   "Variable": "變數",
   "LocalVariable": "區域變數",
   "GlobalVariable": "全域變數",

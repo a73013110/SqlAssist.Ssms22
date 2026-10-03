@@ -67,6 +67,7 @@ EXEC dbo.usp_Renew @|  → 同上
 | 位置 | 開不開 |
 |---|---|
 | `DECLARE @`、`DECLARE @a INT = NULL, @` | 不開，他正在取名字 |
+| `DECLARE @a INT = @`、`DECLARE @a INT = COALESCE(@b, @` | 開，那是預設值 |
 | `CREATE PROCEDURE p @`、`CREATE PROC p @a int OUTPUT, @`、`CREATE FUNCTION f (@`、`CREATE AGGREGATE g (@` | 同上 |
 | `SET @`、`SELECT @`、`WHERE a = @`、`EXEC p @` | 開，他要的是上面宣告過的名稱 |
 
@@ -77,7 +78,8 @@ EXEC dbo.usp_Renew @|  → 同上
 其餘的關鍵字屬於前一項的定義：`@a int = NULL`、`@a int OUTPUT`、`@a AS int`、
 `DECLARE @t TABLE (…)` 之後的逗號仍在宣告清單裡。以前停在第一個關鍵字，程序只有第一個
 參數認得出來，第二個參數之後的型別位置也跟著不見。途中的括號整組跳過，分號代表前一個
-敘述已經結束。
+敘述已經結束。新名字只寫在一項的開頭：走回逗號之前先碰到變數，或碰到程序與函式參數清單以外
+還沒關上的左括號，就是在那一項的預設值裡。不分辨的話 `DECLARE @a INT = @b ` 被當成型別的位置。
 
 走到頭都沒有關鍵字時當成引用。這裡的 fail-open 換來的是「多列幾個他自己打過的名字」，
 而反過來猜錯的代價是他打的名字被清單換掉。

@@ -107,6 +107,10 @@ public static class SqlScriptVariableSuggestions
     /// TABLE 不能開始一句，走得過去。
     /// 途中的括號整組跳過，分號代表前一個敘述已經結束。走到頭都沒有關鍵字時當成
     /// 引用：這裡的 fail-open 換來的是「多列幾個他自己打過的名字」。
+    ///
+    /// 新名字只寫在一項的開頭：走回逗號之前先碰到變數，就是那一項的名字已經寫了，這裡是它的預設值或運算式
+    /// （<c>DECLARE @a INT = @b</c>）；還沒關上的左括號同理，只有程序與函式的參數清單（<c>CREATE FUNCTION f (@a</c>）例外。
+    /// 不分辨的話 <c>@b</c> 之後被當成型別的位置，<c>= @</c> 也列不出變數。
     /// </remarks>
     public static bool IsDeclarationSlot(IReadOnlyList<SqlToken> tokens, int index)
     {
@@ -114,6 +118,8 @@ public static class SqlScriptVariableSuggestions
         {
             throw new ArgumentNullException(nameof(tokens));
         }
+
+        var itemStart = false;
 
         for (var current = Math.Min(index, tokens.Count) - 1; current >= 0; current--)
         {
@@ -137,6 +143,22 @@ public static class SqlScriptVariableSuggestions
                 return false;
             }
 
+            if (token.IsPunctuation(","))
+            {
+                itemStart = true;
+                continue;
+            }
+
+            if (token.Kind == SqlTokenKind.Variable && !itemStart)
+            {
+                return false;
+            }
+
+            if (token.IsPunctuation("("))
+            {
+                return OpensParameterList(tokens, current);
+            }
+
             if (token.Kind != SqlTokenKind.Identifier || token.IsQuoted)
             {
                 continue;
@@ -154,6 +176,19 @@ public static class SqlScriptVariableSuggestions
         }
 
         return false;
+    }
+
+    /// <summary><paramref name="open"/> 是程序、函式或彙總名稱之後的參數清單：<c>CREATE FUNCTION dbo.f (</c>。</summary>
+    private static bool OpensParameterList(IReadOnlyList<SqlToken> tokens, int open)
+    {
+        var name = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, open - 1);
+
+        return name >= 1 &&
+            name < open &&
+            tokens[name - 1].Kind == SqlTokenKind.Identifier &&
+            !tokens[name - 1].IsQuoted &&
+            !tokens[name - 1].IsKeyword("DECLARE") &&
+            DeclarationAnchors.Contains(tokens[name - 1].Value);
     }
 
     /// <summary>單小老鼠開頭而且後面有名字。</summary>

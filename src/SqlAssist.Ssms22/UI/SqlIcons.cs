@@ -76,6 +76,11 @@ internal static partial class SqlIcons
     private static readonly Definition Cursor = new(KnownMonikers.ForEachLoop, () => SqlKindText.Cursor);
 
     /// <remarks>
+    /// 影像目錄的 <c>Window</c> 系列是工具視窗；具名視窗是框住一段資料列的規格，借框選那一顆。
+    /// </remarks>
+    private static readonly Definition Window = new(KnownMonikers.SelectFrame, () => SqlKindText.Window);
+
+    /// <remarks>
     /// 影像目錄裡沒有定序這一項，借字母排序那一顆：那正是定序決定的事
     /// （比較與排序的規則），而 <c>IntellisenseKeyword</c> 已經被兩種提示佔著，
     /// 再多一類就分不出誰是誰。
@@ -221,6 +226,7 @@ internal static partial class SqlIcons
         SuggestionKind.InstanceListValue or SuggestionKind.InstanceListValueInUse => Unknown,
         SuggestionKind.Alias => Alias,
         SuggestionKind.Cursor => Cursor,
+        SuggestionKind.Window => Window,
         _ => Unknown
     };
 

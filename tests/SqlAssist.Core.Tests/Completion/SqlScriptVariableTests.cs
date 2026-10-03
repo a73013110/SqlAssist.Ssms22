@@ -15,6 +15,8 @@ public sealed class SqlScriptVariableTests
     [InlineData("DECLARE @readerId INT;\r\nSELECT * FROM dbo.Loan WHERE ReaderId = @|")]
     [InlineData("DECLARE @readerId INT;\r\nEXEC dbo.usp_Renew @|")]
     [InlineData("DECLARE @readerId INT;\r\nIF @| > 0 RETURN")]
+    [InlineData("DECLARE @readerId INT;\r\nDECLARE @copyNo INT = @|")]
+    [InlineData("DECLARE @readerId INT;\r\nDECLARE @copyNo INT = 1, @loanId INT = COALESCE(@readerId, @|")]
     public void 引用的位置列出宣告過的變數(string sqlWithCaret)
     {
         var input = SqlWithCaret.Parse(sqlWithCaret);
@@ -41,6 +43,9 @@ public sealed class SqlScriptVariableTests
     [InlineData("CREATE PROCEDURE dbo.usp_Renew @readerId INT, @|")]
     [InlineData("ALTER PROCEDURE dbo.usp_Renew @|")]
     [InlineData("CREATE FUNCTION dbo.fn_Fee (@|")]
+    [InlineData("CREATE FUNCTION dbo.fn_Fee (@readerId INT = 1, @|")]
+    [InlineData("CREATE FUNCTION dbo.fn_Fee (@readerId INT) RETURNS @|")]
+    [InlineData("DECLARE @readerId INT = @copyNo, @|")]
     public void 宣告的位置不建議(string sqlWithCaret)
     {
         var input = SqlWithCaret.Parse(sqlWithCaret);

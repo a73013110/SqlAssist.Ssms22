@@ -105,6 +105,7 @@ public static class SuggestionContextFilter
             SuggestionKind.LinkedServer => true,
             SuggestionKind.Alias => true,
             SuggestionKind.Cursor => true,
+            SuggestionKind.Window => true,
             _ => false
         };
     }
@@ -246,10 +247,12 @@ public static class SuggestionContextFilter
             // 使用者自訂的資料表型別與內建型別在同一個位置。
             CompletionTarget.DataType => kind is SuggestionKind.DataType
                 or SuggestionKind.UserDefinedType,
+            CompletionTarget.TableType => kind == SuggestionKind.UserDefinedType,
             CompletionTarget.View => kind == SuggestionKind.View,
             CompletionTarget.Trigger => kind == SuggestionKind.Trigger,
             CompletionTarget.Sequence => kind == SuggestionKind.Sequence,
             CompletionTarget.Cursor => kind == SuggestionKind.Cursor,
+            CompletionTarget.Window => kind == SuggestionKind.Window,
             CompletionTarget.DatePart => kind == SuggestionKind.DatePart,
             CompletionTarget.TableHint => kind == SuggestionKind.TableHint,
             CompletionTarget.QueryHint => kind == SuggestionKind.QueryHint,
@@ -282,7 +285,8 @@ public static class SuggestionContextFilter
                 or SuggestionKind.QueryHint
                 or SuggestionKind.InstanceListValue
                 or SuggestionKind.InstanceListValueInUse
-                or SuggestionKind.Cursor)
+                or SuggestionKind.Cursor
+                or SuggestionKind.Window)
         };
     }
 
@@ -342,8 +346,11 @@ public static class SuggestionContextFilter
         }
 
         // 批次第一句可以省略 EXEC：sp_helptext 't' 單獨一行就能執行。
+        // 視窗名稱不是資料庫物件：視窗規格的括號裡寫不出資料表與欄位，卻寫得出基底視窗，
+        // 而它只在那一格進候選清單（CompletionTarget.Window）。
         return context.KeywordPosition.AcceptsNames() ||
-               (context.StartsBatch && suggestion.Kind == SuggestionKind.Procedure);
+               (context.StartsBatch && suggestion.Kind == SuggestionKind.Procedure) ||
+               suggestion.Kind == SuggestionKind.Window;
     }
 
     /// <summary>

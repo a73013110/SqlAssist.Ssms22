@@ -48,7 +48,9 @@ public static class SqlKeywordPositionExtensions
     /// <c>FOR</c>、<c>AFTER</c> 這些字，事件清單裡是 <c>INSERT</c> 這些事件與 <c>AS</c>；BACKUP／RESTORE 的 <c>WITH |</c> 之後是選項；MERGE 的
     /// <c>WHEN |</c> 之後是 <c>MATCHED</c>、<c>NOT</c>，<c>THEN |</c> 之後是動作；<c>GRANT SELECT |</c> 之後是
     /// <c>ON</c>、<c>TO</c>；索引鍵清單的 <c>(a |</c> 之後是 <c>ASC</c>、<c>DESC</c>；外部索引鍵的
-    /// <c>REFERENCES u (a) |</c> 之後是 <c>ON</c>、<c>NOT</c>；視窗的 <c>ORDER BY a |</c> 之後是框架；
+    /// <c>REFERENCES u (a) |</c> 之後是 <c>ON</c>、<c>NOT</c>；視窗的 <c>ORDER BY a |</c> 之後是框架，<c>OVER (|</c> 之後是
+    /// <c>PARTITION</c>、<c>ORDER</c> 或指令碼取的視窗名稱，<c>WINDOW w |</c> 之後是 <c>AS</c>，
+    /// <c>WINDOW w AS (…) |</c> 之後是逗號或查詢之後的子句；
     /// <c>OFFSET 10 |</c> 之後是 <c>ROWS</c>；函式呼叫的 <c>SUM(a) |</c> 之後是 <c>OVER</c>，它總是加在會接別名的子句尾端上；模組的 <c>WITH SCHEMABINDING |</c> 之後是 <c>AS</c>，
     /// 函式參數清單的 <c>f (@a int) |</c> 之後是 <c>RETURNS</c>；<c>EXEC p WITH |</c>、CREATE INDEX 的 <c>WITH (|</c>
     /// 與清單片語的標頭（<c>RAISERROR (…) WITH |</c>、<c>FOR XML |</c>、<c>ALTER USER u WITH |</c>）之後是選項；
@@ -92,6 +94,9 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.ReferencesTail |
         SqlKeywordPosition.FunctionCallTail |
         SqlKeywordPosition.WindowOrderTail |
+        SqlKeywordPosition.WindowSpecification |
+        SqlKeywordPosition.WindowName |
+        SqlKeywordPosition.WindowClauseTail |
         SqlKeywordPosition.OffsetTail |
         SqlKeywordPosition.ModuleHeader |
         SqlKeywordPosition.FunctionReturns |
@@ -119,7 +124,7 @@ public static class SqlKeywordPositionExtensions
     /// <item><c>ORDER |</c>／<c>GROUP |</c> 之後只有 <c>BY</c>；<c>CREATE |</c>／<c>ALTER |</c>／<c>DROP |</c>
     /// 之後是物件種類；<c>ALTER TABLE t |</c> 之後是動作。</item>
     /// <item>MERGE 的 <c>WHEN |</c>、<c>THEN |</c>；PIVOT 的 <c>(SUM(x) |</c> 與 <c>FOR y |</c>；
-    /// <c>OFFSET 10 |</c> 之後的 <c>ROWS</c>；函式參數清單之後的 <c>RETURNS</c>。</item>
+    /// <c>OFFSET 10 |</c> 之後的 <c>ROWS</c>；函式參數清單之後的 <c>RETURNS</c>；WINDOW 子句一項的名稱之後的 <c>AS</c>。</item>
     /// <item>觸發程序標頭與事件、游標選項，以及各種 <c>WITH</c> 選項清單的起點與逗號之後。</item>
     /// </list>
     ///
@@ -137,6 +142,7 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.PivotClause |
         SqlKeywordPosition.OffsetTail |
         SqlKeywordPosition.FunctionReturns |
+        SqlKeywordPosition.WindowName |
         SqlKeywordPosition.TriggerHeader |
         SqlKeywordPosition.TriggerEvent |
         SqlKeywordPosition.CursorOption |

@@ -72,6 +72,14 @@ internal static class PositionTemplates
         new("OffsetTail", "SELECT * FROM t ORDER BY a OFFSET 10 "),
         new("WindowOrderTail", "SELECT SUM(a) OVER (ORDER BY a "),
 
+        // 視窗規格的括號裡、排序之前：開頭、基底視窗名稱與 PARTITION BY 的一項之後。WINDOW 子句的定義是同一種括號；
+        // 一項的名稱之後是 AS，定義寫完之後是逗號或查詢之後的子句。
+        new("WindowSpecification",
+            "SELECT SUM(a) OVER (", "SELECT SUM(a) OVER (w ", "SELECT SUM(a) OVER (PARTITION BY a ",
+            "SELECT a FROM t WINDOW w AS ("),
+        new("WindowName", "SELECT a FROM t WINDOW w ", "SELECT a FROM t WINDOW w AS (ORDER BY a), w2 "),
+        new("WindowClauseTail", "SELECT a FROM t WINDOW w AS (ORDER BY a) "),
+
         // 函式呼叫之後的 OVER、COLLATE。包在括號裡，選取清單尾端的 FROM、別名這些字就接不上。
         new("FunctionCallTail", "SELECT (SUM(a) "),
 

@@ -43,6 +43,7 @@
   "DataSource": "Data source",
   "Alias": "Alias",
   "Cursor": "Cursor",
+  "Window": "Named window",
   "ScriptDataSource": "Script data source",
   "Variable": "Variable",
   "LocalVariable": "Local variable",

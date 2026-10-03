@@ -24,13 +24,11 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 日期部分只在**第一個**引數：打過逗號之後那裡要的是數字與日期。提示則是一份清單，
 逗號之後還是提示。`INDEX` 提交時補左括號，理由與內建函式相同。
 
-日期部分只收完整名稱，不收 `yy`、`dd` 這些縮寫：縮寫背得起來的人不需要補字，
-而 15 個名稱再乘上兩三種縮寫，清單就從「一眼看完」變成要捲動。
+日期部分只收完整名稱，不收 `yy`、`dd`：縮寫背得起來的人不需要補字，收了清單就要捲動。
 
 `CREATE INDEX … WITH (` 列的是索引選項（片語，見[子句片語](completion-phrases.md)）。
-已知會誤判的是 `OPENJSON(…) WITH (col int '$.x')`：也會列出資料表提示。沒有為它再加判斷，
-是因為那個位置本來也沒有正確答案——要的是使用者自己取的資料行名稱，換掉的只是一份
-同樣不對的關鍵字清單。
+已知會誤判的是 `OPENJSON(…) WITH (col int '$.x')`：也會列出資料表提示。沒有為它再加判斷：
+那裡要的是使用者自己取的資料行名稱，換掉的只是一份同樣不對的清單。
 
 名單只在伺服器上的定序、語言與時區見[執行個體名單](completion-instance-lists.md)。
 
@@ -50,9 +48,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 誰先沒有保證：平台先的話，硬選的 Enter 傳不到這裡，軟選的傳到時清單已關、走一般的路。
 改寫是等長替換，兩種順序得到的文字相同。
 
-刻意不做成「用空白鍵提交清單選取項」：清單當下選中的可能是別的東西，
-那種做法會把使用者根本沒要的名稱寫進編輯器。這裡只改寫剛打完的那一個字，
-結果完全可預測。
+刻意不做成「用空白鍵提交清單選取項」：選中的可能是使用者沒要的名稱。這裡只改寫剛打完的那一個字。
 
 下列情形不動：已經是大寫、限定字後方的名稱（`dbo.select`）、變數（`@select`）、
 字串與註解內、方括號與雙引號識別字內（`[select]` 是欄位名稱）。
@@ -78,11 +74,13 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | 其餘位置選到自訂函式（`SELECT `、`WHERE `…） | — | 補上括號 |
 | `DROP`、`DISABLE`、`ENABLE TRIGGER` | Trigger | 插入名稱 |
 | `ALTER`／`DROP`／`TRUNCATE TABLE`、`WITH RESULT SETS (AS OBJECT` | Table、View | 插入名稱 |
+| `WITH RESULT SETS (AS TYPE` | 使用者自訂資料表型別 | 插入名稱 |
 | `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
 | `EXEC`、`EXECUTE` | Procedure | 展開具名參數清單 |
 | `CREATE`／`ALTER`／`DROP INDEX`／`STATISTICS`／`TRIGGER` 之後的 `ON` | Table、View | 插入名稱 |
 | 開始一句的 `USE`（函式引數裡的 `USE MODEL` 不是） | 這台伺服器上的資料庫 | 插入名稱 |
 | `OPEN`、`CLOSE`、`DEALLOCATE`、`FETCH [… FROM]`、`WHERE CURRENT OF`，可夾 `GLOBAL` | 指令碼 `DECLARE c CURSOR` 宣告的資料指標，另列片語的字（`FETCH ` 的方向、`OPEN `／`CLOSE ` 的金鑰） | 插入名稱 |
+| `OVER`、`OVER (`、`WINDOW w AS (` | 這個查詢 WINDOW 子句取的具名視窗；括號之後另列 `PARTITION`、`ORDER` | 插入名稱 |
 | `COLLATE`、`SET LANGUAGE`、`DEFAULT_LANGUAGE =`、`AT TIME ZONE` | [執行個體名單](completion-instance-lists.md)與指令碼已用值 | 依名單的寫法 |
 | `FROM a, `、`FROM a, LibArchive.` | 同 `FROM` 那一列 | 插入名稱 |
 | `UPDATE t SET `、`INSERT INTO t (`、`ON t (` 這種資料行的位置 | 那張表的資料行，見[欄位](completion-columns.md#文法指定的所屬資料表) | 插入名稱 |
@@ -106,12 +104,10 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 `SqlKeywordPositionAnalyzer` 的位置（逗號回到清單起點），這裡不再自己回頭找 `FROM`。
 只多問一次括號，把 `INSERT INTO T (a, ` 的資料行清單排除；括號裡裝的是查詢時仍然
 算數，那是衍生資料表自己的 `FROM` 清單。少了這一列有兩個症狀：逗號之後空前綴時
-整份上下文不參與，以及 `FROM a, LibArchive.` 的限定字會被當成別名——它比中的是
-使用者才打了一半的那個名稱，清單於是改列一張不存在的資料表的欄位。
+整份上下文不參與，以及 `FROM a, LibArchive.` 的限定字被當成別名，列出一張不存在的資料表的欄位。
 
 `IF EXISTS` 在比對前先剝掉一次，`DROP TABLE IF EXISTS `、`DROP TRIGGER IF EXISTS `
-因此不必各寫一條加長版。剝除只砍尾端，前面每個詞元的位置都沒有位移，所以語句
-關鍵字的起點仍然指得回原文；`IF EXISTS (SELECT …)` 那種流程控制剝完是空字串或
+因此不必各寫一條加長版。`IF EXISTS (SELECT …)` 那種流程控制剝完是空字串或
 另一個語句的尾巴，兩者都推不出目標，與剝之前一樣不會有清單。
 
 ## 左方括號之後

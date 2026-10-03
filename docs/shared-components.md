@@ -15,7 +15,7 @@
 | 分辨 `ON` 後面是資料表還是述詞 | `Core/Parsing/SqlDdlTarget.cs` |
 | 讀出暫存資料表與資料表變數的資料行 | `Core/Parsing/SqlScriptTableCollector.cs` |
 | 指令碼宣告的物件建議（井號名稱分成暫存資料表或暫存程序、資料指標） | `Core/Completion/SqlScriptObjectSuggestions.cs` |
-| 認出 `DECLARE c [SCROLL] CURSOR` 宣告的資料指標名稱 | `Core/Parsing/SqlCursorDeclaration.cs` |
+| 資料指標名稱；視窗規格的左括號與 WINDOW 子句的名稱 | `Core/Parsing/SqlCursorDeclaration.cs`；`SqlWindowClause.cs` |
 | 指令碼宣告的資料來源換成物件明細（含宣告原文） | `Metadata/Model/SqlScriptTableDetail.cs` |
 | 拿名稱向這份指令碼換宣告（Hover、預覽、F12 共用，名稱決定種類） | `Metadata/Model/SqlScriptDeclarations.cs` |
 | 詞法分析；字串常值讀寫 | `Core/Parsing/SqlTokenizer.cs`、`SqlStringLiteral.cs` |
@@ -54,7 +54,7 @@
 | 索引選項的預設值是什麼 | `Metadata/Model/SqlIndexOptions.cs` |
 | 結構健檢的規則與失敗隔離 | `Metadata/Analysis/SqlSchemaAnalyzer.cs` |
 | 送進查詢視窗前的換行統一與游標落點 | `Metadata/Formatting/SqlObjectScript.cs` |
-| 同義字與序列的 `CREATE` 定義（目錄檢視組回 T-SQL） | `Metadata/Formatting/SqlCatalogScript.cs` |
+| 同義字與序列的 `CREATE` 定義 | `Metadata/Formatting/SqlCatalogScript.cs` |
 | 分隔字元自動配對的判斷與「這一個是我補的」 | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |
 | 版本顯示、健康檢查，「關於與診斷」與匿名摘要共用的欄位 | `Core/Diagnostics/` |
 | 介面文字與目前語言（取值、切換、固定語言的範圍、句子外的數字） | `Core/Localization/SqlText.cs`；文字在各資料夾的 `*.resjson` |

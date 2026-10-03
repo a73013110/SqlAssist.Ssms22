@@ -166,6 +166,10 @@ public enum SuggestionKind
     /// 那幾格也只接得了它；中繼資料看不到，別的位置寫上去都是語法錯誤。
     /// 游標變數（<c>DECLARE @c CURSOR</c>）是 <see cref="Variable"/>。
     /// </remarks>
-    Cursor
+    Cursor,
+
+    /// <summary>查詢的 WINDOW 子句取的具名視窗（<c>WINDOW w AS (…)</c> 的 <c>w</c>）。</summary>
+    /// <remarks>只接在 <c>OVER</c> 與視窗規格的左括號之後，見 <see cref="CompletionTarget.Window"/>。</remarks>
+    Window
 }
 

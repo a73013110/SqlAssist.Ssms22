@@ -171,6 +171,50 @@ public static class SqlScriptObjectSuggestions
     }
 
     /// <summary>
+    /// 組出游標所在查詢的 WINDOW 子句取的具名視窗（<c>WINDOW w AS (…)</c> 的 <c>w</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 與游標不同，視窗名稱只在它那個查詢裡有效：範圍取自 <see cref="SqlScopeAnalyzer"/>，WINDOW 子句
+    /// 往往寫在游標之後（<c>SELECT SUM(a) OVER | FROM t WINDOW w AS (…)</c>）。
+    /// </remarks>
+    public static IReadOnlyList<SqlSuggestion> Windows(string sql, IReadOnlyList<SqlToken> tokens, int caretPosition)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        var scope = SqlScopeAnalyzer.Analyze(sql, tokens, caretPosition);
+        var start = 0;
+
+        while (start < tokens.Count && tokens[start].Start < scope.Start)
+        {
+            start++;
+        }
+
+        var end = start;
+
+        while (end < tokens.Count && tokens[end].Start < scope.End)
+        {
+            end++;
+        }
+
+        List<SqlSuggestion>? suggestions = null;
+
+        foreach (var name in SqlWindowClause.CollectNames(tokens, start, end, caretPosition))
+        {
+            (suggestions ??= new List<SqlSuggestion>()).Add(new SqlSuggestion(
+                name,
+                name,
+                SqlKindText.Window,
+                ScriptSuggestionText.NameWithDescription(name, SqlKindText.Window),
+                SuggestionKind.Window));
+        }
+
+        return (IReadOnlyList<SqlSuggestion>?)suggestions ?? Array.Empty<SqlSuggestion>();
+    }
+
+    /// <summary>
     /// 這份指令碼裡當成程序用的井號名稱，依出現順序、不重複。
     /// </summary>
     /// <remarks>

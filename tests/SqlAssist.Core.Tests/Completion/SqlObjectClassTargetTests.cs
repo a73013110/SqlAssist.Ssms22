@@ -143,4 +143,18 @@ public sealed class SqlObjectClassTargetTests
             new[] { tableType },
             SuggestionContextFilter.Filter(candidates, SqlCompletionContextAnalyzer.Analyze("DECLARE @copies ")).ToArray());
     }
+
+    /// <summary>結果集的 <c>AS TYPE</c> 借的是一組資料行的形狀：內建型別與資料表都不對。</summary>
+    [Fact]
+    public void 結果集的AS_TYPE只列資料表型別()
+    {
+        var tableType = new SqlSuggestion(
+            "CopyList", "CopyList", "", "", SuggestionKind.UserDefinedType, schemaName: "dbo");
+        var table = new SqlSuggestion("Loan", "Loan", "", "", SuggestionKind.Table, schemaName: "dbo");
+        var context = SqlCompletionContextAnalyzer.Analyze("EXEC dbo.usp_Copies WITH RESULT SETS ((CopyNo int), AS TYPE ");
+
+        Assert.Equal(
+            new[] { tableType },
+            SuggestionContextFilter.Filter(SqlDataTypeCatalog.All.Append(table).Append(tableType), context).ToArray());
+    }
 }

@@ -84,6 +84,10 @@ public enum CompletionTarget
     /// </remarks>
     DataType,
 
+    /// <summary><c>EXEC … WITH RESULT SETS (AS TYPE </c> 之後：只建議使用者自訂的資料表型別。</summary>
+    /// <remarks>那一格借的是一組資料行的形狀，內建型別描述不出來。</remarks>
+    TableType,
+
     /// <summary><c>ALTER</c>、<c>DROP VIEW</c> 之後。</summary>
     /// <remarks>
     /// 檢視同時是資料來源，因此 <see cref="DataSource"/> 裡本來就有它；分出這一個
@@ -107,6 +111,12 @@ public enum CompletionTarget
     /// <c>FETCH </c> 之後的 <c>NEXT</c>、<c>PRIOR</c> 由片語給，片語的字不看目標。
     /// </remarks>
     Cursor,
+
+    /// <summary>
+    /// <c>OVER </c> 與視窗規格的左括號（<c>OVER (</c>、<c>WINDOW w AS (</c>）之後；只建議游標所在查詢的 WINDOW 子句取的名稱。
+    /// </summary>
+    /// <remarks>括號之後的 <c>PARTITION</c>、<c>ORDER</c> 與框架由片語給。</remarks>
+    Window,
 
     /// <summary><c>DATEADD(</c> 這一族的第一個引數。</summary>
     DatePart,

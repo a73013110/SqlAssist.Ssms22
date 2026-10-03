@@ -52,8 +52,7 @@ internal static class CatalogWriter
         Line($"// 來源：Microsoft.SqlServer.TransactSql.ScriptDom {data.ScriptDomVersion}（{data.ParserName}）");
         Line("//");
         Line("// 關鍵字取自 TSqlTokenType 的成員名稱並以 tokenizer 回驗，");
-        // 指的是 KeywordSupplements.NonReserved。字面一改產物就有差異，留到產物本來就要重產時一起改。
-        Line($"// 另加腳本裡 $NonReservedSupplement 的 {data.NonReservedSupplementCount} 個非保留字；");
+        Line($"// 另加產生器 Data/KeywordSupplements.cs 的 {data.NonReservedSupplementCount} 個非保留字；");
         Line("// 位置則是把每個關鍵字塞進樣板剖析、依錯誤碼判定得到的。");
         Line("//");
         Line("// 保留字是另外探測的一份：把字塞進識別字的洞裡，剖析器拒收的才算，");

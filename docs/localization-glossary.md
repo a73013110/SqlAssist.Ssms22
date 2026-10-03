@@ -37,6 +37,7 @@
 | 暫存資料表／資料表變數 | temporary table／table variable |
 | 同義字 | synonym |
 | 定序 | collation |
+| 具名視窗 | named window |
 | 連結伺服器 | linked server |
 | 查詢視窗 | query window |
 | 物件總管 | Object Explorer |

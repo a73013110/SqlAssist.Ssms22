@@ -230,6 +230,25 @@ public enum SqlKeywordPosition : long
     /// </remarks>
     WindowOrderTail = 1L << 46,
 
+    /// <summary>
+    /// 視窗規格的括號裡、排序之前——<c>OVER (</c>、<c>WINDOW w AS (</c> 與其後的基底視窗名稱、
+    /// <c>PARTITION BY a</c> 寫完：PARTITION、ORDER、ROWS、RANGE。
+    /// </summary>
+    /// <remarks>
+    /// 括號一開頭還寫得出具名視窗（<c>OVER (w ORDER BY …)</c>），那是指令碼取的名字，由視窗目標列；
+    /// 資料庫物件在這裡寫不出來。
+    /// </remarks>
+    WindowSpecification = 1L << 50,
+
+    /// <summary>WINDOW 子句一項的名稱之後（<c>WINDOW w </c>、<c>WINDOW w AS (…), w2 </c>）——AS。</summary>
+    WindowName = 1L << 52,
+
+    /// <summary>WINDOW 子句的一項寫完（<c>WINDOW w AS (…) </c>）——ORDER、OPTION、UNION 這些查詢之後的子句。</summary>
+    /// <remarks>
+    /// 下一項由逗號開頭。不借用 WINDOW 前面那個子句的尾端：<c>WHERE a = 1 WINDOW w AS (…) </c> 之後不接 AND。
+    /// </remarks>
+    WindowClauseTail = 1L << 51,
+
     /// <summary><c>ORDER BY … OFFSET 10</c> 的值之後——ROW、ROWS；兩個字都由子句片語給。</summary>
     OffsetTail = 1L << 47,
 
@@ -325,7 +344,8 @@ public enum SqlKeywordPosition : long
         | PermissionList | PermissionTarget | PermissionOn | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
         | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
-        | ReferencesTail | FunctionCallTail | WindowOrderTail | OffsetTail | ModuleHeader | FunctionReturns
+        | ReferencesTail | FunctionCallTail | WindowOrderTail | WindowSpecification | WindowName | WindowClauseTail
+        | OffsetTail | ModuleHeader | FunctionReturns
         | ResultSetList | ResultSetColumn | ResultSetColumnTail | OptionItem | TableSampleTail | PivotClause
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue

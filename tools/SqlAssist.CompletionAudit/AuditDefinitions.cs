@@ -78,7 +78,7 @@ public sealed class AuditDefinitions
         /// <summary>到批次結束。</summary>
         Batch,
 
-        /// <summary>同一句裡、它之後的 ORDER BY。</summary>
+        /// <summary>同一句裡、它之後的查詢 ORDER BY（視窗的不算）。</summary>
         OrderBy,
     }
 
@@ -737,8 +737,17 @@ public sealed class AuditDefinitions
             }
         }
 
-        public override void Visit(OrderByClause node) =>
-            _owner._orderBys.Add((node.StartOffset, node.StartOffset + node.FragmentLength));
+        /// <summary>
+        /// 查詢自己的 ORDER BY；視窗與 WITHIN GROUP 的不算，選取清單的別名在那裡看不到：
+        /// <c>ROUND(Fee, 2) AS Fee, ROW_NUMBER() OVER (ORDER BY Fee)</c> 的 Fee 是來源的欄位。
+        /// </summary>
+        public override void Visit(QueryExpression node)
+        {
+            if (node.OrderByClause is { StartOffset: >= 0 } order)
+            {
+                _owner._orderBys.Add((order.StartOffset, order.StartOffset + order.FragmentLength));
+            }
+        }
 
         public override void Visit(Identifier node) => _owner._nameReferences.Add(node.StartOffset);
 
@@ -975,7 +984,8 @@ public sealed class AuditDefinitions
 
         public override void Visit(SaveTransactionStatement node) => _owner.Add(node.Name?.Identifier, Scope.None);
 
-        public override void Visit(WindowDefinition node) => _owner.Add(node.WindowName, Scope.None);
+        /// <summary>具名視窗在它那個查詢裡引用得到：<c>OVER w</c>，以及 WINDOW 子句裡另一個視窗的基底。</summary>
+        public override void Visit(WindowDefinition node) => _owner.Add(node.WindowName, Scope.Query);
 
         /// <summary>
         /// 每一句的範圍；CREATE 的目標：最後一段是新取的，前面的結構描述與資料庫是既有的。

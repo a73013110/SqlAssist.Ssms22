@@ -775,4 +775,16 @@ public sealed class SqlScopeAnalyzerTests
         Assert.True(pivot.IsDerived);
         Assert.True(scope.TryResolve("s", out _));
     }
+
+    /// <summary>資料列集函式的 <c>TABLE = 來源</c> 與函式本身同一層；括號還沒關上時照樣讀得到。</summary>
+    [Theory]
+    [InlineData("SELECT * FROM VECTOR_SEARCH(TABLE = dbo.Copy AS c, COLUMN = Embedding, SIMILAR_TO = @v, METRIC = 'cosine', TOP_N = 5) AS s ORDER BY |")]
+    [InlineData("SELECT * FROM VECTOR_SEARCH(TABLE = dbo.Copy AS c, COLUMN = c.|")]
+    public void 具名引數TABLE是資料來源(string sqlWithCaret)
+    {
+        var scope = Analyze(sqlWithCaret);
+
+        Assert.True(scope.TryResolve("c", out var table));
+        Assert.Equal("Copy", table.ObjectName);
+    }
 }

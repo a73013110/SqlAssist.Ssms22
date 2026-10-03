@@ -160,6 +160,46 @@ public sealed class SqlKeywordPositionTests
         Assert.Equal(slot, caret.Slot);
     }
 
+    /// <summary>
+    /// 視窗規格的括號自己是一個子句：PARTITION BY 寫完回到它，ORDER BY 寫完是框架。WINDOW 子句一項的名稱
+    /// 之後只有 AS，一項寫完之後接逗號或查詢之後的子句。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT SUM(a) OVER (ByCopy ", SqlKeywordPosition.WindowSpecification, SqlCompletionSlot.Grammar)]
+    [InlineData("SELECT SUM(a) OVER (PARTITION BY a, b ", SqlKeywordPosition.WindowSpecification, SqlCompletionSlot.Grammar)]
+    [InlineData("SELECT SUM(a) OVER (PARTITION BY ", SqlKeywordPosition.OrderByColumn, SqlCompletionSlot.Grammar)]
+    [InlineData("SELECT SUM(a) OVER (PARTITION BY a, ", SqlKeywordPosition.OrderByColumn, SqlCompletionSlot.Grammar)]
+    [InlineData("SELECT a FROM t WINDOW ByCopy AS (ByDate ", SqlKeywordPosition.WindowSpecification, SqlCompletionSlot.Grammar)]
+    [InlineData("SELECT a FROM t WINDOW ByCopy AS (ORDER BY a DESC ", SqlKeywordPosition.WindowOrderTail, SqlCompletionSlot.Grammar)]
+    [InlineData("SELECT a FROM t WHERE a = 1 WINDOW ", SqlKeywordPosition.Any, SqlCompletionSlot.Name)]
+    [InlineData("SELECT a FROM t WINDOW ByCopy AS (ORDER BY a), ", SqlKeywordPosition.Any, SqlCompletionSlot.Name)]
+    [InlineData("SELECT a FROM t WINDOW ByCopy AS (ORDER BY a), [By Date] ", SqlKeywordPosition.WindowName, SqlCompletionSlot.Grammar)]
+    [InlineData("SELECT a FROM t GROUP BY a WINDOW ByCopy AS (ORDER BY a) ", SqlKeywordPosition.WindowClauseTail, SqlCompletionSlot.Grammar)]
+    public void 視窗的位置(string textBeforeToken, SqlKeywordPosition expected, SqlCompletionSlot slot)
+    {
+        var caret = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken);
+
+        Assert.Equal(expected, caret.Keywords);
+        Assert.Equal(slot, caret.Slot);
+    }
+
+    /// <summary>CTE 清單與 CAST 的括號長得像 WINDOW 子句，但不是視窗。</summary>
+    [Theory]
+    [InlineData(";WITH a AS (SELECT 1 AS x), b ")]
+    [InlineData(";WITH a AS (SELECT 1 AS x) ")]
+    [InlineData("SELECT CAST(a AS varchar(10)) ")]
+    [InlineData("SELECT COUNT(a) OVER (PARTITION BY COALESCE(a ")]
+    public void 長得像視窗的格子(string textBeforeToken)
+    {
+        const SqlKeywordPosition windows = SqlKeywordPosition.WindowSpecification |
+            SqlKeywordPosition.WindowName |
+            SqlKeywordPosition.WindowClauseTail;
+
+        var caret = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken);
+
+        Assert.True(caret.Keywords == SqlKeywordPosition.Any || (caret.Keywords & windows) == SqlKeywordPosition.None);
+    }
+
     [Theory]
     [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch int NULL ")]
     [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch varchar(")]

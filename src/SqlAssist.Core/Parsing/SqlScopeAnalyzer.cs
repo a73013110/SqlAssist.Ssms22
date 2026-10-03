@@ -496,6 +496,7 @@ public static class SqlScopeAnalyzer
                 if (collects)
                 {
                     references.Add(reference);
+                    AddTableArguments(tokens, index, next, references);
                 }
 
                 index = next;
@@ -521,6 +522,62 @@ public static class SqlScopeAnalyzer
 
         RemoveAliasReferences(references);
         return references;
+    }
+
+    /// <summary>
+    /// 資料列集函式的具名引數 <c>TABLE = 來源</c>：<c>VECTOR_SEARCH(TABLE = dbo.Copy AS c, …) AS s</c> 的 <c>c</c>
+    /// 與函式的 <c>s</c> 同一層，選取清單與 ORDER BY 都以它限定欄位。
+    /// </summary>
+    /// <remarks>
+    /// 認的是引數的寫法而不是函式名稱：引數清單裡以 <c>TABLE =</c> 開頭的一項就是一個資料來源。
+    /// 還沒關上的括號照樣讀到 <paramref name="end"/>：游標往往就在後面的引數裡（<c>COLUMN = c.</c>）。
+    /// </remarks>
+    private static void AddTableArguments(
+        IReadOnlyList<SqlToken> tokens,
+        int start,
+        int end,
+        List<SqlTableReference> references)
+    {
+        if (start + 1 >= end || tokens[start].Kind != SqlTokenKind.Identifier)
+        {
+            return;
+        }
+
+        var open = start;
+
+        while (open < end && (tokens[open].Kind == SqlTokenKind.Identifier || tokens[open].IsPunctuation(".")))
+        {
+            open++;
+        }
+
+        if (open >= end || !tokens[open].IsPunctuation("("))
+        {
+            return;
+        }
+
+        var close = SqlTokenNavigator.FindClosingParenthesis(tokens, open, end);
+        var stop = close < 0 ? end : close;
+        var item = open + 1;
+
+        while (item < stop)
+        {
+            var itemEnd = item;
+
+            while (itemEnd < stop && !tokens[itemEnd].IsPunctuation(","))
+            {
+                itemEnd = tokens[itemEnd].IsPunctuation("(") ? SqlTokenNavigator.SkipParenthesised(tokens, itemEnd, stop) : itemEnd + 1;
+            }
+
+            if (item + 2 < itemEnd &&
+                tokens[item].IsKeyword("TABLE") &&
+                tokens[item + 1].Value == "=" &&
+                TryParseTableReference(tokens, item + 2, itemEnd, out var argument, out _))
+            {
+                references.Add(argument);
+            }
+
+            item = itemEnd + 1;
+        }
     }
 
     /// <summary>

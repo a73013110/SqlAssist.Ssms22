@@ -159,6 +159,7 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("SET @rows = CAST(@name AS NVARCHAR(10) |")]
     [InlineData("SET @rows = ISNULL(@name |")]
     [InlineData("SET @rows = @name |")]
+    [InlineData("DECLARE @rows INT = @name |")]
     [InlineData("DECLARE @rows AS |")]
     [InlineData("DECLARE @rows INT |")]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch |")]

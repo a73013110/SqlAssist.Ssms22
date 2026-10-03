@@ -76,7 +76,8 @@ public static class SuggestionCategories
             or SuggestionKind.QueryHint
             or SuggestionKind.InstanceListValue
             or SuggestionKind.InstanceListValueInUse
-            or SuggestionKind.Cursor => null,
+            or SuggestionKind.Cursor
+            or SuggestionKind.Window => null,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
 }

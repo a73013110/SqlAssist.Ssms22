@@ -22,6 +22,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("DROP TABLE IF EXISTS ", CompletionTarget.DataSource)]
     [InlineData("TRUNCATE TABLE ", CompletionTarget.DataSource)]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS (AS OBJECT ", CompletionTarget.DataSource)]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((CopyNo int), AS TYPE ", CompletionTarget.TableType)]
     [InlineData("DROP TRIGGER IF EXISTS ", CompletionTarget.Trigger)]
     [InlineData("ALTER PROCEDURE ", CompletionTarget.Procedure)]
     [InlineData("ALTER PROC ", CompletionTarget.Procedure)]

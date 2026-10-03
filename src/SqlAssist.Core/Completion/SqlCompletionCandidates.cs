@@ -84,11 +84,12 @@ public static class SqlCompletionCandidates
             return parameters.Concat(context.ScriptSources).ToArray();
         }
 
-        // 游標名稱同樣只寫在指令碼裡；FETCH | 還接得了 NEXT、PRIOR 這些方向，由片語給。
-        if (context.Target == CompletionTarget.Cursor)
+        // 游標與視窗名稱同樣只寫在指令碼裡；FETCH | 還接得了 NEXT、PRIOR 這些方向，
+        // OVER ( 還接得了 PARTITION、ORDER，都由片語給。
+        if (context.Target is CompletionTarget.Cursor or CompletionTarget.Window)
         {
-            return context.ClausePhrase is { } cursorPhrase
-                ? context.ScriptSources.Concat(cursorPhrase.Suggestions).ToArray()
+            return context.ClausePhrase is { } scriptPhrase
+                ? context.ScriptSources.Concat(scriptPhrase.Suggestions).ToArray()
                 : context.ScriptSources;
         }
 
