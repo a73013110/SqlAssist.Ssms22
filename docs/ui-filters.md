@@ -4,7 +4,7 @@
 這一層只放**縮小搜尋範圍**的條件（含套用查詢視窗連線的那一顆），排在輸入列上面；修飾字串怎麼比的
 直接控制與作用在這一份結果的操作都在輸入列，界線見[視窗骨架](ui-windows.md#輸入列與範圍列)。
 骨架與狀態表面見[視窗骨架](ui-windows.md)，視覺語言見 [UI 準則](ui-guidelines.md)，
-元件的唯一出處見[平台共用元件](shared-components-platform.md)，驗收項目在[視窗骨架](ui-windows.md#驗收)那一份裡。
+元件的唯一出處見[UI 共用元件](shared-components-ui.md)，驗收項目在[視窗骨架](ui-windows.md#驗收)那一份裡。
 
 ## 分隔線與換行
 

@@ -1,7 +1,7 @@
 # 物件結構提示與浮動預覽
 
 兩個互不影響的表面：滑鼠停留的小提示，與可捲動、可複製的浮動結構預覽。
-殼層與擺放見[浮動預覽](preview-window.md)，操作與縮放見[預覽互動](preview-interaction.md)，
+殼層、擺放與縮放見[浮動預覽](preview-window.md)，操作見[預覽互動](preview-interaction.md)，
 共用外觀見[自製 UI 準則](ui-guidelines.md)。
 
 ## 物件結構提示

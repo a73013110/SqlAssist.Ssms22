@@ -1,10 +1,10 @@
-# 上下文收斂與自動大寫
+# 上下文收斂
 
 游標前方的文字決定清單裡剩下什麼：哪些位置只剩固定那幾個字、哪些位置要把整類項目
-拿掉、以及關鍵字在什麼時機自動變成大寫。判斷的出處是
+拿掉；關鍵字自動大寫見[自動大寫](keyword-casing.md)。判斷的出處是
 `Core/Completion/SqlCompletionContextAnalyzer`，它讀的是實際文字而不是任何宣告。
 可不可補、開不開、預設選不選由 `SqlCompletionSlot` 分類，
-`SqlCompletionPolicy` 一條規則決定，見[子句邊界](completion-boundaries.md#名稱位置三分類)。
+`SqlCompletionPolicy` 一條規則決定，見[名稱位置](completion-name-slots.md#三分類)。
 排名見 [completion.md](completion.md)。
 
 ## 引數與提示的封閉清單
@@ -37,28 +37,6 @@ SELECT {fn |                  → CURRENT_TIME、DAYNAME…（ODBC 純量函式�
 `SET NOCOUNT ` 之後的 `ON`、`OFF` 不是封閉清單，走關鍵字位置 `SetOptionValue`（名稱不列）：
 識別字的值（`SET DATEFORMAT dmy`）寫完換行還接得了下一句，整份換掉就錯了。規則見
 [子句邊界](completion-boundaries.md)。
-
-## 關鍵字自動大寫
-
-打完 `select` 再按空白鍵就得到 `SELECT`，不必先按 Tab 提交建議。
-`inner`、`join`、`on`、`desc` 等關鍵字同樣適用；觸發時機是任何無法構成識別字的
-字元——空白、逗號、括號、分號與運算子——以及 Enter，打字與 Enter 共用
-`SqlKeywordCasing.ApplyBeforeSeparator` 一條規則。
-
-建議清單開著時按 Enter，改寫延到這一輪命令結束之後：那一下可能是硬選的提交，而這一刻
-問不出軟硬選；命令結束時字還在原處才改，被提交換掉就不動。這裡與平台清單的處理常式
-誰先沒有保證：平台先的話，硬選的 Enter 傳不到這裡，軟選的傳到時清單已關、走一般的路。
-改寫是等長替換，兩種順序得到的文字相同。
-
-刻意不做成「用空白鍵提交清單選取項」：選中的可能是使用者沒要的名稱。這裡只改寫剛打完的那一個字。
-
-下列情形不動：已經是大寫、限定字後方的名稱（`dbo.select`）、變數（`@select`）、
-字串與註解內、方括號與雙引號識別字內（`[select]` 是欄位名稱）。
-
-`GO` 也不動——它是 SSMS 的批次分隔符而不是 T-SQL 關鍵字，而且兩個字母的字太容易
-誤傷別名（`FROM Loans go` 是合法的寫法）。它仍然會出現在建議清單裡。
-
-由 `工具 → SqlAssist → 關鍵字轉大寫` 開關控制；關掉它不影響清單裡的關鍵字建議。
 
 ## 依上下文縮小建議範圍
 

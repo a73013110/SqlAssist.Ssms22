@@ -1,13 +1,12 @@
 # 關鍵字目錄與位置分層
 
-本頁只處理 T-SQL 關鍵字的產生、位置旗標與資料庫物件過濾；子句回溯的邊界另見
-[子句邊界與不開清單](completion-boundaries.md)，SET 選項這類非保留字見[子句片語](completion-phrases.md)。
+本頁只處理 T-SQL 關鍵字的產生與位置旗標；哪些位置不列資料庫物件見[名稱位置](completion-name-slots.md)，
+子句回溯見[子句邊界](completion-boundaries.md)，SET 選項這類非保留字見[子句片語](completion-phrases.md)。
 
 ## 產生與維護
 
-T-SQL 關鍵字不是手寫的，由 `tools/Generate-Keywords.ps1` 反射
-SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCatalog.Generated.cs`。
-換 SSMS 版本重跑就更新。產生器在 `tools/SqlAssist.KeywordGenerator`，
+T-SQL 關鍵字由 `tools/Generate-Keywords.ps1` 反射 SSMS 自帶的 ScriptDom 產生，
+commit 進 `Core/Keywords/SqlKeywordCatalog.Generated.cs`，換 SSMS 版本重跑。產生器在 `tools/SqlAssist.KeywordGenerator`，
 結果快取在 `artifacts/cache/`：只存剖析器的回答（拒收落在
 哪一段、整段完不完整），解讀每次重算；ScriptDom 版本、拒收錯誤碼或 `ProbeFacts.cs` 的 `<cache-facts>`
 區段一變就整份作廢，懷疑不一致時加 `-NoCache` 重建。每個階段都自我驗證，不猜字：
@@ -45,10 +44,6 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
 （語句開頭）          → SELECT、USE、BACKUP、RESTORE、CREATE…
 SELECT * FROM t ORDER BY a  → ASC、DESC
 SELECT * FROM t GROUP BY a  → HAVING、ORDER（GroupByTail）
-SELECT TOP 10         → PERCENT、WITH，以及選取清單起點的字（TopClauseTail）
-SET NOCOUNT           → ON、OFF（SetOptionValue）
-BEGIN … END           → 下一句的字，加上 ELSE、TRY、CATCH（BlockEnd）
-IF @a = 1 SELECT 1    → 選取清單尾端，加上 ELSE（IfBodyEnd）
 DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給）
 CREATE SEQUENCE s AS int → START、NO（SequenceOption；選項由片語給）
 ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
@@ -59,8 +54,8 @@ OVER (ORDER BY a      → ASC、DESC、ROWS、RANGE（WindowOrderTail）
 FOR XML RAW,          → TYPE、ROOT、ELEMENTS（OptionItem）
 ```
 
-位置切在「游標前一個詞元」之後，那是分析器認得的粒度——它分不出
-`FROM t ` 的 `t` 是資料表還是聯結對象，目錄就不假裝分得出來。
+位置切在「游標前一個詞元」之後，那是分析器認得的粒度：它分不出
+`FROM t ` 的 `t` 是資料表還是聯結對象，目錄也不假裝分得出來。
 
 #### 判不出位置的字只在判不出位置時出現
 
@@ -74,10 +69,8 @@ FOR XML RAW,          → TYPE、ROOT、ELEMENTS（OptionItem）
 #### `Any` 是給「判不出來」用的，不是給「不想判」用的
 
 `Any` 含所有位元，而過濾是 `positions & 目前位置`，所以**回一次 `Any` 等於
-所有關鍵字與片段進場**。分析器判得出來卻回 `Any` 的地方，症狀量得出來
-——同一組候選、同一個前綴 `C`：
-
-`ORDER BY C` 回 `Any` 時有 118 個候選、欄位掉到第 14；回 `OrderByColumn` 只剩 30 個，`cs` 之後就是欄位。
+所有關鍵字與片段進場**：同一個前綴，`ORDER BY C` 回 `Any` 時有 118 個候選、欄位掉到第 14；
+回 `OrderByColumn` 只剩 30 個，`cs` 之後就是欄位。
 
 因此 `OrderByColumn`（`ORDER BY`／`GROUP BY` 的欄位，含逗號之後）與
 `AlterTableAction`／`AlterTableAdd`／`AlterTableColumn`、`BlockEnd`、`IfBodyEnd`、`CursorOption` 這類敘述自己的格子
@@ -89,31 +82,3 @@ FOR XML RAW,          → TYPE、ROOT、ELEMENTS（OptionItem）
 
 `ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個含點號的名稱單位」，
 `ADD` 清單的逗號之後走回同一個 `ADD`（`SqlTokenNavigator.SkipQualifiedNameBackward`）。
-
-#### 位置過濾也管資料庫物件
-
-關鍵字、內建函式與片段各自帶著位置旗標，**名稱沒有**——資料表與程序是執行期從
-中繼資料來的，帶不了旗標。所以反過來列寫不出名稱的位置（`SqlKeywordPositionExtensions.AcceptsNames`），
-每一項都要說得出「那裡沒有任何名稱是合法的」：
-
-| 位置 | 那裡只接受 |
-|---|---|
-| 子句尾端（`GROUP BY a \|`、`WHERE a = 1 \|`、`FROM t a \|`） | 運算子或關鍵字；別名是新名字 |
-| `StatementStart`、`BlockStart`、`BlockEnd`、`IfBodyEnd`（`;`、`BEGIN`、區塊的 `END` 之後） | 下一句的關鍵字或 `ELSE` |
-| 選項清單與其餘敘述自己的格子（`CursorOption`、`TriggerEvent`、`MergeAction`…，全部見 `NoNamePositions`） | 選項、事件、動作或下一個子句的字 |
-| `ByAnchor`（`ORDER \|`、`GROUP \|`） | `BY` |
-| `DdlObject`（`CREATE \|`、`ALTER \|`、`DROP \|`） | 物件**種類** |
-| `AlterTableAction`、`AlterTableAdd`、`ColumnDefinition` | 動作、條件約束關鍵字，或新資料行名稱 |
-| `SetOptionValue`（`SET NOCOUNT \|`） | `ON`、`OFF`（`SET IDENTITY_INSERT \|` 要資料表，不在此） |
-
-子句尾端換行後補上的語句開頭照樣不接名稱：`FROM t a⏎CREA` 的欄位屬於上一句，
-省略 EXEC 的程序呼叫又只在**批次第一句**合法（文件開頭或 `GO` 之後，`StartsBatch`）。
-那裡只放行程序。
-
-`InsertTarget` 刻意不在裡面：`INSERT dbo.Loan VALUES (…)` 是合法的 T-SQL，`INTO`
-可以省略。`SetTarget` 也不在——`SET |` 與 `UPDATE t SET |` 是同一個位置，而後者要的是
-資料行。`CaseArm`、`CaseBody` 不在：CASE 的各段寫的是運算式，欄位與函式都對。
-
-判斷比的是「位置裡還有沒有別的位元」而不是位元交集：判不出位置時回傳的 `Any`
-含著上表每一個旗標，用交集的話 fail-open 會變成 fail-closed，**每一個**位置的資料庫
-物件都會消失。

@@ -57,7 +57,7 @@ LibArchive」，而那個結構描述並不存在。關掉一個為了少打幾�
 意思是「我要這個名稱」，不是「我要繼續往下走」——選了資料庫想直接換行去寫別的、
 或想手動打結構描述的人，都得先退掉一個他沒要求的字元。接續本來就有人做了：打出
 點號會讓上下文整個換掉，`SqlCompletionTriggers` 因此重開清單，而那條路徑對每一段
-都一樣，見 [completion-context.md](completion-context.md)。
+都一樣，見[重開](completion-reopen.md)。
 
 同一條也擋住「把結構描述限定到自己身上」：這三類的 `SchemaName` 就是它們自己，
 掉進上一節那條規則會寫出 `dbo.dbo`。

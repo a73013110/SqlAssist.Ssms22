@@ -2,7 +2,7 @@
 
 停靠工具窗（SQL Memory、SQL Search）與之後的視窗共用的骨架與主從區契約。清單列見
 [清單列](ui-rows.md)，視覺語言見 [UI 準則](ui-guidelines.md)，元件的唯一出處見
-[平台共用元件](shared-components-platform.md)。
+[UI 共用元件](shared-components-ui.md)。
 
 ## 骨架
 
@@ -38,7 +38,7 @@
 | 縮小**搜尋範圍**（伺服器、資料庫、種類、比對位置） | 上層的 `SqlFilterBar` |
 
 **套用查詢視窗的連線**屬於範圍：它一次換掉伺服器與資料庫兩個條件，是那兩顆的捷徑，所以兩個工具窗
-都放在範圍列伺服器的左邊（`CreateEditorConnectionButton`），Tooltip 打開那一刻才寫出會套到哪一條。
+都放在範圍列伺服器左邊（`CreateEditorConnectionButton`），Tooltip 打開那一刻才寫出會套到哪一條。
 放在搜尋框右緣的那一版，讓人以為它作用在搜尋字串上。它是**一次性的動作**，不是一種範圍狀態：兩邊都
 把兩個篩選取代成當下那一台與那一個（`SqlConnectionScope.Apply`），之後切分頁、換連線都不再跟著走；
 下拉裡也沒有「查詢視窗」這個選項，只列目前能用的名稱。查詢視窗沒有連線時兩邊都不動範圍、
@@ -46,8 +46,7 @@
 伺服器之後，「目前連線」讀起來像是那一台。
 
 輸入框吃剩餘寬度並保留 `MinInputWidth`；右緣那幾顆固定寬，收起的那一顆連它前面那一段
-間距一起讓開。三種混排在同一個地方的症狀是使用者分不出哪一顆會改變「找到什麼」、
-哪一顆只改變「怎麼看這一份」。
+間距一起讓開。混排的症狀是分不出哪一顆改變「找到什麼」、哪一顆只改變「怎麼看這一份」。
 
 框裡那幾顆**常駐可見**，「開著」必須在那一顆自己身上看得出來，所以走 `CreateToggleStyle`：強調底加
 強調框，與核取方塊的「打勾」同一組色。沿用分段開關那一份的那一版看不出狀態——它的選取
@@ -86,25 +85,23 @@ Preview 標頭（開關與摘要）分兩態：
 
 兩個抬頭的下一步完全不同（重試或換條件 vs. 去要權限），所以「權限不足」是一句**斷言**，
 換抬頭的門檻只有一條：讀不到的來源**每一個**都回報得出結構化的權限原因。其中之一就換的話，
-使用者照抬頭去要了權限，那個連不上的來源下一輪還是讀不到，而畫面上看不出他要錯了東西；
+使用者照抬頭去要了權限，連不上的來源下一輪還是讀不到，畫面上看不出要錯了東西；
 反過來一律說「這一輪讀不到」的那一版，則會讓真的缺權限的人一直重試。SQL Search 那一邊
 由 `SearchUnavailableKind` 帶著走，見 [完整度與進度](search-coverage.md#完整度怎麼說)。
 結果不完整而一列都沒有時是第五種狀態 `Incomplete`：抬頭照樣說沒有相符項目，但掛警示圖示。
 
 ## design token
 
-字型、字級、間距、圓角、動畫長度與語意色只進 `SqlAssistChrome`（含 partial）與
-`ThemePalette`／`ThemeColorMath`，顏色繫結 `VsThemeBrushes` 的動態資源。不得另開
-`ResourceDictionary`，不得在功能目錄複製樣板或硬寫 RGB。間距也是 token，排版器裡那種
-自己宣告的 `RowGap` 常數一樣回到這裡——複製兩份的下場是調了其中一份，兩層工具列的間距
-從此不一樣。
+字型、間距、圓角、動畫長度與語意色的出處與禁令見[UI 準則](ui-guidelines.md)；`ThemePalette`／`ThemeColorMath`
+也算在內。排版器自己宣告的間距常數（`RowGap`）一樣回到 `SqlAssistChrome`——複製兩份的下場是調了其中一份，
+兩層工具列的間距從此不一樣。
 
 ## 動畫與延遲
 
 | 分級 | 資產 | 長度 |
 |---|---|---|
 | 內容表面出現 | `PlayAppear` | 120 ms 淡入 |
-| 浮動預覽長出／縮回／原地換 | `PlayEnter`／`PlayExit`／`PlaySwap` | 圓點長成膠囊再攤開，內容沒到先停在膠囊（`PreviewReveal`）；內容照 `SurfaceMotion`；縮回不回彈 |
+| 浮動預覽長出／縮回／原地換 | `PlayEnter`／`PlayExit`／`PlaySwap` | 見[預覽外觀](preview-surface.md)；縮回不回彈 |
 | 列的揭露 | `CardEnterDuration`／`CardExitDuration` | 180／140 ms |
 | 狀態回饋 | `UsageBadgePop`、`SearchStatusPop`（含已選筆數與動作完成的打勾） | 240 ms |
 | 動作完成的打勾停留 | `SelectionDoneHold` | 1200 ms，動畫關閉時照樣換圖示 |
@@ -113,8 +110,7 @@ Preview 標頭（開關與摘要）分兩態：
 | 展開／收合箭頭轉向 | `ChevronTurnDuration` | 140 ms 轉到位，可中途反向 |
 | 主從區轉向 | 無，也不要加 | 轉向在 `MeasureOverride`，加動畫會抖 |
 
-三級都受[全域動畫設定](settings.md)控制。debounce 走同一張共用常數表：Search 搜尋 200、
-預覽 220、Cleanup 估算 250、Memory 搜尋 300 ms。
+三級都受[全域動畫設定](settings.md)控制。debounce 走同一張共用常數表（`SqlAssistChrome.Delays`）。
 
 ## 元件邊界
 
@@ -127,7 +123,7 @@ Preview 標頭（開關與摘要）分兩態：
 
 保留取消／generation guard、背景工作、每批 40 筆與 recycling virtualization。禁用每列陰影、
 模糊與複雜動畫；主題／DPI 切換後不殘留舊 brush 或裁切 icon。
-版面、狀態表面與分隔線的逐項斷言在 WPF 元件測試裡，不在這裡重列一份會過時的清單。
+版面、狀態表面與分隔線的逐項斷言在 WPF 元件測試裡，不在這裡重列。
 文件只留眼睛才看得出來的：Light／Dark／Blue 與 100／150／200% DPI、300 DIP 下每一組控制
 仍在列內、窄版降級與 overflow，以及展開態的 Preview 開關留在右欄。間距另看兩態：選取工具列
 進出、篩選列換到第三列，工具列整塊與清單之間都是同一段。
