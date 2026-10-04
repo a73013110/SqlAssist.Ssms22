@@ -501,6 +501,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>
+    /// 一句寫到 <paramref name="last"/> 已經完整的話，它是 IF 只有一句的主體。
+    /// </summary>
+    /// <remarks>
+    /// 寫完一句的子句片語拿它問：<c>IF 1 = 1 COMMIT </c> 的位置判不出來，句子寫完了是片語說的，
+    /// 這裡只回答寫完的這一句是不是 IF 的主體，判法與游標處的 <see cref="SqlKeywordPosition.IfBodyEnd"/> 同一條。
+    /// </remarks>
+    internal bool EndsIfBodyAt(int last) => EndsIfBody(SqlKeywordPosition.StatementStart, last);
+
+    /// <summary>
     /// 游標前那一句可能已經寫完，而它是 IF 只有一句的主體：<c>IF @a = 1 SELECT 1 </c>。
     /// </summary>
     /// <remarks>

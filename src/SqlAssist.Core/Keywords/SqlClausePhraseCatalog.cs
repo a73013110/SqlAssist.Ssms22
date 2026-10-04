@@ -39,6 +39,15 @@ public static class SqlClausePhraseCatalog
     /// <summary>同一條尾巴在幾個位置同時確定成立時合成的片語，鍵是尾巴與那幾個位置；理由同 <see cref="AdditiveUnions"/>。</summary>
     private static readonly ConcurrentDictionary<(string Pattern, SqlKeywordPosition After), SqlClausePhrase> PositionUnions = new();
 
+    /// <summary>寫完一句的片語是 IF 單句主體時併上 <see cref="IfBodyEndWords"/> 的片語，鍵是原本的片語；理由同 <see cref="AdditiveUnions"/>。</summary>
+    private static readonly ConcurrentDictionary<SqlClausePhrase, SqlClausePhrase> IfBodyUnions = new();
+
+    /// <summary>IF 單句主體寫完比語句開頭多接的字（ELSE），取自關鍵字目錄。</summary>
+    private static readonly string[] IfBodyEndWords = SqlKeywordCatalog.All
+        .Where(keyword => (SqlKeywordCatalog.GetPositions(keyword) &
+                           (SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.StatementStart)) == SqlKeywordPosition.IfBodyEnd)
+        .ToArray();
+
     /// <summary>任一個片語接得上的字；語句開頭的判準先問它，絕大多數的字不必比對。</summary>
     private static readonly HashSet<string> AllWords =
         new(Phrases.SelectMany(phrase => phrase.Words).Select(SqlClausePhrase.FirstWord), StringComparer.OrdinalIgnoreCase);
@@ -260,12 +269,36 @@ public static class SqlClausePhraseCatalog
                     match = phrase.Certain;
                 }
 
+                if (phrase.EndsStatement && analyzer.EndsIfBodyAt(count - 1))
+                {
+                    phrase = IfBodyUnions.GetOrAdd(phrase, EndIfBody);
+                    match = match.IsCertain ? phrase.Certain : phrase.Tentative;
+                }
+
                 return onNewLine && (phrase.EndsStatement || NewLineStartsStatement(caret, phrase)) ? phrase.Tentative : match;
             }
         }
 
         return null;
     }
+
+    /// <summary>
+    /// 寫完一句的片語是 IF 只有一句的主體：字併上 IF 主體寫完多接的字。
+    /// </summary>
+    /// <remarks>
+    /// 片語說這一句寫完了，位置分析說不出來（<c>IF 1 = 1 COMMIT </c> 是 <c>Any</c>），游標處就沒有
+    /// <see cref="SqlKeywordPosition.IfBodyEnd"/>；比對確定時這一格的字又只來自片語，ELSE 兩邊都落空。
+    /// 只併 IF 主體比語句開頭多出來的字：同一行的下一句本來就不在寫完一句的片語裡，有沒有 IF 都一樣。
+    /// </remarks>
+    private static SqlClausePhrase EndIfBody(SqlClausePhrase phrase) => new(
+        phrase.Pattern,
+        phrase.After,
+        phrase.Probe,
+        phrase.IsClosed,
+        endsStatement: true,
+        phrase.Words.Concat(IfBodyEndWords).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+        takesVariable: phrase.TakesVariable,
+        takesName: phrase.TakesName);
 
     /// <summary>游標處的位置含語句開頭，而片語不是語句開頭的片語：那是換行補上的界線。</summary>
     private static bool NewLineStartsStatement(SqlKeywordPosition caret, SqlClausePhrase phrase) =>

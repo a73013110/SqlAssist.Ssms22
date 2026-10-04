@@ -587,6 +587,31 @@ public sealed class SqlClausePhraseTests
     }
 
     /// <summary>
+    /// 寫完一句的片語是 IF 只有一句的主體時另接 ELSE；清單照樣封閉，同一行的下一句照樣不列。
+    /// </summary>
+    /// <remarks>
+    /// 位置分析判不出 <c>COMMIT </c> 之後，游標處沒有 IfBodyEnd；比對確定時字又只來自片語，ELSE 兩邊都落空。
+    /// </remarks>
+    [Theory]
+    [InlineData("IF 1 = 1 COMMIT ", true)]
+    [InlineData("IF 1 = 1 ALTER INDEX Ix ON dbo.Loan REBUILD ", true)]
+    [InlineData("IF 1 = 1 BULK INSERT dbo.Loan FROM 'x' ", true)]
+    [InlineData("IF 1 = 1 SELECT CopyNo FROM dbo.Copy ORDER BY CopyNo OFFSET 0 ROWS ", true)]
+    [InlineData("COMMIT ", false)]
+    [InlineData("WHILE 1 = 1 COMMIT ", false)]
+    [InlineData("IF 1 = 1 COMMIT ELSE COMMIT ", false)]
+    [InlineData("IF 1 = 1 SELECT 1; COMMIT ", false)]
+    public void 寫完一句的片語是IF的單句主體時另接ELSE(string textBeforeCaret, bool expected)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+        var offered = Offered(textBeforeCaret);
+
+        Assert.True(context.ClausePhrase!.IsCertain);
+        Assert.Equal(expected, offered.Contains("ELSE"));
+        Assert.DoesNotContain("SELECT", offered);
+    }
+
+    /// <summary>
     /// 前一格同時是幾個位置時，同一條尾巴在每個位置接的字都算：查詢寫完換了行，FETCH 可以是 FETCH APPROX，
     /// 也可以是下一句資料指標的 FETCH。
     /// </summary>
