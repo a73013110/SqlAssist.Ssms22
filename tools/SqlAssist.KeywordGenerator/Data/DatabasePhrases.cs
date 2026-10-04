@@ -24,6 +24,7 @@ internal static class DatabasePhrases
         // Azure SQL Database 的服務層級：EDITION、SERVICE_OBJECTIVE、MAXSIZE 寫在資料庫名稱之後的括號裡，複製資料庫也一樣。
         // SERVICE_OBJECTIVE = 之後是值，展開不往下走；彈性集區那一組括號手寫（值之後要關兩層括號），ELASTIC_POOL 由整段的證據補回等號之後。
         new("CREATE DATABASE {name} (*") { Expand = 2 },
+        new("CREATE DATABASE {name} COLLATE {name} (*") { Expand = 2 },
         new("CREATE DATABASE {name} (* SERVICE_OBJECTIVE = ELASTIC_POOL (*") { Endings = [" = p))"] },
         new("CREATE DATABASE {name} AS COPY OF {name} (*") { Expand = 2 },
         new("CREATE DATABASE {name} AS COPY OF {name} (* SERVICE_OBJECTIVE = ELASTIC_POOL (*") { Endings = [" = p))"] },
@@ -61,6 +62,8 @@ internal static class DatabasePhrases
         // MEMORY_OPTIMIZED、SUSPEND_FOR_SNAPSHOT_BACKUP 剖析器還不認得，探不出來。緩衝集區的 SIZE 少了單位剖析不過，續尾由 Endings 補。
         new("ALTER SERVER CONFIGURATION SET") { Expand = 4 },
         new("ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (*") { Expand = 2, Endings = [" = 1 GB"] },
+        // FILENAME 要寫在第一項，SIZE 只出現在逗號之後，展開走不到它的單位（KB、MB、GB）。
+        new("ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (* SIZE =") { Items = "FILENAME = 'x', ", Expand = 1 },
 
         // 資源集區的 WITH (…)：AFFINITY 之後是 SCHEDULER、NUMANODE（外部集區是 CPU），再之後的等號接 AUTO。
         new("CREATE RESOURCE POOL {name} WITH (*") { Expand = 2 },

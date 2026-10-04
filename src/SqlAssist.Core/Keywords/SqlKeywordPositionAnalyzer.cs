@@ -621,12 +621,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <c>SET</c> 接在隱含的界線後面時還要問它所屬的動詞：<c>UPDATE t⏎SET</c> 是 UPDATE 的子句
     /// （<see cref="IntroducesOptions"/>）。當成一句的開頭的話，範圍分析把 UPDATE 的目標切掉，
     /// IF 只有一句的主體也找錯開頭。
+    ///
+    /// 不是關鍵字的語句開頭（<c>COPY</c>、<c>ENABLE</c>，見 <see cref="SqlKeywordCatalog.StartsStatementAsPhrase"/>）
+    /// 照同一條判準；否則 <c>)⏎COPY</c> 的 COPY 被當成名稱，那一句的片語一個都比對不到。
     /// </remarks>
     internal bool IsStatementHead(int index)
     {
         var token = tokens[index];
 
-        if (token.Kind != SqlTokenKind.Identifier || !IsBareKeyword(index) || !StartsStatement(token))
+        if (token.Kind != SqlTokenKind.Identifier || !StartsStatementHere(index))
         {
             return false;
         }
@@ -674,6 +677,20 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
     /// <summary>這個關鍵字能開始一句。</summary>
     private static bool StartsStatement(SqlToken keyword) => SqlKeywordCatalog.StartsStatement(keyword.Value);
+
+    /// <summary>
+    /// <paramref name="index"/> 寫的字能開始一句：能開始一句的關鍵字，或沒加引號、不在點號後面的
+    /// 語句開頭片語字（<see cref="SqlKeywordCatalog.StartsStatementAsPhrase"/>）。
+    /// </summary>
+    private bool StartsStatementHere(int index)
+    {
+        var token = tokens[index];
+
+        return IsBareKeyword(index)
+            ? StartsStatement(token)
+            : !token.IsQuoted && !(index >= 1 && tokens[index - 1].IsPunctuation(".")) &&
+                SqlKeywordCatalog.StartsStatementAsPhrase(token.Value);
+    }
 
     /// <summary>
     /// 沒有子句關鍵字的一句（<c>EXEC</c>、<c>PRINT</c>、<c>DECLARE</c>）可以在 <paramref name="index"/> 結束。
@@ -782,9 +799,13 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return -1;
     }
 
-    /// <summary>沒加引號、不在點號後面、而且能開始一句的關鍵字。</summary>
+    /// <summary>
+    /// 沒加引號、不在點號後面、而且能開始一句的關鍵字；不是關鍵字的語句開頭（<c>COPY</c>）要真的是一句的開頭才算：
+    /// 它也可能是名稱（<c>FROM Copy c WHERE</c>），一律當動詞的話那裡的 FROM 找不到 SELECT。
+    /// </summary>
     private bool IsVerbCandidate(int index) =>
-        tokens[index].Kind == SqlTokenKind.Identifier && IsBareKeyword(index) && StartsStatement(tokens[index]);
+        tokens[index].Kind == SqlTokenKind.Identifier &&
+        (IsBareKeyword(index) ? StartsStatement(tokens[index]) : StartsStatementHere(index) && IsStatementHead(index));
 
     /// <summary>緊接在左括號前面的 <paramref name="name"/> 與括號同一個單位：函式名稱，或也是函式的 UPDATE。</summary>
     private bool IsFunctionName(int name) =>

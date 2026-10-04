@@ -300,6 +300,8 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.OptionItem, "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, "),
         new(SqlKeywordPosition.OptionItem, "CREATE TRIGGER tr ON DATABASE FOR "),
         new(SqlKeywordPosition.OptionItem, "CREATE TRIGGER tr ON DATABASE FOR CREATE_TABLE, "),
+        new(SqlKeywordPosition.OptionItem, "CREATE STATISTICS s ON t (a) WITH "),
+        new(SqlKeywordPosition.OptionItem, "CREATE STATISTICS s ON t (a) WITH FULLSCAN, "),
         new(SqlKeywordPosition.GroupByTail, "SELECT * FROM t GROUP BY a "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t ORDER BY "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t GROUP BY "),
@@ -2725,6 +2727,10 @@ internal static class SqlKeywordCatalogData
         {
             "FROM", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "TOP",
         }),
+        ("DELETE FROM {name}", SqlKeywordPosition.StatementStart, "DELETE FROM t ", true, false, false, true, new string[]
+        {
+            "FROM", "OPTION", "OUTPUT", "WHERE", "WITH",
+        }),
         ("MERGE", SqlKeywordPosition.StatementStart, "MERGE ", false, false, true, false, new string[]
         {
             "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "TOP",
@@ -3525,6 +3531,23 @@ internal static class SqlKeywordCatalogData
         ("CREATE DATABASE {name} (* SERVICE_OBJECTIVE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (SERVICE_OBJECTIVE ", true, false, false, false, new string[]
         {
         }),
+        ("CREATE DATABASE {name} COLLATE {name} (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE t (", true, false, false, false, new string[]
+        {
+            "EDITION", "MAXSIZE", "SERVICE_OBJECTIVE",
+        }),
+        ("CREATE DATABASE {name} COLLATE {name} (* EDITION", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE t (EDITION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} COLLATE {name} (* MAXSIZE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE t (MAXSIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE DATABASE {name} COLLATE {name} (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE t (MAXSIZE = 1 ", true, false, false, false, new string[]
+        {
+            "GB", "MB",
+        }),
+        ("CREATE DATABASE {name} COLLATE {name} (* SERVICE_OBJECTIVE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE t (SERVICE_OBJECTIVE ", true, false, false, false, new string[]
+        {
+        }),
         ("CREATE DATABASE {name} (* SERVICE_OBJECTIVE = ELASTIC_POOL (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (SERVICE_OBJECTIVE = ELASTIC_POOL (", true, false, true, false, new string[]
         {
             "NAME",
@@ -3901,6 +3924,13 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (* FILENAME", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME ", true, false, false, false, new string[]
         {
+        }),
+        ("ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (* SIZE =", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'x', SIZE = ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (* SIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'x', SIZE = 1 ", true, false, false, false, new string[]
+        {
+            "GB", "KB", "MB",
         }),
         ("CREATE RESOURCE POOL {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE RESOURCE POOL t WITH (", true, false, false, false, new string[]
         {
@@ -4377,6 +4407,46 @@ internal static class SqlKeywordCatalogData
         ("RESTORE VERIFYONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE VERIFYONLY KEY ", true, false, false, false, new string[]
         {
             "FROM",
+        }),
+        ("BACKUP DATABASE {name} TO ,*", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t TO DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("BACKUP DATABASE {name} TO ,* {value}", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t TO t ", true, false, false, true, new string[]
+        {
+            "WITH", "MIRROR TO",
+        }),
+        ("BACKUP LOG {name} TO ,*", SqlKeywordPosition.StatementStart, "BACKUP LOG t TO DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("BACKUP LOG {name} TO ,* {value}", SqlKeywordPosition.StatementStart, "BACKUP LOG t TO t ", true, false, false, true, new string[]
+        {
+            "WITH", "MIRROR TO",
+        }),
+        ("RESTORE DATABASE {name} FROM ,*", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FROM DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE DATABASE {name} FROM ,* {value}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FROM t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("RESTORE LOG {name} FROM ,*", SqlKeywordPosition.StatementStart, "RESTORE LOG t FROM DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE LOG {name} FROM ,* {value}", SqlKeywordPosition.StatementStart, "RESTORE LOG t FROM t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("BACKUP DATABASE {name} TO ,* {value} MIRROR TO", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t TO t MIRROR TO ", false, true, true, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("BACKUP LOG {name} TO ,* {value} MIRROR TO", SqlKeywordPosition.StatementStart, "BACKUP LOG t TO t MIRROR TO ", false, true, true, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
         }),
         ("ALTER INDEX {name} ON {name}", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t ", true, false, false, false, new string[]
         {
@@ -6152,11 +6222,11 @@ internal static class SqlKeywordCatalogData
             "CONTINUE_AFTER_ERROR", "ENABLE_BROKER", "ENHANCEDINTEGRITY",
             "ERROR_BROKER_CONVERSATIONS", "FILE", "FILESTREAM", "KEEP_REPLICATION",
             "KEEP_TEMPORAL_RETENTION", "LOADHISTORY", "MAXTRANSFERSIZE", "MEDIANAME",
-            "MEDIAPASSWORD", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY", "NOREWIND",
-            "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE", "RESTART",
-            "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT", "SNAPSHOTRESTOREPHASE",
-            "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK", "STOPBEFOREMARK",
-            "UNLOAD", "VERBOSE",
+            "MEDIAPASSWORD", "MOVE", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY",
+            "NOREWIND", "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE",
+            "RESTART", "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT",
+            "SNAPSHOTRESTOREPHASE", "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK",
+            "STOPBEFOREMARK", "UNLOAD", "VERBOSE",
         }),
         ("RESTORE DATABASE ... WITH ,*", SqlKeywordPosition.StatementStart, "RESTORE DATABASE d FROM DISK = 'x' WITH BLOCKSIZE = 1, ", true, false, false, false, new string[]
         {
@@ -6164,11 +6234,11 @@ internal static class SqlKeywordCatalogData
             "CONTINUE_AFTER_ERROR", "ENABLE_BROKER", "ENHANCEDINTEGRITY",
             "ERROR_BROKER_CONVERSATIONS", "FILE", "FILESTREAM", "KEEP_REPLICATION",
             "KEEP_TEMPORAL_RETENTION", "LOADHISTORY", "MAXTRANSFERSIZE", "MEDIANAME",
-            "MEDIAPASSWORD", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY", "NOREWIND",
-            "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE", "RESTART",
-            "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT", "SNAPSHOTRESTOREPHASE",
-            "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK", "STOPBEFOREMARK",
-            "UNLOAD", "VERBOSE",
+            "MEDIAPASSWORD", "MOVE", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY",
+            "NOREWIND", "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE",
+            "RESTART", "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT",
+            "SNAPSHOTRESTOREPHASE", "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK",
+            "STOPBEFOREMARK", "UNLOAD", "VERBOSE",
         }),
         ("RESTORE LOG ... WITH", SqlKeywordPosition.StatementStart, "RESTORE LOG d FROM DISK = 'x' WITH ", true, false, false, false, new string[]
         {
@@ -6176,11 +6246,11 @@ internal static class SqlKeywordCatalogData
             "CONTINUE_AFTER_ERROR", "ENABLE_BROKER", "ENHANCEDINTEGRITY",
             "ERROR_BROKER_CONVERSATIONS", "FILE", "FILESTREAM", "KEEP_REPLICATION",
             "KEEP_TEMPORAL_RETENTION", "LOADHISTORY", "MAXTRANSFERSIZE", "MEDIANAME",
-            "MEDIAPASSWORD", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY", "NOREWIND",
-            "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE", "RESTART",
-            "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT", "SNAPSHOTRESTOREPHASE",
-            "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK", "STOPBEFOREMARK",
-            "UNLOAD", "VERBOSE",
+            "MEDIAPASSWORD", "MOVE", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY",
+            "NOREWIND", "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE",
+            "RESTART", "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT",
+            "SNAPSHOTRESTOREPHASE", "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK",
+            "STOPBEFOREMARK", "UNLOAD", "VERBOSE",
         }),
         ("RESTORE LOG ... WITH ,*", SqlKeywordPosition.StatementStart, "RESTORE LOG d FROM DISK = 'x' WITH BLOCKSIZE = 1, ", true, false, false, false, new string[]
         {
@@ -6188,11 +6258,102 @@ internal static class SqlKeywordCatalogData
             "CONTINUE_AFTER_ERROR", "ENABLE_BROKER", "ENHANCEDINTEGRITY",
             "ERROR_BROKER_CONVERSATIONS", "FILE", "FILESTREAM", "KEEP_REPLICATION",
             "KEEP_TEMPORAL_RETENTION", "LOADHISTORY", "MAXTRANSFERSIZE", "MEDIANAME",
-            "MEDIAPASSWORD", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY", "NOREWIND",
-            "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE", "RESTART",
-            "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT", "SNAPSHOTRESTOREPHASE",
-            "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK", "STOPBEFOREMARK",
-            "UNLOAD", "VERBOSE",
+            "MEDIAPASSWORD", "MOVE", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY",
+            "NOREWIND", "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE",
+            "RESTART", "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT",
+            "SNAPSHOTRESTOREPHASE", "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK",
+            "STOPBEFOREMARK", "UNLOAD", "VERBOSE",
+        }),
+        ("ENCRYPTION (*", SqlKeywordPosition.OptionItem, "BACKUP DATABASE d TO DISK = 'x' WITH ENCRYPTION (", true, false, true, false, new string[]
+        {
+            "ALGORITHM", "SERVER",
+        }),
+        ("ENCRYPTION (* ALGORITHM =", SqlKeywordPosition.OptionItem, "BACKUP DATABASE d TO DISK = 'x' WITH ENCRYPTION (ALGORITHM = ", true, false, false, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("ENCRYPTION (* SERVER", SqlKeywordPosition.OptionItem, "BACKUP DATABASE d TO DISK = 'x' WITH ENCRYPTION (ALGORITHM = AES_256, SERVER ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE",
+        }),
+        ("ENCRYPTION (* SERVER ASYMMETRIC", SqlKeywordPosition.OptionItem, "BACKUP DATABASE d TO DISK = 'x' WITH ENCRYPTION (ALGORITHM = AES_256, SERVER ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ENCRYPTION (* SERVER CERTIFICATE", SqlKeywordPosition.OptionItem, "BACKUP DATABASE d TO DISK = 'x' WITH ENCRYPTION (ALGORITHM = AES_256, SERVER CERTIFICATE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE STATISTICS ... WITH", SqlKeywordPosition.StatementStart, "CREATE STATISTICS s ON t (a) WITH ", true, false, false, false, new string[]
+        {
+            "AUTO_DROP", "FULLSCAN", "INCREMENTAL", "NORECOMPUTE", "PERSIST_SAMPLE_PERCENT",
+            "SAMPLE", "STATS_STREAM",
+        }),
+        ("CREATE STATISTICS ... WITH ,*", SqlKeywordPosition.StatementStart, "CREATE STATISTICS s ON t (a) WITH AUTO_DROP = ON, ", true, false, false, false, new string[]
+        {
+            "AUTO_DROP", "FULLSCAN", "INCREMENTAL", "NORECOMPUTE", "PERSIST_SAMPLE_PERCENT",
+            "SAMPLE", "STATS_STREAM",
+        }),
+        ("UPDATE STATISTICS ... WITH", SqlKeywordPosition.StatementStart, "UPDATE STATISTICS t WITH ", true, false, false, false, new string[]
+        {
+            "ALL", "AUTO_DROP", "COLUMNS", "FULLSCAN", "INCREMENTAL", "INDEX", "NORECOMPUTE",
+            "PAGECOUNT", "PERSIST_SAMPLE_PERCENT", "RESAMPLE", "ROWCOUNT", "SAMPLE",
+            "STATS_STREAM",
+        }),
+        ("UPDATE STATISTICS ... WITH ,*", SqlKeywordPosition.StatementStart, "UPDATE STATISTICS t WITH ALL, ", true, false, false, false, new string[]
+        {
+            "ALL", "AUTO_DROP", "COLUMNS", "FULLSCAN", "INCREMENTAL", "INDEX", "NORECOMPUTE",
+            "PAGECOUNT", "PERSIST_SAMPLE_PERCENT", "RESAMPLE", "ROWCOUNT", "SAMPLE",
+            "STATS_STREAM",
+        }),
+        ("SAMPLE {value}", SqlKeywordPosition.OptionItem, "CREATE STATISTICS s ON t (a) WITH SAMPLE 1 ", true, false, false, false, new string[]
+        {
+            "PERCENT", "ROWS",
+        }),
+        ("RESAMPLE ON", SqlKeywordPosition.Any, "UPDATE STATISTICS t WITH RESAMPLE ON ", true, false, true, false, new string[]
+        {
+            "PARTITIONS",
+        }),
+        ("COMMIT WITH (*", SqlKeywordPosition.StatementStart, "COMMIT WITH (", true, false, true, false, new string[]
+        {
+            "DELAYED_DURABILITY",
+        }),
+        ("COMMIT WITH (* DELAYED_DURABILITY", SqlKeywordPosition.StatementStart, "COMMIT WITH (DELAYED_DURABILITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("COMMIT WITH (* DELAYED_DURABILITY =", SqlKeywordPosition.StatementStart, "COMMIT WITH (DELAYED_DURABILITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("COMMIT TRAN WITH (*", SqlKeywordPosition.StatementStart, "COMMIT TRAN WITH (", true, false, true, false, new string[]
+        {
+            "DELAYED_DURABILITY",
+        }),
+        ("COMMIT TRAN WITH (* DELAYED_DURABILITY", SqlKeywordPosition.StatementStart, "COMMIT TRAN WITH (DELAYED_DURABILITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("COMMIT TRAN WITH (* DELAYED_DURABILITY =", SqlKeywordPosition.StatementStart, "COMMIT TRAN WITH (DELAYED_DURABILITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("COMMIT TRANSACTION WITH (*", SqlKeywordPosition.StatementStart, "COMMIT TRANSACTION WITH (", true, false, true, false, new string[]
+        {
+            "DELAYED_DURABILITY",
+        }),
+        ("COMMIT TRANSACTION WITH (* DELAYED_DURABILITY", SqlKeywordPosition.StatementStart, "COMMIT TRANSACTION WITH (DELAYED_DURABILITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("COMMIT TRANSACTION WITH (* DELAYED_DURABILITY =", SqlKeywordPosition.StatementStart, "COMMIT TRANSACTION WITH (DELAYED_DURABILITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("COMMIT TRAN ... WITH (*", SqlKeywordPosition.StatementStart, "COMMIT TRAN t WITH (", true, false, true, false, new string[]
+        {
+            "DELAYED_DURABILITY",
+        }),
+        ("COMMIT TRANSACTION ... WITH (*", SqlKeywordPosition.StatementStart, "COMMIT TRANSACTION t WITH (", true, false, true, false, new string[]
+        {
+            "DELAYED_DURABILITY",
         }),
         ("TRIGGER {name} ON", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ", false, false, true, false, new string[]
         {
@@ -7312,17 +7473,136 @@ internal static class SqlKeywordCatalogData
             "KEEPNULLS", "KILOBYTES_PER_BATCH", "LASTROW", "MAXERRORS", "NO_TRIGGERS", "ORDER",
             "PARSER_VERSION", "ROWS_PER_BATCH", "ROWSET_OPTIONS", "ROWTERMINATOR", "TABLOCK",
         }),
+        ("COPY INTO {name}", SqlKeywordPosition.StatementStart, "COPY INTO t ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
+        ("COPY INTO {name} ()", SqlKeywordPosition.StatementStart, "COPY INTO t (a) ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
+        ("COPY INTO {name} FROM {value}", SqlKeywordPosition.StatementStart, "COPY INTO t FROM 'x' ", true, false, false, true, new string[]
+        {
+            "OPTION", "WITH",
+        }),
+        ("COPY INTO ... WITH (*", SqlKeywordPosition.StatementStart, "COPY INTO t FROM 'x' WITH (", true, false, false, false, new string[]
+        {
+            "COMPRESSION", "CREDENTIAL", "DATEFORMAT", "ENCODING", "ERRORFILE",
+            "ERRORFILE_CREDENTIAL", "FIELDQUOTE", "FIELDTERMINATOR", "FILE_FORMAT", "FILE_TYPE",
+            "FIRSTROW", "IDENTITY_INSERT", "MAXERRORS", "ROWTERMINATOR",
+        }),
+        ("COPY INTO ... WITH (* CREDENTIAL = (*", SqlKeywordPosition.StatementStart, "COPY INTO t FROM 'x' WITH (CREDENTIAL = (", true, false, false, false, new string[]
+        {
+            "IDENTITY", "SECRET",
+        }),
+        ("COPY INTO ... WITH (* ERRORFILE_CREDENTIAL = (*", SqlKeywordPosition.StatementStart, "COPY INTO t FROM 'x' WITH (ERRORFILE_CREDENTIAL = (", true, false, false, false, new string[]
+        {
+            "IDENTITY", "SECRET",
+        }),
+        ("ENABLE CHANGE_TRACKING WITH (*", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t ENABLE CHANGE_TRACKING WITH (", true, false, true, false, new string[]
+        {
+            "TRACK_COLUMNS_UPDATED",
+        }),
+        ("ENABLE CHANGE_TRACKING WITH (* TRACK_COLUMNS_UPDATED", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t ENABLE CHANGE_TRACKING WITH (TRACK_COLUMNS_UPDATED ", true, false, false, false, new string[]
+        {
+        }),
+        ("ENABLE CHANGE_TRACKING WITH (* TRACK_COLUMNS_UPDATED =", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t ENABLE CHANGE_TRACKING WITH (TRACK_COLUMNS_UPDATED = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
         ("CREATE EXTERNAL TABLE {name} () WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (", true, false, false, false, new string[]
         {
             "DATA_SOURCE", "DISTRIBUTION", "FILE_FORMAT", "LOCATION", "OBJECT_NAME",
             "REJECT_SAMPLE_VALUE", "REJECT_TYPE", "REJECT_VALUE", "REJECTED_ROW_LOCATION",
             "SCHEMA_NAME", "TABLE_OPTIONS",
         }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* DATA_SOURCE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (DATA_SOURCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* DISTRIBUTION", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (DISTRIBUTION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* DISTRIBUTION =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (DISTRIBUTION = ", true, false, false, false, new string[]
+        {
+            "REPLICATED", "ROUND_ROBIN", "SHARDED",
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* FILE_FORMAT", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (FILE_FORMAT ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* LOCATION", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (LOCATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* OBJECT_NAME", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (OBJECT_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* REJECT_SAMPLE_VALUE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (REJECT_SAMPLE_VALUE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* REJECT_TYPE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (REJECT_TYPE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* REJECT_TYPE =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (REJECT_TYPE = ", true, false, false, false, new string[]
+        {
+            "PERCENTAGE", "VALUE",
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* REJECT_VALUE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (REJECT_VALUE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* REJECTED_ROW_LOCATION", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (REJECTED_ROW_LOCATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* SCHEMA_NAME", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (SCHEMA_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} () WITH (* TABLE_OPTIONS", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t (a int) WITH (TABLE_OPTIONS ", true, false, false, false, new string[]
+        {
+        }),
         ("CREATE EXTERNAL TABLE {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (", true, false, false, false, new string[]
         {
             "DATA_SOURCE", "DISTRIBUTION", "FILE_FORMAT", "LOCATION", "OBJECT_NAME",
             "REJECT_SAMPLE_VALUE", "REJECT_TYPE", "REJECT_VALUE", "REJECTED_ROW_LOCATION",
             "SCHEMA_NAME", "TABLE_OPTIONS",
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* DATA_SOURCE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (DATA_SOURCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* DISTRIBUTION", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (DISTRIBUTION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* DISTRIBUTION =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (DISTRIBUTION = ", true, false, false, false, new string[]
+        {
+            "REPLICATED", "ROUND_ROBIN", "SHARDED",
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* FILE_FORMAT", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (FILE_FORMAT ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* LOCATION", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (LOCATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* OBJECT_NAME", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (OBJECT_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* REJECT_SAMPLE_VALUE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (REJECT_SAMPLE_VALUE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* REJECT_TYPE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (REJECT_TYPE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* REJECT_TYPE =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (REJECT_TYPE = ", true, false, false, false, new string[]
+        {
+            "PERCENTAGE", "VALUE",
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* REJECT_VALUE", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (REJECT_VALUE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* REJECTED_ROW_LOCATION", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (REJECTED_ROW_LOCATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* SCHEMA_NAME", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (SCHEMA_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE EXTERNAL TABLE {name} WITH (* TABLE_OPTIONS", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (TABLE_OPTIONS ", true, false, false, false, new string[]
+        {
         }),
         ("INDEX {name} CLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED ", true, false, false, false, new string[]
         {
@@ -7556,10 +7836,78 @@ internal static class SqlKeywordCatalogData
             "FILEPATH", "MAX_FILES", "MAX_ROLLOVER_FILES", "MAXSIZE", "PATH",
             "RESERVE_DISK_SPACE",
         }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* FILEPATH", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (FILEPATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAX_FILES", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAX_FILES ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAX_ROLLOVER_FILES", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAX_ROLLOVER_FILES ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAX_ROLLOVER_FILES =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAX_ROLLOVER_FILES = ", true, false, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAXSIZE", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAXSIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAXSIZE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAXSIZE = ", true, false, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAXSIZE = 1 ", true, false, false, false, new string[]
+        {
+            "GB", "MB", "TB",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* PATH", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (PATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* RESERVE_DISK_SPACE", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (RESERVE_DISK_SPACE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* RESERVE_DISK_SPACE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (RESERVE_DISK_SPACE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
         ("CREATE SERVER AUDIT {name} TO FILE (*", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (", true, false, false, false, new string[]
         {
             "FILEPATH", "MAX_FILES", "MAX_ROLLOVER_FILES", "MAXSIZE", "PATH",
             "RESERVE_DISK_SPACE",
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE (* FILEPATH", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (FILEPATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE (* MAX_FILES", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (MAX_FILES ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE (* MAX_ROLLOVER_FILES", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (MAX_ROLLOVER_FILES ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE (* MAX_ROLLOVER_FILES =", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (MAX_ROLLOVER_FILES = ", true, false, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE (* MAXSIZE", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (MAXSIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE (* MAXSIZE =", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (MAXSIZE = ", true, false, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (MAXSIZE = 1 ", true, false, false, false, new string[]
+        {
+            "GB", "MB", "TB",
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE (* PATH", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (PATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE (* RESERVE_DISK_SPACE", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (RESERVE_DISK_SPACE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE (* RESERVE_DISK_SPACE =", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (RESERVE_DISK_SPACE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
         }),
         ("CREATE SERVER AUDIT {name} TO {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO APPLICATION_LOG WITH (", true, false, true, false, new string[]
         {
@@ -8646,10 +8994,116 @@ internal static class SqlKeywordCatalogData
             "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
             "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
         }),
+        ("EVENT {name} WITH (* EVENT_RETENTION_MODE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (EVENT_RETENTION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} WITH (* EVENT_RETENTION_MODE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (EVENT_RETENTION_MODE = ", true, false, false, false, new string[]
+        {
+            "ALLOW_MULTIPLE_EVENT_LOSS", "ALLOW_SINGLE_EVENT_LOSS", "NO_EVENT_LOSS",
+        }),
+        ("EVENT {name} WITH (* MAX_DISPATCH_LATENCY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (MAX_DISPATCH_LATENCY ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} WITH (* MAX_DISPATCH_LATENCY =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (MAX_DISPATCH_LATENCY = ", true, false, false, false, new string[]
+        {
+            "INFINITE",
+        }),
+        ("EVENT {name} WITH (* MAX_DISPATCH_LATENCY = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (MAX_DISPATCH_LATENCY = 1 ", true, false, false, false, new string[]
+        {
+            "SECONDS",
+        }),
+        ("EVENT {name} WITH (* MAX_EVENT_SIZE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (MAX_EVENT_SIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} WITH (* MAX_EVENT_SIZE = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (MAX_EVENT_SIZE = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("EVENT {name} WITH (* MAX_MEMORY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (MAX_MEMORY ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} WITH (* MAX_MEMORY = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (MAX_MEMORY = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("EVENT {name} WITH (* MEMORY_PARTITION_MODE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (MEMORY_PARTITION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} WITH (* MEMORY_PARTITION_MODE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (MEMORY_PARTITION_MODE = ", true, false, false, false, new string[]
+        {
+            "NONE", "PER_CPU", "PER_NODE",
+        }),
+        ("EVENT {name} WITH (* STARTUP_STATE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (STARTUP_STATE ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} WITH (* STARTUP_STATE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (STARTUP_STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("EVENT {name} WITH (* TRACK_CAUSALITY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (TRACK_CAUSALITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} WITH (* TRACK_CAUSALITY =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (TRACK_CAUSALITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
         ("TARGET {name} WITH (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (", true, false, false, false, new string[]
         {
             "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
             "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
+        }),
+        ("TARGET {name} WITH (* EVENT_RETENTION_MODE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (EVENT_RETENTION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} WITH (* EVENT_RETENTION_MODE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (EVENT_RETENTION_MODE = ", true, false, false, false, new string[]
+        {
+            "ALLOW_MULTIPLE_EVENT_LOSS", "ALLOW_SINGLE_EVENT_LOSS", "NO_EVENT_LOSS",
+        }),
+        ("TARGET {name} WITH (* MAX_DISPATCH_LATENCY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (MAX_DISPATCH_LATENCY ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} WITH (* MAX_DISPATCH_LATENCY =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (MAX_DISPATCH_LATENCY = ", true, false, false, false, new string[]
+        {
+            "INFINITE",
+        }),
+        ("TARGET {name} WITH (* MAX_DISPATCH_LATENCY = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (MAX_DISPATCH_LATENCY = 1 ", true, false, false, false, new string[]
+        {
+            "SECONDS",
+        }),
+        ("TARGET {name} WITH (* MAX_EVENT_SIZE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (MAX_EVENT_SIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} WITH (* MAX_EVENT_SIZE = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (MAX_EVENT_SIZE = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("TARGET {name} WITH (* MAX_MEMORY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (MAX_MEMORY ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} WITH (* MAX_MEMORY = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (MAX_MEMORY = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("TARGET {name} WITH (* MEMORY_PARTITION_MODE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (MEMORY_PARTITION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} WITH (* MEMORY_PARTITION_MODE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (MEMORY_PARTITION_MODE = ", true, false, false, false, new string[]
+        {
+            "NONE", "PER_CPU", "PER_NODE",
+        }),
+        ("TARGET {name} WITH (* STARTUP_STATE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (STARTUP_STATE ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} WITH (* STARTUP_STATE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (STARTUP_STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("TARGET {name} WITH (* TRACK_CAUSALITY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (TRACK_CAUSALITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} WITH (* TRACK_CAUSALITY =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (TRACK_CAUSALITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
         }),
         ("EVENT {name} (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (", true, false, false, false, new string[]
         {
@@ -8672,6 +9126,59 @@ internal static class SqlKeywordCatalogData
             "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
             "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
         }),
+        ("EVENT {name} () WITH (* EVENT_RETENTION_MODE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (EVENT_RETENTION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} () WITH (* EVENT_RETENTION_MODE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (EVENT_RETENTION_MODE = ", true, false, false, false, new string[]
+        {
+            "ALLOW_MULTIPLE_EVENT_LOSS", "ALLOW_SINGLE_EVENT_LOSS", "NO_EVENT_LOSS",
+        }),
+        ("EVENT {name} () WITH (* MAX_DISPATCH_LATENCY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (MAX_DISPATCH_LATENCY ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} () WITH (* MAX_DISPATCH_LATENCY =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (MAX_DISPATCH_LATENCY = ", true, false, false, false, new string[]
+        {
+            "INFINITE",
+        }),
+        ("EVENT {name} () WITH (* MAX_DISPATCH_LATENCY = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (MAX_DISPATCH_LATENCY = 1 ", true, false, false, false, new string[]
+        {
+            "SECONDS",
+        }),
+        ("EVENT {name} () WITH (* MAX_EVENT_SIZE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (MAX_EVENT_SIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} () WITH (* MAX_EVENT_SIZE = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (MAX_EVENT_SIZE = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("EVENT {name} () WITH (* MAX_MEMORY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (MAX_MEMORY ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} () WITH (* MAX_MEMORY = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (MAX_MEMORY = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("EVENT {name} () WITH (* MEMORY_PARTITION_MODE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (MEMORY_PARTITION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} () WITH (* MEMORY_PARTITION_MODE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (MEMORY_PARTITION_MODE = ", true, false, false, false, new string[]
+        {
+            "NONE", "PER_CPU", "PER_NODE",
+        }),
+        ("EVENT {name} () WITH (* STARTUP_STATE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (STARTUP_STATE ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} () WITH (* STARTUP_STATE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (STARTUP_STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("EVENT {name} () WITH (* TRACK_CAUSALITY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (TRACK_CAUSALITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("EVENT {name} () WITH (* TRACK_CAUSALITY =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) WITH (TRACK_CAUSALITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
         ("TARGET {name} (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (", true, false, false, false, new string[]
         {
             "SET",
@@ -8688,6 +9195,59 @@ internal static class SqlKeywordCatalogData
         {
             "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
             "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
+        }),
+        ("TARGET {name} () WITH (* EVENT_RETENTION_MODE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (EVENT_RETENTION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} () WITH (* EVENT_RETENTION_MODE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (EVENT_RETENTION_MODE = ", true, false, false, false, new string[]
+        {
+            "ALLOW_MULTIPLE_EVENT_LOSS", "ALLOW_SINGLE_EVENT_LOSS", "NO_EVENT_LOSS",
+        }),
+        ("TARGET {name} () WITH (* MAX_DISPATCH_LATENCY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (MAX_DISPATCH_LATENCY ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} () WITH (* MAX_DISPATCH_LATENCY =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (MAX_DISPATCH_LATENCY = ", true, false, false, false, new string[]
+        {
+            "INFINITE",
+        }),
+        ("TARGET {name} () WITH (* MAX_DISPATCH_LATENCY = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (MAX_DISPATCH_LATENCY = 1 ", true, false, false, false, new string[]
+        {
+            "SECONDS",
+        }),
+        ("TARGET {name} () WITH (* MAX_EVENT_SIZE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (MAX_EVENT_SIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} () WITH (* MAX_EVENT_SIZE = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (MAX_EVENT_SIZE = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("TARGET {name} () WITH (* MAX_MEMORY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (MAX_MEMORY ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} () WITH (* MAX_MEMORY = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (MAX_MEMORY = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("TARGET {name} () WITH (* MEMORY_PARTITION_MODE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (MEMORY_PARTITION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} () WITH (* MEMORY_PARTITION_MODE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (MEMORY_PARTITION_MODE = ", true, false, false, false, new string[]
+        {
+            "NONE", "PER_CPU", "PER_NODE",
+        }),
+        ("TARGET {name} () WITH (* STARTUP_STATE", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (STARTUP_STATE ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} () WITH (* STARTUP_STATE =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (STARTUP_STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("TARGET {name} () WITH (* TRACK_CAUSALITY", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (TRACK_CAUSALITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("TARGET {name} () WITH (* TRACK_CAUSALITY =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t (SET t = 1) WITH (TRACK_CAUSALITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
         }),
         ("", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t ", true, false, false, true, new string[]
         {
@@ -9616,6 +10176,11 @@ internal static class SqlKeywordCatalogData
         {
             "SELECT", "WITH",
         }),
+        ("ON {name}", SqlKeywordPosition.SelectIntoTail, "SELECT a INTO t ON t ", true, false, false, true, new string[]
+        {
+            "EXCEPT", "FOR", "FROM", "GROUP", "HAVING", "INTERSECT", "OPTION", "ORDER", "UNION",
+            "WHERE", "WINDOW",
+        }),
         ("SYNONYM {name} FOR", SqlKeywordPosition.DdlObject, "CREATE SYNONYM t FOR ", false, false, true, false, new string[]
         {
         }),
@@ -10474,6 +11039,14 @@ internal static class SqlKeywordCatalogData
         {
             "USING", "WITH",
         }),
+        ("BACKUP DATABASE {name} TO ,* {value} MIRROR", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t TO t MIRROR ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
+        ("BACKUP LOG {name} TO ,* {value} MIRROR", SqlKeywordPosition.StatementStart, "BACKUP LOG t TO t MIRROR ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
         ("ALTER INDEX {name} ON {name} REBUILD", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD ", true, false, false, true, new string[]
         {
             "PARTITION", "WITH",
@@ -10704,6 +11277,22 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
+        ("RESAMPLE", SqlKeywordPosition.Any, "UPDATE STATISTICS t WITH RESAMPLE ", false, false, false, true, new string[]
+        {
+            "ON",
+        }),
+        ("COMMIT", SqlKeywordPosition.StatementStart, "COMMIT ", true, false, false, true, new string[]
+        {
+            "TRAN", "TRANSACTION", "WORK", "WITH",
+        }),
+        ("COMMIT TRAN", SqlKeywordPosition.StatementStart, "COMMIT TRAN ", false, true, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("COMMIT TRANSACTION", SqlKeywordPosition.StatementStart, "COMMIT TRANSACTION ", false, true, false, true, new string[]
+        {
+            "WITH",
+        }),
         ("TRIGGER {name} ON DATABASE", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON DATABASE ", true, false, false, false, new string[]
         {
             "AFTER", "FOR", "INSTEAD", "WITH",
@@ -10879,6 +11468,14 @@ internal static class SqlKeywordCatalogData
             "FROM",
         }),
         ("BULK INSERT {name} FROM {value}", SqlKeywordPosition.StatementStart, "BULK INSERT t FROM 1 ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("COPY", SqlKeywordPosition.StatementStart, "COPY ", false, true, false, true, new string[]
+        {
+            "DEFAULT", "INTO", "NULL",
+        }),
+        ("ENABLE CHANGE_TRACKING", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t ENABLE CHANGE_TRACKING ", true, false, false, true, new string[]
         {
             "WITH",
         }),
@@ -11760,7 +12357,7 @@ internal static class SqlKeywordCatalogData
     internal static readonly (SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
         (SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC" }),
-        (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE" }),
+        (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY" }),
         (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
         (SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),
         (SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),

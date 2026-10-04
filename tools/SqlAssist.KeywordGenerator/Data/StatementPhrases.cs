@@ -1,6 +1,8 @@
+using System.Linq;
+
 namespace SqlAssist.KeywordGenerator.Data;
 
-/// <summary>一般敘述：SET、BACKUP／RESTORE、EXECUTE AS、WAITFOR、DBCC、EXEC 的選項清單。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
+/// <summary>一般敘述：SET、BACKUP／RESTORE、統計資料、交易、EXECUTE AS、WAITFOR、DBCC、EXEC 的選項清單。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
 internal static class StatementPhrases
 {
     private static readonly string[] DateFormats = ["mdy", "dmy", "ymd", "ydm", "myd", "dym"];
@@ -30,15 +32,59 @@ internal static class StatementPhrases
         // SERVICE MASTER KEY 的 MASTER 剖析器當名稱讀，手寫。
         new("BACKUP SERVICE") { Values = ["MASTER"] },
         new("RESTORE SERVICE") { Values = ["MASTER"] },
+
+        // 裝置清單：TO／FROM 之後一項一個裝置，每一項都能換種類（DISK、TAPE、URL、邏輯裝置名稱或變數）。一個裝置寫完
+        // （值、名稱或變數）之後是逗號、BACKUP 的 MIRROR TO 或 WITH；MIRROR TO 之後是同一種清單，中段的 ,* 往回走過前面的裝置
+        // 與 MIRROR TO 找到標頭。裝置寫成 {value} 不寫 {name}：DISK 是關鍵字、不是運算元，TO DISK 之後不會比對成寫完一個裝置。
+        // 寫完一個裝置整句已經完整，WITH 也是 CTE 的開頭被扣掉了，手寫補回；續尾寫一個兩邊都收的選項驗它。
+        .. Devices("BACKUP DATABASE {name} TO"),
+        .. Devices("BACKUP LOG {name} TO"),
+        .. Devices("RESTORE DATABASE {name} FROM"),
+        .. Devices("RESTORE LOG {name} FROM"),
+        new("BACKUP DATABASE {name} TO ,* {value} MIRROR TO"),
+        new("BACKUP LOG {name} TO ,* {value} MIRROR TO"),
+    ];
+
+    private static PhraseDeclaration[] Devices(string head) =>
+    [
+        new(head + " ,*"),
+        new(head + " ,* {value}") { Values = ["WITH"], Endings = [" STATS"] },
     ];
 
     internal static readonly PhraseDeclaration[] BackupOptions =
     [
         // BACKUP／RESTORE 的 WITH 選項清單：兩者的選項不同，由標頭分開。BACKUP CERTIFICATE 接的是別的選項，不在這裡。
+        // RESTORE 的 MOVE 要寫完 'a' TO 'b' 才是一項，續尾把它寫完。
         new("BACKUP DATABASE ... WITH ,*") { Gap = "d TO DISK = 'x'" },
         new("BACKUP LOG ... WITH ,*") { Gap = "d TO DISK = 'x'" },
-        new("RESTORE DATABASE ... WITH ,*") { Gap = "d FROM DISK = 'x'" },
-        new("RESTORE LOG ... WITH ,*") { Gap = "d FROM DISK = 'x'" },
+        new("RESTORE DATABASE ... WITH ,*") { Gap = "d FROM DISK = 'x'", Endings = [" 'a' TO 'b'"] },
+        new("RESTORE LOG ... WITH ,*") { Gap = "d FROM DISK = 'x'", Endings = [" 'a' TO 'b'"] },
+
+        // 備份加密 ENCRYPTION (ALGORITHM = …, SERVER CERTIFICATE = …) 是 BACKUP 選項清單裡的一項，從 OptionItem 寫起（BACKUP 的樣板）。
+        new("ENCRYPTION (*") { After = ["OptionItem"], Template = 8 },
+        new("ENCRYPTION (* ALGORITHM =") { After = ["OptionItem"], Template = 8 },
+        new("ENCRYPTION (* SERVER") { After = ["OptionItem"], Template = 8, Items = "ALGORITHM = AES_256, ", Expand = 1 },
+    ];
+
+    internal static readonly PhraseDeclaration[] Statistics =
+    [
+        // CREATE／UPDATE STATISTICS 的 WITH 選項清單：標頭夾著資料行清單與篩選 WHERE，以 ... 跨過。
+        // SAMPLE 要寫完 n PERCENT|ROWS 才是一項，數值之後的單位從 OptionItem 寫起（CREATE STATISTICS 的樣板）。
+        // OptionItem 不放 UPDATE STATISTICS 的樣板：WITH ALL、WITH INDEX 寫完就是一句，ALL、INDEX 會被判成寫完一項的字。
+        new("CREATE STATISTICS ... WITH ,*") { Gap = "s ON t (a)" },
+        new("UPDATE STATISTICS ... WITH ,*") { Gap = "t" },
+        new("SAMPLE {value}") { After = ["OptionItem"], Template = 14 },
+        // RESAMPLE ON PARTITIONS (…) 只有 UPDATE STATISTICS 收，OptionItem 沒有它的樣板（理由同上），以尾巴認。
+        new("RESAMPLE ON") { Lead = "UPDATE STATISTICS t WITH " },
+    ];
+
+    internal static readonly PhraseDeclaration[] Transactions =
+    [
+        // 交易的 COMMIT [TRAN | TRANSACTION [名稱]] WITH (DELAYED_DURABILITY = ON)。交易名稱以 ... 跨過、不寫 {name}：
+        // 證據會立 COMMIT TRAN {name}，名稱格也比對得上保留字，IF … COMMIT TRAN ELSE 的 ELSE 會被當成交易名稱、只列 WITH。
+        .. new[] { "", " TRAN", " TRANSACTION" }.Select(middle => new PhraseDeclaration($"COMMIT{middle} WITH (*") { Expand = 1 }),
+        new("COMMIT TRAN ... WITH (*") { Gap = "t" },
+        new("COMMIT TRANSACTION ... WITH (*") { Gap = "t" },
     ];
 
     internal static readonly PhraseDeclaration[] ExecuteAs =

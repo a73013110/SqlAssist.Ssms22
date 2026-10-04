@@ -9,8 +9,9 @@ internal static class SecurityPhrases
     [
         // 稽核：ALTER SERVER AUDIT 的名稱剖析器要看到 TO、WITH 這些字才收，CREATE、ALTER 的展開到不了名稱之後。
         new("ALTER SERVER AUDIT {name} WITH (*"),
-        new("ALTER SERVER AUDIT {name} TO FILE (*"),
-        new("CREATE SERVER AUDIT {name} TO FILE (*"),
+        // 稽核檔的 MAXSIZE = 之後是數值帶單位（MB、GB、TB）或 UNLIMITED，展開兩層探到單位。
+        new("ALTER SERVER AUDIT {name} TO FILE (*") { Expand = 2 },
+        new("CREATE SERVER AUDIT {name} TO FILE (*") { Expand = 2 },
         new("CREATE SERVER AUDIT {name} TO {name} WITH (*"),
         new("CREATE SERVER AUDIT {name} TO FILE () WITH (*") { Group = "(FILEPATH = 'x')" },
 

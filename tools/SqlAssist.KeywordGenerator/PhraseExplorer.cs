@@ -586,9 +586,12 @@ internal sealed class PhraseExplorer
         var silent = (child && endsStatement || step) && words.Count == 0;
 
         // 手寫值還可以開一組清單（索引鍵之後的 WITH 只接 `(`）：清單項本身由那一格的位置片語列。
+        // 宣告的續尾也算（裝置之後的 WITH 要接 STATS 這種備份選項才寫得完）。
+        var valueEndings = Continuations.ValueEndings.Concat((extraEndings ?? []).Where(ending => !string.IsNullOrEmpty(ending))).ToArray();
+
         foreach (var value in (values ?? []).Where(value => !string.IsNullOrEmpty(value)))
         {
-            if (_prober.FirstEndingThrough(probe + value, Continuations.ValueEndings, string.Empty) == null)
+            if (_prober.FirstEndingThrough(probe + value, valueEndings, string.Empty) == null)
             {
                 throw new InvalidOperationException($"片語「{pattern}」的手寫值 {value} 剖析不過，這份清單過時了。");
             }
@@ -737,9 +740,10 @@ internal sealed class PhraseExplorer
     {
         var headKey = ProbedPhrase.Key(after, headPattern);
 
+        // 宣告的 Endings 標頭也用：RESTORE … WITH MOVE 要寫完 'a' TO 'b'，第一項與逗號之後都一樣。
         if (!Phrases.Contains(headKey))
         {
-            Add(headPattern, head, after);
+            Add(headPattern, head, after, extraEndings: endings);
         }
 
         var firsts = Phrases[headKey].Words.ToList();

@@ -40,6 +40,8 @@ internal static class DdlPhrases
         new("DROP STATISTICS") { Closed = false },
         new("UPDATE") { Closed = false },
         new("DELETE"),
+        // DELETE 的目標之後是 FROM（聯結來源）、WHERE、OUTPUT；寫完已是完整的一句，資料表提示的 WITH 被當成 CTE 的開頭扣掉，手寫補回。
+        new("DELETE FROM {name}") { Values = ["WITH"] },
         new("MERGE") { Closed = false },
         // TRUNCATE 不在 Kinds 裡（後面只有 TABLE），名稱格要有片語，執行期才認得出「種類之後是既有的名稱」。
         new("TRUNCATE TABLE"),
@@ -140,9 +142,22 @@ internal static class DdlPhrases
         new("CREATE TYPE {name} AS TABLE () WITH (*") { Group = "(a int)" },
         new("ALTER TABLE {name} SET (*"),
         new("SYSTEM_VERSIONING = ON (*") { Lead = "CREATE TABLE t (a int) WITH (" },
+        // 大量載入：BULK INSERT 與 COPY INTO（Synapse／Fabric）的 WITH (…)，選項名稱剖析器逐一驗，各探各的。
+        // COPY 不是關鍵字，語句開頭的 COPY 由證據進附加片語。目標之後可以夾資料行清單、FROM 之後可以有幾個來源，以 ... 跨過。
+        // FILE_TYPE 的值剖析器只收 'CSV' 這類字串，CREDENTIAL 的 IDENTITY 只收 'Managed Identity' 這類字串，續尾寫進去。
         new("BULK INSERT {name} FROM {value} WITH (*"),
-        new("CREATE EXTERNAL TABLE {name} () WITH (*") { Group = "(a int)" },
-        new("CREATE EXTERNAL TABLE {name} WITH (*"),
+        new("COPY INTO {name}"),
+        new("COPY INTO {name} ()") { Group = "(a)" },
+        new("COPY INTO {name} FROM {value}"),
+        new("COPY INTO ... WITH (*") { Gap = "t FROM 'x'", Endings = [" = 'CSV'"] },
+        new("COPY INTO ... WITH (* CREDENTIAL = (*") { Gap = "t FROM 'x'", Endings = [" = 'Shared Access Signature'"] },
+        new("COPY INTO ... WITH (* ERRORFILE_CREDENTIAL = (*") { Gap = "t FROM 'x'", Endings = [" = 'Shared Access Signature'"] },
+
+        // ALTER TABLE 的變更追蹤：ENABLE CHANGE_TRACKING WITH (TRACK_COLUMNS_UPDATED = ON)。
+        new("ENABLE CHANGE_TRACKING WITH (*") { After = ["AlterTableAction"], Expand = 1 },
+        // 外部資料表的 REJECT_TYPE = 之後是 VALUE、PERCENTAGE：展開一層到等號之後。
+        new("CREATE EXTERNAL TABLE {name} () WITH (*") { Group = "(a int)", Expand = 1 },
+        new("CREATE EXTERNAL TABLE {name} WITH (*") { Expand = 1 },
 
         // 資料表定義裡的索引（INDEX i CLUSTERED COLUMNSTORE WITH (…)）：前一格判不出位置，尾巴本身認得出來。
         // 索引鍵之後與 CREATE INDEX 一樣接 INCLUDE、WHERE、WITH、ON；名稱與索引鍵之間的種類寫法有限，逐一寫出。

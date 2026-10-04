@@ -56,6 +56,8 @@ internal static class QueryPhrases
         new("FOR SYSTEM_TIME BETWEEN {value} AND {value}") { After = ["TableSourceTail"] },
         new("FOR SYSTEM_TIME FROM {value} TO {value}") { After = ["TableSourceTail"] },
         new("FOR") { After = ["CursorOption"] },
+        // SELECT … INTO 的新資料表可以指定檔案群組（INTO t ON fg），之後同樣接 FROM、WHERE 這些子句。
+        new("ON {name}") { After = ["SelectIntoTail"] },
         new("SYNONYM {name} FOR") { After = ["DdlObject"] },
 
         // FOR XML、FOR JSON 的模式是清單的第一項，由上面 FOR 往下展開的片語給；逗號之後是指示詞。

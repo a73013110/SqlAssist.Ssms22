@@ -33,7 +33,8 @@
 錨點只在游標所在的那一句裡找，自己沒有錨點的一句（`EXEC`、`PRINT`）是 `Any`：
 借上一句的話，`WHERE b = 1⏎EXEC p @x ` 打不出 `OUTPUT`。
 
-**語句開頭**是能開始一句、前一格是界線的關鍵字；這種字也寫在句中（`WITH (NOLOCK)`、
+**語句開頭**是能開始一句、前一格是界線的關鍵字，或語句開頭附加片語的字（`COPY`、`ENABLE`，見
+`StartsStatementAsPhrase`）：後者不進目錄，否則 `Copy` 資料表會被自動大寫。這種字也寫在句中（`WITH (NOLOCK)`、
 `DROP TABLE IF`、`THEN UPDATE`）：
 
 - **明確的**：前一格含語句開頭、區塊開頭或區塊的 END——`;`、GO、`BEGIN`、`ELSE`、模組標頭的
@@ -46,7 +47,8 @@
 - `WITH` 只認明確的：CTE 前一句必須以分號結束。
 
 子句屬於哪個**動詞**另問往回第一個能開始一句的字（`FindVerb`：`UPDATE t⏎SET` 屬於 UPDATE）；
-權限清單的一項（`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式，`CASE … END` 整組跳過。
+權限清單的一項（`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式，`CASE … END` 整組跳過；
+不是關鍵字的語句開頭要真的是一句的開頭才算，否則 `SELECT Copy.CopyNo FROM` 的 FROM 找不到 SELECT。
 
 - **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c `
-  接 `INTO`（`FetchTail`），`RESTORE`、`REVOKE`、`BULK INSERT` 的 FROM 是 `Any`，`TRIM('x' FROM s)` 之後是運算式。位置、目標與範圍分析共用 `IntroducesDataSource`，分岔時 `DISK` 被收成表。
+  接 `INTO`（`FetchTail`），`RESTORE`（裝置清單）、`REVOKE`、`BULK INSERT`、`COPY INTO` 的 FROM 不接，`TRIM('x' FROM s)` 之後是運算式。位置、目標與範圍分析共用 `IntroducesDataSource`，分岔時 `DISK` 被收成表。

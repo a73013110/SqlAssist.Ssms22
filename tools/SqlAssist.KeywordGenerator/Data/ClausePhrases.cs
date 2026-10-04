@@ -17,6 +17,8 @@ internal static class ClausePhrases
         .. IndexPhrases.Options,
         .. DdlPhrases.TriggerPositions,
         .. StatementPhrases.BackupOptions,
+        .. StatementPhrases.Statistics,
+        .. StatementPhrases.Transactions,
         .. DdlPhrases.TriggersAndModules,
         .. QueryPhrases.Merge,
         .. StatementPhrases.ExecuteAs,

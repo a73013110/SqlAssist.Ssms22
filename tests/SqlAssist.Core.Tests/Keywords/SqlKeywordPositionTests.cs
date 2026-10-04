@@ -1642,7 +1642,8 @@ public sealed class SqlKeywordPositionTests
     [InlineData("DENY VIEW DEFINITION TO ", SqlKeywordPosition.PermissionGrantee)]
     [InlineData("ALTER AUTHORIZATION ON SCHEMA::Lib TO ", SqlKeywordPosition.PermissionGrantee)]
     [InlineData("ALTER DATABASE AUDIT SPECIFICATION s ADD (SELECT ON dbo.Loan BY ", SqlKeywordPosition.PermissionGrantee)]
-    [InlineData("BACKUP DATABASE d TO ", SqlKeywordPosition.Any)]
+    [InlineData("BACKUP DATABASE d TO ", SqlKeywordPosition.OptionItem)]
+    [InlineData("BACKUP DATABASE d TO DISK = 'a' MIRROR TO DISK = 'b', ", SqlKeywordPosition.OptionItem)]
     [InlineData("SELECT a INTO #t ", SqlKeywordPosition.SelectIntoTail)]
     [InlineData("FETCH NEXT FROM c ", SqlKeywordPosition.FetchTail)]
     [InlineData("FETCH NEXT FROM GLOBAL c ", SqlKeywordPosition.FetchTail)]
@@ -1839,7 +1840,8 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
-    /// FROM 接不接資料來源由它所屬的動詞決定：只有 SELECT、UPDATE、DELETE 的 FROM 是資料來源；REVOKE 的 FROM 之後是主體。
+    /// FROM 接不接資料來源由它所屬的動詞決定：只有 SELECT、UPDATE、DELETE 的 FROM 是資料來源；REVOKE 的 FROM 之後是主體，
+    /// BACKUP／RESTORE 的是裝置清單。不是關鍵字的 COPY 在一句的開頭才是動詞，寫在 FROM 之後的 Copy 是資料表。
     /// </summary>
     /// <remarks>
     /// 動詞往回找時，權限清單的一項（<c>REVOKE SELECT</c>）與 <c>WITH TIES</c> 的 WITH 不是動詞，
@@ -1853,13 +1855,16 @@ public sealed class SqlKeywordPositionTests
     [InlineData("UPDATE l WITH (ROWLOCK)\nSET CopyNo = 1\nFROM ", SqlKeywordPosition.DataSource)]
     [InlineData("DELETE FROM ", SqlKeywordPosition.DataSource)]
     [InlineData("FETCH NEXT FROM ", SqlKeywordPosition.Any)]
-    [InlineData("RESTORE DATABASE LibArchive FROM ", SqlKeywordPosition.Any)]
+    [InlineData("RESTORE DATABASE LibArchive FROM ", SqlKeywordPosition.OptionItem)]
     [InlineData("REVOKE SELECT ON dbo.Loan FROM ", SqlKeywordPosition.PermissionGrantee)]
     [InlineData("REVOKE SELECT (CopyNo) ON dbo.Loan FROM ", SqlKeywordPosition.PermissionGrantee)]
     [InlineData("BULK INSERT dbo.Loan FROM ", SqlKeywordPosition.Any)]
     [InlineData("CREATE LOGIN Lib_Reader FROM ", SqlKeywordPosition.Any)]
     [InlineData("BULK INSERT dbo.Loan FROM 'x' ", SqlKeywordPosition.Any)]
-    [InlineData("RESTORE DATABASE LibArchive FROM DISK = 'a', ", SqlKeywordPosition.Any)]
+    [InlineData("RESTORE DATABASE LibArchive FROM DISK = 'a', ", SqlKeywordPosition.OptionItem)]
+    [InlineData("COPY INTO dbo.Loan FROM ", SqlKeywordPosition.Any)]
+    [InlineData("SELECT 1\nCOPY INTO dbo.Loan FROM ", SqlKeywordPosition.Any)]
+    [InlineData("SELECT Copy.CopyNo FROM ", SqlKeywordPosition.DataSource)]
     [InlineData("FETCH NEXT FROM LoanCursor ", SqlKeywordPosition.FetchTail)]
     [InlineData("SELECT * FROM dbo.Loan, ", SqlKeywordPosition.DataSource)]
     public void FROM接不接資料來源由所屬的動詞決定(string textBeforeToken, SqlKeywordPosition expected)

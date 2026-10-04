@@ -61,6 +61,8 @@ public static class SqlKeywordCatalog
     private static readonly Dictionary<string, SqlKeywordPosition> Positions =
         ToDictionary(SqlKeywordCatalogData.Keywords);
 
+    private static readonly HashSet<string> PhraseStatementStarters = BuildPhraseStatementStarters();
+
     private static readonly string[] AllKeywords = BuildAllKeywords();
 
     /// <summary>產生這份目錄所用的 ScriptDom 版本。</summary>
@@ -92,6 +94,18 @@ public static class SqlKeywordCatalog
     public static bool StartsStatement(string keyword)
     {
         return (GetPositions(keyword) & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None;
+    }
+
+    /// <summary>
+    /// 不是關鍵字、卻能開始一句的字：<c>COPY</c>、<c>ENABLE</c>、<c>DISABLE</c>，即語句開頭附加片語的字。
+    /// </summary>
+    /// <remarks>
+    /// 它們也常是名稱（<c>Copy</c> 資料表、<c>Enable</c> 欄位），進了關鍵字目錄就會被自動大寫、改變每一個
+    /// 「這是不是關鍵字」的判斷；所以只在前一格是語句界線時算一句的開頭，見 <see cref="SqlKeywordPositionAnalyzer"/>。
+    /// </remarks>
+    public static bool StartsStatementAsPhrase(string word)
+    {
+        return !string.IsNullOrEmpty(word) && PhraseStatementStarters.Contains(word);
     }
 
     /// <summary>是否為認得的關鍵字或內建資料型別；語法著色用。</summary>
@@ -189,6 +203,21 @@ public static class SqlKeywordCatalog
 
         canonical = word.ToUpperInvariant();
         return true;
+    }
+
+    private static HashSet<string> BuildPhraseStatementStarters()
+    {
+        var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (after, _, phraseWords) in SqlKeywordCatalogData.AdditivePhrases)
+        {
+            if ((after & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None)
+            {
+                words.UnionWith(phraseWords);
+            }
+        }
+
+        return words;
     }
 
     private static Dictionary<string, SqlKeywordPosition> ToDictionary(KeyValuePair<string, SqlKeywordPosition>[] entries)
