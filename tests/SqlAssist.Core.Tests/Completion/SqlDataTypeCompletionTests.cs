@@ -69,6 +69,9 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("INSERT BULK dbo.Loan (LoanId int, CopyNo ")]
     [InlineData("CREATE FUNCTION dbo.fn_Copies () RETURNS TABLE (CopyNo ")]
     [InlineData("CREATE TABLE [dbo].[Loan]([LoanId] [int] NOT NULL, [Key] ")]
+    [InlineData("CREATE SELECTIVE XML INDEX sx ON dbo.Copy (Note) FOR (BookTitle = '/book/title' AS SQL ")]
+    [InlineData("CREATE SELECTIVE XML INDEX sx ON dbo.Copy (Note) FOR (BookTitle = '/a' AS XQUERY 'xs:string', BookYear = '/b' AS SQL ")]
+    [InlineData("ALTER INDEX sx ON dbo.Copy FOR (ADD BookTitle = '/book/title' AS SQL ")]
     public void 型別的位置只建議型別(string textBeforeCaret)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -82,6 +85,8 @@ public sealed class SqlDataTypeCompletionTests
     /// </summary>
     [Theory]
     [InlineData("SELECT f.Amount AS ")]
+    [InlineData("SELECT f.Amount AS SQL ")]
+    [InlineData("SELECT * FROM (SELECT f.Amount AS SQL ")]
     [InlineData("SELECT COUNT(f.Amount) AS ")]
     [InlineData("SELECT * FROM (SELECT 1 AS a) AS ")]
     [InlineData("CREATE PROCEDURE dbo.usp_Renew AS ")]

@@ -34,6 +34,12 @@ internal static class QueryPhrases
         new("AI_GENERATE_CHUNKS (* CHUNK_TYPE =") { After = ["DataSource"], Items = "SOURCE = 'x', ", Values = ["FIXED"], Closed = true },
         // PREDICT 的具名引數依序是 MODEL、DATA、RUNTIME，括號之後一定要有 WITH 宣告輸出欄位。MODEL 之後的引數名稱
         // 剖析器什麼名字都收（留到語意檢查才擋），DATA 只能手寫；RUNTIME 的值也當名稱讀，只收 ONNX。
+        // 全文檢索的 LANGUAGE 寫在查詢條件之後：資料列集函式是第四個引數起（資料表、資料行、條件），述詞是第三個起。
+        // 前面幾個引數寫法不一（資料行可以是清單、*、PROPERTY(…)），都是運算式。
+        new("CONTAINSTABLE (* {value} , {value} , {value} ,") { After = ["DataSource"] },
+        new("FREETEXTTABLE (* {value} , {value} , {value} ,") { After = ["DataSource"] },
+        new("CONTAINS (* {value} , {value} ,") { After = ["Predicate"] },
+        new("FREETEXT (* {value} , {value} ,") { After = ["Predicate"] },
         new("PREDICT (*") { After = ["DataSource"] },
         new("PREDICT (* MODEL = {value} ,") { After = ["DataSource"], Values = ["DATA"], Closed = true },
         new("PREDICT (* RUNTIME =") { After = ["DataSource"], Items = "MODEL = @m, DATA = t AS d, ", Values = ["ONNX"], Closed = true },

@@ -118,7 +118,7 @@ public static class SqlDataTypePosition
             return true;
         }
 
-        if (NamesTypedObject(tokens, last))
+        if (NamesTypedObject(tokens, last) || NamesSqlPathType(tokens, last))
         {
             return true;
         }
@@ -247,6 +247,23 @@ public static class SqlDataTypePosition
             TypedObjects.TryGetValue(tokens[name - 1].Value, out var introducer) &&
             tokens[last].IsKeyword(introducer) &&
             tokens[name - 2].IsKeyword("CREATE");
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 是選擇性 XML 索引路徑的 <c>AS SQL</c>：<c>FOR (p = '/a/b' AS SQL nvarchar(20))</c>，
+    /// <c>ALTER INDEX … FOR (ADD p = '/a' AS SQL</c> 也是。
+    /// </summary>
+    /// <remarks>SQL 不是關鍵字，認的是它寫在 <c>FOR (</c> 開的清單裡、緊接 AS：選取清單的別名 SQL 不在那種括號裡。</remarks>
+    private static bool NamesSqlPathType(IReadOnlyList<SqlToken> tokens, int last)
+    {
+        if (last < 1 || !tokens[last].IsKeyword("SQL") || !tokens[last - 1].IsKeyword("AS"))
+        {
+            return false;
+        }
+
+        var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, last - 1);
+
+        return open >= 1 && tokens[open - 1].IsKeyword("FOR");
     }
 
     /// <summary>

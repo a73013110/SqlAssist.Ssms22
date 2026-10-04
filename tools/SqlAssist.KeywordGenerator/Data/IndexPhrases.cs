@@ -1,8 +1,13 @@
+using System.Linq;
+
 namespace SqlAssist.KeywordGenerator.Data;
 
 /// <summary>索引：CREATE／ALTER INDEX 與其餘接索引選項的 WITH (…)。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
 internal static class IndexPhrases
 {
+    // 靜態欄位依序初始化，要寫在用到它的 Options 之前。
+    private static readonly string[] Compressions = ["DATA_COMPRESSION", "XML_COMPRESSION"];
+
     internal static readonly PhraseDeclaration[] Options =
     [
         // CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了，手寫補回來。
@@ -24,6 +29,9 @@ internal static class IndexPhrases
         new("ALTER INDEX {name} ON {name} RESUME WITH (*"),
         new("ALTER TABLE {name} REBUILD WITH (*"),
         new("ALTER TABLE {name} SWITCH TO {name} WITH (*"),
+        // 記憶體最佳化資料表的索引在 ALTER TABLE 裡重建：REBUILD 非接 WITH (…) 不可，整段是證據。
+        new("ALTER TABLE {name} ALTER INDEX {name}"),
+        new("ALTER TABLE {name} ALTER INDEX {name} REBUILD WITH (*"),
         new("KEY () WITH (*") { Lead = "ALTER TABLE t ADD PRIMARY " },
         new("UNIQUE () WITH (*") { Lead = "ALTER TABLE t ADD " },
         new("CLUSTERED () WITH (*") { Lead = "ALTER TABLE t ADD PRIMARY KEY " },
@@ -38,9 +46,9 @@ internal static class IndexPhrases
         new("WITH (* MAX_DURATION = {value}") { Lead = "ALTER INDEX t ON t RESUME " },
         new("WITH (* COMPRESSION_DELAY = {value}") { Lead = "CREATE CLUSTERED COLUMNSTORE INDEX t ON t " },
         new("SET (* COMPRESSION_DELAY = {value}") { Lead = "ALTER INDEX t ON t " },
-        // 資料壓縮的值同理：索引、重建、條件約束與資料表選項的 WITH (…) 收的是同一份值，一條尾巴共用。
+        // 資料與 XML 壓縮的值同理：索引、重建、條件約束與資料表選項的 WITH (…) 收的是同一份值，一條尾巴共用。
         // 取資料表選項探：每一種值都收，值之後的 ON PARTITIONS 也不必先寫 PARTITION = ALL（重建要）。
-        new("WITH (* DATA_COMPRESSION =") { Lead = "CREATE TABLE t (a int) ", Expand = 2 },
+        .. Compressions.Select(option => new PhraseDeclaration($"WITH (* {option} =") { Lead = "CREATE TABLE t (a int) ", Expand = 2 }),
         // 分割區清單的範圍（ON PARTITIONS (2 TO 4)）：資料與 XML 壓縮共用。
         new("ON PARTITIONS (* {value}") { Lead = "CREATE TABLE t (a int) WITH (DATA_COMPRESSION = ROW " },
 
@@ -75,6 +83,18 @@ internal static class IndexPhrases
         new("CREATE NONCLUSTERED COLUMNSTORE INDEX {name} ON {name} () WITH (*"),
         new("CREATE COLUMNSTORE INDEX {name} ON {name} () WITH (*"),
 
+        // XML 與 JSON 索引：XML、JSON 剖析器要看到整段才收，CREATE 的展開探不出來，整段是證據（種類也交給 CreatedKinds）。
+        // 索引鍵之後各接自己的字，比 CREATE INDEX 那條長，比對取它；寫得完一句的 WITH 與 CREATE INDEX 那條一樣補回來，之後的選項由位置給。
+        // 次要 XML 索引是 USING XML INDEX 主索引 FOR PATH|VALUE|PROPERTY，主索引之後非接 FOR 不可，整段是證據；
+        // 選擇性 XML 索引的 FOR (…) 是路徑清單，一項是 名稱 = '路徑' AS SQL 型別或 AS XQUERY '型別'，型別由型別位置給；
+        // FOR 前面可以夾 WITH XMLNAMESPACES (…)，路徑清單從 FOR 寫起。
+        new("CREATE XML INDEX {name} ON {name} ()"),
+        new("CREATE XML INDEX {name} ON {name} () USING XML INDEX {name} FOR") { Expand = 1 },
+        new("CREATE PRIMARY XML INDEX {name} ON {name} ()") { Values = ["WITH"] },
+        new("CREATE SELECTIVE XML INDEX {name} ON {name} ()") { Expand = 2 },
+        new("FOR (* {name} = {value} AS") { Lead = "CREATE SELECTIVE XML INDEX t ON t (a) ", Expand = 2, Endings = [" int)", " 'x')"] },
+        new("CREATE JSON INDEX {name} ON {name} ()") { Values = ["WITH"] },
+
         // 向量索引：METRIC、TYPE 的值是字串，METRIC 只收距離的名稱。
         new("CREATE VECTOR INDEX {name} ON {name} () WITH (*") { Endings = [" = 'cosine'"] },
 
@@ -103,5 +123,31 @@ internal static class IndexPhrases
         new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* SEARCH PROPERTY LIST ="),
         new("ALTER FULLTEXT INDEX ON {name} SET") { Expand = 2 },
         new("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST"),
+
+        // 資料行清單的每一項：資料行之後依序是 TYPE COLUMN 型別資料行、LANGUAGE、STATISTICAL_SEMANTICS，CREATE 與 ALTER … ADD 相同。
+        // TYPE 要看到 COLUMN 與型別資料行才收，整段是證據。一項寫完要關上括號：CREATE 還要 KEY INDEX 才完整，續尾各自寫完。
+        .. FullTextColumns("CREATE FULLTEXT INDEX ON {name} (*", " KEY INDEX k"),
+        .. FullTextColumns("ALTER FULLTEXT INDEX ON {name} ADD (*", ""),
+        // NO POPULATION 剖析器要看到整段才收，整段是證據。
+        new("ALTER FULLTEXT INDEX ON {name} ADD () WITH NO POPULATION"),
+        new("ALTER FULLTEXT INDEX ON {name} DROP () WITH NO POPULATION"),
+        // 目錄名稱之後非接 REBUILD、REORGANIZE、AS DEFAULT 不可，ALTER 的展開探不出 CATALOG，整段是證據。
+        // REBUILD 已是完整的語句，WITH 被當成下一句扣掉了，另外宣告。
+        new("ALTER FULLTEXT CATALOG {name}") { Expand = 1 },
+        new("ALTER FULLTEXT CATALOG {name} REBUILD WITH") { Expand = 1 },
+        // 停用字詞表的語句非以分號結尾不可。
+        new("ALTER FULLTEXT STOPLIST {name} ADD {value}") { Endings = [" 1;"] },
+        new("ALTER FULLTEXT STOPLIST {name} DROP {value}") { Endings = [" 1;"] },
     ];
+
+    private static PhraseDeclaration[] FullTextColumns(string head, string statementEnd)
+    {
+        string[] endings = [")" + statementEnd, " 1)" + statementEnd];
+
+        return
+        [
+            new($"{head} {{name}}") { Expand = 2, Endings = endings },
+            new($"{head} {{name}} TYPE COLUMN {{name}}") { Expand = 2, Endings = endings },
+        ];
+    }
 }

@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace SqlAssist.KeywordGenerator.Data;
 
 /// <summary>DDL：物件種類、資料庫範圍設定、觸發程序與模組選項、資料表、序列、條件約束。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
@@ -17,6 +19,10 @@ internal static class DdlPhrases
         "PAUSED_RESUMABLE_INDEX_ABORT_DURATION_MINUTES", "QUERY_OPTIMIZER_HOTFIXES", "ROW_MODE_MEMORY_GRANT_FEEDBACK",
         "TSQL_SCALAR_UDF_INLINING", "VERBOSE_TRUNCATION_WARNINGS", "XTP_PROCEDURE_EXECUTION_STATISTICS", "XTP_QUERY_EXECUTION_STATISTICS",
     ];
+
+    // 靜態欄位依序初始化，要寫在用到它的 Tables 之前。
+    private static readonly string[] InlineIndexKinds =
+        ["", "CLUSTERED ", "NONCLUSTERED ", "UNIQUE ", "UNIQUE CLUSTERED ", "UNIQUE NONCLUSTERED ", "HASH ", "NONCLUSTERED HASH "];
 
     internal static readonly PhraseDeclaration[] Objects =
     [
@@ -131,6 +137,7 @@ internal static class DdlPhrases
         new("GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN") { After = ["ColumnDefinitionTail"] },
         new("PERIOD FOR SYSTEM_TIME ()") { After = ["ColumnDefinition", "AlterTableAdd"], Group = "(a, b)" },
         new("CREATE TABLE {name} () WITH (*") { Group = "(a int)" },
+        new("CREATE TYPE {name} AS TABLE () WITH (*") { Group = "(a int)" },
         new("ALTER TABLE {name} SET (*"),
         new("SYSTEM_VERSIONING = ON (*") { Lead = "CREATE TABLE t (a int) WITH (" },
         new("BULK INSERT {name} FROM {value} WITH (*"),
@@ -138,7 +145,9 @@ internal static class DdlPhrases
         new("CREATE EXTERNAL TABLE {name} WITH (*"),
 
         // 資料表定義裡的索引（INDEX i CLUSTERED COLUMNSTORE WITH (…)）：前一格判不出位置，尾巴本身認得出來。
+        // 索引鍵之後與 CREATE INDEX 一樣接 INCLUDE、WHERE、WITH、ON；名稱與索引鍵之間的種類寫法有限，逐一寫出。
         new("INDEX {name} CLUSTERED") { Lead = "CREATE TABLE t (a int, " },
+        .. InlineIndexKinds.Select(kind => new PhraseDeclaration($"INDEX {{name}} {kind}()") { Lead = "CREATE TABLE t (a int, " }),
         new("INDEX {name} CLUSTERED COLUMNSTORE WITH (*") { Lead = "CREATE TABLE t (a int, " },
         new("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (*") { Lead = "CREATE TABLE t (a int, " },
 

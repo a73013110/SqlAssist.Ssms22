@@ -727,7 +727,7 @@ internal static class SqlKeywordCatalogData
             "SELECTIVE XML INDEX", "SEQUENCE", "SERVER", "SERVICE", "STATISTICS",
             "SYMMETRIC KEY", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "UNIQUE", "USER", "VIEW",
             "WORKLOAD", "OR ALTER", "XML", "AVAILABILITY GROUP", "COLUMNSTORE INDEX",
-            "VECTOR INDEX", "SPATIAL INDEX",
+            "JSON INDEX", "VECTOR INDEX", "SPATIAL INDEX",
         }),
         ("CREATE AGGREGATE", SqlKeywordPosition.StatementStart, "CREATE AGGREGATE ", false, false, true, false, new string[]
         {
@@ -1353,7 +1353,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE TYPE {name}", SqlKeywordPosition.StatementStart, "CREATE TYPE t ", true, false, false, false, new string[]
         {
-            "AS", "EXTERNAL", "FROM",
+            "AS TABLE", "EXTERNAL", "FROM",
         }),
         ("CREATE UNIQUE", SqlKeywordPosition.StatementStart, "CREATE UNIQUE ", true, false, false, false, new string[]
         {
@@ -1786,7 +1786,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER FULLTEXT", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT ", false, false, true, false, new string[]
         {
-            "INDEX ON", "STOPLIST",
+            "INDEX ON", "STOPLIST", "CATALOG",
         }),
         ("ALTER FULLTEXT {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT t ", false, false, true, false, new string[]
         {
@@ -4449,6 +4449,19 @@ internal static class SqlKeywordCatalogData
         {
             "TRUNCATE_TARGET", "WAIT_AT_LOW_PRIORITY",
         }),
+        ("ALTER TABLE {name} ALTER INDEX {name}", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER INDEX t ", true, false, false, false, new string[]
+        {
+            "ABORT", "DISABLE", "PAUSE", "REBUILD WITH", "REORGANIZE", "RESUME",
+        }),
+        ("ALTER TABLE {name} ALTER INDEX {name} REBUILD WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER INDEX t REBUILD WITH (", true, false, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
         ("KEY () WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ADD PRIMARY KEY (a) WITH (", true, false, false, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
@@ -4522,6 +4535,18 @@ internal static class SqlKeywordCatalogData
             "ON",
         }),
         ("WITH (* DATA_COMPRESSION = {name} ON", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (DATA_COMPRESSION = COLUMNSTORE ON ", true, false, true, false, new string[]
+        {
+            "PARTITIONS",
+        }),
+        ("WITH (* XML_COMPRESSION =", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (XML_COMPRESSION = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("WITH (* XML_COMPRESSION = {name}", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (XML_COMPRESSION = OFF ", true, false, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("WITH (* XML_COMPRESSION = {name} ON", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (XML_COMPRESSION = OFF ON ", true, false, true, false, new string[]
         {
             "PARTITIONS",
         }),
@@ -4699,6 +4724,82 @@ internal static class SqlKeywordCatalogData
             "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE XML INDEX {name} ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE XML INDEX t ON t (a) ", true, false, false, false, new string[]
+        {
+            "USING",
+        }),
+        ("CREATE XML INDEX {name} ON {name} () USING XML INDEX {name} FOR", SqlKeywordPosition.StatementStart, "CREATE XML INDEX t ON t (a) USING XML INDEX t FOR ", true, false, false, false, new string[]
+        {
+            "PATH", "PROPERTY", "VALUE",
+        }),
+        ("CREATE PRIMARY XML INDEX {name} ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE PRIMARY XML INDEX t ON t (a) ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE SELECTIVE XML INDEX {name} ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE XML INDEX t ON t (a) ", true, false, false, false, new string[]
+        {
+            "FOR", "WITH XMLNAMESPACES",
+        }),
+        ("CREATE SELECTIVE XML INDEX {name} ON {name} () FOR", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE XML INDEX t ON t (a) FOR ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE SELECTIVE XML INDEX {name} ON {name} () WITH", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE XML INDEX t ON t (a) WITH ", true, false, false, false, new string[]
+        {
+            "XMLNAMESPACES",
+        }),
+        ("CREATE SELECTIVE XML INDEX {name} ON {name} () WITH XMLNAMESPACES", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE XML INDEX t ON t (a) WITH XMLNAMESPACES ", true, false, false, false, new string[]
+        {
+        }),
+        ("FOR (* {name} = {value} AS", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS ", true, false, false, false, new string[]
+        {
+            "SQL", "XQUERY",
+        }),
+        ("FOR (* {name} = {value} AS SQL", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS SQL ", false, false, true, false, new string[]
+        {
+            "DOUBLE PRECISION", "NATIONAL", "XML SINGLETON",
+        }),
+        ("FOR (* {name} = {value} AS SQL {name}", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS SQL t ", true, false, false, false, new string[]
+        {
+            "SINGLETON",
+        }),
+        ("FOR (* {name} = {value} AS SQL {name} SINGLETON", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS SQL t SINGLETON ", true, false, false, false, new string[]
+        {
+        }),
+        ("FOR (* {name} = {value} AS SQL DOUBLE", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS SQL DOUBLE ", true, false, false, false, new string[]
+        {
+            "PRECISION",
+        }),
+        ("FOR (* {name} = {value} AS SQL NATIONAL", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS SQL NATIONAL ", false, false, true, false, new string[]
+        {
+        }),
+        ("FOR (* {name} = {value} AS SQL XML", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS SQL XML ", true, false, false, false, new string[]
+        {
+            "SINGLETON",
+        }),
+        ("FOR (* {name} = {value} AS XQUERY", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS XQUERY ", true, false, false, false, new string[]
+        {
+            "MAXLENGTH", "SINGLETON",
+        }),
+        ("FOR (* {name} = {value} AS XQUERY {value}", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS XQUERY 'x' ", true, false, false, false, new string[]
+        {
+            "MAXLENGTH", "SINGLETON",
+        }),
+        ("FOR (* {name} = {value} AS XQUERY {value} MAXLENGTH", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS XQUERY 'x' MAXLENGTH ", true, false, false, false, new string[]
+        {
+        }),
+        ("FOR (* {name} = {value} AS XQUERY {value} SINGLETON", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS XQUERY 'x' SINGLETON ", true, false, false, false, new string[]
+        {
+        }),
+        ("FOR (* {name} = {value} AS XQUERY MAXLENGTH", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS XQUERY MAXLENGTH ", true, false, false, false, new string[]
+        {
+        }),
+        ("FOR (* {name} = {value} AS XQUERY SINGLETON", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS XQUERY SINGLETON ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE JSON INDEX {name} ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE JSON INDEX t ON t (a) ", true, false, false, true, new string[]
+        {
+            "FOR", "WITH",
         }),
         ("CREATE VECTOR INDEX {name} ON {name} () WITH (*", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (", true, false, false, false, new string[]
         {
@@ -5832,6 +5933,121 @@ internal static class SqlKeywordCatalogData
         ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST ", false, false, true, false, new string[]
         {
             "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t ", true, false, false, false, new string[]
+        {
+            "LANGUAGE", "STATISTICAL_SEMANTICS", "TYPE COLUMN",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} LANGUAGE", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t LANGUAGE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} LANGUAGE {value}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t LANGUAGE 1 ", true, false, false, false, new string[]
+        {
+            "STATISTICAL_SEMANTICS",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} LANGUAGE {value} STATISTICAL_SEMANTICS", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t LANGUAGE 1 STATISTICAL_SEMANTICS ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} STATISTICAL_SEMANTICS", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t STATISTICAL_SEMANTICS ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} TYPE", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t TYPE ", true, false, false, false, new string[]
+        {
+            "COLUMN",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} TYPE COLUMN", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t TYPE COLUMN ", false, false, true, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} TYPE COLUMN {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t TYPE COLUMN t ", true, false, false, false, new string[]
+        {
+            "LANGUAGE", "STATISTICAL_SEMANTICS",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} TYPE COLUMN {name} LANGUAGE", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t TYPE COLUMN t LANGUAGE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} TYPE COLUMN {name} LANGUAGE {value}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t TYPE COLUMN t LANGUAGE 1 ", true, false, false, false, new string[]
+        {
+            "STATISTICAL_SEMANTICS",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} TYPE COLUMN {name} LANGUAGE {value} STATISTICAL_SEMANTICS", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t TYPE COLUMN t LANGUAGE 1 STATISTICAL_SEMANTICS ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} (* {name} TYPE COLUMN {name} STATISTICAL_SEMANTICS", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (t TYPE COLUMN t STATISTICAL_SEMANTICS ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t ", true, false, false, false, new string[]
+        {
+            "LANGUAGE", "STATISTICAL_SEMANTICS", "TYPE COLUMN",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} LANGUAGE", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t LANGUAGE ", false, false, false, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} LANGUAGE {value}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t LANGUAGE 1 ", true, false, false, false, new string[]
+        {
+            "STATISTICAL_SEMANTICS",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} LANGUAGE {value} STATISTICAL_SEMANTICS", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t LANGUAGE 1 STATISTICAL_SEMANTICS ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} STATISTICAL_SEMANTICS", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t STATISTICAL_SEMANTICS ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} TYPE", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t TYPE ", true, false, false, false, new string[]
+        {
+            "COLUMN",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} TYPE COLUMN", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t TYPE COLUMN ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} TYPE COLUMN {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t TYPE COLUMN t ", true, false, false, false, new string[]
+        {
+            "LANGUAGE", "STATISTICAL_SEMANTICS",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} TYPE COLUMN {name} LANGUAGE", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t TYPE COLUMN t LANGUAGE ", false, false, false, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} TYPE COLUMN {name} LANGUAGE {value}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t TYPE COLUMN t LANGUAGE 1 ", true, false, false, false, new string[]
+        {
+            "STATISTICAL_SEMANTICS",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} TYPE COLUMN {name} LANGUAGE {value} STATISTICAL_SEMANTICS", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t TYPE COLUMN t LANGUAGE 1 STATISTICAL_SEMANTICS ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD (* {name} TYPE COLUMN {name} STATISTICAL_SEMANTICS", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (t TYPE COLUMN t STATISTICAL_SEMANTICS ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD () WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (a) WITH NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} DROP () WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t DROP (a) WITH NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT CATALOG {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT CATALOG t ", true, false, false, false, new string[]
+        {
+            "AS DEFAULT", "REBUILD", "REORGANIZE",
+        }),
+        ("ALTER FULLTEXT CATALOG {name} AS", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT CATALOG t AS ", true, false, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER FULLTEXT CATALOG {name} REBUILD WITH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT CATALOG t REBUILD WITH ", true, false, true, false, new string[]
+        {
+            "ACCENT_SENSITIVITY",
+        }),
+        ("ALTER FULLTEXT CATALOG {name} REBUILD WITH ACCENT_SENSITIVITY", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT CATALOG t REBUILD WITH ACCENT_SENSITIVITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT CATALOG {name} REBUILD WITH ACCENT_SENSITIVITY =", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT CATALOG t REBUILD WITH ACCENT_SENSITIVITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER FULLTEXT STOPLIST {name} ADD {value}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT STOPLIST t ADD 'x' ", true, false, false, false, new string[]
+        {
+            "LANGUAGE",
+        }),
+        ("ALTER FULLTEXT STOPLIST {name} DROP {value}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT STOPLIST t DROP 'x' ", true, false, false, false, new string[]
+        {
+            "LANGUAGE",
         }),
         ("", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t ", true, false, false, false, new string[]
         {
@@ -7038,6 +7254,10 @@ internal static class SqlKeywordCatalogData
             "MEMORY_OPTIMIZED", "PARTITION", "REMOTE_DATA_ARCHIVE", "SYSTEM_VERSIONING",
             "XML_COMPRESSION",
         }),
+        ("CREATE TYPE {name} AS TABLE () WITH (*", SqlKeywordPosition.StatementStart, "CREATE TYPE t AS TABLE (a int) WITH (", true, false, true, false, new string[]
+        {
+            "MEMORY_OPTIMIZED",
+        }),
         ("ALTER TABLE {name} SET (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t SET (", true, false, false, false, new string[]
         {
             "DATA_DELETION", "FILESTREAM_ON", "FILETABLE_DIRECTORY", "LOCK_ESCALATION",
@@ -7071,6 +7291,38 @@ internal static class SqlKeywordCatalogData
         ("INDEX {name} CLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED ", true, false, false, false, new string[]
         {
             "COLUMNSTORE",
+        }),
+        ("INDEX {name} ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} CLUSTERED ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} NONCLUSTERED ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} UNIQUE ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t UNIQUE (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} UNIQUE CLUSTERED ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t UNIQUE CLUSTERED (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} UNIQUE NONCLUSTERED ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t UNIQUE NONCLUSTERED (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} HASH ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t HASH (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} NONCLUSTERED HASH ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED HASH (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
         ("INDEX {name} CLUSTERED COLUMNSTORE WITH (*", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (", true, false, false, false, new string[]
         {
@@ -7194,6 +7446,22 @@ internal static class SqlKeywordCatalogData
         ("AI_GENERATE_CHUNKS (* CHUNK_TYPE =", SqlKeywordPosition.DataSource, "SELECT * FROM AI_GENERATE_CHUNKS (SOURCE = 'x', CHUNK_TYPE = ", true, false, true, false, new string[]
         {
             "FIXED",
+        }),
+        ("CONTAINSTABLE (* {value} , {value} , {value} ,", SqlKeywordPosition.DataSource, "SELECT * FROM CONTAINSTABLE (t , t , 'x' , ", true, true, false, false, new string[]
+        {
+            "LANGUAGE",
+        }),
+        ("FREETEXTTABLE (* {value} , {value} , {value} ,", SqlKeywordPosition.DataSource, "SELECT * FROM FREETEXTTABLE (t , t , 'x' , ", true, true, false, false, new string[]
+        {
+            "LANGUAGE",
+        }),
+        ("CONTAINS (* {value} , {value} ,", SqlKeywordPosition.Predicate, "SELECT * FROM t WHERE CONTAINS (t , 'x' , ", true, false, false, false, new string[]
+        {
+            "LANGUAGE",
+        }),
+        ("FREETEXT (* {value} , {value} ,", SqlKeywordPosition.Predicate, "SELECT * FROM t WHERE FREETEXT (t , 'x' , ", true, false, false, false, new string[]
+        {
+            "LANGUAGE",
         }),
         ("PREDICT (*", SqlKeywordPosition.DataSource, "SELECT * FROM PREDICT (", true, false, false, false, new string[]
         {
@@ -9805,19 +10073,19 @@ internal static class SqlKeywordCatalogData
             "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
             "TRY_CONVERT", "USER", "ABSENT",
         }),
-        ("JSON_OBJECT (* {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 ", true, false, true, false, new string[]
+        ("JSON_OBJECT (* {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 ", true, false, true, false, new string[]
         {
             "COLLATE", "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
         }),
-        ("JSON_OBJECT (* {value} : {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECT (* {value} : {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_OBJECT (* {value} : {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECT (* {value} : {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_OBJECT (* {value} : {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECT (* {value} : {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
@@ -9835,19 +10103,19 @@ internal static class SqlKeywordCatalogData
             "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
             "TRY_CONVERT", "USER", "ABSENT",
         }),
-        ("JSON_ARRAY (* {value}", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 ", true, false, true, false, new string[]
+        ("JSON_ARRAY (* {value}", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t ", true, false, true, false, new string[]
         {
             "COLLATE", "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
         }),
-        ("JSON_ARRAY (* {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_ARRAY (* {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t NULL ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_ARRAY (* {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_ARRAY (* {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_ARRAY (* {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 RETURNING ", true, false, false, false, new string[]
+        ("JSON_ARRAY (* {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
@@ -9865,19 +10133,19 @@ internal static class SqlKeywordCatalogData
             "CURRENT_USER", "DISTINCT", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
             "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "IDENTITY", "ABSENT",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 ", true, false, true, false, new string[]
+        ("JSON_OBJECTAGG (* {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ", true, false, true, false, new string[]
         {
             "COLLATE", "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG (* {value} : {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG (* {value} : {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
@@ -10194,6 +10462,14 @@ internal static class SqlKeywordCatalogData
         {
             "PARTITION", "WITH",
         }),
+        ("ALTER TABLE {name} ALTER", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER ", true, false, false, false, new string[]
+        {
+            "COLUMN", "INDEX",
+        }),
+        ("ALTER TABLE {name} ALTER INDEX {name} REBUILD", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER INDEX t REBUILD ", true, false, false, false, new string[]
+        {
+            "WITH",
+        }),
         ("ONLINE =", SqlKeywordPosition.Any, "ALTER INDEX t ON t REBUILD WITH (ONLINE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
@@ -10201,10 +10477,6 @@ internal static class SqlKeywordCatalogData
         ("DROP INDEX ... WITH (* MOVE", SqlKeywordPosition.StatementStart, "DROP INDEX i ON t WITH (MOVE ", true, false, false, false, new string[]
         {
             "TO",
-        }),
-        ("ALTER TABLE {name} ALTER", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER ", true, false, false, false, new string[]
-        {
-            "COLUMN", "INDEX",
         }),
         ("ALTER TABLE {name} ALTER COLUMN {name} ADD PERSISTED", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD PERSISTED ", true, false, false, true, new string[]
         {
@@ -10302,6 +10574,30 @@ internal static class SqlKeywordCatalogData
         {
             "ON",
         }),
+        ("CREATE XML INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE XML INDEX t ", true, false, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE XML INDEX {name} ON {name} () USING", SqlKeywordPosition.StatementStart, "CREATE XML INDEX t ON t (a) USING ", true, false, true, false, new string[]
+        {
+            "XML INDEX",
+        }),
+        ("CREATE XML INDEX {name} ON {name} () USING XML", SqlKeywordPosition.StatementStart, "CREATE XML INDEX t ON t (a) USING XML ", true, false, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE XML INDEX {name} ON {name} () USING XML INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE XML INDEX t ON t (a) USING XML INDEX t ", true, false, false, false, new string[]
+        {
+            "FOR",
+        }),
+        ("CREATE JSON", SqlKeywordPosition.StatementStart, "CREATE JSON ", true, false, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE JSON INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE JSON INDEX t ", true, false, false, false, new string[]
+        {
+            "ON",
+        }),
         ("CREATE VECTOR", SqlKeywordPosition.StatementStart, "CREATE VECTOR ", true, false, false, false, new string[]
         {
             "INDEX",
@@ -10341,6 +10637,26 @@ internal static class SqlKeywordCatalogData
         (", SEARCH PROPERTY", SqlKeywordPosition.Any, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF, SEARCH PROPERTY ", true, false, false, false, new string[]
         {
             "LIST",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD () WITH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (a) WITH ", true, false, false, false, new string[]
+        {
+            "NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ADD () WITH NO", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (a) WITH NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} DROP () WITH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t DROP (a) WITH ", true, false, false, false, new string[]
+        {
+            "NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} DROP () WITH NO", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t DROP (a) WITH NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT CATALOG {name} REBUILD", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT CATALOG t REBUILD ", true, false, false, true, new string[]
+        {
+            "WITH",
         }),
         ("TRIGGER {name} ON DATABASE", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON DATABASE ", true, false, false, false, new string[]
         {
@@ -10500,6 +10816,10 @@ internal static class SqlKeywordCatalogData
         {
             "SYSTEM_TIME",
         }),
+        ("CREATE TYPE {name} AS", SqlKeywordPosition.StatementStart, "CREATE TYPE t AS ", true, false, false, false, new string[]
+        {
+            "TABLE",
+        }),
         ("SYSTEM_VERSIONING =", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (SYSTEM_VERSIONING = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
@@ -10516,13 +10836,18 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE ", true, false, false, false, new string[]
+        ("INDEX {name} UNIQUE", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t UNIQUE ", true, false, false, false, new string[]
         {
-            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+            "COLUMNSTORE", "FILESTREAM_ON", "HASH", "ON", "WHERE", "WITH", "CLUSTERED",
+            "NONCLUSTERED",
         }),
         ("INDEX {name} NONCLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED ", true, false, false, false, new string[]
         {
-            "COLUMNSTORE",
+            "HASH", "COLUMNSTORE",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
         ("ALTER SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t ", true, false, false, false, new string[]
         {
@@ -10983,27 +11308,27 @@ internal static class SqlKeywordCatalogData
         {
             "APPROX", "APPROXIMATE", "FIRST", "FROM", "NEXT",
         }),
-        ("JSON_OBJECT (* {value} : {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 NULL ", true, false, false, false, new string[]
+        ("JSON_OBJECT (* {value} : {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 NULL ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_OBJECT (* {value} : {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 NULL ON ", true, false, false, false, new string[]
+        ("JSON_OBJECT (* {value} : {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 NULL ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_OBJECT (* {value} : {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 NULL ON NULL ", true, false, true, false, new string[]
+        ("JSON_OBJECT (* {value} : {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 NULL ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
-        ("JSON_OBJECT (* {value} : {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 ABSENT ", true, false, false, false, new string[]
+        ("JSON_OBJECT (* {value} : {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 ABSENT ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_OBJECT (* {value} : {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 ABSENT ON ", true, false, false, false, new string[]
+        ("JSON_OBJECT (* {value} : {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 ABSENT ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_OBJECT (* {value} : {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (1 : 1 ABSENT ON NULL ", true, false, true, false, new string[]
+        ("JSON_OBJECT (* {value} : {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 ABSENT ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
@@ -11031,27 +11356,27 @@ internal static class SqlKeywordCatalogData
         {
             "RETURNING JSON",
         }),
-        ("JSON_ARRAY (* {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 NULL ", true, false, false, false, new string[]
+        ("JSON_ARRAY (* {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t NULL ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_ARRAY (* {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 NULL ON ", true, false, false, false, new string[]
+        ("JSON_ARRAY (* {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t NULL ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_ARRAY (* {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 NULL ON NULL ", true, false, true, false, new string[]
+        ("JSON_ARRAY (* {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t NULL ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
-        ("JSON_ARRAY (* {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 ABSENT ", true, false, false, false, new string[]
+        ("JSON_ARRAY (* {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t ABSENT ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_ARRAY (* {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 ABSENT ON ", true, false, false, false, new string[]
+        ("JSON_ARRAY (* {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t ABSENT ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_ARRAY (* {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (1 ABSENT ON NULL ", true, false, true, false, new string[]
+        ("JSON_ARRAY (* {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t ABSENT ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
@@ -11079,27 +11404,27 @@ internal static class SqlKeywordCatalogData
         {
             "RETURNING JSON",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 NULL ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG (* {value} : {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 NULL ON ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG (* {value} : {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 NULL ON NULL ", true, false, true, false, new string[]
+        ("JSON_OBJECTAGG (* {value} : {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 ABSENT ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG (* {value} : {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 ABSENT ON ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (1 : 1 ABSENT ON NULL ", true, false, true, false, new string[]
+        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
@@ -11480,6 +11805,8 @@ internal static class SqlKeywordCatalogData
         ("CLUSTERED COLUMNSTORE INDEX", false, false),
         ("NONCLUSTERED COLUMNSTORE INDEX", false, false),
         ("COLUMNSTORE INDEX", false, false),
+        ("XML INDEX", false, false),
+        ("JSON INDEX", false, false),
         ("VECTOR INDEX", false, false),
         ("SPATIAL INDEX", false, false),
         ("SERVER AUDIT", true, false),

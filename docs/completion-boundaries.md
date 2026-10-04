@@ -6,15 +6,15 @@
 ## 往回找子句關鍵字時要認得的結構
 
 - **括號群組是一個運算元**，往回走時整組跳過；走進
-  `FROM (SELECT … ON a = b) d ` 撈到內層的 `ON` 就打不出 `WHERE`。
-  配對不起來時放行成 `Any`。
+  `FROM (SELECT … ON a = b) d ` 撈到內層的 `ON` 就沒有 `WHERE`。
+  配對不起來就放行成 `Any`。
 - **寫完的 `CASE … END` 也是運算元**，後面照外層位置。還沒寫完的 CASE 是游標
   那一層：`CASE WHEN a = 1 THEN b ` 之後接 `WHEN`、`ELSE`、`END`。穿過函式引數或 `IN` 的括號就不是了，
   述詞位置上的括號（`WHEN a = 1 AND (b = 2 OR c `）仍是同一個條件，接 `IS`、`THEN`。
 - **`IIF(` 的第一個引數是述詞**：左括號就是它的 `WHERE`，`IIF(Fee > 2 ` 接 `AND`、`OR`，`IIF(@a ` 接 `IS`；
-  逗號之後的引數是一般的值。穿出去借外層的話只剩選取清單尾端。
-- **逗號之後回到清單的起點**：`SELECT a, ` 與 `SELECT ` 同一個位置，判成尾端的話 `CASE` 不見。沒關上的左括號也是起點（引數、`VALUES` 的一列），
-  不借外層：`VALUES (1, ` 才列得出 `NULL`。資料行定義清單的逗號之前是上一項（`… CASCADE, CONSTRAINT c ` 不借它的 `ON`）。
+  逗號之後的引數是一般的值。穿出去借外層只剩選取清單尾端。
+- **逗號之後回到清單的起點**：`SELECT a, ` 與 `SELECT ` 同一個位置，判成尾端就沒有 `CASE`。沒關上的左括號也是起點（引數、`VALUES` 的一列），
+  不借外層：`VALUES (1, ` 才列得出 `NULL`。定義清單的逗號之前是上一項（`… CASCADE, CONSTRAINT c ` 不借它的 `ON`）。
 - **TOP 子句不是選取清單的一項**：`SELECT TOP 10 ` 之後仍是起點，另接 `PERCENT`、`WITH TIES`。
 - **`ON` 的述詞寫完之後是兩個位置的聯集**：述詞尾端（`AND`、`OR`）與資料來源尾端
   （`WHERE`、`JOIN`）。
@@ -23,8 +23,8 @@
 - **其餘的 `SET` 帶出選項**（含 `ALTER DATABASE x SET`）。名稱寫完
   （`SET NOCOUNT `）只列 `ON`、`OFF` 這類值；停在關鍵字上是還沒寫完（`SET IDENTITY_INSERT `
   要資料表）。**值寫完這一句就結束**；否則 `SET ANSI_NULLS ON⏎G` 的
-  `ON` 被當成 JOIN 的，`GO` 變成 `GROUPING`。識別字的值（`SET DATEFORMAT dmy`）
-  與名稱分不開，換行才補語句開頭。
+  `ON` 被當成 JOIN 的，`GO` 變成 `GROUPING`。等號後的 `ON`（`ONLINE = ON`）也是值，之後判不出位置。
+  識別字的值（`SET DATEFORMAT dmy`）與名稱分不開，換行才補語句開頭。
 - **`NOT` 也是聯集**：`WHERE NOT ` 開一個述詞，`a NOT ` 之後接 `IN`、`LIKE`。
 - **`IF`、`WHILE` 是錨點**：條件寫完是主體的開頭，也接 `AND`、`OR`；括號沒關上時只算條件。
   IF 的單句主體寫完另接 `ELSE`（`IfBodyEnd`）；以分號結束也一樣，分號只說前一句寫完了
@@ -48,7 +48,7 @@
 點號前那一段以數字開頭也算（`1.`，否則平台以限定字 `1` 開清單），方括號裡的不算（`[192.0.2.10].` 是連結伺服器）。
 
 `MaybeName` 的 `FROM dbo.T W` 可能是別名或打到一半的 `WHERE`，軟選讓 Enter 保住別名，
-代價是 `FR`＋Enter 不再補成 `FROM`。它寫得出清單外的新名字，不封閉。
+代價是 `FR`＋Enter 不補成 `FROM`。它寫得出清單外的新名字，不封閉。
 
 - **`Name`**：`AS ` 之後的別名、`DECLARE @`（見[變數](completion-variables.md)）、`CREATE <種類> ` 列不出東西的那一段、`WITH ` 與 `WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
   （`INSERT INTO `、`MERGE INTO ` 要既有資料表，是 `Grammar`）、`RESULT SETS ((` 的資料行名稱。
@@ -58,7 +58,7 @@
 
 括號是什麼由**前面**那個字決定：接在 `FROM`、`JOIN`、`APPLY`、`USING` 後面的是衍生資料表，
 接在 `IN`、`EXISTS`、`=` 後面的是運算式；`FROM (t1 JOIN t2 ON …) ` 是括號包起來的聯結、
-名稱後的 `WITH (NOLOCK)` 是提示，都不接別名。衍生資料表判成 `Name` 的話清單不開，`AS` 打不出來。
+名稱後的 `WITH (NOLOCK)` 是提示，都不接別名。衍生資料表判成 `Name` 就不開清單，打不出 `AS`。
 `AS` 也看前面：一項剛寫完、還沒有別名時才是別名，其餘照常——`CREATE VIEW v AS ` 的主體、`EXECUTE AS`、`FOR SYSTEM_TIME AS`（接 `OF`）。
 `CAST(x AS ` 由[型別的位置](completion-builtins.md#資料型別)先接走。
 
@@ -74,7 +74,7 @@
   （`Grammar`）：`DELETE [TOP (5)] FROM t `、`FETCH NEXT FROM c `。`DELETE a FROM t ` 照常。
 - 項目結尾是識別字、變數、`)`、常值或 `CASE … END` 的 `END`；`*` 後面不接別名。
 - 還沒有別名：最後一個運算元前面不緊鄰另一個運算元或 `AS`。
-- 同一行：前一個詞元結尾到游標之間沒有換行（註解前的也算）。
+- 同一行：前一個詞元結尾到游標沒有換行（註解前的也算）。
 
 ### CREATE 的名稱格
 

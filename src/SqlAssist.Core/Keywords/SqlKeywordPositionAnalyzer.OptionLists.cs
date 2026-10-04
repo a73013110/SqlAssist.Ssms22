@@ -123,13 +123,13 @@ public sealed partial class SqlKeywordPositionAnalyzer
             separatedByCommas: false,
             skipsGroups: true),
 
-        // CREATE INDEX … WITH (ONLINE = ON, FILLFACTOR = 80)：左括號與逗號之後是下一個選項。
+        // CREATE INDEX … WITH (ONLINE = ON, FILLFACTOR = 80)、資料表定義裡的 INDEX ix (a) WITH (…)：左括號與逗號之後是下一個選項。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsPunctuation("(") &&
                 index >= 1 && analyzer.tokens[index - 1].IsKeyword("WITH"),
             isPart: (analyzer, index) => !analyzer.StartsClauseOfItsOwn(index),
             endsItem: null,
-            header: (analyzer, open) => analyzer.CreatesIndex(open - 1)
+            header: (analyzer, open) => analyzer.DefinesIndex(open - 1)
                 ? new OptionSlots(SqlKeywordPosition.IndexOption, null)
                 : null,
             skipsGroups: true),
@@ -481,19 +481,36 @@ public sealed partial class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>
-    /// <paramref name="with"/> 的 WITH 屬於 <c>CREATE [UNIQUE] [CLUSTERED] INDEX</c> 這一句。
+    /// <paramref name="with"/> 的 WITH 屬於一個索引的定義：<c>CREATE [UNIQUE] [CLUSTERED] INDEX</c>（含 XML、JSON 索引）這一句，
+    /// 或資料表定義裡的內嵌索引（<c>INDEX ix NONCLUSTERED (a)</c>，<c>ALTER TABLE t ADD INDEX</c> 也是）。
     /// </summary>
     /// <remarks>
-    /// 問的是這一句的開頭而不是緊鄰的形狀：索引鍵、INCLUDE 與篩選的 WHERE 都可能夾在中間。
+    /// 問的是這一句或這一項的開頭而不是緊鄰的形狀：索引鍵、INCLUDE 與篩選的 WHERE 都可能夾在中間。
+    /// 內嵌索引與 CREATE INDEX 收同一份選項；條件約束的 <c>PRIMARY KEY (a) WITH (</c> 不在這裡，由片語給。
     /// </remarks>
-    private bool CreatesIndex(int with)
+    private bool DefinesIndex(int with)
     {
         var start = FindStatementStart(with - 1);
 
-        return start < with &&
+        if (start < with &&
             FindCreatedKind(start, endsAt: false) is { } kind &&
             start + kind.Words.Length < with &&
-            string.Equals(kind.Words[kind.Words.Length - 1], "INDEX", StringComparison.OrdinalIgnoreCase);
+            string.Equals(kind.Words[kind.Words.Length - 1], "INDEX", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var item = FindColumnDefinitionStart(with - 1);
+
+        for (var index = item; index >= 0 && index < with; index++)
+        {
+            if (IsBareKeyword(index) && tokens[index].IsKeyword("INDEX"))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

@@ -18,7 +18,7 @@ DDL 觸發程序的事件（`ON DATABASE FOR`）也是，事件依標頭而不�
 標頭夾著長度不定的一段（EXEC 的參數、BACKUP 的裝置清單）寫成 `EXEC ... WITH ,*`：尾巴的 `WITH`
 對上了才找動詞，探測代入 `Gap`。仍各佔一個位置的：
 
-- 括號清單：CREATE INDEX 的 `WITH (…)`，前面還夾著 `INCLUDE (…)` 與篩選 `WHERE`。標頭固定的括號清單
+- 括號清單：CREATE INDEX（含 XML、JSON 索引）與資料表定義裡內嵌索引的 `WITH (…)`，前面還夾著 `INCLUDE (…)` 與篩選 `WHERE`。標頭固定的括號清單
   （`ALTER TABLE t SET (`、`OPENROWSET (`）寫成 `(*` 片語；定義清單裡一項自己的括號清單也是（`CONNECTION (* {name}` 接 `TO`，
   前一格是 `ColumnDefinition`）。執行期分不出游標在 `(` 還是逗號之後，
   字取兩者聯集。括號裡是子句的

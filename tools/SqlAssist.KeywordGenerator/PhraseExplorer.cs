@@ -89,7 +89,8 @@ internal sealed class PhraseExplorer
 
     /// <summary>探測文字：代入名稱、值、括號與 Gap 之後的整段。</summary>
     /// <remarks>
-    /// 值與名稱的代表寫法由剖析器挑：FETCH ABSOLUTE 之後要數字，PASSWORD = 之後要字串；收不了普通名稱的格子
+    /// 值與名稱的代表寫法由剖析器挑：FETCH ABSOLUTE 之後要數字，PASSWORD = 之後要字串，兩種都不收的運算式是名稱
+    /// （CONTAINSTABLE ( 的資料表與資料行）；收不了普通名稱的格子
     /// 代入那一格列得出的第一個字。等號之後一律代入列得出的值（剖析器列的或手寫的）：資料庫加密金鑰的
     /// ALGORITHM = 什麼名稱都先收，整句寫完才驗，普通名稱探得過一半、整段卻剖析不過。
     /// next 是這段之後片語的下一項：只取前一段探測時（片語裡的每一個字），名稱那一格照樣看得到它後面寫什麼。
@@ -117,7 +118,7 @@ internal sealed class PhraseExplorer
             text += item switch
             {
                 "{name}" => SelectName(text, following) + " ",
-                "{value}" => (SelectValue(text) ?? "1") + " ",
+                "{value}" => (SelectValue(text) ?? SelectName(text, following)) + " ",
                 "()" => (string.IsNullOrEmpty(group) ? "(a)" : group) + " ",
                 "(*" => index < parts.Length - 1 ? "(" + items : "(",
                 "..." => gap + " ",
