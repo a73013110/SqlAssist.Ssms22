@@ -328,6 +328,10 @@ public sealed class SqlClausePhrase
                 // 後面還有項時，那幾項是清單裡某一項的開頭（WITH (* TYPE =），左括號或逗號之後都算。
                 "(*" when index > 0 => new Element(ElementKind.OpenList),
                 "(*" => throw new FormatException($"Phrase '{pattern}': (* must follow a head."),
+                // 括號裡是一個子句（WITHIN GROUP (ORDER BY a, b)、WAITFOR (RECEIVE a, b …)）：只認緊接的左括號，
+                // 逗號屬於子句；寫成 (* 的話子句裡的逗號也比對成左括號，選取清單裡只剩子句開頭的字。
+                "(" when index > 0 => new Element(ElementKind.Word, "("),
+                "(" => throw new FormatException($"Phrase '{pattern}': ( must follow a head."),
                 "=" => new Element(ElementKind.Word, "="),
                 // 逗號分隔的是同一句裡重複的一段（ADD EVENT a.b, ADD EVENT），不是括號清單的項。
                 "," => new Element(ElementKind.Word, ","),
@@ -394,7 +398,7 @@ public sealed class SqlClausePhrase
                 case ElementKind.Word when Word == "=":
                     return token.Kind == SqlTokenKind.Operator && token.Value == "=" ? last - 1 : Mismatch;
 
-                case ElementKind.Word when Word is "," or ":":
+                case ElementKind.Word when Word is "," or ":" or "(":
                     return token.IsPunctuation(Word) ? last - 1 : Mismatch;
 
                 case ElementKind.Word:

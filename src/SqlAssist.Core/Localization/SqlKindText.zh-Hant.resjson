@@ -83,6 +83,14 @@
   "Assembly": "組件",
   "ExternalDataSource": "外部資料來源",
   "ExternalFileFormat": "外部檔案格式",
+  // Service Broker 的物件；譯名照物件總管。
+  "Queue": "佇列",
+  "Service": "服務",
+  "Contract": "合約",
+  "MessageType": "訊息類型",
+  "Route": "路由",
+  "RemoteServiceBinding": "遠端服務繫結",
+  "BrokerPriority": "Broker 優先權",
   "Collation": "定序",
   // SET LANGUAGE、DEFAULT_LANGUAGE = 之後的語言名稱（sys.syslanguages）。
   "Language": "語言",

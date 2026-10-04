@@ -62,15 +62,17 @@ internal static class PolyBaseXePhrases
         new("CREATE EVENT SESSION {name} ON") { Expand = 3 },
         new("ALTER EVENT SESSION {name} ON") { Expand = 2 },
         new("DROP EVENT SESSION {name} ON"),
-        new("EVENT {name} ,") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
-        new("EVENT {name} , ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
-        new("EVENT {name} ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
-        new("TARGET {name} ,") { Lead = "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD " },
-        new("TARGET {name} , ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD " },
+        // ALTER 的 DROP 也一樣以逗號接下一個。ALTER 這幾段要寫在墊它的片語之前：證據照宣告順序立起 DROP 那一格，
+        // 墊在後面的 EVENT、TARGET 才認得出那一格已經列了，不會再收成判不出位置時的附加字。
         new("ALTER EVENT SESSION {name} ON SERVER ADD EVENT"),
         new("ALTER EVENT SESSION {name} ON SERVER ADD TARGET"),
         new("ALTER EVENT SESSION {name} ON SERVER DROP EVENT"),
         new("ALTER EVENT SESSION {name} ON SERVER DROP TARGET"),
+        new("EVENT {name} ,") { Lead = "CREATE EVENT SESSION t ON SERVER ADD ", AlsoLeads = ["ALTER EVENT SESSION t ON SERVER DROP "] },
+        new("EVENT {name} , ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
+        new("EVENT {name} ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
+        new("TARGET {name} ,") { Lead = "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ", AlsoLeads = ["ALTER EVENT SESSION t ON SERVER DROP "] },
+        new("TARGET {name} , ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD " },
         // 工作階段的 WITH (…) 寫在最後一個事件或目標之後；MAX_MEMORY = 4 MB、MAX_DISPATCH_LATENCY = 30 SECONDS 的單位展開兩層探出來。
         new("EVENT {name} WITH (*") { Lead = "CREATE EVENT SESSION t ON SERVER ADD ", Expand = 2 },
         new("TARGET {name} WITH (*") { Lead = "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ", Expand = 2 },
@@ -78,6 +80,9 @@ internal static class PolyBaseXePhrases
         // SET 之後的欄位不列：剖析器什麼名稱都收，探不出來；欄位又依目標而不同（event_file 的 filename、ring_buffer 的
         // max_memory），尾巴的 {name} 分不出是哪一個目標，手寫聯集會列出別的目標的欄位。
         new("EVENT {name} (*") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
+        // SET 寫完一個欄位之後是下一個欄位、ACTION 或 WHERE：第一個欄位緊接 SET，其餘緊接逗號，括號清單的一項認得出後者。
+        new("EVENT {name} (* SET {name} = {value}") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
+        new("EVENT {name} (* {name} = {value}") { Lead = "CREATE EVENT SESSION t ON SERVER ADD ", Items = "SET t = 1, " },
         new("EVENT {name} () ,") { Lead = "CREATE EVENT SESSION t ON SERVER ADD ", Group = "(ACTION (t.t))" },
         new("EVENT {name} () , ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD ", Group = "(ACTION (t.t))" },
         new("EVENT {name} () ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD ", Group = "(ACTION (t.t))" },

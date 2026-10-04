@@ -122,6 +122,13 @@ internal static partial class SqlIcons
         [SqlCatalogEntity.Assembly] = Entity(KnownMonikers.Assembly, SqlCatalogEntity.Assembly),
         [SqlCatalogEntity.ExternalDataSource] = Entity(KnownMonikers.DataSource, SqlCatalogEntity.ExternalDataSource),
         [SqlCatalogEntity.ExternalFileFormat] = Entity(KnownMonikers.FormatDocument, SqlCatalogEntity.ExternalFileFormat),
+        [SqlCatalogEntity.Queue] = Entity(KnownMonikers.MessageQueue, SqlCatalogEntity.Queue),
+        [SqlCatalogEntity.Service] = Entity(KnownMonikers.Services, SqlCatalogEntity.Service),
+        [SqlCatalogEntity.Contract] = Entity(KnownMonikers.Contract, SqlCatalogEntity.Contract),
+        [SqlCatalogEntity.MessageType] = Entity(KnownMonikers.MessageType, SqlCatalogEntity.MessageType),
+        [SqlCatalogEntity.Route] = Entity(KnownMonikers.RouteService, SqlCatalogEntity.Route),
+        [SqlCatalogEntity.RemoteServiceBinding] = Entity(KnownMonikers.RemoteServiceBinding, SqlCatalogEntity.RemoteServiceBinding),
+        [SqlCatalogEntity.BrokerPriority] = Entity(KnownMonikers.BrokerPriority, SqlCatalogEntity.BrokerPriority),
     };
 
     // 建議清單列尾的例外標記。兩個警示用有色的狀態形狀，其餘用單色線條，讓一眼看得出輕重；

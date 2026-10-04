@@ -72,13 +72,28 @@ public sealed class SqlCatalogEntity
     public static readonly SqlCatalogEntity ExternalFileFormat =
         new("EXTERNAL FILE FORMAT", SqlCatalogScope.Database, () => SqlKindText.ExternalFileFormat);
 
+    /// <summary>Service Broker 的物件。佇列是結構描述範圍的物件，名冊只列名稱：寫在別的結構描述的要自己加限定字。</summary>
+    public static readonly SqlCatalogEntity Queue = new("QUEUE", SqlCatalogScope.Database, () => SqlKindText.Queue);
+
+    public static readonly SqlCatalogEntity Service = new("SERVICE", SqlCatalogScope.Database, () => SqlKindText.Service);
+    public static readonly SqlCatalogEntity Contract = new("CONTRACT", SqlCatalogScope.Database, () => SqlKindText.Contract);
+    public static readonly SqlCatalogEntity MessageType = new("MESSAGE TYPE", SqlCatalogScope.Database, () => SqlKindText.MessageType);
+    public static readonly SqlCatalogEntity Route = new("ROUTE", SqlCatalogScope.Database, () => SqlKindText.Route);
+
+    public static readonly SqlCatalogEntity RemoteServiceBinding =
+        new("REMOTE SERVICE BINDING", SqlCatalogScope.Database, () => SqlKindText.RemoteServiceBinding);
+
+    public static readonly SqlCatalogEntity BrokerPriority =
+        new("BROKER PRIORITY", SqlCatalogScope.Database, () => SqlKindText.BrokerPriority);
+
     /// <summary>全部的種類；中繼資料層以此核對每一種都有查詢。</summary>
     public static IReadOnlyList<SqlCatalogEntity> All { get; } = new[]
     {
         Login, ServerRole, Credential, Endpoint, EventSession, ServerAudit, ServerAuditSpecification, Database,
         User, Role, ApplicationRole, Schema, Certificate, AsymmetricKey, SymmetricKey, DatabaseScopedCredential,
         DatabaseAuditSpecification, PartitionFunction, PartitionScheme, FulltextCatalog, Assembly,
-        ExternalDataSource, ExternalFileFormat
+        ExternalDataSource, ExternalFileFormat, Queue, Service, Contract, MessageType, Route, RemoteServiceBinding,
+        BrokerPriority
     };
 
     private static readonly IReadOnlyList<SqlCatalogEntity> ServerPrincipals = new[] { Login, ServerRole };

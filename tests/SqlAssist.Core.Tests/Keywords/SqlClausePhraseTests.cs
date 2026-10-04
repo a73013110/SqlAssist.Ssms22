@@ -392,6 +392,29 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER FULLTEXT STOPLIST CopyStoplist ADD 'the' ", "LANGUAGE")]
     [InlineData("SELECT * FROM CONTAINSTABLE(dbo.Copy, (Title, Summary), 'book', ", "LANGUAGE")]
     [InlineData("SELECT * FROM dbo.Copy WHERE FREETEXT(Title, 'book', ", "LANGUAGE")]
+    [InlineData("BEGIN DIALOG @Handle ", "FROM")]
+    [InlineData("BEGIN DIALOG CONVERSATION @Handle FROM ", "SERVICE")]
+    [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO ", "SERVICE")]
+    [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' ", "ON", "WITH")]
+    [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' ON ", "CONTRACT")]
+    [InlineData("CREATE SERVICE LoanService ON ", "QUEUE")]
+    [InlineData("CREATE SERVICE LoanService AUTHORIZATION dbo ", "ON")]
+    [InlineData("CREATE MESSAGE TYPE LoanRequest VALIDATION = ", "WELL_FORMED_XML", "NONE")]
+    [InlineData("CREATE MESSAGE TYPE LoanRequest\n    ", "VALIDATION")]
+    [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver', 'current database' ", "ON", "WITH")]
+    [InlineData("WAITFOR (GET CONVERSATION GROUP @Group FROM LoanQueue), ", "TIMEOUT")]
+    [InlineData("CREATE ENDPOINT LoanBroker AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = ", "REQUIRED", "DISABLED")]
+    [InlineData("CREATE REMOTE SERVICE BINDING LoanBinding TO ", "SERVICE")]
+    [InlineData("WAITFOR (", "RECEIVE", "GET")]
+    [InlineData("WAITFOR (RECEIVE * FROM LoanQueue), ", "TIMEOUT")]
+    [InlineData("ALTER EVENT SESSION LoanTrace ON SERVER DROP EVENT sqlserver.rpc_completed, ", "DROP")]
+    [InlineData("ALTER EVENT SESSION LoanTrace ON SERVER DROP TARGET package0.ring_buffer, DROP ", "TARGET")]
+    [InlineData("CREATE EVENT SESSION LoanTrace ON SERVER ADD EVENT sqlserver.rpc_completed (SET collect_statement = 1 ", "ACTION", "WHERE")]
+    [InlineData("CREATE EVENT SESSION LoanTrace ON SERVER ADD EVENT sqlserver.rpc_completed (SET collect_statement = 1, collect_data_stream = 0 ", "ACTION")]
+    [InlineData("CREATE ENDPOINT LoanBroker AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (", "ENCRYPTION", "AUTHENTICATION")]
+    [InlineData("CREATE ENDPOINT LoanMirror STATE = STARTED AS TCP (LISTENER_PORT = 5022) FOR DATABASE_MIRRORING (ROLE = PARTNER, ", "ENCRYPTION")]
+    [InlineData("ALTER ENDPOINT LoanBroker FOR SERVICE_BROKER (AUTHENTICATION = ", "WINDOWS", "CERTIFICATE")]
+    [InlineData("CREATE ENDPOINT LoanBroker AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ", "ALGORITHM")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -489,6 +512,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("DBCC CHECKIDENT (", "REPAIR_REBUILD")]
     [InlineData("DBCC CHECKDB (", "RESEED")]
     [InlineData("SELECT CONVERT(int, ", "RESEED")]
+    [InlineData("WAITFOR (RECEIVE message_body, ", "RECEIVE")]
+    [InlineData("SELECT STRING_AGG(Title, ',') WITHIN GROUP (ORDER BY Title, ", "GRAPH")]
+    [InlineData("UPDATE dbo.Copy SET Shelf = 1, Floor = 2 ", "ACTION")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));

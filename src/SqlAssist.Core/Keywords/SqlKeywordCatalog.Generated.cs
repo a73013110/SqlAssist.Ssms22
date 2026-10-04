@@ -1303,7 +1303,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE SERVICE {name}", SqlKeywordPosition.StatementStart, "CREATE SERVICE t ", true, false, false, false, new string[]
         {
-            "AUTHORIZATION", "ON",
+            "AUTHORIZATION", "ON QUEUE",
         }),
         ("CREATE SERVICE {name} AUTHORIZATION", SqlKeywordPosition.StatementStart, "CREATE SERVICE t AUTHORIZATION ", false, false, true, false, new string[]
         {
@@ -4863,7 +4863,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("FOR (* {name} = {value} AS SQL", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS SQL ", false, false, true, false, new string[]
         {
-            "DOUBLE PRECISION", "NATIONAL", "XML SINGLETON",
+            "DOUBLE PRECISION", "NATIONAL", "XML",
         }),
         ("FOR (* {name} = {value} AS SQL {name}", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS SQL t ", true, false, false, false, new string[]
         {
@@ -8342,9 +8342,9 @@ internal static class SqlKeywordCatalogData
         (", ALTER FILTER PREDICATE", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, ALTER FILTER PREDICATE ", false, false, true, false, new string[]
         {
         }),
-        (", DROP", SqlKeywordPosition.Any, "ALTER EVENT SESSION t ON SERVER DROP EVENT t.t, DROP ", true, false, true, false, new string[]
+        (", DROP", SqlKeywordPosition.Any, "ALTER EVENT SESSION t ON SERVER DROP TARGET t.t, DROP ", true, false, true, false, new string[]
         {
-            "BLOCK PREDICATE ON", "FILTER PREDICATE ON", "EVENT",
+            "BLOCK PREDICATE ON", "FILTER PREDICATE ON", "EVENT", "TARGET",
         }),
         (", DROP BLOCK", SqlKeywordPosition.Any, "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t, DROP BLOCK ", true, false, false, false, new string[]
         {
@@ -8369,6 +8369,9 @@ internal static class SqlKeywordCatalogData
         {
         }),
         (", DROP EVENT", SqlKeywordPosition.Any, "ALTER EVENT SESSION t ON SERVER DROP EVENT t.t, DROP EVENT ", false, false, true, false, new string[]
+        {
+        }),
+        (", DROP TARGET", SqlKeywordPosition.Any, "ALTER EVENT SESSION t ON SERVER DROP TARGET t.t, DROP TARGET ", false, false, true, false, new string[]
         {
         }),
         ("CREATE EXTERNAL MODEL {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t WITH (", true, false, false, false, new string[]
@@ -8957,26 +8960,6 @@ internal static class SqlKeywordCatalogData
         {
             "DATABASE", "SERVER",
         }),
-        ("EVENT {name} ,", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t , ", true, false, false, false, new string[]
-        {
-            "ADD",
-        }),
-        ("EVENT {name} , ADD", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t , ADD ", true, false, true, false, new string[]
-        {
-            "EVENT",
-        }),
-        ("EVENT {name} ADD", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ", true, false, true, false, new string[]
-        {
-            "TARGET",
-        }),
-        ("TARGET {name} ,", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t , ", true, false, false, false, new string[]
-        {
-            "ADD",
-        }),
-        ("TARGET {name} , ADD", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t , ADD ", true, false, true, false, new string[]
-        {
-            "TARGET",
-        }),
         ("ALTER EVENT SESSION {name} ON SERVER ADD EVENT", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER ADD EVENT ", false, false, true, false, new string[]
         {
         }),
@@ -8988,6 +8971,26 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER EVENT SESSION {name} ON SERVER DROP TARGET", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER DROP TARGET ", false, false, true, false, new string[]
         {
+        }),
+        ("EVENT {name} ,", SqlKeywordPosition.Any, "ALTER EVENT SESSION t ON SERVER DROP EVENT t.t , ", true, false, false, false, new string[]
+        {
+            "ADD", "DROP",
+        }),
+        ("EVENT {name} , ADD", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t , ADD ", true, false, true, false, new string[]
+        {
+            "EVENT",
+        }),
+        ("EVENT {name} ADD", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ", true, false, true, false, new string[]
+        {
+            "TARGET",
+        }),
+        ("TARGET {name} ,", SqlKeywordPosition.Any, "ALTER EVENT SESSION t ON SERVER DROP TARGET t.t , ", true, false, false, false, new string[]
+        {
+            "ADD", "DROP",
+        }),
+        ("TARGET {name} , ADD", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t , ADD ", true, false, true, false, new string[]
+        {
+            "TARGET",
         }),
         ("EVENT {name} WITH (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t WITH (", true, false, false, false, new string[]
         {
@@ -9108,6 +9111,14 @@ internal static class SqlKeywordCatalogData
         ("EVENT {name} (*", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (", true, false, false, false, new string[]
         {
             "ACTION", "SET", "WHERE",
+        }),
+        ("EVENT {name} (* SET {name} = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (SET t = 1 ", true, false, false, false, new string[]
+        {
+            "ACTION", "WHERE",
+        }),
+        ("EVENT {name} (* {name} = {value}", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (SET t = 1, t = 1 ", true, false, false, false, new string[]
+        {
+            "ACTION", "WHERE",
         }),
         ("EVENT {name} () ,", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t (ACTION (t.t)) , ", true, false, false, false, new string[]
         {
@@ -9278,6 +9289,17 @@ internal static class SqlKeywordCatalogData
         ("WAITFOR", SqlKeywordPosition.StatementStart, "WAITFOR ", true, false, true, false, new string[]
         {
             "DELAY", "TIME",
+        }),
+        ("WAITFOR (", SqlKeywordPosition.StatementStart, "WAITFOR (", true, false, true, false, new string[]
+        {
+            "RECEIVE", "GET",
+        }),
+        ("WAITFOR ( GET CONVERSATION GROUP {name} FROM", SqlKeywordPosition.StatementStart, "WAITFOR (GET CONVERSATION GROUP @ReaderId FROM ", false, false, true, false, new string[]
+        {
+        }),
+        ("WAITFOR () ,", SqlKeywordPosition.StatementStart, "WAITFOR (RECEIVE * FROM q) , ", true, false, true, false, new string[]
+        {
+            "TIMEOUT",
         }),
         ("OPEN", SqlKeywordPosition.StatementStart, "OPEN ", false, true, true, false, new string[]
         {
@@ -10213,15 +10235,15 @@ internal static class SqlKeywordCatalogData
         ("WITHIN GROUP", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP ", true, false, false, false, new string[]
         {
         }),
-        ("WITHIN GROUP (*", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (", true, false, false, false, new string[]
+        ("WITHIN GROUP (", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (", true, false, false, false, new string[]
         {
             "GRAPH PATH", "ORDER BY",
         }),
-        ("WITHIN GROUP (* GRAPH", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (GRAPH ", true, false, false, false, new string[]
+        ("WITHIN GROUP ( GRAPH", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (GRAPH ", true, false, false, false, new string[]
         {
             "PATH",
         }),
-        ("WITHIN GROUP (* ORDER", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (ORDER ", true, false, false, false, new string[]
+        ("WITHIN GROUP ( ORDER", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP (ORDER ", true, false, false, false, new string[]
         {
             "BY",
         }),
@@ -10901,6 +10923,1580 @@ internal static class SqlKeywordCatalogData
         ("RANGE BETWEEN CURRENT ROW AND CURRENT", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN CURRENT ROW AND CURRENT ", true, false, true, false, new string[]
         {
             "ROW",
+        }),
+        ("DIALOG {name} FROM SERVICE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' ", true, false, false, true, new string[]
+        {
+            "ON CONTRACT", "WITH",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} ON", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' ON ", true, false, false, false, new string[]
+        {
+            "CONTRACT",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} ON CONTRACT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' ON CONTRACT ", false, true, true, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ", true, false, true, false, new string[]
+        {
+            "ENCRYPTION", "LIFETIME", "RELATED_CONVERSATION", "RELATED_CONVERSATION_GROUP",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "NULLIF", "OFF", "ON", "TRY_CONVERT",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' ", true, false, false, true, new string[]
+        {
+            "ON CONTRACT", "WITH",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} ON", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' ON ", true, false, false, false, new string[]
+        {
+            "CONTRACT",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} ON CONTRACT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' ON CONTRACT ", false, true, true, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ", true, false, true, false, new string[]
+        {
+            "ENCRYPTION", "LIFETIME", "RELATED_CONVERSATION", "RELATED_CONVERSATION_GROUP",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "NULLIF", "OFF", "ON", "TRY_CONVERT",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' ", true, false, false, true, new string[]
+        {
+            "ON CONTRACT", "WITH",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} ON", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' ON ", true, false, false, false, new string[]
+        {
+            "CONTRACT",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} ON CONTRACT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' ON CONTRACT ", false, true, true, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ", true, false, true, false, new string[]
+        {
+            "ENCRYPTION", "LIFETIME", "RELATED_CONVERSATION", "RELATED_CONVERSATION_GROUP",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "NULLIF", "OFF", "ON", "TRY_CONVERT",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' ", true, false, false, true, new string[]
+        {
+            "ON CONTRACT", "WITH",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} ON", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' ON ", true, false, false, false, new string[]
+        {
+            "CONTRACT",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} ON CONTRACT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' ON CONTRACT ", false, true, true, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ", true, false, true, false, new string[]
+        {
+            "ENCRYPTION", "LIFETIME", "RELATED_CONVERSATION", "RELATED_CONVERSATION_GROUP",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "NULLIF", "OFF", "ON", "TRY_CONVERT",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CASE ", true, false, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE COALESCE ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_DATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_DATE ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_TIMESTAMP", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_TIMESTAMP ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} LEFT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE LEFT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} NEXT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE NEXT ", true, false, false, false, new string[]
+        {
+            "COLLATE", "VALUE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} NULL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE NULL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} NULLIF", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE NULLIF ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE RIGHT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE SESSION_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} SYSTEM_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE SYSTEM_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} TRY_CONVERT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE TRY_CONVERT ", true, false, false, false, new string[]
+        {
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE WHEN ", true, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
+            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("CREATE SERVICE {name} ON", SqlKeywordPosition.StatementStart, "CREATE SERVICE t ON ", true, false, false, false, new string[]
+        {
+            "QUEUE",
+        }),
+        ("CREATE SERVICE {name} ON QUEUE", SqlKeywordPosition.StatementStart, "CREATE SERVICE t ON QUEUE ", false, false, true, false, new string[]
+        {
+        }),
+        ("CREATE SERVICE {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE SERVICE t AUTHORIZATION t ", true, false, false, false, new string[]
+        {
+            "ON QUEUE",
+        }),
+        ("CREATE SERVICE {name} AUTHORIZATION {name} ON", SqlKeywordPosition.StatementStart, "CREATE SERVICE t AUTHORIZATION t ON ", true, false, false, false, new string[]
+        {
+            "QUEUE",
+        }),
+        ("CREATE SERVICE {name} AUTHORIZATION {name} ON QUEUE", SqlKeywordPosition.StatementStart, "CREATE SERVICE t AUTHORIZATION t ON QUEUE ", false, false, true, false, new string[]
+        {
+        }),
+        ("CREATE MESSAGE TYPE {name} VALIDATION =", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t VALIDATION = ", true, false, false, false, new string[]
+        {
+            "EMPTY", "NONE", "VALID_XML", "WELL_FORMED_XML",
+        }),
+        ("CREATE MESSAGE TYPE {name} AUTHORIZATION {name} VALIDATION =", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t AUTHORIZATION t VALIDATION = ", true, false, false, false, new string[]
+        {
+            "EMPTY", "NONE", "VALID_XML", "WELL_FORMED_XML",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} TO", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO ", true, false, true, false, new string[]
+        {
+            "SERVICE",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value}", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' ", true, false, false, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ", true, false, true, false, new string[]
+        {
+            "ANONYMOUS", "USER",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH ANONYMOUS", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ANONYMOUS ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH ANONYMOUS =", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ANONYMOUS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH USER", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH USER ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO ", true, false, true, false, new string[]
+        {
+            "SERVICE",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value}", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' ", true, false, false, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH ", true, false, true, false, new string[]
+        {
+            "ANONYMOUS", "USER",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH ANONYMOUS", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH ANONYMOUS ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH ANONYMOUS =", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH ANONYMOUS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH USER", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH USER ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (*", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (", true, false, false, false, new string[]
+        {
+            "ADD", "ALTER", "AUTHENTICATION", "BATCHES", "CHARACTER_SET", "DATABASE", "DROP",
+            "ENCRYPTION", "HEADER_LIMIT", "LOGIN_TYPE", "MESSAGE_FORWARD_SIZE",
+            "MESSAGE_FORWARDING", "SCHEMA", "SESSIONS",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* AUTHENTICATION =", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = ", true, false, true, false, new string[]
+        {
+            "CERTIFICATE", "WINDOWS",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION =", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = ", true, false, false, false, new string[]
+        {
+            "DISABLED", "REQUIRED", "SUPPORTED",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = SUPPORTED ALGORITHM AES", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = SUPPORTED ALGORITHM AES ", true, false, false, false, new string[]
+        {
+            "RC4",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = SUPPORTED ALGORITHM RC4", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = SUPPORTED ALGORITHM RC4 ", true, false, false, false, new string[]
+        {
+            "AES",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = REQUIRED ALGORITHM AES", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ALGORITHM AES ", true, false, false, false, new string[]
+        {
+            "RC4",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = REQUIRED ALGORITHM RC4", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ALGORITHM RC4 ", true, false, false, false, new string[]
+        {
+            "AES",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (*", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (", true, false, false, false, new string[]
+        {
+            "ADD", "ALTER", "AUTHENTICATION", "BATCHES", "CHARACTER_SET", "DATABASE", "DROP",
+            "ENCRYPTION", "HEADER_LIMIT", "LOGIN_TYPE", "MESSAGE_FORWARD_SIZE",
+            "MESSAGE_FORWARDING", "ROLE", "SCHEMA", "SESSIONS",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* AUTHENTICATION =", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (AUTHENTICATION = ", true, false, true, false, new string[]
+        {
+            "CERTIFICATE", "WINDOWS",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION =", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = ", true, false, false, false, new string[]
+        {
+            "DISABLED", "REQUIRED", "SUPPORTED",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = SUPPORTED ALGORITHM AES", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = SUPPORTED ALGORITHM AES ", true, false, false, false, new string[]
+        {
+            "RC4",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = SUPPORTED ALGORITHM RC4", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = SUPPORTED ALGORITHM RC4 ", true, false, false, false, new string[]
+        {
+            "AES",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = REQUIRED ALGORITHM AES", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = REQUIRED ALGORITHM AES ", true, false, false, false, new string[]
+        {
+            "RC4",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = REQUIRED ALGORITHM RC4", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = REQUIRED ALGORITHM RC4 ", true, false, false, false, new string[]
+        {
+            "AES",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (*", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (", true, false, false, false, new string[]
+        {
+            "ADD", "ALTER", "AUTHENTICATION", "BATCHES", "CHARACTER_SET", "DATABASE", "DROP",
+            "ENCRYPTION", "HEADER_LIMIT", "LOGIN_TYPE", "MESSAGE_FORWARD_SIZE",
+            "MESSAGE_FORWARDING", "SCHEMA", "SESSIONS",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* AUTHENTICATION =", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = ", true, false, true, false, new string[]
+        {
+            "CERTIFICATE", "WINDOWS",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION =", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = ", true, false, false, false, new string[]
+        {
+            "DISABLED", "REQUIRED", "SUPPORTED",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = SUPPORTED ALGORITHM AES", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = SUPPORTED ALGORITHM AES ", true, false, false, false, new string[]
+        {
+            "RC4",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = SUPPORTED ALGORITHM RC4", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = SUPPORTED ALGORITHM RC4 ", true, false, false, false, new string[]
+        {
+            "AES",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = REQUIRED ALGORITHM AES", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ALGORITHM AES ", true, false, false, false, new string[]
+        {
+            "RC4",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = REQUIRED ALGORITHM RC4", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ALGORITHM RC4 ", true, false, false, false, new string[]
+        {
+            "AES",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (*", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (", true, false, false, false, new string[]
+        {
+            "ADD", "ALTER", "AUTHENTICATION", "BATCHES", "CHARACTER_SET", "DATABASE", "DROP",
+            "ENCRYPTION", "HEADER_LIMIT", "LOGIN_TYPE", "MESSAGE_FORWARD_SIZE",
+            "MESSAGE_FORWARDING", "ROLE", "SCHEMA", "SESSIONS",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* AUTHENTICATION =", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (AUTHENTICATION = ", true, false, true, false, new string[]
+        {
+            "CERTIFICATE", "WINDOWS",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION =", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = ", true, false, false, false, new string[]
+        {
+            "DISABLED", "REQUIRED", "SUPPORTED",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = SUPPORTED ALGORITHM AES", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = SUPPORTED ALGORITHM AES ", true, false, false, false, new string[]
+        {
+            "RC4",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = SUPPORTED ALGORITHM RC4", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = SUPPORTED ALGORITHM RC4 ", true, false, false, false, new string[]
+        {
+            "AES",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = REQUIRED ALGORITHM AES", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = REQUIRED ALGORITHM AES ", true, false, false, false, new string[]
+        {
+            "RC4",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = REQUIRED ALGORITHM RC4", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = REQUIRED ALGORITHM RC4 ", true, false, false, false, new string[]
+        {
+            "AES",
         }),
         ("CREATE OR", SqlKeywordPosition.StatementStart, "CREATE OR ", true, false, false, false, new string[]
         {
@@ -11613,6 +13209,18 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
+        ("WAITFOR ( GET", SqlKeywordPosition.StatementStart, "WAITFOR (GET ", true, false, true, false, new string[]
+        {
+            "CONVERSATION GROUP",
+        }),
+        ("WAITFOR ( GET CONVERSATION", SqlKeywordPosition.StatementStart, "WAITFOR (GET CONVERSATION ", true, false, false, false, new string[]
+        {
+            "GROUP",
+        }),
+        ("WAITFOR ( GET CONVERSATION GROUP {name}", SqlKeywordPosition.StatementStart, "WAITFOR (GET CONVERSATION GROUP @ReaderId ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
         ("ALTER SYMMETRIC KEY {name} ADD", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ", true, false, true, false, new string[]
         {
             "ENCRYPTION BY",
@@ -12211,6 +13819,118 @@ internal static class SqlKeywordCatalogData
         {
             "CURRENT", "UNBOUNDED",
         }),
+        ("DIALOG {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
+        ("DIALOG {name} FROM", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM ", true, false, true, false, new string[]
+        {
+            "SERVICE",
+        }),
+        ("DIALOG {name} FROM SERVICE {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO ", true, false, true, false, new string[]
+        {
+            "SERVICE",
+        }),
+        ("DIALOG", SqlKeywordPosition.BlockStart, "BEGIN DIALOG ", true, false, false, false, new string[]
+        {
+            "CONVERSATION",
+        }),
+        ("DIALOG CONVERSATION {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
+        ("DIALOG CONVERSATION {name} FROM", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM ", true, false, true, false, new string[]
+        {
+            "SERVICE",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO ", true, false, true, false, new string[]
+        {
+            "SERVICE",
+        }),
+        ("CREATE MESSAGE TYPE {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t AUTHORIZATION t ", true, false, false, true, new string[]
+        {
+            "VALIDATION",
+        }),
+        ("CREATE ENDPOINT ... FOR", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR ", true, false, false, false, new string[]
+        {
+            "DATA_MIRRORING", "DATABASE_MIRRORING", "SERVICE_BROKER", "SOAP", "TSQL",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = SUPPORTED", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = SUPPORTED ", true, false, false, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = SUPPORTED ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = SUPPORTED ALGORITHM ", true, false, false, false, new string[]
+        {
+            "AES", "RC4",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = REQUIRED", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ", true, false, false, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = REQUIRED ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ALGORITHM ", true, false, false, false, new string[]
+        {
+            "AES", "RC4",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = SUPPORTED", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = SUPPORTED ", true, false, false, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = SUPPORTED ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = SUPPORTED ALGORITHM ", true, false, false, false, new string[]
+        {
+            "AES", "RC4",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = REQUIRED", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = REQUIRED ", true, false, false, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = REQUIRED ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = REQUIRED ALGORITHM ", true, false, false, false, new string[]
+        {
+            "AES", "RC4",
+        }),
+        ("ALTER ENDPOINT ... FOR", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR ", true, false, false, false, new string[]
+        {
+            "DATA_MIRRORING", "DATABASE_MIRRORING", "SERVICE_BROKER", "SOAP", "TSQL",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = SUPPORTED", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = SUPPORTED ", true, false, false, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = SUPPORTED ALGORITHM", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = SUPPORTED ALGORITHM ", true, false, false, false, new string[]
+        {
+            "AES", "RC4",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = REQUIRED", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ", true, false, false, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* ENCRYPTION = REQUIRED ALGORITHM", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ALGORITHM ", true, false, false, false, new string[]
+        {
+            "AES", "RC4",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = SUPPORTED", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = SUPPORTED ", true, false, false, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = SUPPORTED ALGORITHM", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = SUPPORTED ALGORITHM ", true, false, false, false, new string[]
+        {
+            "AES", "RC4",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = REQUIRED", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = REQUIRED ", true, false, false, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = REQUIRED ALGORITHM", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = REQUIRED ALGORITHM ", true, false, false, false, new string[]
+        {
+            "AES", "RC4",
+        }),
         ("APPLICATION", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON APPLICATION ", true, false, false, false, new string[]
         {
             "ROLE", "TO",
@@ -12356,7 +14076,7 @@ internal static class SqlKeywordCatalogData
     /// <summary>附加片語：只認位置、比對永遠是「可能」，把關鍵字目錄給不了的片語開頭加進那個位置。</summary>
     internal static readonly (SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
-        (SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC" }),
+        (SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC", "DIALOG" }),
         (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY" }),
         (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
         (SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),

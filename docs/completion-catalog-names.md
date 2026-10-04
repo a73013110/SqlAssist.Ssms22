@@ -67,6 +67,10 @@ Metadata 的 `SqlCatalogEntityQuery` 是「種類 → 目錄查詢」的名冊�
 `sys.certificates` 這些檢視。系統自己的主體與金鑰（`##MS_…##`、`sys`、`INFORMATION_SCHEMA`）不列；2016 才有的檢視先問
 `sys.all_views`，舊版是一份成功的空名單。
 
+Service Broker 的佇列、服務、合約、訊息類型、路由、遠端服務繫結與優先權照同一條規則：`ALTER QUEUE `、`CREATE SERVICE s ON QUEUE `、
+`BEGIN DIALOG @h FROM SERVICE `、`ON CONTRACT `、`GRANT SEND ON SERVICE::`。佇列是結構描述範圍的物件，名冊只列名稱，
+別的結構描述的佇列要自己寫限定字；系統佇列不列，系統的合約與訊息類型照列（`ON CONTRACT [DEFAULT]`）。
+
 每份目錄各存一份、有效期與第一層相同、跟著 `Invalidate` 清掉：`CREATE LOGIN` 剛執行完，下一句就要列得出它。
 一律問目前這條連線；連結伺服器的目錄回空。看不到的列由伺服器依權限濾掉，不是錯誤；`DbException` 照
 [相容與失敗](metadata-compatibility.md)降級成空名單、不進快取，退避期間不再試。通知標題相同，主體是種類名稱。

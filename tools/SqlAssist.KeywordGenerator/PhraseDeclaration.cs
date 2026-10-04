@@ -17,9 +17,11 @@ public enum ObjectKinds
 //   {value}  一個運算式：數值、字串、變數、名稱、函式呼叫，或一整組括號；探測代入剖析器收的數值或字串，都不收的代入名稱
 //   ()       一整組括號；探測代入 (a)，剖析器對括號裡的內容有要求時（RAISERROR 要訊息、嚴重性、狀態）由 Group 指定
 //   (*       還沒關上的左括號清單，游標在左括號或逗號之後。字是左括號之後與「第一項的每一種寫法接逗號」
-//            之後的聯集（執行期分不出是哪一格）；括號裡是一個子句、逗號屬於子句的（WITHIN GROUP (ORDER BY …)）寫 Clause = true。
+//            之後的聯集（執行期分不出是哪一格）。
 //            後面還有項的話，那幾項是清單裡某一項的開頭（WITH (* TYPE =：清單裡任一項的 TYPE =），探測代入左括號；
 //            清單有固定的第一項時，探測要墊的那幾項寫在 Items（FORMAT_TYPE = DELIMITEDTEXT, ）
+//   (        左括號，括號裡是一個子句、逗號屬於子句（WITHIN GROUP (ORDER BY a, b)、WAITFOR (RECEIVE a, b FROM q)）：
+//            只認緊接的左括號，不探逗號之後
 //   ,        逗號本身，分隔同一句裡重複的一段（ADD EVENT a.b, ADD EVENT），比對同等號
 //   ,*       標頭開的逗號清單，游標在逗號之後；在最後一項時前面那段是標頭，以字面字結尾。
 //            標頭本身也立成片語，給第一項的字；逗號之後的字以「第一項的每一種寫法接逗號」探測取聯集，探到的新字再往下一項探。
@@ -88,8 +90,6 @@ public sealed record PhraseDeclaration(string Pattern)
 
     public string? Items { get; init; }
 
-    public bool Clause { get; init; }
-
     public bool Classes { get; init; }
 
     public string[]? Lagging { get; init; }
@@ -152,11 +152,6 @@ public sealed record PhraseDeclaration(string Pattern)
         if (Items != null && Array.IndexOf(items, "(*") is var open && (open < 0 || open == items.Length - 1))
         {
             yield return $"片語「{Pattern}」寫了 Items，卻沒有後面還有項的 (*。";
-        }
-
-        if (Clause && !IsOpenList)
-        {
-            yield return $"片語「{Pattern}」寫了 Clause，卻不是以 (* 結尾的括號清單。";
         }
 
         if (AlsoLeads != null && Lead == null)

@@ -12,7 +12,7 @@ internal static class PhraseMerging
     /// ASYMMETRIC KEY、ENCRYPTION BY PASSWORD，選一次寫完。
     /// </summary>
     /// <remarks>
-    /// 條件是那個字寫到這裡還沒完整、封閉、接不了名稱、值或括號，而它之後正好一個字；那個字照同一條規則再往下併。
+    /// 條件是那個字寫到這裡還沒完整（一句或括號清單的一項）、封閉、接不了名稱、值或括號，而它之後正好一個字；那個字照同一條規則再往下併。
     /// 中間每一段的片語照舊：一個字一個字打的人看到的是同一條路。每一條都照併之前的字判，最後一起換掉。
     /// </remarks>
     public static void ChainUniqueContinuations(PhraseTable phrases)
@@ -53,6 +53,7 @@ internal static class PhraseMerging
                 TakesName = phrase.TakesName,
                 EndsStatement = phrase.EndsStatement,
                 TakesOperand = phrase.TakesOperand,
+                EndsItem = phrase.EndsItem,
             };
 
             copy.After.AddRange(phrase.After.Skip(1));
@@ -66,7 +67,7 @@ internal static class PhraseMerging
     private static string Chain(PhraseTable phrases, string after, string pattern, string word)
     {
         if (!phrases.TryGet(ProbedPhrase.Key(after, pattern.Length > 0 ? pattern + " " + word : word), out var next) ||
-            next.EndsStatement || !next.Closed || next.TakesOperand || next.Words.Count != 1)
+            next.EndsStatement || next.EndsItem || !next.Closed || next.TakesOperand || next.Words.Count != 1)
         {
             return word;
         }

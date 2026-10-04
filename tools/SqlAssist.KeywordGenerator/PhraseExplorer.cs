@@ -121,6 +121,7 @@ internal sealed class PhraseExplorer
                 "{value}" => (SelectValue(text) ?? SelectName(text, following)) + " ",
                 "()" => (string.IsNullOrEmpty(group) ? "(a)" : group) + " ",
                 "(*" => index < parts.Length - 1 ? "(" + items : "(",
+                "(" => "(",
                 "..." => gap + " ",
                 ",*" => string.IsNullOrEmpty(gap) ? string.Empty : gap + " ",
                 _ => item + " ",
@@ -149,6 +150,12 @@ internal sealed class PhraseExplorer
             }
 
             return "t";
+        }
+
+        // 只收變數的格子（BEGIN DIALOG @h）代入變數；換成那一格列得出的字，探的就是另一種寫法（BEGIN DIALOG CONVERSATION）。
+        if (TakesVariableOnly(probe))
+        {
+            return Continuations.PlainVariable;
         }
 
         var listed = Words(probe).Concat(Phrases.WithProbe(probe).SelectMany(phrase => phrase.Words));
@@ -191,7 +198,7 @@ internal sealed class PhraseExplorer
 
                 var key = ProbedPhrase.Key(position, declaration.Pattern);
 
-                if (declaration.IsOpenList && !declaration.Clause && Phrases.Contains(key))
+                if (declaration.IsOpenList && Phrases.Contains(key))
                 {
                     AddOpenListItems(key, declaration.Endings);
                 }
@@ -630,8 +637,9 @@ internal sealed class PhraseExplorer
                 EndsStatement = endsStatement,
                 // 括號也是一個運算元：CREATE DATABASE d ON 之後是 PRIMARY 或 (，不能併成 ON PRIMARY。
                 // 類別之後的 :: 也是：ALTER AUTHORIZATION ON ASSEMBLY 之後是 ::，ASSEMBLY TO 只是名叫 ASSEMBLY 的物件。
-                TakesOperand = takesName || sample != null || _prober.FirstRejection(probe + "(") > probe.Length ||
+                TakesOperand = takesName || sample != null || TakesVariableOnly(probe) || _prober.FirstRejection(probe + "(") > probe.Length ||
                     _prober.FirstRejection(probe + "::") > probe.Length,
+                EndsItem = _prober.FirstRejection(probe + ",") > probe.Length || _prober.FirstRejection(probe + ")") > probe.Length,
             });
         }
 
@@ -828,7 +836,7 @@ internal sealed class PhraseExplorer
 
     // 括號清單（(*）在左括號與逗號之後都比對得上，執行期分不出是哪一個，所以字是兩者的聯集：
     // OPENROWSET( 之後是 BULK，OPENROWSET(BULK 'x', 之後是 FORMAT、DATA_SOURCE。選項清單的兩份本來就相同。
-    // 括號裡是一個子句的（WITHIN GROUP (ORDER BY a, b)）逗號屬於子句，由 Clause 宣告不探：聯集會讓左括號之後也列出運算式的字。
+    // 括號裡是一個子句的（WITHIN GROUP (ORDER BY a, b)）逗號屬於子句，寫成單獨的 ( 不探：聯集會讓左括號之後也列出運算式的字。
     private void AddOpenListItems(string key, string[]? endings)
     {
         var phrase = Phrases[key];
@@ -930,6 +938,13 @@ internal sealed class PhraseExplorer
         }
 
         return _prober.FirstEndingPast(probe + Continuations.PlainName + " " + next, _continuations, probe.Length) != null;
+    }
+
+    // 這一格接得了變數：變數之後再接一個字，剖析器也不在變數本身報錯。收名稱或值的格子早已判過，這裡只多認只收變數的那幾格。
+    private bool TakesVariableOnly(string probe)
+    {
+        return !probe.EndsWith("= ", StringComparison.Ordinal) &&
+            _prober.FirstRejection(probe + Continuations.PlainVariable + " x") > probe.Length;
     }
 
     // 名稱寫成 text 之後撐得過下一個字面字：至少一組續尾在那個字之後才報錯。只寫到那個字為止不算，

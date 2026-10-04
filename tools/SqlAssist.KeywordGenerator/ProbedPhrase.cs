@@ -40,6 +40,12 @@ public sealed class ProbedPhrase
     /// <summary>這一格接得了名稱、值或括號：唯一接續的併項不跨過它。清單片語一律是 false。</summary>
     public bool TakesOperand { get; init; }
 
+    /// <summary>
+    /// 寫到這一格已是括號清單完整的一項：接得了逗號或右括號（端點的 ENCRYPTION = REQUIRED 之後可以寫完）。
+    /// 唯一接續的併項不跨過它，否則選 REQUIRED 就被迫寫上可有可無的 ALGORITHM。不輸出。
+    /// </summary>
+    public bool EndsItem { get; init; }
+
     public List<string> Words { get; set; }
 
     /// <summary>探測時的鍵：同一條尾巴在不同位置是不同的片語。表裡的鍵不分大小寫。</summary>

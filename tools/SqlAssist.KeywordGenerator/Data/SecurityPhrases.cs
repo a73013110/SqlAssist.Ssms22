@@ -85,7 +85,7 @@ internal static class SecurityPhrases
         new(", DROP")
         {
             Lead = "ALTER SECURITY POLICY t ADD FILTER PREDICATE f(a) ON t",
-            AlsoLeads = ["ALTER EVENT SESSION t ON SERVER DROP EVENT t.t"],
+            AlsoLeads = ["ALTER EVENT SESSION t ON SERVER DROP EVENT t.t", "ALTER EVENT SESSION t ON SERVER DROP TARGET t.t"],
             Expand = 3,
         },
     ];

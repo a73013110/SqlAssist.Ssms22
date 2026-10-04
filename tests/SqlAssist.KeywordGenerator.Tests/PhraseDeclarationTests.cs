@@ -44,7 +44,6 @@ public sealed class PhraseDeclarationTests
     [InlineData("要以 After 交代位置")]
     [InlineData("Group")]
     [InlineData("Items")]
-    [InlineData("Clause")]
     [InlineData(",* 只能有一個")]
     [InlineData("Lagging")]
     public void 錯的宣告一次全部報出來(string problem)
@@ -59,7 +58,6 @@ public sealed class PhraseDeclarationTests
             new("CREATE LOGIN {name} WITH ,*") { Lead = "SELECT 1; " },
             new("OPENROWSET (*") { Group = "(a)" },
             new("OPENROWSET (*") { Items = "BULK 'x', " },
-            new("OPENROWSET ()") { Clause = true },
             new("FOR XML ,* AUTO ,*"),
             new("SET NOCOUNT") { Lagging = ["ALLOW_ENCRYPTED_VALUE_MODIFICATIONS"] },
         ];
@@ -67,7 +65,7 @@ public sealed class PhraseDeclarationTests
         var exception = Assert.Throws<InvalidOperationException>(() => PhraseDeclaration.Validate(phrases, Templates));
 
         Assert.Contains(problem, exception.Message);
-        Assert.StartsWith("片語宣告有 11 處錯誤", exception.Message);
+        Assert.StartsWith("片語宣告有 10 處錯誤", exception.Message);
     }
 
     [Fact]

@@ -114,6 +114,38 @@ WHERE a.is_user_defined = 1
 ORDER BY a.name;"),
         [SqlCatalogEntity.ExternalDataSource] = SqlSince("external_data_sources", "d"),
         [SqlCatalogEntity.ExternalFileFormat] = SqlSince("external_file_formats", "f"),
+
+        // Service Broker：系統的合約、訊息類型與服務（DEFAULT、事件通知的那一組）照列，ON CONTRACT、CREATE SERVICE 的合約清單引用得到；
+        // 系統佇列只給 Service Broker 自己用，不列。
+        [SqlCatalogEntity.Queue] = Sql(@"
+SELECT q.name
+FROM sys.service_queues AS q
+WHERE q.is_ms_shipped = 0
+ORDER BY q.name;"),
+        [SqlCatalogEntity.Service] = Sql(@"
+SELECT s.name
+FROM sys.services AS s
+ORDER BY s.name;"),
+        [SqlCatalogEntity.Contract] = Sql(@"
+SELECT c.name
+FROM sys.service_contracts AS c
+ORDER BY c.name;"),
+        [SqlCatalogEntity.MessageType] = Sql(@"
+SELECT m.name
+FROM sys.service_message_types AS m
+ORDER BY m.name;"),
+        [SqlCatalogEntity.Route] = Sql(@"
+SELECT r.name
+FROM sys.routes AS r
+ORDER BY r.name;"),
+        [SqlCatalogEntity.RemoteServiceBinding] = Sql(@"
+SELECT b.name
+FROM sys.remote_service_bindings AS b
+ORDER BY b.name;"),
+        [SqlCatalogEntity.BrokerPriority] = Sql(@"
+SELECT p.name
+FROM sys.conversation_priorities AS p
+ORDER BY p.name;"),
     };
 
     private SqlCatalogEntityQuery(string? text, Func<SqlDatabaseSnapshot, IReadOnlyList<string>>? fromSnapshot)

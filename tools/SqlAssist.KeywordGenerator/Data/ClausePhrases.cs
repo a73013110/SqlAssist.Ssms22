@@ -43,5 +43,6 @@ internal static class ClausePhrases
         .. QueryPhrases.OffsetFetch,
         .. QueryPhrases.JsonConstructors,
         .. WindowPhrases.Frames,
+        .. ServiceBrokerPhrases.All,
     ];
 }
