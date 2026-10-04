@@ -4480,7 +4480,7 @@ internal static class SqlKeywordCatalogData
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
-        ("CLUSTERED () WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ADD PRIMARY KEY CLUSTERED (a) WITH (", true, false, false, false, new string[]
+        ("KEY CLUSTERED () WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ADD PRIMARY KEY CLUSTERED (a) WITH (", true, false, false, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
             "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
@@ -4489,7 +4489,43 @@ internal static class SqlKeywordCatalogData
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
-        ("NONCLUSTERED () WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ADD PRIMARY KEY NONCLUSTERED (a) WITH (", true, false, false, false, new string[]
+        ("UNIQUE CLUSTERED () WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ADD UNIQUE CLUSTERED (a) WITH (", true, false, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("KEY NONCLUSTERED () WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ADD PRIMARY KEY NONCLUSTERED (a) WITH (", true, false, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ADD UNIQUE NONCLUSTERED (a) WITH (", true, false, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ADD PRIMARY KEY NONCLUSTERED HASH (a) WITH (", true, false, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t ADD UNIQUE NONCLUSTERED HASH (a) WITH (", true, false, false, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
             "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
@@ -10469,6 +10505,16 @@ internal static class SqlKeywordCatalogData
         ("ALTER TABLE {name} ALTER INDEX {name} REBUILD", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER INDEX t REBUILD ", true, false, false, false, new string[]
         {
             "WITH",
+        }),
+        ("KEY NONCLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED ", true, false, false, false, new string[]
+        {
+            "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "HASH", "IDENTITY", "INDEX", "NOT",
+            "NULL", "ON", "PRIMARY", "REFERENCES", "UNIQUE", "WITH",
+        }),
+        ("UNIQUE NONCLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED ", true, false, false, false, new string[]
+        {
+            "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "HASH", "IDENTITY", "INDEX", "NOT",
+            "NULL", "ON", "PRIMARY", "REFERENCES", "UNIQUE", "WITH",
         }),
         ("ONLINE =", SqlKeywordPosition.Any, "ALTER INDEX t ON t REBUILD WITH (ONLINE = ", true, false, false, false, new string[]
         {

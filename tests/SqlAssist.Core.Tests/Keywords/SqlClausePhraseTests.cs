@@ -377,6 +377,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE JSON INDEX JIX_Copy ON dbo.Copy (Doc) ", "FOR", "WITH")]
     [InlineData("CREATE TYPE dbo.CopyList AS TABLE (CopyNo int) WITH (", "MEMORY_OPTIMIZED")]
     [InlineData("CREATE TABLE Shelf (Code int, INDEX IX_Shelf NONCLUSTERED (Code) ", "INCLUDE", "WHERE", "WITH")]
+    [InlineData("CREATE TABLE Shelf (Code int PRIMARY KEY NONCLUSTERED ", "HASH", "NOT", "WITH")]
+    [InlineData("ALTER TABLE Shelf ADD CONSTRAINT UqShelf UNIQUE NONCLUSTERED ", "HASH")]
     [InlineData("ALTER TABLE Shelf ALTER INDEX IX_Shelf ", "REBUILD")]
     [InlineData("ALTER TABLE Shelf ALTER INDEX IX_Shelf REBUILD WITH (", "BUCKET_COUNT")]
     [InlineData("CREATE TABLE Shelf (Code int) WITH (XML_COMPRESSION = ON ", "ON")]

@@ -8,6 +8,9 @@ internal static class IndexPhrases
     // 靜態欄位依序初始化，要寫在用到它的 Options 之前。
     private static readonly string[] Compressions = ["DATA_COMPRESSION", "XML_COMPRESSION"];
 
+    // 條件約束的索引鍵前面可夾的種類；記憶體最佳化的雜湊索引只寫得成 NONCLUSTERED HASH（PRIMARY KEY HASH 剖析不過）。
+    private static readonly string[] ConstraintIndexKinds = ["", "CLUSTERED ", "NONCLUSTERED ", "NONCLUSTERED HASH "];
+
     internal static readonly PhraseDeclaration[] Options =
     [
         // CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了，手寫補回來。
@@ -32,10 +35,13 @@ internal static class IndexPhrases
         // 記憶體最佳化資料表的索引在 ALTER TABLE 裡重建：REBUILD 非接 WITH (…) 不可，整段是證據。
         new("ALTER TABLE {name} ALTER INDEX {name}"),
         new("ALTER TABLE {name} ALTER INDEX {name} REBUILD WITH (*"),
-        new("KEY () WITH (*") { Lead = "ALTER TABLE t ADD PRIMARY " },
-        new("UNIQUE () WITH (*") { Lead = "ALTER TABLE t ADD " },
-        new("CLUSTERED () WITH (*") { Lead = "ALTER TABLE t ADD PRIMARY KEY " },
-        new("NONCLUSTERED () WITH (*") { Lead = "ALTER TABLE t ADD PRIMARY KEY " },
+        // 種類逐一寫成整段：HASH 剖析器要看到整段才收，KEY NONCLUSTERED 那一段由這份證據立起來。那一段只拿第一個 Lead 探，
+        // 從資料行層級探才列得出 PRIMARY KEY NONCLUSTERED 之後的 NOT NULL、ON；ALTER TABLE 收的選項（ONLINE）由 AlsoLeads 併進來。
+        .. ConstraintIndexKinds.SelectMany(kind => new PhraseDeclaration[]
+        {
+            new($"KEY {kind}() WITH (*") { Lead = "CREATE TABLE t (a int PRIMARY ", AlsoLeads = ["ALTER TABLE t ADD PRIMARY "] },
+            new($"UNIQUE {kind}() WITH (*") { Lead = "CREATE TABLE t (a int ", AlsoLeads = ["ALTER TABLE t ADD "] },
+        }),
         // 墊的文字與上面的清單片語相同：ONLINE、WAIT_AT_LOW_PRIORITY 已由那一份列出，不必另加到判不出位置的地方。
         new("ONLINE = ON (*") { Lead = "ALTER INDEX t ON t REBUILD WITH (" },
         new("WAIT_AT_LOW_PRIORITY (*") { Lead = "ALTER TABLE t SWITCH TO t WITH (" },
