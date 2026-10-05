@@ -45,6 +45,8 @@ internal static class DdlPhrases
         new("MERGE") { Closed = false },
         // TRUNCATE 不在 Kinds 裡（後面只有 TABLE），名稱格要有片語，執行期才認得出「種類之後是既有的名稱」。
         new("TRUNCATE TABLE"),
+        // WITH ( 之後剖析器什麼名稱都收，PARTITIONS 探不出來，手寫；PARTITIONS (1) 之後還要關上 WITH 那一組括號才寫得完。
+        new("TRUNCATE TABLE {name} WITH (*") { Values = ["PARTITIONS"], Closed = true, Endings = [" (1))"] },
         new("DROP") { After = ["AlterTableAction"], Expand = 2 },
         // 資料表上的觸發程序：TRIGGER 之後是既有的名稱，同樣要有名稱格片語。
         new("ENABLE TRIGGER") { After = ["AlterTableAction"] },

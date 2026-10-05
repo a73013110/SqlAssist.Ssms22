@@ -90,9 +90,12 @@ internal static class PolyBaseXePhrases
         new("EVENT {name} ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
         new("TARGET {name} ,") { Lead = "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ", AlsoLeads = ["ALTER EVENT SESSION t ON SERVER DROP "] },
         new("TARGET {name} , ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD " },
-        // 工作階段的 WITH (…) 寫在最後一個事件或目標之後；MAX_MEMORY = 4 MB、MAX_DISPATCH_LATENCY = 30 SECONDS 的單位展開兩層探出來。
+        // 工作階段的 WITH (…) 寫在最後一個事件或目標之後，ALTER 也可以只改選項（ON SERVER WITH (…)）；
+        // MAX_MEMORY = 4 MB、MAX_DISPATCH_LATENCY = 30 SECONDS 的單位展開兩層探出來。
         new("EVENT {name} WITH (*") { Lead = "CREATE EVENT SESSION t ON SERVER ADD ", Expand = 2 },
         new("TARGET {name} WITH (*") { Lead = "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD ", Expand = 2 },
+        new("ALTER EVENT SESSION {name} ON SERVER WITH (*") { Expand = 2 },
+        new("ALTER EVENT SESSION {name} ON DATABASE WITH (*") { Expand = 2 },
         // 事件與目標可以帶一組括號（事件的 SET、ACTION、WHERE，目標的 SET），括號之後同樣接逗號、ADD、WITH。
         // SET 之後的欄位不列：剖析器什麼名稱都收，探不出來；欄位又依目標而不同（event_file 的 filename、ring_buffer 的
         // max_memory），尾巴的 {name} 分不出是哪一個目標，手寫聯集會列出別的目標的欄位。

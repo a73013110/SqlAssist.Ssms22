@@ -2742,6 +2742,10 @@ internal static class SqlKeywordCatalogData
         ("TRUNCATE TABLE", SqlKeywordPosition.StatementStart, "TRUNCATE TABLE ", false, false, true, false, new string[]
         {
         }),
+        ("TRUNCATE TABLE {name} WITH (*", SqlKeywordPosition.StatementStart, "TRUNCATE TABLE t WITH (", true, false, true, false, new string[]
+        {
+            "PARTITIONS",
+        }),
         ("DROP", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP ", false, false, true, false, new string[]
         {
             "COLUMN", "CONSTRAINT", "INDEX", "PERIOD",
@@ -3598,163 +3602,167 @@ internal static class SqlKeywordCatalogData
         {
             "NAME",
         }),
-        ("ALTER DATABASE {name} SET TARGET_RECOVERY_TIME = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TARGET_RECOVERY_TIME = 1 ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* TARGET_RECOVERY_TIME = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TARGET_RECOVERY_TIME = 1 ", true, false, false, false, new string[]
         {
             "MINUTES", "SECONDS",
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (", true, false, true, false, new string[]
+        ("ALTER DATABASE {name} SET ,* AUTO_CREATE_STATISTICS ON (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTO_CREATE_STATISTICS ON (", true, false, true, false, new string[]
+        {
+            "INCREMENTAL",
+        }),
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (", true, false, true, false, new string[]
         {
             "AUTO_CLEANUP", "CHANGE_RETENTION",
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING (* AUTO_CLEANUP", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (AUTO_CLEANUP ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING (* AUTO_CLEANUP", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (AUTO_CLEANUP ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING (* AUTO_CLEANUP =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (AUTO_CLEANUP = ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING (* AUTO_CLEANUP =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (AUTO_CLEANUP = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING (* CHANGE_RETENTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (CHANGE_RETENTION ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING (* CHANGE_RETENTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (CHANGE_RETENTION ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING (* CHANGE_RETENTION = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (CHANGE_RETENTION = 1 ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING (* CHANGE_RETENTION = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING (CHANGE_RETENTION = 1 ", true, false, false, false, new string[]
         {
             "DAYS", "HOURS", "MINUTES",
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (", true, false, true, false, new string[]
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING = ON (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (", true, false, true, false, new string[]
         {
             "AUTO_CLEANUP", "CHANGE_RETENTION",
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (* AUTO_CLEANUP", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (AUTO_CLEANUP ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING = ON (* AUTO_CLEANUP", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (AUTO_CLEANUP ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (* AUTO_CLEANUP =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (AUTO_CLEANUP = ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING = ON (* AUTO_CLEANUP =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (AUTO_CLEANUP = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (* CHANGE_RETENTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (CHANGE_RETENTION ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING = ON (* CHANGE_RETENTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (CHANGE_RETENTION ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (* CHANGE_RETENTION = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 1 ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING = ON (* CHANGE_RETENTION = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 1 ", true, false, false, false, new string[]
         {
             "DAYS", "HOURS", "MINUTES",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (", true, false, false, false, new string[]
         {
             "CLEANUP_POLICY", "DATA_FLUSH_INTERVAL_SECONDS", "DESIRED_STATE",
             "FLUSH_INTERVAL_SECONDS", "INTERVAL_LENGTH_MINUTES", "MAX_PLANS_PER_QUERY",
             "MAX_STORAGE_SIZE_MB", "OPERATION_MODE", "QUERY_CAPTURE_MODE",
             "SIZE_BASED_CLEANUP_MODE", "WAIT_STATS_CAPTURE_MODE",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* CLEANUP_POLICY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (CLEANUP_POLICY ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* CLEANUP_POLICY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (CLEANUP_POLICY ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* DATA_FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (DATA_FLUSH_INTERVAL_SECONDS ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* DATA_FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (DATA_FLUSH_INTERVAL_SECONDS ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* DESIRED_STATE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (DESIRED_STATE ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* DESIRED_STATE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (DESIRED_STATE ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* DESIRED_STATE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (DESIRED_STATE = ", true, false, false, false, new string[]
-        {
-            "READ_ONLY", "READ_WRITE",
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (FLUSH_INTERVAL_SECONDS ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* INTERVAL_LENGTH_MINUTES", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (INTERVAL_LENGTH_MINUTES ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* MAX_PLANS_PER_QUERY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (MAX_PLANS_PER_QUERY ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* MAX_STORAGE_SIZE_MB", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (MAX_STORAGE_SIZE_MB ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* OPERATION_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (OPERATION_MODE ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* OPERATION_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (OPERATION_MODE = ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* DESIRED_STATE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (DESIRED_STATE = ", true, false, false, false, new string[]
         {
             "READ_ONLY", "READ_WRITE",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* QUERY_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (QUERY_CAPTURE_MODE ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (FLUSH_INTERVAL_SECONDS ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* QUERY_CAPTURE_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (QUERY_CAPTURE_MODE = ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* INTERVAL_LENGTH_MINUTES", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (INTERVAL_LENGTH_MINUTES ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* MAX_PLANS_PER_QUERY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (MAX_PLANS_PER_QUERY ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* MAX_STORAGE_SIZE_MB", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (MAX_STORAGE_SIZE_MB ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* OPERATION_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (OPERATION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* OPERATION_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (OPERATION_MODE = ", true, false, false, false, new string[]
+        {
+            "READ_ONLY", "READ_WRITE",
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* QUERY_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (QUERY_CAPTURE_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* QUERY_CAPTURE_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (QUERY_CAPTURE_MODE = ", true, false, false, false, new string[]
         {
             "ALL", "AUTO", "NONE",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* SIZE_BASED_CLEANUP_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (SIZE_BASED_CLEANUP_MODE ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* SIZE_BASED_CLEANUP_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (SIZE_BASED_CLEANUP_MODE ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* SIZE_BASED_CLEANUP_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (SIZE_BASED_CLEANUP_MODE = ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* SIZE_BASED_CLEANUP_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (SIZE_BASED_CLEANUP_MODE = ", true, false, false, false, new string[]
         {
             "AUTO", "OFF",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* WAIT_STATS_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (WAIT_STATS_CAPTURE_MODE ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* WAIT_STATS_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (WAIT_STATS_CAPTURE_MODE ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (", true, false, false, false, new string[]
         {
             "CLEANUP_POLICY", "DATA_FLUSH_INTERVAL_SECONDS", "DESIRED_STATE",
             "FLUSH_INTERVAL_SECONDS", "INTERVAL_LENGTH_MINUTES", "MAX_PLANS_PER_QUERY",
             "MAX_STORAGE_SIZE_MB", "OPERATION_MODE", "QUERY_CAPTURE_MODE",
             "SIZE_BASED_CLEANUP_MODE", "WAIT_STATS_CAPTURE_MODE",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* CLEANUP_POLICY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (CLEANUP_POLICY ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* CLEANUP_POLICY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (CLEANUP_POLICY ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* DATA_FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (DATA_FLUSH_INTERVAL_SECONDS ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* DATA_FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (DATA_FLUSH_INTERVAL_SECONDS ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* DESIRED_STATE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (DESIRED_STATE ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* DESIRED_STATE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (DESIRED_STATE ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* DESIRED_STATE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (DESIRED_STATE = ", true, false, false, false, new string[]
-        {
-            "READ_ONLY", "READ_WRITE",
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (FLUSH_INTERVAL_SECONDS ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* INTERVAL_LENGTH_MINUTES", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (INTERVAL_LENGTH_MINUTES ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* MAX_PLANS_PER_QUERY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (MAX_PLANS_PER_QUERY ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* MAX_STORAGE_SIZE_MB", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (MAX_STORAGE_SIZE_MB ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* OPERATION_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (OPERATION_MODE ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* OPERATION_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (OPERATION_MODE = ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* DESIRED_STATE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (DESIRED_STATE = ", true, false, false, false, new string[]
         {
             "READ_ONLY", "READ_WRITE",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* QUERY_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (QUERY_CAPTURE_MODE ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* FLUSH_INTERVAL_SECONDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (FLUSH_INTERVAL_SECONDS ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* QUERY_CAPTURE_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* INTERVAL_LENGTH_MINUTES", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (INTERVAL_LENGTH_MINUTES ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* MAX_PLANS_PER_QUERY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (MAX_PLANS_PER_QUERY ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* MAX_STORAGE_SIZE_MB", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (MAX_STORAGE_SIZE_MB ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* OPERATION_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (OPERATION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* OPERATION_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (OPERATION_MODE = ", true, false, false, false, new string[]
+        {
+            "READ_ONLY", "READ_WRITE",
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* QUERY_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (QUERY_CAPTURE_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* QUERY_CAPTURE_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = ", true, false, false, false, new string[]
         {
             "ALL", "AUTO", "NONE",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* SIZE_BASED_CLEANUP_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (SIZE_BASED_CLEANUP_MODE ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* SIZE_BASED_CLEANUP_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (SIZE_BASED_CLEANUP_MODE ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* SIZE_BASED_CLEANUP_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (SIZE_BASED_CLEANUP_MODE = ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* SIZE_BASED_CLEANUP_MODE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (SIZE_BASED_CLEANUP_MODE = ", true, false, false, false, new string[]
         {
             "AUTO", "OFF",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* WAIT_STATS_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (WAIT_STATS_CAPTURE_MODE ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* WAIT_STATS_CAPTURE_MODE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (WAIT_STATS_CAPTURE_MODE ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE (* CLEANUP_POLICY = (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (CLEANUP_POLICY = (", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE (* CLEANUP_POLICY = (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE (CLEANUP_POLICY = (", true, false, false, false, new string[]
         {
             "STALE_QUERY_THRESHOLD_DAYS",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE = ON (* CLEANUP_POLICY = (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (CLEANUP_POLICY = (", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* CLEANUP_POLICY = (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (CLEANUP_POLICY = (", true, false, false, false, new string[]
         {
             "STALE_QUERY_THRESHOLD_DAYS",
         }),
@@ -4412,11 +4420,63 @@ internal static class SqlKeywordCatalogData
         {
             "FROM",
         }),
-        ("BACKUP DATABASE {name} TO ,*", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t TO DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
+        ("BACKUP DATABASE {name} ,*", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILE = 'x', ", true, false, false, false, new string[]
+        {
+            "FILE", "FILEGROUP", "PAGE", "READ_WRITE_FILEGROUPS",
+        }),
+        ("BACKUP DATABASE {name} ,* FILE = {value}", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILE = 'x' ", true, false, false, true, new string[]
+        {
+            "TO",
+        }),
+        ("BACKUP DATABASE {name} ,* FILEGROUP = {value}", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILEGROUP = 'x' ", true, false, false, true, new string[]
+        {
+            "TO",
+        }),
+        ("BACKUP DATABASE {name} ,* PAGE = {value}", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t PAGE = 'x' ", true, false, false, true, new string[]
+        {
+            "TO",
+        }),
+        ("RESTORE DATABASE {name} ,*", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FILE = 'x', ", true, false, false, false, new string[]
+        {
+            "FILE", "FILEGROUP", "PAGE", "READ_WRITE_FILEGROUPS",
+        }),
+        ("RESTORE DATABASE {name} ,* FILE = {value}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FILE = 'x' ", true, false, false, true, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE DATABASE {name} ,* FILEGROUP = {value}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FILEGROUP = 'x' ", true, false, false, true, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE DATABASE {name} ,* PAGE = {value}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t PAGE = 'x' ", true, false, false, true, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE LOG {name} ,*", SqlKeywordPosition.StatementStart, "RESTORE LOG t FILE = 'x', ", true, false, false, false, new string[]
+        {
+            "FILE", "FILEGROUP", "PAGE", "READ_WRITE_FILEGROUPS",
+        }),
+        ("RESTORE LOG {name} ,* FILE = {value}", SqlKeywordPosition.StatementStart, "RESTORE LOG t FILE = 'x' ", true, false, false, true, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE LOG {name} ,* FILEGROUP = {value}", SqlKeywordPosition.StatementStart, "RESTORE LOG t FILEGROUP = 'x' ", true, false, false, true, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE LOG {name} ,* PAGE = {value}", SqlKeywordPosition.StatementStart, "RESTORE LOG t PAGE = 'x' ", true, false, false, true, new string[]
+        {
+            "FROM",
+        }),
+        ("BACKUP DATABASE ... TO", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILE = 'x' TO ", false, true, true, false, new string[]
         {
             "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
         }),
-        ("BACKUP DATABASE {name} TO ,* {value}", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t TO t ", true, false, false, true, new string[]
+        ("BACKUP DATABASE ... TO ,*", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILE = 'x' TO DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("BACKUP DATABASE ... TO ,* {value}", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILE = 'x' TO t ", true, false, false, true, new string[]
         {
             "WITH", "MIRROR TO",
         }),
@@ -4428,23 +4488,31 @@ internal static class SqlKeywordCatalogData
         {
             "WITH", "MIRROR TO",
         }),
-        ("RESTORE DATABASE {name} FROM ,*", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FROM DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
+        ("RESTORE DATABASE ... FROM", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FILE = 'x' FROM ", false, true, true, false, new string[]
         {
             "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
         }),
-        ("RESTORE DATABASE {name} FROM ,* {value}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FROM t ", true, false, false, true, new string[]
-        {
-            "WITH",
-        }),
-        ("RESTORE LOG {name} FROM ,*", SqlKeywordPosition.StatementStart, "RESTORE LOG t FROM DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
+        ("RESTORE DATABASE ... FROM ,*", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FILE = 'x' FROM DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
         {
             "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
         }),
-        ("RESTORE LOG {name} FROM ,* {value}", SqlKeywordPosition.StatementStart, "RESTORE LOG t FROM t ", true, false, false, true, new string[]
+        ("RESTORE DATABASE ... FROM ,* {value}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FILE = 'x' FROM t ", true, false, false, true, new string[]
         {
             "WITH",
         }),
-        ("BACKUP DATABASE {name} TO ,* {value} MIRROR TO", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t TO t MIRROR TO ", false, true, true, false, new string[]
+        ("RESTORE LOG ... FROM", SqlKeywordPosition.StatementStart, "RESTORE LOG t FILE = 'x' FROM ", false, true, true, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE LOG ... FROM ,*", SqlKeywordPosition.StatementStart, "RESTORE LOG t FILE = 'x' FROM DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE LOG ... FROM ,* {value}", SqlKeywordPosition.StatementStart, "RESTORE LOG t FILE = 'x' FROM t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("BACKUP DATABASE ... TO ,* {value} MIRROR TO", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILE = 'x' TO t MIRROR TO ", false, true, true, false, new string[]
         {
             "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
         }),
@@ -8456,45 +8524,6 @@ internal static class SqlKeywordCatalogData
         {
             "ON_FAILURE", "OPERATOR_AUDIT", "QUEUE_DELAY", "STATE",
         }),
-        ("ALTER SERVER AUDIT {name} TO FILE (*", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (", true, false, false, false, new string[]
-        {
-            "FILEPATH", "MAX_FILES", "MAX_ROLLOVER_FILES", "MAXSIZE", "PATH",
-            "RESERVE_DISK_SPACE",
-        }),
-        ("ALTER SERVER AUDIT {name} TO FILE (* FILEPATH", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (FILEPATH ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER SERVER AUDIT {name} TO FILE (* MAX_FILES", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAX_FILES ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER SERVER AUDIT {name} TO FILE (* MAX_ROLLOVER_FILES", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAX_ROLLOVER_FILES ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER SERVER AUDIT {name} TO FILE (* MAX_ROLLOVER_FILES =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAX_ROLLOVER_FILES = ", true, false, false, false, new string[]
-        {
-            "UNLIMITED",
-        }),
-        ("ALTER SERVER AUDIT {name} TO FILE (* MAXSIZE", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAXSIZE ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER SERVER AUDIT {name} TO FILE (* MAXSIZE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAXSIZE = ", true, false, false, false, new string[]
-        {
-            "UNLIMITED",
-        }),
-        ("ALTER SERVER AUDIT {name} TO FILE (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAXSIZE = 1 ", true, false, false, false, new string[]
-        {
-            "GB", "MB", "TB",
-        }),
-        ("ALTER SERVER AUDIT {name} TO FILE (* PATH", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (PATH ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER SERVER AUDIT {name} TO FILE (* RESERVE_DISK_SPACE", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (RESERVE_DISK_SPACE ", true, false, false, false, new string[]
-        {
-        }),
-        ("ALTER SERVER AUDIT {name} TO FILE (* RESERVE_DISK_SPACE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (RESERVE_DISK_SPACE = ", true, false, false, false, new string[]
-        {
-            "OFF", "ON",
-        }),
         ("CREATE SERVER AUDIT {name} TO FILE (*", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (", true, false, false, false, new string[]
         {
             "FILEPATH", "MAX_FILES", "MAX_ROLLOVER_FILES", "MAXSIZE", "PATH",
@@ -8534,6 +8563,19 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
+        ("CREATE SERVER AUDIT {name} TO URL (*", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO URL (", true, false, false, false, new string[]
+        {
+            "FILEPATH", "PATH", "RETENTION_DAYS",
+        }),
+        ("CREATE SERVER AUDIT {name} TO URL (* FILEPATH", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO URL (FILEPATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER AUDIT {name} TO URL (* PATH", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO URL (PATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE SERVER AUDIT {name} TO URL (* RETENTION_DAYS", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO URL (RETENTION_DAYS ", true, false, false, false, new string[]
+        {
+        }),
         ("CREATE SERVER AUDIT {name} TO {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO APPLICATION_LOG WITH (", true, false, true, false, new string[]
         {
             "AUDIT_GUID", "ON_FAILURE", "OPERATOR_AUDIT", "QUEUE_DELAY",
@@ -8541,6 +8583,74 @@ internal static class SqlKeywordCatalogData
         ("CREATE SERVER AUDIT {name} TO FILE () WITH (*", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (FILEPATH = 'x') WITH (", true, false, true, false, new string[]
         {
             "AUDIT_GUID", "ON_FAILURE", "OPERATOR_AUDIT", "QUEUE_DELAY",
+        }),
+        ("CREATE SERVER AUDIT {name} TO URL () WITH (*", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO URL (PATH = 'x') WITH (", true, false, true, false, new string[]
+        {
+            "AUDIT_GUID", "ON_FAILURE", "OPERATOR_AUDIT", "QUEUE_DELAY",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (*", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (", true, false, false, false, new string[]
+        {
+            "FILEPATH", "MAX_FILES", "MAX_ROLLOVER_FILES", "MAXSIZE", "PATH",
+            "RESERVE_DISK_SPACE",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* FILEPATH", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (FILEPATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAX_FILES", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAX_FILES ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAX_ROLLOVER_FILES", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAX_ROLLOVER_FILES ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAX_ROLLOVER_FILES =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAX_ROLLOVER_FILES = ", true, false, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAXSIZE", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAXSIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAXSIZE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAXSIZE = ", true, false, false, false, new string[]
+        {
+            "UNLIMITED",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* MAXSIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (MAXSIZE = 1 ", true, false, false, false, new string[]
+        {
+            "GB", "MB", "TB",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* PATH", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (PATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* RESERVE_DISK_SPACE", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (RESERVE_DISK_SPACE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE (* RESERVE_DISK_SPACE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (RESERVE_DISK_SPACE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER AUDIT {name} TO URL (*", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO URL (", true, false, false, false, new string[]
+        {
+            "FILEPATH", "PATH", "RETENTION_DAYS",
+        }),
+        ("ALTER SERVER AUDIT {name} TO URL (* FILEPATH", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO URL (FILEPATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO URL (* PATH", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO URL (PATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO URL (* RETENTION_DAYS", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO URL (RETENTION_DAYS ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} TO {name} WITH (*", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO APPLICATION_LOG WITH (", true, false, true, false, new string[]
+        {
+            "ON_FAILURE", "OPERATOR_AUDIT", "QUEUE_DELAY", "STATE",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE () WITH (*", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (FILEPATH = 'x') WITH (", true, false, true, false, new string[]
+        {
+            "ON_FAILURE", "OPERATOR_AUDIT", "QUEUE_DELAY", "STATE",
+        }),
+        ("ALTER SERVER AUDIT {name} TO URL () WITH (*", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO URL (PATH = 'x') WITH (", true, false, true, false, new string[]
+        {
+            "ON_FAILURE", "OPERATOR_AUDIT", "QUEUE_DELAY", "STATE",
         }),
         ("CREATE SERVER AUDIT SPECIFICATION {name} FOR", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT SPECIFICATION t FOR ", true, false, true, false, new string[]
         {
@@ -8676,8 +8786,8 @@ internal static class SqlKeywordCatalogData
             "STATEMENT_ROLLBACK_GROUP", "SUCCESSFUL_DATABASE_AUTHENTICATION_GROUP",
             "SUCCESSFUL_LOGIN_GROUP", "TRACE_CHANGE_GROUP", "TRANSACTION_BEGIN_GROUP",
             "TRANSACTION_COMMIT_GROUP", "TRANSACTION_GROUP", "TRANSACTION_ROLLBACK_GROUP",
-            "USER_CHANGE_PASSWORD_GROUP", "USER_DEFINED_AUDIT_GROUP", "ADD", "DROP", "DELETE",
-            "EXECUTE", "INSERT", "RECEIVE", "REFERENCES", "SELECT", "UPDATE",
+            "USER_CHANGE_PASSWORD_GROUP", "USER_DEFINED_AUDIT_GROUP", "DELETE", "EXECUTE",
+            "INSERT", "RECEIVE", "REFERENCES", "SELECT", "UPDATE",
         }),
         ("DROP (*", SqlKeywordPosition.Any, "ALTER DATABASE AUDIT SPECIFICATION s DROP (", true, false, false, false, new string[]
         {
@@ -8701,8 +8811,8 @@ internal static class SqlKeywordCatalogData
             "STATEMENT_ROLLBACK_GROUP", "SUCCESSFUL_DATABASE_AUTHENTICATION_GROUP",
             "SUCCESSFUL_LOGIN_GROUP", "TRACE_CHANGE_GROUP", "TRANSACTION_BEGIN_GROUP",
             "TRANSACTION_COMMIT_GROUP", "TRANSACTION_GROUP", "TRANSACTION_ROLLBACK_GROUP",
-            "USER_CHANGE_PASSWORD_GROUP", "USER_DEFINED_AUDIT_GROUP", "ADD", "DROP", "DELETE",
-            "EXECUTE", "INSERT", "RECEIVE", "REFERENCES", "SELECT", "UPDATE",
+            "USER_CHANGE_PASSWORD_GROUP", "USER_DEFINED_AUDIT_GROUP", "DELETE", "EXECUTE",
+            "INSERT", "RECEIVE", "REFERENCES", "SELECT", "UPDATE",
         }),
         ("ADD () ,", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s ADD (SCHEMA_OBJECT_ACCESS_GROUP) , ", true, false, false, false, new string[]
         {
@@ -9009,11 +9119,11 @@ internal static class SqlKeywordCatalogData
             "API_FORMAT", "CREDENTIAL", "LOCAL_RUNTIME_PATH", "LOCATION", "MODEL", "MODEL_TYPE",
             "PARAMETERS",
         }),
-        ("CREATE EXTERNAL MODEL {name} WITH (* MODEL_TYPE =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t WITH (LOCATION = 'x', API_FORMAT = 'x', MODEL_TYPE = ", true, false, false, false, new string[]
+        ("CREATE EXTERNAL MODEL {name} WITH (* MODEL_TYPE =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t WITH (MODEL_TYPE = ", true, false, false, false, new string[]
         {
             "EMBEDDINGS",
         }),
-        ("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (* MODEL_TYPE =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t AUTHORIZATION t WITH (LOCATION = 'x', API_FORMAT = 'x', MODEL_TYPE = ", true, false, false, false, new string[]
+        ("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (* MODEL_TYPE =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t AUTHORIZATION t WITH (MODEL_TYPE = ", true, false, false, false, new string[]
         {
             "EMBEDDINGS",
         }),
@@ -9804,6 +9914,122 @@ internal static class SqlKeywordCatalogData
         {
         }),
         ("TARGET {name} WITH (* TRACK_CAUSALITY =", SqlKeywordPosition.Any, "CREATE EVENT SESSION t ON SERVER ADD EVENT t.t ADD TARGET t.t WITH (TRACK_CAUSALITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (*", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (", true, false, false, false, new string[]
+        {
+            "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
+            "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* EVENT_RETENTION_MODE", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (EVENT_RETENTION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* EVENT_RETENTION_MODE =", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (EVENT_RETENTION_MODE = ", true, false, false, false, new string[]
+        {
+            "ALLOW_MULTIPLE_EVENT_LOSS", "ALLOW_SINGLE_EVENT_LOSS", "NO_EVENT_LOSS",
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* MAX_DISPATCH_LATENCY", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (MAX_DISPATCH_LATENCY ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* MAX_DISPATCH_LATENCY =", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (MAX_DISPATCH_LATENCY = ", true, false, false, false, new string[]
+        {
+            "INFINITE",
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* MAX_DISPATCH_LATENCY = {value}", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (MAX_DISPATCH_LATENCY = 1 ", true, false, false, false, new string[]
+        {
+            "SECONDS",
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* MAX_EVENT_SIZE", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (MAX_EVENT_SIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* MAX_EVENT_SIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (MAX_EVENT_SIZE = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* MAX_MEMORY", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (MAX_MEMORY ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* MAX_MEMORY = {value}", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (MAX_MEMORY = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* MEMORY_PARTITION_MODE", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (MEMORY_PARTITION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* MEMORY_PARTITION_MODE =", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (MEMORY_PARTITION_MODE = ", true, false, false, false, new string[]
+        {
+            "NONE", "PER_CPU", "PER_NODE",
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* STARTUP_STATE", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (STARTUP_STATE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* STARTUP_STATE =", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (STARTUP_STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* TRACK_CAUSALITY", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (TRACK_CAUSALITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON SERVER WITH (* TRACK_CAUSALITY =", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER WITH (TRACK_CAUSALITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (*", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (", true, false, false, false, new string[]
+        {
+            "EVENT_RETENTION_MODE", "MAX_DISPATCH_LATENCY", "MAX_EVENT_SIZE", "MAX_MEMORY",
+            "MEMORY_PARTITION_MODE", "STARTUP_STATE", "TRACK_CAUSALITY",
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* EVENT_RETENTION_MODE", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (EVENT_RETENTION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* EVENT_RETENTION_MODE =", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (EVENT_RETENTION_MODE = ", true, false, false, false, new string[]
+        {
+            "ALLOW_MULTIPLE_EVENT_LOSS", "ALLOW_SINGLE_EVENT_LOSS", "NO_EVENT_LOSS",
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* MAX_DISPATCH_LATENCY", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (MAX_DISPATCH_LATENCY ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* MAX_DISPATCH_LATENCY =", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (MAX_DISPATCH_LATENCY = ", true, false, false, false, new string[]
+        {
+            "INFINITE",
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* MAX_DISPATCH_LATENCY = {value}", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (MAX_DISPATCH_LATENCY = 1 ", true, false, false, false, new string[]
+        {
+            "SECONDS",
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* MAX_EVENT_SIZE", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (MAX_EVENT_SIZE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* MAX_EVENT_SIZE = {value}", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (MAX_EVENT_SIZE = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* MAX_MEMORY", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (MAX_MEMORY ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* MAX_MEMORY = {value}", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (MAX_MEMORY = 1 ", true, false, false, false, new string[]
+        {
+            "KB", "MB",
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* MEMORY_PARTITION_MODE", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (MEMORY_PARTITION_MODE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* MEMORY_PARTITION_MODE =", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (MEMORY_PARTITION_MODE = ", true, false, false, false, new string[]
+        {
+            "NONE", "PER_CPU", "PER_NODE",
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* STARTUP_STATE", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (STARTUP_STATE ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* STARTUP_STATE =", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (STARTUP_STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* TRACK_CAUSALITY", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (TRACK_CAUSALITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE WITH (* TRACK_CAUSALITY =", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE WITH (TRACK_CAUSALITY = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
@@ -11589,7 +11815,7 @@ internal static class SqlKeywordCatalogData
         {
             "ONLY",
         }),
-        ("JSON_OBJECT (*", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (", true, false, true, false, new string[]
+        ("JSON_OBJECT (*", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (", false, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
             "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
@@ -11649,11 +11875,11 @@ internal static class SqlKeywordCatalogData
         {
             "JSON",
         }),
-        ("JSON_OBJECTAGG (*", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (", false, true, true, false, new string[]
+        ("JSON_OBJECTAGG (*", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (", false, false, true, false, new string[]
         {
             "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
             "CURRENT_USER", "DISTINCT", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
-            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "IDENTITY", "ABSENT",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ABSENT",
         }),
         ("JSON_OBJECTAGG (* {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ", true, false, true, false, new string[]
         {
@@ -13419,7 +13645,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("POISON_MESSAGE_HANDLING (*", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH POISON_MESSAGE_HANDLING (", true, false, true, false, new string[]
         {
-            "STATUS", "ACTIVATION", "POISON_MESSAGE_HANDLING", "RETENTION",
+            "STATUS",
         }),
         ("POISON_MESSAGE_HANDLING (* STATUS", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH POISON_MESSAGE_HANDLING (STATUS ", true, false, false, false, new string[]
         {
@@ -13670,6 +13896,1206 @@ internal static class SqlKeywordCatalogData
         {
             "AES",
         }),
+        ("ALTER DATABASE {name} SET ,* AUTO_CREATE_STATISTICS ON (* INCREMENTAL =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTO_CREATE_STATISTICS ON (INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALLOW_PAGE_LOCKS =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALLOW_ROW_LOCKS =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("DROP_EXISTING =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (DROP_EXISTING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("IGNORE_DUP_KEY =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ONLINE =", SqlKeywordPosition.IndexOption | SqlKeywordPosition.Any, "CREATE INDEX i ON t (a) WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("PAD_INDEX =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("RESUMABLE =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (RESUMABLE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("SORT_IN_TEMPDB =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("STATISTICS_INCREMENTAL =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("STATISTICS_NORECOMPUTE =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* PAD_INDEX =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* RESUMABLE =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (RESUMABLE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REORGANIZE WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REORGANIZE WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REORGANIZE WITH (* LOB_COMPACTION =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REORGANIZE WITH (LOB_COMPACTION = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} SET (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t SET (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} SET (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t SET (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} SET (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t SET (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} SET (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t SET (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} SET (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t SET (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} RESUME WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t RESUME WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* PAD_INDEX =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY () WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE () WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY CLUSTERED () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY CLUSTERED (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY CLUSTERED () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY CLUSTERED (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY CLUSTERED () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY CLUSTERED (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY CLUSTERED () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY CLUSTERED (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY CLUSTERED () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY CLUSTERED (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY CLUSTERED () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY CLUSTERED (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY CLUSTERED () WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY CLUSTERED (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY CLUSTERED () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY CLUSTERED (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY CLUSTERED () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY CLUSTERED (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY CLUSTERED () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY CLUSTERED (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE CLUSTERED () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE CLUSTERED (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE CLUSTERED () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE CLUSTERED (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE CLUSTERED () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE CLUSTERED (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE CLUSTERED () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE CLUSTERED (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE CLUSTERED () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE CLUSTERED (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE CLUSTERED () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE CLUSTERED (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE CLUSTERED () WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE CLUSTERED (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE CLUSTERED () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE CLUSTERED (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE CLUSTERED () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE CLUSTERED (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE CLUSTERED () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE CLUSTERED (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED () WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED HASH (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED HASH (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED HASH (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED HASH (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED HASH (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED HASH (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED HASH (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED HASH (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED HASH (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("KEY NONCLUSTERED HASH () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED HASH (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED HASH (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED HASH (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED HASH (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED HASH (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED HASH (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED HASH (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED HASH (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED HASH (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED HASH (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UNIQUE NONCLUSTERED HASH () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED HASH (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("DROP INDEX ... WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "DROP INDEX i ON t WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("DROP CONSTRAINT ... WITH (* ONLINE =", SqlKeywordPosition.Any, "ALTER TABLE t DROP CONSTRAINT k WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("DROP COLUMN ... WITH (* ONLINE =", SqlKeywordPosition.Any, "ALTER TABLE t DROP COLUMN a, CONSTRAINT k WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD PERSISTED WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD PERSISTED WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP PERSISTED WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP PERSISTED WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD SPARSE WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD SPARSE WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP SPARSE WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP SPARSE WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD ROWGUIDCOL WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD ROWGUIDCOL WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP ROWGUIDCOL WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP ROWGUIDCOL WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD NOT FOR REPLICATION WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD NOT FOR REPLICATION WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} DROP NOT FOR REPLICATION WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP NOT FOR REPLICATION WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = {value} WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = 1 WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = {value} WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = 1 WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = {value} WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = 1 WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = {value} WITH (* RESUMABLE =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = 1 WITH (RESUMABLE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = {value} WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = 1 WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* PAD_INDEX =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* PAD_INDEX =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* RESUMABLE =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (RESUMABLE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE CLUSTERED COLUMNSTORE INDEX {name} ON {name} WITH (* DROP_EXISTING =", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE INDEX t ON t WITH (DROP_EXISTING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE CLUSTERED COLUMNSTORE INDEX {name} ON {name} WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE INDEX t ON t WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE CLUSTERED COLUMNSTORE INDEX {name} ON {name} WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE INDEX t ON t WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE NONCLUSTERED COLUMNSTORE INDEX {name} ON {name} () WITH (* DROP_EXISTING =", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE INDEX t ON t (a) WITH (DROP_EXISTING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE NONCLUSTERED COLUMNSTORE INDEX {name} ON {name} () WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE INDEX t ON t (a) WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE NONCLUSTERED COLUMNSTORE INDEX {name} ON {name} () WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE INDEX t ON t (a) WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE COLUMNSTORE INDEX {name} ON {name} () WITH (* DROP_EXISTING =", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE INDEX t ON t (a) WITH (DROP_EXISTING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE COLUMNSTORE INDEX {name} ON {name} () WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE INDEX t ON t (a) WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE COLUMNSTORE INDEX {name} ON {name} () WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE INDEX t ON t (a) WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* DROP_EXISTING =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (DROP_EXISTING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* ONLINE =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* PAD_INDEX =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* RESUMABLE =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (RESUMABLE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE VECTOR INDEX {name} ON {name} () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.StatementStart, "CREATE VECTOR INDEX t ON t (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("COMMIT TRAN ... WITH (* DELAYED_DURABILITY =", SqlKeywordPosition.StatementStart, "COMMIT TRAN t WITH (DELAYED_DURABILITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("COMMIT TRANSACTION ... WITH (* DELAYED_DURABILITY =", SqlKeywordPosition.StatementStart, "COMMIT TRANSACTION t WITH (DELAYED_DURABILITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INLINE =", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH INLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INLINE = {name}", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH INLINE = OFF ", true, false, false, false, new string[]
+        {
+            "AS", "BEGIN", "EXTERNAL",
+        }),
+        ("ATOMIC WITH (* DELAYED_DURABILITY =", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC WITH (DELAYED_DURABILITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("WITH (* ONLINE =", SqlKeywordPosition.ColumnDefinitionTail, "ALTER TABLE t ALTER COLUMN a int WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE TABLE {name} () WITH (* DATA_DELETION =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (DATA_DELETION = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE TABLE {name} () WITH (* DISTRIBUTION =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (DISTRIBUTION = ", true, false, false, false, new string[]
+        {
+            "HASH", "REPLICATE", "ROUND_ROBIN",
+        }),
+        ("CREATE TABLE {name} () WITH (* DURABILITY =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (DURABILITY = ", true, false, false, false, new string[]
+        {
+            "SCHEMA_AND_DATA", "SCHEMA_ONLY",
+        }),
+        ("CREATE TABLE {name} () WITH (* FILETABLE_DIRECTORY =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (FILETABLE_DIRECTORY = ", false, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("CREATE TABLE {name} () WITH (* LEDGER =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (LEDGER = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE TABLE {name} () WITH (* LOCATION =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (LOCATION = ", true, false, false, false, new string[]
+        {
+            "USER_DB",
+        }),
+        ("CREATE TABLE {name} () WITH (* MEMORY_OPTIMIZED =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (MEMORY_OPTIMIZED = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE TABLE {name} () WITH (* REMOTE_DATA_ARCHIVE =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (REMOTE_DATA_ARCHIVE = ", true, false, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE TYPE {name} AS TABLE () WITH (* MEMORY_OPTIMIZED =", SqlKeywordPosition.StatementStart, "CREATE TYPE t AS TABLE (a int) WITH (MEMORY_OPTIMIZED = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} SET (* DATA_DELETION =", SqlKeywordPosition.StatementStart, "ALTER TABLE t SET (DATA_DELETION = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER TABLE {name} SET (* FILETABLE_DIRECTORY =", SqlKeywordPosition.StatementStart, "ALTER TABLE t SET (FILETABLE_DIRECTORY = ", false, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("ALTER TABLE {name} SET (* LOCK_ESCALATION =", SqlKeywordPosition.StatementStart, "ALTER TABLE t SET (LOCK_ESCALATION = ", true, false, false, false, new string[]
+        {
+            "AUTO", "DISABLE", "TABLE",
+        }),
+        ("ALTER TABLE {name} SET (* REMOTE_DATA_ARCHIVE =", SqlKeywordPosition.StatementStart, "ALTER TABLE t SET (REMOTE_DATA_ARCHIVE = ", true, false, false, false, new string[]
+        {
+            "OFF", "OFF_WITHOUT_DATA_RECOVERY", "ON",
+        }),
+        ("ALTER TABLE {name} SET (* SYSTEM_VERSIONING =", SqlKeywordPosition.StatementStart, "ALTER TABLE t SET (SYSTEM_VERSIONING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("SYSTEM_VERSIONING = ON (* DATA_CONSISTENCY_CHECK =", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (SYSTEM_VERSIONING = ON (DATA_CONSISTENCY_CHECK = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("SYSTEM_VERSIONING = ON (* HISTORY_RETENTION_PERIOD =", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (SYSTEM_VERSIONING = ON (HISTORY_RETENTION_PERIOD = ", false, false, false, false, new string[]
+        {
+            "INFINITE",
+        }),
+        ("SYSTEM_VERSIONING = ON (* HISTORY_RETENTION_PERIOD = {value}", SqlKeywordPosition.Any, "CREATE TABLE t (a int) WITH (SYSTEM_VERSIONING = ON (HISTORY_RETENTION_PERIOD = 1 ", true, false, false, false, new string[]
+        {
+            "DAY", "DAYS", "MONTH", "MONTHS", "WEEK", "WEEKS", "YEAR", "YEARS",
+        }),
+        ("BULK INSERT {name} FROM {value} WITH (* HEADER_ROW =", SqlKeywordPosition.StatementStart, "BULK INSERT t FROM 1 WITH (HEADER_ROW = ", false, false, false, false, new string[]
+        {
+            "FALSE", "TRUE",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* DROP_EXISTING =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (DROP_EXISTING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* ONLINE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* RESUMABLE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (RESUMABLE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* DROP_EXISTING =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (DROP_EXISTING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* ONLINE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* RESUMABLE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (RESUMABLE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("OPENROWSET (* HEADER_ROW =", SqlKeywordPosition.DataSource, "SELECT * FROM OPENROWSET (BULK 'x', HEADER_ROW = ", false, false, false, false, new string[]
+        {
+            "FALSE", "TRUE",
+        }),
+        ("VECTOR_SEARCH (* TABLE =", SqlKeywordPosition.DataSource, "SELECT * FROM VECTOR_SEARCH (TABLE = ", true, false, true, false, new string[]
+        {
+            "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+        }),
+        ("CREATE EXTERNAL DATA SOURCE {name} WITH (* PUSHDOWN =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL DATA SOURCE t WITH (PUSHDOWN = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE EXTERNAL FILE FORMAT {name} WITH (* FORMAT_OPTIONS (* USE_TYPE_DEFAULT =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL FILE FORMAT t WITH (FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS (USE_TYPE_DEFAULT = ", true, false, false, false, new string[]
+        {
+            "FALSE", "TRUE",
+        }),
+        ("ALTER SERVER AUDIT {name} WITH (* ON_FAILURE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t WITH (ON_FAILURE = ", true, false, false, false, new string[]
+        {
+            "CONTINUE", "FAIL_OPERATION", "SHUTDOWN",
+        }),
+        ("ALTER SERVER AUDIT {name} WITH (* OPERATOR_AUDIT =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t WITH (OPERATOR_AUDIT = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER AUDIT {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SERVER AUDIT {name} TO {name} WITH (* ON_FAILURE =", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO APPLICATION_LOG WITH (ON_FAILURE = ", true, false, false, false, new string[]
+        {
+            "CONTINUE", "FAIL_OPERATION", "SHUTDOWN",
+        }),
+        ("CREATE SERVER AUDIT {name} TO {name} WITH (* OPERATOR_AUDIT =", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO APPLICATION_LOG WITH (OPERATOR_AUDIT = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE () WITH (* ON_FAILURE =", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (FILEPATH = 'x') WITH (ON_FAILURE = ", true, false, false, false, new string[]
+        {
+            "CONTINUE", "FAIL_OPERATION", "SHUTDOWN",
+        }),
+        ("CREATE SERVER AUDIT {name} TO FILE () WITH (* OPERATOR_AUDIT =", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (FILEPATH = 'x') WITH (OPERATOR_AUDIT = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SERVER AUDIT {name} TO URL () WITH (* ON_FAILURE =", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO URL (PATH = 'x') WITH (ON_FAILURE = ", true, false, false, false, new string[]
+        {
+            "CONTINUE", "FAIL_OPERATION", "SHUTDOWN",
+        }),
+        ("CREATE SERVER AUDIT {name} TO URL () WITH (* OPERATOR_AUDIT =", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO URL (PATH = 'x') WITH (OPERATOR_AUDIT = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER AUDIT {name} TO {name} WITH (* ON_FAILURE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO APPLICATION_LOG WITH (ON_FAILURE = ", true, false, false, false, new string[]
+        {
+            "CONTINUE", "FAIL_OPERATION", "SHUTDOWN",
+        }),
+        ("ALTER SERVER AUDIT {name} TO {name} WITH (* OPERATOR_AUDIT =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO APPLICATION_LOG WITH (OPERATOR_AUDIT = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER AUDIT {name} TO {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO APPLICATION_LOG WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE () WITH (* ON_FAILURE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (FILEPATH = 'x') WITH (ON_FAILURE = ", true, false, false, false, new string[]
+        {
+            "CONTINUE", "FAIL_OPERATION", "SHUTDOWN",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE () WITH (* OPERATOR_AUDIT =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (FILEPATH = 'x') WITH (OPERATOR_AUDIT = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER AUDIT {name} TO FILE () WITH (* STATE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO FILE (FILEPATH = 'x') WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER AUDIT {name} TO URL () WITH (* ON_FAILURE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO URL (PATH = 'x') WITH (ON_FAILURE = ", true, false, false, false, new string[]
+        {
+            "CONTINUE", "FAIL_OPERATION", "SHUTDOWN",
+        }),
+        ("ALTER SERVER AUDIT {name} TO URL () WITH (* OPERATOR_AUDIT =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO URL (PATH = 'x') WITH (OPERATOR_AUDIT = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER AUDIT {name} TO URL () WITH (* STATE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO URL (PATH = 'x') WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT SPECIFICATION t FOR SERVER AUDIT t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE DATABASE AUDIT SPECIFICATION t FOR SERVER AUDIT t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVER AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT SPECIFICATION t FOR SERVER AUDIT t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE AUDIT SPECIFICATION {name} FOR SERVER AUDIT {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE AUDIT SPECIFICATION t FOR SERVER AUDIT t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ADD () WITH (* STATE =", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s ADD (SCHEMA_OBJECT_ACCESS_GROUP) WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("DROP () WITH (* STATE =", SqlKeywordPosition.Any, "ALTER SERVER AUDIT SPECIFICATION s DROP (SCHEMA_OBJECT_ACCESS_GROUP) WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} WITH (* SCHEMABINDING =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SECURITY POLICY {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name} WITH (* SCHEMABINDING =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD FILTER PREDICATE t (a) ON t WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD FILTER PREDICATE t (a) ON t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} WITH (* SCHEMABINDING =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (* SCHEMABINDING =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER INSERT WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER INSERT WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE WITH (* SCHEMABINDING =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER UPDATE WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER UPDATE WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE WITH (* SCHEMABINDING =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE UPDATE WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE UPDATE WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (* SCHEMABINDING =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD FILTER PREDICATE {name} () ON {name} WITH (* SCHEMABINDING =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD FILTER PREDICATE t (a) ON t WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD FILTER PREDICATE {name} () ON {name} WITH (* STATE =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD FILTER PREDICATE t (a) ON t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} WITH (* SCHEMABINDING =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} WITH (* STATE =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (* SCHEMABINDING =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t AFTER INSERT WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (* STATE =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t AFTER INSERT WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE WITH (* SCHEMABINDING =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t AFTER UPDATE WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE WITH (* STATE =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t AFTER UPDATE WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE WITH (* SCHEMABINDING =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t BEFORE UPDATE WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE WITH (* STATE =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t BEFORE UPDATE WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (* SCHEMABINDING =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE WITH (SCHEMABINDING = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        (", ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (* STATE =", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE WITH (STATE = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* MESSAGE_FORWARDING =", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (MESSAGE_FORWARDING = ", true, false, false, false, new string[]
+        {
+            "DISABLED", "ENABLED",
+        }),
+        ("CREATE ENDPOINT ... FOR DATABASE_MIRRORING (* ROLE =", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ROLE = ", true, false, false, false, new string[]
+        {
+            "ALL", "PARTNER", "WITNESS",
+        }),
+        ("ALTER ENDPOINT ... FOR SERVICE_BROKER (* MESSAGE_FORWARDING =", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (MESSAGE_FORWARDING = ", true, false, false, false, new string[]
+        {
+            "DISABLED", "ENABLED",
+        }),
+        ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ROLE =", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ROLE = ", true, false, false, false, new string[]
+        {
+            "ALL", "PARTNER", "WITNESS",
+        }),
         ("CREATE OR", SqlKeywordPosition.StatementStart, "CREATE OR ", true, false, false, false, new string[]
         {
             "ALTER",
@@ -13677,6 +15103,10 @@ internal static class SqlKeywordCatalogData
         ("TRUNCATE", SqlKeywordPosition.StatementStart, "TRUNCATE ", true, false, false, false, new string[]
         {
             "TABLE",
+        }),
+        ("TRUNCATE TABLE {name}", SqlKeywordPosition.StatementStart, "TRUNCATE TABLE t ", true, false, false, true, new string[]
+        {
+            "WITH",
         }),
         ("ENABLE", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t ENABLE ", true, false, false, false, new string[]
         {
@@ -13771,11 +15201,11 @@ internal static class SqlKeywordCatalogData
         {
             "ELASTIC_POOL",
         }),
-        ("ALTER DATABASE {name} SET CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("ALTER DATABASE {name} SET QUERY_STORE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ", true, false, false, false, new string[]
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
@@ -13807,7 +15237,7 @@ internal static class SqlKeywordCatalogData
         {
             "USING", "WITH",
         }),
-        ("BACKUP DATABASE {name} TO ,* {value} MIRROR", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t TO t MIRROR ", true, false, false, false, new string[]
+        ("BACKUP DATABASE ... TO ,* {value} MIRROR", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILE = 'x' TO t MIRROR ", true, false, false, false, new string[]
         {
             "TO",
         }),
@@ -13856,10 +15286,6 @@ internal static class SqlKeywordCatalogData
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "HASH", "IDENTITY", "INDEX", "NOT",
             "NULL", "ON", "PRIMARY", "REFERENCES", "UNIQUE", "WITH",
-        }),
-        ("ONLINE =", SqlKeywordPosition.Any, "ALTER INDEX t ON t REBUILD WITH (ONLINE = ", true, false, false, false, new string[]
-        {
-            "OFF", "ON",
         }),
         ("DROP INDEX ... WITH (* MOVE", SqlKeywordPosition.StatementStart, "DROP INDEX i ON t WITH (MOVE ", true, false, false, false, new string[]
         {
@@ -14404,19 +15830,23 @@ internal static class SqlKeywordCatalogData
         {
             "TO", "WHERE", "WITH",
         }),
-        ("ALTER SERVER AUDIT {name} TO", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO ", true, false, false, false, new string[]
-        {
-            "APPLICATION_LOG", "EXTERNAL_MONITOR", "FILE", "SECURITY_LOG",
-        }),
         ("CREATE SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t ", true, false, false, false, new string[]
         {
             "TO",
         }),
         ("CREATE SERVER AUDIT {name} TO", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO ", true, false, false, false, new string[]
         {
-            "APPLICATION_LOG", "EXTERNAL_MONITOR", "FILE", "SECURITY_LOG",
+            "APPLICATION_LOG", "EXTERNAL_MONITOR", "FILE", "SECURITY_LOG", "URL",
         }),
         ("CREATE SERVER AUDIT {name} TO {name}", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO APPLICATION_LOG ", true, false, false, true, new string[]
+        {
+            "WHERE", "WITH",
+        }),
+        ("ALTER SERVER AUDIT {name} TO", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO ", true, false, false, false, new string[]
+        {
+            "APPLICATION_LOG", "EXTERNAL_MONITOR", "FILE", "SECURITY_LOG", "URL",
+        }),
+        ("ALTER SERVER AUDIT {name} TO {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t TO APPLICATION_LOG ", true, false, false, true, new string[]
         {
             "WHERE", "WITH",
         }),

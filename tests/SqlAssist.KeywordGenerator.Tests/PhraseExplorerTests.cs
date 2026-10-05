@@ -35,6 +35,7 @@ public sealed class PhraseExplorerTests : IDisposable
     [InlineData("ALTER TABLE t SWITCH TO t WITH (", "WAIT_AT_LOW_PRIORITY (* ABORT_AFTER_WAIT =", null, null, "MAX_DURATION = 1 MINUTES, ",
         "ALTER TABLE t SWITCH TO t WITH (WAIT_AT_LOW_PRIORITY (MAX_DURATION = 1 MINUTES, ABORT_AFTER_WAIT = ")]
     [InlineData("CREATE SEQUENCE t ", "", null, null, null, "CREATE SEQUENCE t ")]
+    [InlineData("", "BACKUP DATABASE ... TO ,* {value} MIRROR TO", null, "t FILE = 'x'", null, "BACKUP DATABASE t FILE = 'x' TO t MIRROR TO ")]
     public void 探測文字代入名稱括號與Gap(string lead, string pattern, string? group, string? gap, string? items, string expected)
     {
         Assert.Equal(expected, Create().ProbeText(lead, pattern, group, gap, items: items));
@@ -159,6 +160,46 @@ public sealed class PhraseExplorerTests : IDisposable
         Assert.True(policy.Closed);
         var password = explorer.Phrases[ProbedPhrase.Key("StatementStart", "ALTER LOGIN {name} WITH ,* PASSWORD = {value}")];
         Assert.Equal(["HASHED", "MUST_CHANGE", "OLD_PASSWORD", "UNLOCK"], password.Words.OrderBy(word => word, StringComparer.Ordinal));
+    }
+
+    /// <summary>括號清單一項的等號之後同樣是一格：MEMORY_PARTITION_MODE = 之後是 PER_CPU，寫在第幾項都一樣。</summary>
+    [Fact]
+    public void 括號清單項的等號之後另立一格()
+    {
+        var explorer = Create(pool: ["MEMORY_PARTITION_MODE", "NONE", "OFF", "ON", "PER_CPU", "PER_NODE", "STARTUP_STATE"]);
+
+        explorer.Explore([new("ALTER EVENT SESSION {name} ON SERVER WITH (*")]);
+
+        var mode = explorer.Phrases[ProbedPhrase.Key("StatementStart", "ALTER EVENT SESSION {name} ON SERVER WITH (* MEMORY_PARTITION_MODE =")];
+        Assert.Equal(["NONE", "PER_CPU", "PER_NODE"], mode.Words.OrderBy(word => word, StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// 括號清單的項在括號裡接逗號：關上括號的續尾接的是括號外那一份清單，探的話
+    /// AUTO_CREATE_STATISTICS ON ( 的逗號之後列出整份 SET 選項。
+    /// </summary>
+    [Fact]
+    public void 括號清單的項不接括號外的逗號()
+    {
+        var explorer = Create(pool: ["AUTO_CREATE_STATISTICS", "INCREMENTAL", "OFF", "ON", "READ_ONLY"]);
+
+        explorer.Explore([new("ALTER DATABASE {name} SET ,* AUTO_CREATE_STATISTICS ON (*")]);
+
+        Assert.Equal(["INCREMENTAL"], explorer.Phrases[ProbedPhrase.Key("StatementStart", "ALTER DATABASE {name} SET ,* AUTO_CREATE_STATISTICS ON (*")].Words);
+    }
+
+    /// <summary>一項寫到這裡就開了另一份清單的字不是這份清單的項：備份對象的 TO 開的是裝置清單，逗號之後不列 DISK。</summary>
+    [Fact]
+    public void 清單項不含另一份清單的開頭()
+    {
+        var explorer = Create(pool: ["DISK", "FILE", "FILEGROUP", "TO", "URL"]);
+
+        explorer.Explore([new("BACKUP DATABASE {name} ,*"), new("BACKUP DATABASE ... TO ,*") { Gap = "t FILE = 'x'" }]);
+
+        var targets = explorer.Phrases[ProbedPhrase.Key("StatementStart", "BACKUP DATABASE {name} ,*")].Words;
+        Assert.Contains("FILEGROUP", targets);
+        Assert.DoesNotContain("DISK", targets);
+        Assert.DoesNotContain("TO", targets);
     }
 
     /// <summary>官方有、剖析器還不收的選項手寫補進清單：只驗標頭剖析得過，字本身不驗。</summary>

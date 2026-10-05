@@ -74,6 +74,7 @@ public sealed class PhraseDeclarationTests
         PhraseDeclaration[] phrases =
         [
             new("DROP INDEX ... WITH (*") { Gap = "i ON t" },
+            new("BACKUP DATABASE ... TO ,* {value} MIRROR TO") { Gap = "t FILE = 'x'" },
             new("WAIT_AT_LOW_PRIORITY (* ABORT_AFTER_WAIT =") { Lead = "ALTER TABLE t SWITCH TO t WITH (", Items = "MAX_DURATION = 1 MINUTES, " },
             new("") { After = ["DataSource"] },
         ];

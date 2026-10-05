@@ -47,6 +47,12 @@ internal sealed class PhraseExplorer
     // 只認位置的片語探測用的文字：每個位置的第一個樣板。
     private HashSet<string> _positionPhraseProbes = new(IgnoreCase);
 
+    // 清單片語的標頭探測文字：一項寫到這裡就開了另一份清單（BACKUP DATABASE d TO 開裝置清單），見 AddList。
+    private HashSet<string> _listHeadProbes = new(IgnoreCase);
+
+    // 括號清單與只認位置的清單一項的等號那一格，等全部宣告探完才立，見 AddItemValues。
+    private readonly List<Action> _pendingItemValues = [];
+
     /// <param name="pool">候選字，順序就是片語裡字的順序。</param>
     /// <param name="keywordPositions">第三階段的結果：關鍵字可以出現的位置。</param>
     /// <param name="continuations">片語的續尾。</param>
@@ -110,6 +116,7 @@ internal sealed class PhraseExplorer
             : pattern.EndsWith(" ,* ,", StringComparison.Ordinal) ? pattern.Substring(0, pattern.Length - 5)
             : pattern;
         var parts = head.Split([' '], StringSplitOptions.RemoveEmptyEntries);
+        var hasRest = parts.Contains("...");
 
         for (var index = 0; index < parts.Length; index++)
         {
@@ -123,7 +130,7 @@ internal sealed class PhraseExplorer
                 "(*" => index < parts.Length - 1 ? "(" + items : "(",
                 "(" => "(",
                 "..." => gap + " ",
-                ",*" => string.IsNullOrEmpty(gap) ? string.Empty : gap + " ",
+                ",*" => hasRest || string.IsNullOrEmpty(gap) ? string.Empty : gap + " ",
                 _ => item + " ",
             };
         }
@@ -176,6 +183,12 @@ internal sealed class PhraseExplorer
                 .SelectMany(declaration => declaration.After ?? [])
                 .Select(position => _templates[position][0]),
             IgnoreCase);
+        // ... 最短是一個名稱：BACKUP DATABASE ... TO 在名稱之後就寫得出 TO，檔案清單的標頭接上 TO 就是它。
+        _listHeadProbes = new HashSet<string>(
+            declarations.Where(declaration => declaration.IsList || declaration.IsTailList)
+                .SelectMany(declaration => Anchors(declaration).Select(anchor =>
+                    ProbeText(anchor.Lead, declaration.ListHead.Replace("...", "{name}"), declaration.Group, items: declaration.Items))),
+            IgnoreCase);
 
         foreach (var declaration in declarations)
         {
@@ -206,7 +219,14 @@ internal sealed class PhraseExplorer
 
                 if (declaration.IsOpenList && Phrases.Contains(key))
                 {
-                    AddOpenListItems(key, declaration.Endings);
+                    AddOpenListItems(declaration.Pattern, position, declaration.Endings);
+                }
+
+                // 只認位置的清單（CREATE INDEX … WITH ( 的 IndexOption）一項的等號之後同樣是一格。
+                if (declaration.Pattern.Length == 0 && Phrases.TryGet(key, out var slot))
+                {
+                    var (probe0, words0, endings0) = (slot.Probe, slot.Words.ToList(), declaration.Endings);
+                    _pendingItemValues.Add(() => AddItemValues(string.Empty, position, [(probe0, words0)], endings0, openList: true));
                 }
 
                 if (declaration.Lead != null && Phrases.TryGet(key, out var probed))
@@ -224,6 +244,13 @@ internal sealed class PhraseExplorer
                 last.TakesName = leads.Any(phrase => phrase.TakesName);
             }
         }
+
+        foreach (var pending in _pendingItemValues)
+        {
+            pending();
+        }
+
+        _pendingItemValues.Clear();
     }
 
     /// <summary>
@@ -811,7 +838,10 @@ internal sealed class PhraseExplorer
         }
 
         var firsts = Phrases[headKey].Words.ToList();
-        var items = ListItemWords(head, firsts, endings);
+
+        // 一項寫到這裡就開了另一份清單的字不是這份清單的項：BACKUP DATABASE d 之後的檔案清單，TO 開的是裝置清單，
+        // TO x, 之後的 DISK 屬於那一份。執行期的走訪同樣停在最近的錨點，探的話檔案清單的逗號之後會列出裝置。
+        var items = ListItemWords(head, firsts.Where(first => !_listHeadProbes.Contains(head + first + " ")).ToList(), endings);
 
         if (items.Probe == null)
         {
@@ -827,7 +857,7 @@ internal sealed class PhraseExplorer
         // 標頭中段可變（...）的清單不立：中段的 ,* 要從固定的標頭往回比對，見 PhraseDeclaration 的 ... 那一段。
         if (pattern.EndsWith(" ,*", StringComparison.Ordinal) && !headPattern.Contains("..."))
         {
-            AddItemValues(headPattern, after, [(head, firsts), (items.Probe!, items.Words)], endings);
+            AddItemValues(headPattern + " ,*", after, [(head, firsts), (items.Probe!, items.Words)], endings);
         }
 
         foreach (var word in lagging ?? [])
@@ -843,10 +873,12 @@ internal sealed class PhraseExplorer
     }
 
     // 清單項的等號之後也是一格：CHECK_POLICY = 之後是 ON、OFF，PASSWORD = 'x' 之後是 HASHED、MUST_CHANGE。
-    // 那一格在第幾項都一樣，立成中段清單的片語（標頭 ,* 項 =），與檔案規格的 ADD FILE ,* (* 同一種寫法；等號之後照一般片語往下一層，
+    // 那一格在第幾項都一樣，立成中段清單的片語（標頭 ,* 項 =），與檔案規格的 ADD FILE ,* (* 同一種寫法；括號清單是
+    // 清單某一項的開頭（WITH (* QUEUE_DELAY =），只能寫在逗號之後的項也一樣有那一格。等號之後照一般片語往下一層，
     // 值之後的尾巴由那一條探得到。等號那一格列不出字的（PASSWORD = 之後是字串）不立，與展開時的值、名稱那一步同理，
     // 往下照走。項在哪一段探測文字之後寫得出來就從那裡探：CREATE LOGIN 的第一項只能是 PASSWORD，CHECK_POLICY 要接在逗號之後。
-    private void AddItemValues(string headPattern, string after, (string Prefix, IReadOnlyList<string> Words)[] slots, string[]? endings)
+    private void AddItemValues(
+        string listPattern, string after, (string Prefix, IReadOnlyList<string> Words)[] slots, string[]? endings, bool openList = false)
     {
         var done = new HashSet<string>(IgnoreCase);
 
@@ -855,15 +887,18 @@ internal sealed class PhraseExplorer
             foreach (var word in words.Where(word => StartsWord.IsMatch(word) && !word.Contains(' ')))
             {
                 var written = prefix + word;
+                var slot = written + " = ";
 
-                if (done.Contains(word) || _prober.FirstRejection(written + " = ") <= (written + " ").Length)
+                if (done.Contains(word) || _prober.FirstRejection(slot) <= (written + " ").Length)
                 {
                     continue;
                 }
 
                 // 探測文字相同就是同一格（見 AddEvidence）：展開已經立了那一格（CREATE SYMMETRIC KEY t WITH ALGORITHM =），
-                // 逗號之後那一格也由它的宣告說了，不另立一個互相搶比對。
-                if (Phrases.WithProbe(written + " = ").Any())
+                // 逗號之後那一格也由它的宣告說了，不另立一個互相搶比對。括號清單的一項寫在哪裡都是同一條尾巴：
+                // 等號那一格沒有字、只立了值之後那一格的，以及以 Lead 宣告、哪一份清單都比對得上的那一項
+                // （WITH (* DATA_COMPRESSION =、WITH (* MAX_DURATION = {value}）也算說了。
+                if (Phrases.WithProbe(slot).Any() || openList && (Phrases.AnyProbeStartingWith(slot) || LeadItem(listPattern, prefix, word)))
                 {
                     done.Add(word);
                     continue;
@@ -871,8 +906,9 @@ internal sealed class PhraseExplorer
 
                 // 這一項在這份清單裡本身就不合法（FOR LOGIN 的使用者沒有 PASSWORD），剖析器在值之後不再檢查，
                 // 每個字都「接得上」：與 ListItemWords 同一條防線，逗號接逗號不被拒的不算。
-                var value = SelectValue(written + " = ") ?? Words(written + " = ").FirstOrDefault();
-                var item = written + " = " + (value ?? Continuations.PlainName) + ", ";
+                var sample = SelectValue(slot);
+                var value = sample ?? Words(slot).FirstOrDefault();
+                var item = slot + (value ?? Continuations.PlainName) + ", ";
 
                 if (_prober.FirstRejection(item + ",") > item.Length)
                 {
@@ -880,31 +916,68 @@ internal sealed class PhraseExplorer
                 }
 
                 done.Add(word);
-                var itemPattern = headPattern + " ,* " + word + " =";
+                var itemPattern = (listPattern.Length > 0 ? listPattern + " " : string.Empty) + word + " =";
 
+                // 收值的那一格是運算式（AI_GENERATE_CHUNKS(SOURCE = d) 寫的是資料行）：列得出的字之外名稱也寫得進去，不封閉。
+                // 照整句寫不寫得完判的話，後面還有必填的項就判成封閉。
                 if (!Explored(after, itemPattern, 1))
                 {
-                    Add(itemPattern, written + " = ", after, expand: 1, child: true, step: true, extraEndings: endings);
+                    Add(itemPattern, slot, after, expand: 1, closed: sample != null ? false : null, child: true, step: true, extraEndings: endings);
                 }
             }
         }
     }
 
+    // 以 Lead 宣告的括號清單一項（WITH (* DATA_COMPRESSION =）：執行期不看前一格，標頭的尾巴對得上的清單寫到那一項都比對得上。
+    // 清單片語比尾巴（ALTER INDEX … RESUME WITH (* 以 WITH (* 結尾）；只認位置的清單比那個位置的樣板（CREATE INDEX … WITH (）。
+    private bool LeadItem(string listPattern, string prefix, string word)
+    {
+        var item = " " + word + " =";
+
+        foreach (var phrase in Phrases.Values.Where(phrase => phrase.After.Contains("Any")))
+        {
+            var at = phrase.Pattern.IndexOf("(*" + item, StringComparison.OrdinalIgnoreCase);
+            var end = at + 2 + item.Length;
+
+            if (at < 0 || end < phrase.Pattern.Length && phrase.Pattern[end] != ' ')
+            {
+                continue;
+            }
+
+            var head = phrase.Pattern.Substring(0, at + 2);
+
+            if (listPattern.Length > 0
+                ? listPattern.Equals(head, StringComparison.OrdinalIgnoreCase) || listPattern.EndsWith(" " + head, StringComparison.OrdinalIgnoreCase)
+                : !head.Contains('{') && prefix.TrimEnd().EndsWith(head.Substring(0, head.Length - 1), StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // 括號清單（(*）在左括號與逗號之後都比對得上，執行期分不出是哪一個，所以字是兩者的聯集：
     // OPENROWSET( 之後是 BULK，OPENROWSET(BULK 'x', 之後是 FORMAT、DATA_SOURCE。選項清單的兩份本來就相同。
     // 括號裡是一個子句的（WITHIN GROUP (ORDER BY a, b)）逗號屬於子句，寫成單獨的 ( 不探：聯集會讓左括號之後也列出運算式的字。
-    private void AddOpenListItems(string key, string[]? endings)
+    private void AddOpenListItems(string pattern, string after, string[]? endings)
     {
-        var phrase = Phrases[key];
-        var items = ListItemWords(phrase.Probe, phrase.Words.ToList(), endings);
+        var phrase = Phrases[ProbedPhrase.Key(after, pattern)];
+        var firsts = phrase.Words.ToList();
+        var items = ListItemWords(phrase.Probe, firsts, endings, insideParenthesis: true);
+
+        var probe = phrase.Probe;
 
         if (items.Probe == null)
         {
+            _pendingItemValues.Add(() => AddItemValues(pattern, after, [(probe, firsts)], endings, openList: true));
             return;
         }
 
+        var (itemProbe, itemWords) = (items.Probe, items.Words.ToList());
+        _pendingItemValues.Add(() => AddItemValues(pattern, after, [(probe, firsts), (itemProbe, itemWords)], endings, openList: true));
         phrase.Words = [.. phrase.Words, .. items.Words.Where(word => !phrase.Words.Contains(word, IgnoreCase))];
-        phrase.Closed = phrase.Closed && items.Closed;
+        phrase.Closed = phrase.DeclaredClosed || phrase.Closed && items.Closed;
         phrase.TakesVariable = phrase.TakesVariable || items.TakesVariable;
     }
 
@@ -915,7 +988,9 @@ internal sealed class PhraseExplorer
     // COLUMN、SIMILAR_TO）一項只接得了下一項，只探第一項之後的話第三項以後都列不出來。順序不限的清單第二次就探不到新字；
     // 每個新字都探的話，DDL 觸發程序幾百個事件各要探一次。
     // 第一項沒有一種寫得完時 Probe 是 null。
-    private ListItems ListItemWords(string head, IReadOnlyList<string> firsts, string[]? extraEndings)
+    // 括號清單的一項要在括號裡接逗號：關上括號的續尾（INCREMENTAL = ON)）接的是括號外那一份清單的逗號，
+    // 探的話 AUTO_CREATE_STATISTICS ON ( 只有一項，逗號之後卻列出整份 ALTER DATABASE SET 的選項。
+    private ListItems ListItemWords(string head, IReadOnlyList<string> firsts, string[]? extraEndings, bool insideParenthesis = false)
     {
         var words = new List<string>();
         string? probe = null;
@@ -938,6 +1013,12 @@ internal sealed class PhraseExplorer
             // 只有那一份清單才有的寫法（VECTOR_SEARCH 的 METRIC = 'cosine'）由片語的 Endings 給。
             var endings = new List<string>(_continuations);
             endings.AddRange((extraEndings ?? []).Where(ending => !string.IsNullOrEmpty(ending)));
+
+            if (insideParenthesis)
+            {
+                endings.RemoveAll(ending => ending.Count(c => c == ')') > ending.Count(c => c == '('));
+            }
+
             var written = prefix + item;
 
             if (_prober.FirstRejection(written + " = ") > (written + " ").Length && Words(written + " = ").FirstOrDefault() is { Length: > 0 } value)

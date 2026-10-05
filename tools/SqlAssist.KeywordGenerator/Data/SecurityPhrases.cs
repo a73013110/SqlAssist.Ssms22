@@ -56,12 +56,11 @@ internal static class SecurityPhrases
     internal static readonly PhraseDeclaration[] AuditAndPolicies =
     [
         // 稽核：ALTER SERVER AUDIT 的名稱剖析器要看到 TO、WITH 這些字才收，CREATE、ALTER 的展開到不了名稱之後。
+        // 目的地之後的 WITH (…) 兩者相同：APPLICATION_LOG 這類目的地是一個字，FILE、URL 帶一組括號。
+        // 不寫成 ... WITH (*：SPECIFICATION 不是關鍵字，ALTER SERVER AUDIT SPECIFICATION s WITH ( 也比對得上。
         new("ALTER SERVER AUDIT {name} WITH (*"),
-        // 稽核檔的 MAXSIZE = 之後是數值帶單位（MB、GB、TB）或 UNLIMITED，展開兩層探到單位。
-        new("ALTER SERVER AUDIT {name} TO FILE (*") { Expand = 2 },
-        new("CREATE SERVER AUDIT {name} TO FILE (*") { Expand = 2 },
-        new("CREATE SERVER AUDIT {name} TO {name} WITH (*"),
-        new("CREATE SERVER AUDIT {name} TO FILE () WITH (*") { Group = "(FILEPATH = 'x')" },
+        .. AuditDestinations("CREATE SERVER AUDIT {name}"),
+        .. AuditDestinations("ALTER SERVER AUDIT {name}"),
 
         // 稽核規格：FOR SERVER AUDIT 之後是 ADD、DROP 動作群組，以逗號分隔，最後是 WITH (STATE = …)。ADD、DROP 能開始一句，
         // 位置分析把它們當成動詞、判不出前一格，以尾巴認。稽核名稱與規格名稱之後的語句已經完整，ADD、DROP、WITH 被當成
@@ -136,6 +135,16 @@ internal static class SecurityPhrases
             AlsoLeads = ["ALTER EVENT SESSION t ON SERVER DROP EVENT t.t", "ALTER EVENT SESSION t ON SERVER DROP TARGET t.t"],
             Expand = 3,
         },
+    ];
+
+    // 稽核檔的 MAXSIZE = 之後是數值帶單位（MB、GB、TB）或 UNLIMITED，展開兩層探到單位。
+    private static PhraseDeclaration[] AuditDestinations(string head) =>
+    [
+        new(head + " TO FILE (*") { Expand = 2 },
+        new(head + " TO URL (*") { Expand = 2 },
+        new(head + " TO {name} WITH (*"),
+        new(head + " TO FILE () WITH (*") { Group = "(FILEPATH = 'x')" },
+        new(head + " TO URL () WITH (*") { Group = "(PATH = 'x')" },
     ];
 
     internal static readonly PhraseDeclaration[] Keys =

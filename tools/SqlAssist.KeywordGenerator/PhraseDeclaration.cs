@@ -28,7 +28,8 @@ public enum ObjectKinds
 //            清單由位置分析走訪（OptionItem），哪些敘述有這種清單只在這裡說。選項寫完之後還有位置要回報
 //            （模組標頭的 AS）的，仍以位置為鍵。
 //            寫在中段是標頭之後零到多項寫完的清單項，後面那幾項是游標所在那一項的一部分：檔案規格一組一組寫
-//            （ADD FILE ,* (*：第幾組的括號裡都一樣）、SET 一次寫幾個選項（SET ,* DATEFORMAT）。探測代入 Gap，沒寫就是零項。
+//            （ADD FILE ,* (*：第幾組的括號裡都一樣）、SET 一次寫幾個選項（SET ,* DATEFORMAT）。探測代入 Gap，沒寫就是零項；
+//            標頭有 ... 時 Gap 給 ...，中段的 ,* 探零項（BACKUP DATABASE ... TO ,* {value}：檔案清單夾在名稱與 TO 之間）。
 //            以逗號結尾的（SET ,* ,）是逗號之後的下一項，字照清單片語探，只是由尾巴比對、不經位置分析：
 //            SET 寫成清單片語的話，分析器把 SET 之後判成 OptionItem，蓋掉 SetTarget（SET @ 要列變數）
 //   ...      動詞之後、下一個字面字之前的其餘標頭（EXEC p @a = 1 WITH 的 p @a = 1、BACKUP 的裝置清單）；
@@ -143,9 +144,9 @@ public sealed record PhraseDeclaration(string Pattern)
             yield return $"片語「{Pattern}」的 ... 與 Gap 要一起寫：Gap 是探測時代入 ... 的文字。";
         }
 
-        if (hasGap && (Expand != 0 || midList))
+        if (hasGap && Expand != 0)
         {
-            yield return $"片語「{Pattern}」有 ... 就不收 Expand 與中段的 ,*：展開出來的片語照樣要 Gap，逐條寫清楚。";
+            yield return $"片語「{Pattern}」有 ... 就不收 Expand：展開出來的片語照樣要 Gap，逐條寫清楚。";
         }
 
         if (items.Count(item => item == ",*") > 1)

@@ -46,13 +46,15 @@ internal static class DatabasePhrases
         // ALTER DATABASE SET 的括號選項：值是識別字（AUTO、READ_WRITE）或數值帶單位（30 MINUTES），展開一兩層探。
         // CHANGE_RETENTION 少了單位就剖析不過，續尾由 Endings 補。選項裡再開的括號（CLEANUP_POLICY = (…)）另寫；
         // QUERY_CAPTURE_MODE = CUSTOM 與它的 QUERY_CAPTURE_POLICY 剖析器還不認得。
-        new("ALTER DATABASE {name} SET TARGET_RECOVERY_TIME = {value}"),
-        new("ALTER DATABASE {name} SET CHANGE_TRACKING (*") { Expand = 2, Endings = [" = 2 DAYS"] },
-        new("ALTER DATABASE {name} SET CHANGE_TRACKING = ON (*") { Expand = 2, Endings = [" = 2 DAYS"] },
-        new("ALTER DATABASE {name} SET QUERY_STORE (*") { Expand = 1 },
-        new("ALTER DATABASE {name} SET QUERY_STORE = ON (*") { Expand = 1 },
-        new("ALTER DATABASE {name} SET QUERY_STORE (* CLEANUP_POLICY = (*"),
-        new("ALTER DATABASE {name} SET QUERY_STORE = ON (* CLEANUP_POLICY = (*"),
+        // SET 一次寫得了幾個選項（SET AUTO_UPDATE_STATISTICS ON, AUTO_CREATE_STATISTICS ON (INCREMENTAL = ON)），中段的 ,* 走過前面幾個。
+        new("ALTER DATABASE {name} SET ,* TARGET_RECOVERY_TIME = {value}"),
+        new("ALTER DATABASE {name} SET ,* AUTO_CREATE_STATISTICS ON (*"),
+        new("ALTER DATABASE {name} SET ,* CHANGE_TRACKING (*") { Expand = 2, Endings = [" = 2 DAYS"] },
+        new("ALTER DATABASE {name} SET ,* CHANGE_TRACKING = ON (*") { Expand = 2, Endings = [" = 2 DAYS"] },
+        new("ALTER DATABASE {name} SET ,* QUERY_STORE (*") { Expand = 1 },
+        new("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (*") { Expand = 1 },
+        new("ALTER DATABASE {name} SET ,* QUERY_STORE (* CLEANUP_POLICY = (*"),
+        new("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* CLEANUP_POLICY = (*"),
     ];
 
     internal static readonly PhraseDeclaration[] Server =

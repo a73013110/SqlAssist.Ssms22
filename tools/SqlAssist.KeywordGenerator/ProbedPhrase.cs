@@ -130,6 +130,12 @@ internal sealed class PhraseTable
         return _byProbe.TryGetValue(probe, out var slots) ? slots.Select(slot => _phrases[slot]) : [];
     }
 
+    /// <summary>有片語的探測文字從 prefix 寫起：那一格或它之後已有別的宣告探過。</summary>
+    public bool AnyProbeStartingWith(string prefix)
+    {
+        return _byProbe.Any(pair => pair.Value.Count > 0 && pair.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+    }
+
     public string? FirstKeyWithProbe(string probe)
     {
         return _byProbe.TryGetValue(probe, out var slots) && slots.Count > 0 ? _keys[slots[0]] : null;

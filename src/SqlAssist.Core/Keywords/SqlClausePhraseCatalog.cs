@@ -26,6 +26,11 @@ public static class SqlClausePhraseCatalog
     /// <summary>清單片語，依標頭最後一個字分桶；桶內項數多的排前面。</summary>
     private static readonly Dictionary<string, SqlClausePhrase[]> ListsByAnchor = IndexListsByAnchor();
 
+    /// <summary>
+    /// 標頭以名稱結尾的清單片語（<c>BACKUP DATABASE {name} ,*</c>：檔案清單緊接資料庫名稱，前面沒有開清單的字）；項數多的排前面。
+    /// </summary>
+    private static readonly SqlClausePhrase[] ListsAfterName = FindListsAfterName();
+
     /// <summary>沒有尾巴、只認游標處位置的片語；附加片語另列。</summary>
     private static readonly SqlClausePhrase[] AtPosition =
         Phrases.Where(phrase => phrase.Length == 0 && !phrase.IsAdditive).ToArray();
@@ -279,11 +284,23 @@ public static class SqlClausePhraseCatalog
     {
         var token = tokens[anchor];
 
-        if (token.Kind != SqlTokenKind.Identifier || token.IsQuoted || !ListsByAnchor.TryGetValue(token.Value, out var candidates))
+        if (token.Kind == SqlTokenKind.Identifier && !token.IsQuoted && ListsByAnchor.TryGetValue(token.Value, out var candidates) &&
+            MatchHead(candidates, tokens, anchor, analyzer) is { } listed)
         {
-            return null;
+            return listed;
         }
 
+        return token.Kind is SqlTokenKind.Identifier or SqlTokenKind.Variable
+            ? MatchHead(ListsAfterName, tokens, anchor, analyzer)
+            : null;
+    }
+
+    private static SqlClausePhraseMatch? MatchHead(
+        SqlClausePhrase[] candidates,
+        IReadOnlyList<SqlToken> tokens,
+        int anchor,
+        SqlKeywordPositionAnalyzer analyzer)
+    {
         foreach (var phrase in candidates)
         {
             var start = phrase.MatchHead(tokens, anchor, analyzer);
@@ -520,13 +537,17 @@ public static class SqlClausePhraseCatalog
                 continue;
             }
 
-            // 錨點要是字面字：執行期拿游標前那個詞元的文字找桶。
-            var items = phrase.Pattern.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            var anchor = items[items.Length - 2];
+            // 錨點是字面字：執行期拿游標前那個詞元的文字找桶。名稱另列，見 ListsAfterName。
+            var anchor = ListAnchor(phrase);
+
+            if (anchor == "{name}")
+            {
+                continue;
+            }
 
             if (!(char.IsLetter(anchor[0]) || anchor[0] == '_'))
             {
-                throw new FormatException($"Phrase '{phrase.Pattern}': a list head must end with a word.");
+                throw new FormatException($"Phrase '{phrase.Pattern}': a list head must end with a word or a name.");
             }
 
             if (!buckets.TryGetValue(anchor, out var bucket))
@@ -546,6 +567,18 @@ public static class SqlClausePhraseCatalog
         }
 
         return index;
+    }
+
+    private static SqlClausePhrase[] FindListsAfterName()
+    {
+        return LongestFirst(Phrases.Where(phrase => phrase.IsList && ListAnchor(phrase) == "{name}").ToList());
+    }
+
+    /// <summary>清單片語標頭的最後一項。</summary>
+    private static string ListAnchor(SqlClausePhrase phrase)
+    {
+        var items = phrase.Pattern.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        return items[items.Length - 2];
     }
 
     /// <remarks>

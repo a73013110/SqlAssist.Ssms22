@@ -135,6 +135,7 @@ internal static class QueryPhrases
     // 補不出來（Lead 片語以值結尾的一段不立），另外宣告。沒有引數的 JSON_OBJECT(NULL ON NULL) 從左括號寫起，
     // 左括號本身也宣告：ABSENT 不是運算式的字。空呼叫照剖析器收的寫：JSON_ARRAYAGG 不收，只寫 RETURNING JSON 的也不收。
     // JSON_VALUE 的路徑之後只有 RETURNING 與型別（SQL Server 2025），沒有 NULL 的處理；路徑是第二個引數，探測墊第一個。
+    // 左括號之後的引數是運算式，資料行寫得進去，只是後面還要寫 : 值，續尾寫不完：宣告不封閉。
     internal static readonly PhraseDeclaration[] JsonFunctions =
     [
         .. Json("JSON_OBJECT", "{value} : {value}", empty: true),
@@ -150,7 +151,7 @@ internal static class QueryPhrases
             .Append($"{function} (* {argument}")
             .Concat(JsonClauses.Where(clause => onNull || !clause.Contains(" ON NULL")).Select(clause => $"{function} (* {argument} {clause}"))
             .Concat(empty ? JsonClauses.Where(clause => clause.Contains(" ON NULL")).Select(clause => $"{function} (* {clause}") : [])
-            .Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT ", Items = items });
+            .Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT ", Items = items, Closed = pattern == $"{function} (*" ? false : null });
 
     private static IEnumerable<PhraseDeclaration> RowCounts(string[] patterns) =>
         patterns.Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT * FROM t ORDER BY a OFFSET 10 ROWS FETCH " });

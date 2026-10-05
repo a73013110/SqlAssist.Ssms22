@@ -12,7 +12,8 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 探到新字再取第一個往下一項探（`VECTOR_SEARCH` 的引數順序固定）。一項接得了逗號就好，整句寫不寫得完不論；
 值要過剖析器的（`FORMAT_TYPE =`）代入那一格列得出的第一個字，只收特定值的（`METRIC`）由 `Endings` 補。
 項的等號之後立成中段清單片語（`… WITH ,* CHECK_POLICY =`）再往下一層：`ON`／`OFF`、`PASSWORD = 'x' HASHED`
-在第幾項都一樣。沒有字、探測文字已有片語、這一項在這份清單不合法、標頭含 `...` 的不立。
+在第幾項都一樣；括號清單（`WITH (* QUEUE_DELAY =`）與 CREATE INDEX 的 `WITH (` 同樣立。沒有字、探測文字已有片語、這一項在這份清單
+不合法、標頭含 `...` 的不立；等號之後收運算式的不封閉，否則 `SOURCE =` 之後列不出資料行。
 官方有、ScriptDom 還不收的選項（`ALLOW_ENCRYPTED_VALUE_MODIFICATIONS`，TSql170 在值就報錯）寫在 `Lagging`：
 唯一不經剖析器證明的字，只驗標頭；ScriptDom 跟上就刪。
 剖析器什麼都收的清單探不出字：`GRANT` 收任何一串識別字（連 `AND` 都收），權限名稱由 `Evidence` 手寫（`sys.fn_builtin_permissions`），
@@ -26,8 +27,11 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 每一種寫法各宣告一份整段標頭（`FullTextKeyIndexes`），同一組選項由同一個函式宣告（CREATE 的 `WITH`、`WITH (` 與 ALTER 的 `SET`）。
 只接在某一項之後的項（`CHANGE_TRACKING OFF, NO POPULATION`）寫成中段的 `,* NO POPULATION`，`Gap` 墊前一項；括號清單同理以 `Items` 墊。
 
-備份裝置本身也是 `,*` 清單（`BACKUP DATABASE {name} TO ,*`），寫完一個裝置寫成中段的 `,* {value}`（接 `MIRROR TO`、`WITH`）：
-`DISK` 是關鍵字、不是運算元，`TO DISK ` 之後不會比對成寫完；寫 `{name}` 的話剖析器把它當邏輯裝置名稱。
+備份對象（`FILE = 'a', FILEGROUP = 'b'`）緊接資料庫名稱，寫成 `BACKUP DATABASE {name} ,*`：標頭以名稱結尾的清單，執行期以名稱當錨點另外比對。
+一項寫到這裡就開了另一份清單的字（`TO`）不是這份清單的項，否則逗號之後列出裝置。裝置清單寫成 `BACKUP DATABASE ... TO ,*`，
+`Gap` 墊一個備份對象，`...` 也搭得了中段 `,*`；只墊名稱的話與 `BACKUP DATABASE {name} TO` 同一格、互搶比對。
+寫完一個裝置寫成中段的 `,* {value}`（接 `MIRROR TO`、`WITH`）：`DISK` 是關鍵字、不是運算元，`TO DISK ` 之後不會比對成寫完；
+寫 `{name}` 的話剖析器把它當邏輯裝置名稱。
 
 清單裡一項自己的寫法（`ENCRYPTION (`、`SAMPLE n`、`ACTIVATION (`）寫成 `After = ["OptionItem"]`，`Template` 指那份清單的樣板。
 樣板的名稱寫得與清單片語的探測文字相同（`CREATE QUEUE t WITH `），否則認不出標頭已列那個字，另立成附加片語。
@@ -39,7 +43,7 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 - 括號清單：CREATE INDEX（含 XML、JSON 索引）與資料表定義裡內嵌索引的 `WITH (…)`，前面還夾著 `INCLUDE (…)` 與篩選 `WHERE`。標頭固定的括號清單
   （`ALTER TABLE t SET (`、`OPENROWSET (`）寫成 `(*` 片語；定義清單裡一項自己的括號清單也是（`CONNECTION (* {name}` 接 `TO`，
   前一格是 `ColumnDefinition`）。執行期分不出游標在 `(` 還是逗號之後，
-  字取兩者聯集。括號裡是子句的（`WITHIN GROUP (ORDER BY …)`、`WAITFOR (RECEIVE …)`）寫單獨的 `(`：只認緊接的左括號、不取聯集，
+  字取兩者聯集；逗號之後那一項不探關上括號的續尾，否則 `AUTO_CREATE_STATISTICS ON (` 列出括號外的 SET 選項。括號裡是子句的（`WITHIN GROUP (ORDER BY …)`、`WAITFOR (RECEIVE …)`）寫單獨的 `(`：只認緊接的左括號、不取聯集，
   否則子句裡的逗號也比對成清單項，`RECEIVE a, ` 之後只剩子句開頭的字。
 - 選項寫完還要回報位置（模組的 `AS`、觸發程序的 `FOR`）；`EXECUTE AS` 這類多字選項以位置為鍵，掛到共用位置會漏進每一份清單。
 - 不以逗號分隔：游標選項、序列選項（`SequenceOption`，`START WITH 1` 這種一項可以帶值）。

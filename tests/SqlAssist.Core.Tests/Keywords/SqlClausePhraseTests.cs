@@ -455,6 +455,20 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE ENDPOINT LoanMirror STATE = STARTED AS TCP (LISTENER_PORT = 5022) FOR DATABASE_MIRRORING (ROLE = PARTNER, ", "ENCRYPTION")]
     [InlineData("ALTER ENDPOINT LoanBroker FOR SERVICE_BROKER (AUTHENTICATION = ", "WINDOWS", "CERTIFICATE")]
     [InlineData("CREATE ENDPOINT LoanBroker AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ", "ALGORITHM")]
+    [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) WITH (ONLINE = ", "ON", "OFF")]
+    [InlineData("ALTER TABLE dbo.Loan SET (SYSTEM_VERSIONING = ON (HISTORY_RETENTION_PERIOD = ", "INFINITE")]
+    [InlineData("ALTER DATABASE Lib SET AUTO_CREATE_STATISTICS ON (", "INCREMENTAL")]
+    [InlineData("ALTER DATABASE Lib SET READ_ONLY, AUTO_CREATE_STATISTICS ON (", "INCREMENTAL")]
+    [InlineData("ALTER DATABASE Lib SET READ_ONLY, QUERY_STORE (", "OPERATION_MODE")]
+    [InlineData("ALTER EVENT SESSION LoanTrace ON SERVER WITH (", "MEMORY_PARTITION_MODE", "STARTUP_STATE")]
+    [InlineData("ALTER EVENT SESSION LoanTrace ON DATABASE WITH (MEMORY_PARTITION_MODE = ", "PER_CPU", "NONE")]
+    [InlineData("ALTER SERVER AUDIT LibAudit TO APPLICATION_LOG WITH (", "QUEUE_DELAY", "ON_FAILURE")]
+    [InlineData("CREATE SERVER AUDIT LibAudit TO FILE (FILEPATH = 'x') WITH (", "QUEUE_DELAY")]
+    [InlineData("CREATE SERVER AUDIT LibAudit TO ", "URL", "FILE")]
+    [InlineData("TRUNCATE TABLE dbo.Loan WITH (", "PARTITIONS")]
+    [InlineData("BACKUP DATABASE LibArchive FILEGROUP = 'a', ", "FILEGROUP", "FILE")]
+    [InlineData("BACKUP DATABASE LibArchive FILE = 'a', FILEGROUP = 'b' TO ", "DISK", "URL")]
+    [InlineData("BACKUP DATABASE @db FILE = 'a', ", "FILEGROUP")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -512,6 +526,10 @@ public sealed class SqlClausePhraseTests
     [InlineData("DELETE FROM dbo.Loan WHERE CURRENT ", "AND")]
     [InlineData("SELECT JSON_VALUE(@j, '$.CopyNo' ", "FROM")]
     [InlineData("CREATE TABLE t (Due datetimeoffset ", "AT")]
+    [InlineData("ALTER DATABASE AUDIT SPECIFICATION LibAuditSpec ADD (", "DROP")]
+    [InlineData("ALTER DATABASE Lib SET AUTO_CREATE_STATISTICS ON (", "READ_ONLY")]
+    [InlineData("TRUNCATE TABLE dbo.Loan WITH (", "SELECT")]
+    [InlineData("BACKUP DATABASE LibArchive FILEGROUP = 'a', ", "SELECT")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));

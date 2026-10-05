@@ -33,22 +33,32 @@ internal static class StatementPhrases
         new("BACKUP SERVICE") { Values = ["MASTER"] },
         new("RESTORE SERVICE") { Values = ["MASTER"] },
 
+        // 備份對象：資料庫名稱之後、TO／FROM 之前可以列幾個檔案或檔案群組（FILE = 'a', FILEGROUP = 'b'），也是逗號清單。
+        // 標頭寫到名稱為止，TO、FROM 開的是裝置清單，不是這份清單的項。
+        new("BACKUP DATABASE {name} ,*"),
+        new("RESTORE DATABASE {name} ,*"),
+        new("RESTORE LOG {name} ,*"),
+
         // 裝置清單：TO／FROM 之後一項一個裝置，每一項都能換種類（DISK、TAPE、URL、邏輯裝置名稱或變數）。一個裝置寫完
         // （值、名稱或變數）之後是逗號、BACKUP 的 MIRROR TO 或 WITH；MIRROR TO 之後是同一種清單，中段的 ,* 往回走過前面的裝置
-        // 與 MIRROR TO 找到標頭。裝置寫成 {value} 不寫 {name}：DISK 是關鍵字、不是運算元，TO DISK 之後不會比對成寫完一個裝置。
+        // 與 MIRROR TO 找到標頭。名稱與 TO 之間夾著備份對象時以 ... 跨過，探測墊一個檔案：只墊名稱的話與展開出來的
+        // BACKUP DATABASE {name} TO 是同一格，兩個片語互搶比對。BACKUP LOG 沒有備份對象。
+        // 裝置寫成 {value} 不寫 {name}：DISK 是關鍵字、不是運算元，TO DISK 之後不會比對成寫完一個裝置。
         // 寫完一個裝置整句已經完整，WITH 也是 CTE 的開頭被扣掉了，手寫補回；續尾寫一個兩邊都收的選項驗它。
-        .. Devices("BACKUP DATABASE {name} TO"),
-        .. Devices("BACKUP LOG {name} TO"),
-        .. Devices("RESTORE DATABASE {name} FROM"),
-        .. Devices("RESTORE LOG {name} FROM"),
-        new("BACKUP DATABASE {name} TO ,* {value} MIRROR TO"),
+        .. Devices("BACKUP DATABASE ... TO", BackupTarget),
+        .. Devices("BACKUP LOG {name} TO", null),
+        .. Devices("RESTORE DATABASE ... FROM", BackupTarget),
+        .. Devices("RESTORE LOG ... FROM", BackupTarget),
+        new("BACKUP DATABASE ... TO ,* {value} MIRROR TO") { Gap = BackupTarget },
         new("BACKUP LOG {name} TO ,* {value} MIRROR TO"),
     ];
 
-    private static PhraseDeclaration[] Devices(string head) =>
+    private const string BackupTarget = "t FILE = 'x'";
+
+    private static PhraseDeclaration[] Devices(string head, string? gap) =>
     [
-        new(head + " ,*"),
-        new(head + " ,* {value}") { Values = ["WITH"], Endings = [" STATS"] },
+        new(head + " ,*") { Gap = gap },
+        new(head + " ,* {value}") { Gap = gap, Values = ["WITH"], Endings = [" STATS"] },
     ];
 
     internal static readonly PhraseDeclaration[] BackupOptions =
