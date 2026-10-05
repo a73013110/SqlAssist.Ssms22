@@ -51,4 +51,4 @@
 不是關鍵字的語句開頭要真的是一句的開頭才算，否則 `SELECT Copy.CopyNo FROM` 的 FROM 找不到 SELECT。
 
 - **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c `
-  接 `INTO`（`FetchTail`），`RESTORE`（裝置清單）、`REVOKE`、`BULK INSERT`、`COPY INTO` 的 FROM 不接，`TRIM('x' FROM s)` 之後是運算式。位置、目標與範圍分析共用 `IntroducesDataSource`，分岔時 `DISK` 被收成表。
+  接 `INTO`（`FetchTail`），`RESTORE`（裝置清單）、`REVOKE`、`BULK INSERT`、`COPY INTO` 的 FROM 不接，`TRIM('x' FROM s)` 之後是運算式，`IS [NOT] DISTINCT FROM` 是比較運算子、也不是子句錨點。位置、目標與範圍分析共用 `IntroducesDataSource`，分岔時 `DISK` 被收成表。

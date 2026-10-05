@@ -106,11 +106,11 @@ public sealed class SqlCompletionPolicyTests
     [InlineData("SET ", true, true, SqlCompletionSlot.Grammar, SqlKeywordPosition.SetTarget, CompletionTarget.ClauseKeyword)]
     [InlineData("SET IDENTITY_INSERT ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.Any)]
 
-    // CTE 名稱與 SELECT … INTO 的目標是新名稱。
-    [InlineData(";WITH ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
-    [InlineData(";WITH c", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
+    // CTE 名稱與 SELECT … INTO 的目標是新名稱。一句開頭的 WITH 也接 XMLNAMESPACES：片語列得出字，與 CREATE 的名稱格一樣打了字才開。
+    [InlineData(";WITH ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.ClauseKeyword)]
+    [InlineData(";WITH c", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.ClauseKeyword)]
     [InlineData("WITH c AS (SELECT 1 AS a), ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
-    [InlineData("CREATE VIEW v AS WITH ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
+    [InlineData("CREATE VIEW v AS WITH ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.ClauseKeyword)]
     [InlineData("SELECT a INTO ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectIntoTail, CompletionTarget.Any)]
     [InlineData("SELECT a INTO #n", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectIntoTail, CompletionTarget.Any)]
     [InlineData("SELECT * INTO dbo.", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectIntoTail, CompletionTarget.Any)]

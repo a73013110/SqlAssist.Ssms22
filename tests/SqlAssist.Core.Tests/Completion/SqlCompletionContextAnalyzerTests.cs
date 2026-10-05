@@ -424,7 +424,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("DECLARE @pub")]
     [InlineData("CREATE PROCEDURE dbo.usp")]
     [InlineData("CREATE NONCLUSTERED INDEX IX")]
-    [InlineData(";WITH CTE")]
+    [InlineData("WITH Recent AS (SELECT 1 AS a), CTE")]
     [InlineData("SELECT PublCode INTO #Pub")]
     public void 取名字的位置不建議(string textBeforeCaret)
     {
@@ -447,6 +447,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("SELECT c.PUBL_CODE co")]
     [InlineData("SELECT * FROM (SELECT 1 AS a) a")]
     [InlineData("SELECT * FROM t JOIN (SELECT 1 AS a) x")]
+    [InlineData(";WITH CTE")]
     public void 可能是別名的位置軟選(string textBeforeCaret)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);

@@ -850,6 +850,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// </remarks>
     internal bool IntroducesDataSource(int keyword)
     {
+        if (ComparesDistinct(keyword))
+        {
+            return false;
+        }
+
         var verb = FindVerb(keyword - 1);
 
         if (verb < 0)
@@ -873,6 +878,18 @@ public sealed partial class SqlKeywordPositionAnalyzer
             token.IsKeyword("UPDATE") ||
             token.IsKeyword("DELETE") ||
             (token.IsKeyword("SET") && !IntroducesOptions(verb));
+    }
+
+    /// <summary><paramref name="index"/> 是比較運算子 <c>IS [NOT] DISTINCT FROM</c> 的 FROM，不是子句。</summary>
+    /// <remarks>
+    /// 當成子句的話之後列的是資料表，運算元寫完（<c>WHEN a IS DISTINCT FROM NULL </c>）又成了資料來源的尾端，列不出 THEN。
+    /// </remarks>
+    private bool ComparesDistinct(int index)
+    {
+        return index >= 2 &&
+            tokens[index].IsKeyword("FROM") &&
+            tokens[index - 1].IsKeyword("DISTINCT") &&
+            (tokens[index - 2].IsKeyword("IS") || (index >= 3 && tokens[index - 2].IsKeyword("NOT") && tokens[index - 3].IsKeyword("IS")));
     }
 
     /// <summary>
@@ -2537,6 +2554,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
             if (OpensReceiveList(index))
             {
                 return anchors == ClauseAnchors ? SqlKeywordPosition.SelectListTail : SqlKeywordPosition.SelectList;
+            }
+
+            if (ComparesDistinct(index))
+            {
+                continue;
             }
 
             if (anchors.TryGetValue(token.Value, out var position) &&

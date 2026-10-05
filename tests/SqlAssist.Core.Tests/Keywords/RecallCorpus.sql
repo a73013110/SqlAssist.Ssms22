@@ -1110,3 +1110,17 @@ ALTER QUEUE dbo.LibQueue WITH ACTIVATION (DROP)
 ALTER REMOTE SERVICE BINDING LibBinding WITH USER = LibUser, ANONYMOUS = ON
 
 CREATE REMOTE SERVICE BINDING LibBinding TO SERVICE 'LibService' WITH USER = LibUser, ANONYMOUS = OFF
+
+SELECT c.CopyNo FROM dbo.Copy c INNER REMOTE JOIN dbo.Loan l ON l.CopyNo = c.CopyNo LEFT OUTER HASH JOIN dbo.Branch b ON b.BranchId = c.BranchId
+
+SELECT c.CopyNo FROM dbo.Copy c INNER MERGE JOIN dbo.Loan l ON l.CopyNo = c.CopyNo FULL LOOP JOIN dbo.Branch b ON b.BranchId = c.BranchId
+
+SELECT BranchId, CopyNo, COUNT(*) FROM dbo.Copy GROUP BY CUBE (BranchId), ROLLUP (CopyNo), GROUPING SETS ((BranchId), ())
+
+SELECT CopyNo FROM dbo.Copy WHERE BranchId IS NOT DISTINCT FROM NULL
+
+SELECT CASE WHEN BranchId IS NOT DISTINCT FROM NULL THEN 0 END FROM dbo.Copy
+
+SELECT * FROM OPENROWSET(BULK 'Copy.txt', FORMATFILE = 'Copy.fmt', ORDER (CopyNo ASC, BranchId DESC)) AS c
+
+WITH XMLNAMESPACES ('urn:lib' AS Lib) SELECT CopyNo FROM dbo.Copy FOR XML PATH

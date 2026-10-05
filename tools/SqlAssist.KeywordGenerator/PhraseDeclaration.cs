@@ -53,6 +53,7 @@ public enum ObjectKinds
 // Values 是剖析器分不出來、只能手寫的字，一樣要剖析得過才收：SET DATEFORMAT 的值在
 // 剖析器眼中就是名稱；語句已經完整的片語扣掉了下一句的開頭，同時也是子句字的要補回來
 // （更長的片語寫得出那個字時不必：片語裡的每一個字由它前面那段列出，見 PhraseExplorer 的證據那一段）。
+// 清單片語的 Values 補在逗號之後那一格（GROUP BY 的 ROLLUP 第幾項都寫得出來），接在探到的那一項之後驗。
 // Closed 由人宣告那一格只有這幾個值。
 // Endings 是只有這條片語用得上的續尾（VECTOR_SEARCH 的 METRIC 只收 'cosine' 這種距離名稱、ABORT_AFTER_WAIT 的值
 // 之後要關兩層括號）：探這條片語與它的清單項時接在共用續尾之後。共用續尾一變，每個片語的探測都要重剖。
@@ -202,9 +203,9 @@ public sealed record PhraseDeclaration(string Pattern)
             }
         }
 
-        if ((IsList || IsTailList) && (Expand != 0 || Values is { Length: > 0 } || Closed != null))
+        if ((IsList || IsTailList) && (Expand != 0 || Closed != null))
         {
-            yield return $"清單片語「{Pattern}」的字全由探測決定，不收 Expand、Values、Closed。";
+            yield return $"清單片語「{Pattern}」的字由探測決定，不收 Expand、Closed。";
         }
 
         if (Lagging is { Length: > 0 } && !IsList)

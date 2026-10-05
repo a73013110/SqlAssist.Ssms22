@@ -9,6 +9,10 @@ internal static class QueryPhrases
 {
     internal static readonly string[] QueryTails = ["SelectListTail", "TableSourceTail", "ExpressionTail", "OrderByTail", "GroupByTail"];
 
+    private static readonly string[] GroupingItems = ["ROLLUP", "CUBE", "GROUPING SETS"];
+
+    private static readonly string[] JoinTypes = ["INNER", "LEFT", "RIGHT", "FULL", "LEFT OUTER", "RIGHT OUTER", "FULL OUTER"];
+
     internal static readonly PhraseDeclaration[] Merge =
     [
         // MERGE 的 WHEN 之後是 MATCHED 與 NOT MATCHED，這兩者之後各再一層；NOT MATCHED 由下一條補出來。
@@ -25,6 +29,8 @@ internal static class QueryPhrases
     internal static readonly PhraseDeclaration[] Rowsets =
     [
         new("OPENROWSET (*") { After = ["DataSource"] },
+        // BULK 的 ORDER 是資料檔的排序：一項是資料行，之後是 ASC、DESC。ORDER 只能寫在資料檔之後，探測墊 BULK 與格式檔。
+        new("OPENROWSET (* ORDER (* {name}") { After = ["DataSource"], Items = "BULK 'x', FORMATFILE = 'f', " },
         // VECTOR_SEARCH 的具名引數順序固定（TABLE、COLUMN、SIMILAR_TO、METRIC、TOP_N），清單一項一項往下探。
         // METRIC 只收距離的名稱，共用續尾寫不完那一項就探不到後面的 TOP_N。
         new("VECTOR_SEARCH (*") { After = ["DataSource"], Endings = [" = 'cosine'"] },
@@ -95,8 +101,25 @@ internal static class QueryPhrases
         // IS 之後是 NULL、NOT、DISTINCT FROM。述詞尾端的代表樣板寫完了比較，接不上 IS，用第二個。
         new("IS") { After = ["ExpressionTail"], Template = 1, Expand = 2 },
         new("IS") { After = ["CaseArm"], Expand = 2 },
+        // IS NOT DISTINCT FROM 比 IS 多三層；展開到第三層的話 IS DISTINCT FROM 也往下一層，值之後的字立成片語，
+        // 藏掉述詞尾端其餘的字。
+        new("IS NOT DISTINCT FROM") { After = ["ExpressionTail"], Template = 1 },
+        new("IS NOT DISTINCT FROM") { After = ["CaseArm"] },
 
-        new("GROUP BY") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"], Values = ["ROLLUP", "CUBE", "GROUPING SETS"] },
+        // GROUP BY 的一項可以是 ROLLUP、CUBE、GROUPING SETS，第幾項都一樣；剖析器把它們當函式名稱讀，只能手寫。
+        // 逗號之後以尾巴認：寫成清單片語的話 GROUP BY 之後成了 OptionItem。GROUPING 之後的 SETS：中段的 ,* 讓第一項與逗號之後同一條尾巴。
+        new("GROUP BY") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"], Values = GroupingItems },
+        new("GROUP BY ,* ,") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"], Values = GroupingItems },
+        new("GROUP BY ,* GROUPING") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"] },
+
+        // 聯結類型之後是 JOIN 或聯結提示（LOOP、HASH、MERGE、REMOTE），提示之後只有 JOIN。
+        // JOIN 之後的資料表還要寫 ON 才完整，續尾寫不完，宣告不封閉。
+        .. JoinTypes.Select(join => new PhraseDeclaration(join) { After = ["TableSourceTail"], Expand = 1 }),
+        .. JoinTypes.Select(join => new PhraseDeclaration(join + " JOIN") { After = ["TableSourceTail"], Closed = false }),
+
+        // 一句開頭的 WITH 之後是 CTE 的新名字，或 XMLNAMESPACES 這種前置子句：要寫完括號與後面那一句才驗。
+        // CTE 名稱什麼都收，續尾寫不出 AS (…)，宣告不封閉。
+        new("WITH") { Endings = [" ('x' AS n) SELECT 1", " (0x01) DELETE FROM t"], Closed = false },
 
         // TOP 子句寫完（TOP 10、TOP (10)、TOP 10 PERCENT）之後的 WITH 只接 TIES。
         new("WITH") { After = ["TopClauseTail"] },

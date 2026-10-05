@@ -389,14 +389,12 @@ public sealed class SqlSnippetDefaultsTests
     /// 名稱寫得出結構描述的（<c>ctb</c>、<c>cv</c>、<c>cp</c>、<c>cf</c>）第一段可能是結構描述，見下一個測試。
     /// 彈出來的唯一效果是他順手按下 Enter，剛打的名字被換成別人的資料表。
     ///
-    /// 不必為此加旗標：<c>CREATE TABLE</c>、<c>;WITH</c>、<c>) AS</c> 這些位置分析器
+    /// 不必為此加旗標：<c>CREATE INDEX</c>、<c>) AS</c> 這些位置分析器
     /// 自己就認得是新名字，打了字也不參與。「什麼時候該有清單」的規則因此只有一份，
     /// 在 <see cref="SqlCompletionPolicy"/>。
     /// </remarks>
     [Theory]
     [InlineData("cix", "index")]
-    [InlineData("cte", "cte")]
-    [InlineData("wcte", "cte")]
     [InlineData("wdt", "alias")]
     public void 新建物件的名稱欄位不主動開清單(string shortcut, string fieldId)
     {
@@ -409,7 +407,8 @@ public sealed class SqlSnippetDefaultsTests
     /// <remarks>
     /// <c>ctb</c> 的資料行格是資料行定義的開頭：使用者多半在取新名字，但這一格也接得了
     /// CONSTRAINT、PRIMARY KEY。<c>cdb</c> 的資料庫名稱格同理：<c>CREATE DATABASE</c> 之後也接得了
-    /// SCOPED、ENCRYPTION。新物件的名稱格第一段可能是結構描述（<c>dbo.ProcedureName</c>）。
+    /// SCOPED、ENCRYPTION。新物件的名稱格第一段可能是結構描述（<c>dbo.ProcedureName</c>）。CTE 名稱格也接得了
+    /// XMLNAMESPACES。
     /// 所以打了字才有清單，而且不預先選中；一進格就開的話，Tab 會把 <c>dbo</c> 提交進整格的預設值。
     /// </remarks>
     [Theory]
@@ -420,6 +419,8 @@ public sealed class SqlSnippetDefaultsTests
     [InlineData("cp", "procedure")]
     [InlineData("cf", "function")]
     [InlineData("ctf", "function")]
+    [InlineData("cte", "cte")]
+    [InlineData("wcte", "cte")]
     public void 可能是名字的欄位打了字才有清單(string shortcut, string fieldId)
     {
         var context = AnalyzeBeforeField(shortcut, fieldId);

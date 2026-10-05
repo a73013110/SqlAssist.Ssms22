@@ -1162,6 +1162,20 @@ public sealed partial class SqlKeywordPositionAnalyzer
             (token.Kind == SqlTokenKind.Identifier && IsBareKeyword(index) && StartsStatement(token) && !NamesPermission(index));
     }
 
+    /// <summary>
+    /// 這個詞元開始查詢的另一個子句：ORDER BY、GROUP BY 的 <c>BY</c>、<c>WINDOW</c>、<c>FOR</c>。
+    /// </summary>
+    /// <remarks>
+    /// 子句清單的項是運算式，寫不出這種詞元；子句片語的中段 <c>,*</c> 走過 <c>GROUP BY</c> 的項時拿它停，
+    /// 否則 <c>GROUP BY a ORDER BY a, </c> 的逗號被當成 GROUP BY 的下一項。選項清單的項（<c>SET ANSI_NULLS ON</c>）
+    /// 寫得出 ON，不能拿子句錨點的整份名單停。
+    /// </remarks>
+    internal bool StartsQueryClause(int index)
+    {
+        return IsOrderOrGroupBy(index) ||
+            (IsBareKeyword(index) && (tokens[index].IsKeyword("WINDOW") || tokens[index].IsKeyword("FOR")));
+    }
+
     /// <summary>一種選項清單在一項的開頭與寫完一項之後各是什麼位置；null 是那裡不歸這份清單管。</summary>
     private readonly struct OptionSlots
     {

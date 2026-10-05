@@ -8671,6 +8671,10 @@ internal static class SqlKeywordCatalogData
             "ROWS_PER_BATCH", "ROWSET_OPTIONS", "ROWTERMINATOR", "SINGLE_BLOB", "SINGLE_CLOB",
             "SINGLE_NCLOB", "NULL",
         }),
+        ("OPENROWSET (* ORDER (* {name}", SqlKeywordPosition.DataSource, "SELECT * FROM OPENROWSET (BULK 'x', FORMATFILE = 'f', ORDER (t ", true, false, false, false, new string[]
+        {
+            "ASC", "DESC",
+        }),
         ("VECTOR_SEARCH (*", SqlKeywordPosition.DataSource, "SELECT * FROM VECTOR_SEARCH (", true, false, false, false, new string[]
         {
             "TABLE", "COLUMN", "SIMILAR_TO", "METRIC", "TOP_N",
@@ -11613,12 +11617,249 @@ internal static class SqlKeywordCatalogData
             "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
             "TRY_CONVERT", "USER",
         }),
+        ("IS NOT DISTINCT FROM", SqlKeywordPosition.ExpressionTail, "SELECT * FROM t WHERE a IS NOT DISTINCT FROM ", false, true, false, false, new string[]
+        {
+            "ALL", "ANY", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SOME",
+            "SYSTEM_USER", "TRY_CONVERT", "USER",
+        }),
+        ("IS NOT DISTINCT FROM", SqlKeywordPosition.CaseArm, "SELECT CASE WHEN a IS NOT DISTINCT FROM ", true, false, false, false, new string[]
+        {
+            "ALL", "ANY", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+            "CURRENT_USER", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SOME",
+            "SYSTEM_USER", "TRY_CONVERT", "USER",
+        }),
         ("GROUP BY", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP BY ", false, true, false, false, new string[]
         {
             "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
             "CURRENT_USER", "GROUPING", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
             "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ROLLUP", "CUBE",
             "GROUPING SETS",
+        }),
+        ("GROUP BY ,* ,", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP BY ALL x, ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "GROUPING", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER",
+            "SYSTEM_USER", "TRY_CONVERT", "USER", "ROLLUP", "CUBE", "GROUPING SETS",
+        }),
+        ("GROUP BY ,* GROUPING", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP BY GROUPING ", true, false, true, true, new string[]
+        {
+            "COLLATE", "EXCEPT", "FOR", "HAVING", "INTERSECT", "OPTION", "ORDER", "SETS",
+            "UNION",
+        }),
+        ("INNER", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t INNER ", true, false, false, false, new string[]
+        {
+            "HASH JOIN", "JOIN", "LOCAL", "LOOP JOIN", "MERGE JOIN", "REMOTE JOIN",
+        }),
+        ("INNER HASH", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t INNER HASH ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("INNER JOIN", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t INNER JOIN ", false, false, true, false, new string[]
+        {
+            "AI_GENERATE_CHUNKS", "CONTAINSTABLE", "FREETEXTTABLE", "OPENDATASOURCE",
+            "OPENQUERY", "OPENROWSET", "OPENXML", "SEMANTICKEYPHRASETABLE",
+            "SEMANTICSIMILARITYDETAILSTABLE", "SEMANTICSIMILARITYTABLE",
+        }),
+        ("INNER LOCAL", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t INNER LOCAL ", true, false, false, false, new string[]
+        {
+            "HASH", "LOOP", "MERGE",
+        }),
+        ("INNER LOOP", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t INNER LOOP ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("INNER MERGE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t INNER MERGE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("INNER REMOTE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t INNER REMOTE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("LEFT", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT ", true, false, false, false, new string[]
+        {
+            "HASH JOIN", "JOIN", "LOCAL", "LOOP JOIN", "MERGE JOIN", "OUTER", "REMOTE JOIN",
+        }),
+        ("LEFT HASH", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT HASH ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("LEFT JOIN", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT JOIN ", false, false, true, false, new string[]
+        {
+            "AI_GENERATE_CHUNKS", "CONTAINSTABLE", "FREETEXTTABLE", "OPENDATASOURCE",
+            "OPENQUERY", "OPENROWSET", "OPENXML", "SEMANTICKEYPHRASETABLE",
+            "SEMANTICSIMILARITYDETAILSTABLE", "SEMANTICSIMILARITYTABLE",
+        }),
+        ("LEFT LOCAL", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT LOCAL ", true, false, false, false, new string[]
+        {
+            "HASH", "LOOP", "MERGE",
+        }),
+        ("LEFT LOOP", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT LOOP ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("LEFT MERGE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT MERGE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("LEFT OUTER", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT OUTER ", true, false, false, false, new string[]
+        {
+            "HASH JOIN", "JOIN", "LOCAL", "LOOP JOIN", "MERGE JOIN", "REMOTE JOIN",
+        }),
+        ("LEFT REMOTE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT REMOTE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("RIGHT", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT ", true, false, false, false, new string[]
+        {
+            "HASH JOIN", "JOIN", "LOCAL", "LOOP JOIN", "MERGE JOIN", "OUTER", "REMOTE JOIN",
+        }),
+        ("RIGHT HASH", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT HASH ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("RIGHT JOIN", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT JOIN ", false, false, true, false, new string[]
+        {
+            "AI_GENERATE_CHUNKS", "CONTAINSTABLE", "FREETEXTTABLE", "OPENDATASOURCE",
+            "OPENQUERY", "OPENROWSET", "OPENXML", "SEMANTICKEYPHRASETABLE",
+            "SEMANTICSIMILARITYDETAILSTABLE", "SEMANTICSIMILARITYTABLE",
+        }),
+        ("RIGHT LOCAL", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT LOCAL ", true, false, false, false, new string[]
+        {
+            "HASH", "LOOP", "MERGE",
+        }),
+        ("RIGHT LOOP", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT LOOP ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("RIGHT MERGE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT MERGE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("RIGHT OUTER", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT OUTER ", true, false, false, false, new string[]
+        {
+            "HASH JOIN", "JOIN", "LOCAL", "LOOP JOIN", "MERGE JOIN", "REMOTE JOIN",
+        }),
+        ("RIGHT REMOTE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT REMOTE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("FULL", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL ", true, false, false, false, new string[]
+        {
+            "HASH JOIN", "JOIN", "LOCAL", "LOOP JOIN", "MERGE JOIN", "OUTER", "REMOTE JOIN",
+        }),
+        ("FULL HASH", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL HASH ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("FULL JOIN", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL JOIN ", false, false, true, false, new string[]
+        {
+            "AI_GENERATE_CHUNKS", "CONTAINSTABLE", "FREETEXTTABLE", "OPENDATASOURCE",
+            "OPENQUERY", "OPENROWSET", "OPENXML", "SEMANTICKEYPHRASETABLE",
+            "SEMANTICSIMILARITYDETAILSTABLE", "SEMANTICSIMILARITYTABLE",
+        }),
+        ("FULL LOCAL", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL LOCAL ", true, false, false, false, new string[]
+        {
+            "HASH", "LOOP", "MERGE",
+        }),
+        ("FULL LOOP", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL LOOP ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("FULL MERGE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL MERGE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("FULL OUTER", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL OUTER ", true, false, false, false, new string[]
+        {
+            "HASH JOIN", "JOIN", "LOCAL", "LOOP JOIN", "MERGE JOIN", "REMOTE JOIN",
+        }),
+        ("FULL REMOTE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL REMOTE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("LEFT OUTER HASH", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT OUTER HASH ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("LEFT OUTER JOIN", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT OUTER JOIN ", false, false, true, false, new string[]
+        {
+            "AI_GENERATE_CHUNKS", "CONTAINSTABLE", "FREETEXTTABLE", "OPENDATASOURCE",
+            "OPENQUERY", "OPENROWSET", "OPENXML", "SEMANTICKEYPHRASETABLE",
+            "SEMANTICSIMILARITYDETAILSTABLE", "SEMANTICSIMILARITYTABLE",
+        }),
+        ("LEFT OUTER LOCAL", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT OUTER LOCAL ", true, false, false, false, new string[]
+        {
+            "HASH", "LOOP", "MERGE",
+        }),
+        ("LEFT OUTER LOOP", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT OUTER LOOP ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("LEFT OUTER MERGE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT OUTER MERGE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("LEFT OUTER REMOTE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t LEFT OUTER REMOTE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("RIGHT OUTER HASH", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT OUTER HASH ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("RIGHT OUTER JOIN", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT OUTER JOIN ", false, false, true, false, new string[]
+        {
+            "AI_GENERATE_CHUNKS", "CONTAINSTABLE", "FREETEXTTABLE", "OPENDATASOURCE",
+            "OPENQUERY", "OPENROWSET", "OPENXML", "SEMANTICKEYPHRASETABLE",
+            "SEMANTICSIMILARITYDETAILSTABLE", "SEMANTICSIMILARITYTABLE",
+        }),
+        ("RIGHT OUTER LOCAL", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT OUTER LOCAL ", true, false, false, false, new string[]
+        {
+            "HASH", "LOOP", "MERGE",
+        }),
+        ("RIGHT OUTER LOOP", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT OUTER LOOP ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("RIGHT OUTER MERGE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT OUTER MERGE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("RIGHT OUTER REMOTE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t RIGHT OUTER REMOTE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("FULL OUTER HASH", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL OUTER HASH ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("FULL OUTER JOIN", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL OUTER JOIN ", false, false, true, false, new string[]
+        {
+            "AI_GENERATE_CHUNKS", "CONTAINSTABLE", "FREETEXTTABLE", "OPENDATASOURCE",
+            "OPENQUERY", "OPENROWSET", "OPENXML", "SEMANTICKEYPHRASETABLE",
+            "SEMANTICSIMILARITYDETAILSTABLE", "SEMANTICSIMILARITYTABLE",
+        }),
+        ("FULL OUTER LOCAL", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL OUTER LOCAL ", true, false, false, false, new string[]
+        {
+            "HASH", "LOOP", "MERGE",
+        }),
+        ("FULL OUTER LOOP", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL OUTER LOOP ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("FULL OUTER MERGE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL OUTER MERGE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("FULL OUTER REMOTE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FULL OUTER REMOTE ", true, false, false, false, new string[]
+        {
+            "JOIN",
+        }),
+        ("WITH", SqlKeywordPosition.StatementStart, "WITH ", false, false, false, false, new string[]
+        {
+            "CHANGE_TRACKING_CONTEXT", "XMLNAMESPACES",
         }),
         ("WITH", SqlKeywordPosition.TopClauseTail, "SELECT TOP 10 WITH ", true, false, false, false, new string[]
         {

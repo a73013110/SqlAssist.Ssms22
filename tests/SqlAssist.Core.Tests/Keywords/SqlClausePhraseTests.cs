@@ -507,6 +507,21 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER AVAILABILITY GROUP LibAg ADD REPLICA ON 'LIBSRV2' WITH (FAILOVER_MODE = AUTOMATIC),\n'LIBSRV3' WITH (FAILOVER_MODE = ", "MANUAL")]
     [InlineData("ALTER AVAILABILITY GROUP LibAg MODIFY REPLICA ON 'LIBSRV2' WITH (SECONDARY_ROLE (ALLOW_CONNECTIONS = ", "NO", "READ_ONLY", "ALL")]
     [InlineData("CREATE AVAILABILITY GROUP LibAg FOR DATABASE Lib REPLICA ON 'LIBSRV1' WITH (AVAILABILITY_MODE = ", "SYNCHRONOUS_COMMIT", "ASYNCHRONOUS_COMMIT")]
+    [InlineData("SELECT c.CopyNo FROM dbo.Copy c INNER ", "JOIN", "LOOP JOIN", "HASH JOIN", "MERGE JOIN", "REMOTE JOIN")]
+    [InlineData("SELECT c.CopyNo FROM dbo.Copy c LEFT OUTER ", "JOIN", "HASH JOIN")]
+    [InlineData("SELECT c.CopyNo FROM dbo.Copy c FULL ", "OUTER", "JOIN", "LOOP JOIN")]
+    [InlineData("SELECT c.CopyNo FROM dbo.Copy c INNER MERGE ", "JOIN")]
+    [InlineData("SELECT c.CopyNo FROM dbo.Copy c JOIN dbo.Loan l ON l.CopyNo = c.CopyNo RIGHT ", "OUTER", "REMOTE JOIN")]
+    [InlineData("SELECT c.CopyNo FROM dbo.Copy c LEFT JOIN ", "OPENROWSET")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY CUBE (BranchId), ", "ROLLUP", "CUBE", "GROUPING SETS", "CASE")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY BranchId, ROLLUP (CopyNo), GROUPING ", "SETS")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY GROUPING ", "SETS")]
+    [InlineData("SELECT CopyNo FROM dbo.Copy WHERE BranchId IS NOT DISTINCT FROM ", "NULL")]
+    [InlineData("SELECT CASE WHEN BranchId IS NOT DISTINCT FROM ", "NULL")]
+    [InlineData("SELECT * FROM OPENROWSET (BULK 'x', FORMATFILE = 'f', ORDER (CopyNo ", "ASC", "DESC")]
+    [InlineData("SELECT * FROM OPENROWSET (BULK 'x', FORMATFILE = 'f', ORDER (CopyNo ASC, BranchId ", "ASC", "DESC")]
+    [InlineData("WITH ", "XMLNAMESPACES", "CHANGE_TRACKING_CONTEXT")]
+    [InlineData("SELECT 1;\nWITH ", "XMLNAMESPACES")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -568,6 +583,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER DATABASE Lib SET AUTO_CREATE_STATISTICS ON (", "READ_ONLY")]
     [InlineData("TRUNCATE TABLE dbo.Loan WITH (", "SELECT")]
     [InlineData("BACKUP DATABASE LibArchive FILEGROUP = 'a', ", "SELECT")]
+    [InlineData("SELECT c.CopyNo FROM dbo.Copy c INNER ", "WHERE")]
+    [InlineData("SELECT c.CopyNo FROM dbo.Copy c INNER HASH ", "INTO")]
+    [InlineData("WITH ", "SELECT")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
@@ -613,6 +631,11 @@ public sealed class SqlClausePhraseTests
     [InlineData("WAITFOR (RECEIVE message_body, ", "GET")]
     [InlineData("SELECT STRING_AGG(Title, ',') WITHIN GROUP (ORDER BY Title, ", "GRAPH")]
     [InlineData("UPDATE dbo.Copy SET Shelf = 1, Floor = 2 ", "ACTION")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY BranchId ORDER BY BranchId, ", "ROLLUP")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY BranchId WINDOW w AS (ORDER BY BranchId), ", "ROLLUP")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY BranchId FOR XML RAW, ", "ROLLUP")]
+    [InlineData("SELECT BranchId, CopyNo, ", "ROLLUP")]
+    [InlineData("WITH Recent AS (SELECT 1 AS a), ", "XMLNAMESPACES")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));
@@ -629,6 +652,11 @@ public sealed class SqlClausePhraseTests
     [InlineData("SET ROWCOUNT ", true)]
     [InlineData("SET IDENTITY_INSERT ", false)]
     [InlineData("SELECT a FROM t GROUP BY ", false)]
+    [InlineData("SELECT a FROM t GROUP BY a, ", false)]
+    [InlineData("SELECT a FROM t INNER ", true)]
+    [InlineData("SELECT a FROM t LEFT OUTER LOOP ", true)]
+    [InlineData("SELECT a FROM t LEFT OUTER JOIN ", false)]
+    [InlineData("SELECT * FROM OPENROWSET (BULK 'x', FORMATFILE = 'f', ORDER (CopyNo ", true)]
     [InlineData("SELECT a FROM t FOR ", true)]
     [InlineData("CREATE TRIGGER tr ON t FOR ", true)]
     [InlineData("CREATE TRIGGER tr ON t WITH ENCRYPTION FOR ", true)]

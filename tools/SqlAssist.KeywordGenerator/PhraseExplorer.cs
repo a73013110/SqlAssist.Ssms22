@@ -101,6 +101,7 @@ internal sealed class PhraseExplorer
     /// ALGORITHM = 什麼名稱都先收，整句寫完才驗，普通名稱探得過一半、整段卻剖析不過。
     /// next 是這段之後片語的下一項：只取前一段探測時（片語裡的每一個字），名稱那一格照樣看得到它後面寫什麼。
     /// 後面還有項的 (* 代入左括號與 Items：清單有固定的第一項時（FORMAT_TYPE = …），之後的項才寫得出來。
+    /// Items 只墊第一組：裡面那一組（OPENROWSET (* ORDER (*）是一項自己的括號。
     /// 清單片語（,*、以尾巴比對的 ,* ,）這裡給的是標頭，逗號之後另外探。
     /// </remarks>
     public string ProbeText(string lead, string pattern, string? group = null, string? gap = null, string? next = null, string? items = null)
@@ -127,7 +128,8 @@ internal sealed class PhraseExplorer
                 "{name}" => SelectName(text, following) + " ",
                 "{value}" => (SelectValue(text) ?? SelectName(text, following)) + " ",
                 "()" => (string.IsNullOrEmpty(group) ? "(a)" : group) + " ",
-                "(*" => index < parts.Length - 1 ? "(" + items : "(",
+                "(*" when index < parts.Length - 1 && Array.IndexOf(parts, "(*") == index => "(" + items,
+                "(*" => "(",
                 "(" => "(",
                 "..." => gap + " ",
                 ",*" => hasRest || string.IsNullOrEmpty(gap) ? string.Empty : gap + " ",
@@ -202,7 +204,7 @@ internal sealed class PhraseExplorer
                 if (declaration.IsList || declaration.IsTailList)
                 {
                     var head = ProbeText(lead, declaration.ListHead, declaration.Group, declaration.Gap, items: declaration.Items);
-                    AddList(declaration.Pattern, declaration.ListHead, head, position, declaration.Endings, declaration.Lagging);
+                    AddList(declaration.Pattern, declaration.ListHead, head, position, declaration.Endings, declaration.Lagging, declaration.Values);
                     continue;
                 }
 
@@ -674,22 +676,7 @@ internal sealed class PhraseExplorer
         // 值、名稱與等號那一步也一樣：之後列不出字（PASSWORD = 'x' 之後），立了只是多一條空的片語。
         var silent = (child && endsStatement || step) && words.Count == 0;
 
-        // 手寫值還可以開一組清單（索引鍵之後的 WITH 只接 `(`）：清單項本身由那一格的位置片語列。
-        // 宣告的續尾也算（裝置之後的 WITH 要接 STATS 這種備份選項才寫得完）。
-        var valueEndings = Continuations.ValueEndings.Concat((extraEndings ?? []).Where(ending => !string.IsNullOrEmpty(ending))).ToArray();
-
-        foreach (var value in (values ?? []).Where(value => !string.IsNullOrEmpty(value)))
-        {
-            if (_prober.FirstEndingThrough(probe + value, valueEndings, string.Empty) == null)
-            {
-                throw new InvalidOperationException($"片語「{pattern}」的手寫值 {value} 剖析不過，這份清單過時了。");
-            }
-
-            if (!words.Contains(value))
-            {
-                words.Add(value);
-            }
-        }
+        AddValues(pattern, probe, words, values, extraEndings);
 
         // 名稱格：接得了名稱、接不了值。接得了值的是運算式（IS NOT DISTINCT FROM 之後），名稱只是欄位的一種寫法。
         var sample = SelectValue(probe);
@@ -825,9 +812,30 @@ internal sealed class PhraseExplorer
         }
     }
 
+    // 手寫值還可以開一組清單（索引鍵之後的 WITH 只接 `(`）：清單項本身由那一格的位置片語列。
+    // 宣告的續尾也算（裝置之後的 WITH 要接 STATS 這種備份選項才寫得完）。
+    private void AddValues(string pattern, string probe, List<string> words, IReadOnlyList<string>? values, string[]? extraEndings)
+    {
+        var valueEndings = Continuations.ValueEndings.Concat((extraEndings ?? []).Where(ending => !string.IsNullOrEmpty(ending))).ToArray();
+
+        foreach (var value in (values ?? []).Where(value => !string.IsNullOrEmpty(value)))
+        {
+            if (_prober.FirstEndingThrough(probe + value, valueEndings, string.Empty) == null)
+            {
+                throw new InvalidOperationException($"片語「{pattern}」的手寫值 {value} 剖析不過，這份清單過時了。");
+            }
+
+            if (!words.Contains(value))
+            {
+                words.Add(value);
+            }
+        }
+    }
+
     // 清單片語（,*）與以尾巴比對的清單（,* ,）：第一項由標頭的片語給，這一條只說逗號之後。
     // 剖析器落後的選項（lagging）在探完之後補進兩格，見 PhraseDeclaration 的 Lagging；探測照舊只看剖析器收的字。
-    private void AddList(string pattern, string headPattern, string head, string after, string[]? endings, string[]? lagging)
+    private void AddList(
+        string pattern, string headPattern, string head, string after, string[]? endings, string[]? lagging, string[]? values)
     {
         var headKey = ProbedPhrase.Key(after, headPattern);
 
@@ -848,6 +856,7 @@ internal sealed class PhraseExplorer
             throw new InvalidOperationException($"清單片語「{pattern}」的第一項沒有一種寫得完，探不出逗號之後的字（第一項：{string.Join(", ", firsts)}）。");
         }
 
+        AddValues(pattern, items.Probe, items.Words, values, endings);
         Phrases.Set(ProbedPhrase.Key(after, pattern), new ProbedPhrase(pattern, after, items.Probe, items.Words)
         {
             Closed = items.Closed,

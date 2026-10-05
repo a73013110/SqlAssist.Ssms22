@@ -170,6 +170,19 @@ public static class SqlCompletionContextAnalyzer
         // 列什麼仍由位置決定。
         if (caret.Slot == SqlCompletionSlot.Name)
         {
+            // 與 CREATE 的名稱格同一條規則：片語列得出字就是可能是名字（一句開頭的 WITH 也接 XMLNAMESPACES）。
+            // 既有物件沒有一個是對的，清單只有片語的字；打了字才開、軟選，Enter 保住新取的名字。
+            if (caret.Phrase is { IsCertain: true } namePhrase && namePhrase.Phrase.Words.Count > 0)
+            {
+                return new SqlCompletionContext(
+                    SqlCompletionSlot.MaybeName,
+                    tokenStart,
+                    prefix,
+                    CompletionTarget.ClauseKeyword,
+                    keywordPosition: keywordPosition,
+                    clausePhrase: namePhrase);
+            }
+
             return new SqlCompletionContext(
                 SqlCompletionSlot.Name,
                 tokenStart,

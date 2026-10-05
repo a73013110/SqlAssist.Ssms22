@@ -529,6 +529,9 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT CASE WHEN a IN (1, ", SqlKeywordPosition.Any)]
     [InlineData("SELECT CASE WHEN a = 1 AND (b = 2 OR c ", SqlKeywordPosition.CaseArm | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT CASE WHEN COALESCE(a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE WHEN a IS NOT DISTINCT FROM NULL ", SqlKeywordPosition.CaseArm | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE WHEN a IS DISTINCT FROM ", SqlKeywordPosition.Any)]
+    [InlineData("SELECT * FROM t WHERE a IS DISTINCT FROM b ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
     [InlineData("BEGIN SELECT 1 END ", SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart)]
     [InlineData("IF @a = 1 PRINT 'x' ELSE PRINT 'y' ", SqlKeywordPosition.Any)]
     public void CASE的位置(string textBeforeToken, SqlKeywordPosition expected)

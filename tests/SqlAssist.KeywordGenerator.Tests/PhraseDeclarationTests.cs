@@ -40,7 +40,7 @@ public sealed class PhraseDeclarationTests
     [InlineData("Lead 與 After")]
     [InlineData("不存在的位置")]
     [InlineData("Template")]
-    [InlineData("不收 Expand、Values、Closed")]
+    [InlineData("不收 Expand、Closed")]
     [InlineData("要以 After 交代位置")]
     [InlineData("Group")]
     [InlineData("Items")]

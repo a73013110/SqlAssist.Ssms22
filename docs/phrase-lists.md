@@ -11,6 +11,7 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 標頭的片語給第一項；逗號之後以每種第一項接逗號探測取聯集（用過的選項剖析器不收第二次），
 探到新字再取第一個往下一項探（`VECTOR_SEARCH` 的引數順序固定）。一項接得了逗號就好，整句寫不寫得完不論；
 值要過剖析器的（`FORMAT_TYPE =`）代入那一格列得出的第一個字，只收特定值的（`METRIC`）由 `Endings` 補。
+剖析器當名稱讀的項（`GROUP BY ,* ,` 的 `ROLLUP`）以 `Values` 補進逗號之後那一格，接在探到的那一項之後驗。
 項的等號之後立成中段清單片語（`… WITH ,* CHECK_POLICY =`）再往下一層：`ON`／`OFF`、`PASSWORD = 'x' HASHED`
 在第幾項都一樣；括號清單（`WITH (* QUEUE_DELAY =`）與 CREATE INDEX 的 `WITH (` 同樣立。沒有字、探測文字已有片語、這一項在這份清單
 不合法、標頭含 `...` 的不立；等號之後收運算式的不封閉，否則 `SOURCE =` 之後列不出資料行。
@@ -29,7 +30,8 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 `CREATE DATABASE ... WITH ,*` 並存）；兩者的探測文字要不同，否則比對回同一個片語。
 只接在某一項之後的項（`CHANGE_TRACKING OFF, NO POPULATION`）寫成中段的 `,* NO POPULATION`，`Gap` 墊前一項；括號清單同理以 `Items` 墊。
 中段 `,*` 往回走過的項裡，緊接一整組括號的 `WITH` 是那一項自己的選項（可用性複本 `'a' WITH (…), 'b' WITH (`），
-不是下一句的開頭；游標所在那一組還沒關上的 `WITH (` 照舊是界線。
+不是下一句的開頭；游標所在那一組還沒關上的 `WITH (` 照舊是界線。查詢的下一個子句（ORDER BY、`WINDOW`、`FOR`）也是界線，
+否則 `GROUP BY a ORDER BY a, ` 比對成 `GROUP BY ,* ,`；選項的值寫得出 `ON`，不能拿整份子句錨點停。
 
 備份對象（`FILE = 'a', FILEGROUP = 'b'`）緊接資料庫名稱，寫成 `BACKUP DATABASE {name} ,*`：標頭以名稱結尾的清單，執行期以名稱當錨點另外比對。
 一項寫到這裡就開了另一份清單的字（`TO`）不是這份清單的項，否則逗號之後列出裝置。裝置清單寫成 `BACKUP DATABASE ... TO ,*`，
