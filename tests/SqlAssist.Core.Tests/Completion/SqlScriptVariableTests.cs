@@ -162,6 +162,8 @@ public sealed class SqlScriptVariableTests
     [InlineData("CREATE PROCEDURE dbo.usp_Renew @readerId INT AS\r\nBEGIN\r\nSET |")]
     [InlineData("DECLARE @readerId INT;\r\nSET ROWCOUNT |")]
     [InlineData("DECLARE @readerId INT;\r\nFETCH FROM c INTO |")]
+    [InlineData("DECLARE @readerId UNIQUEIDENTIFIER;\r\nBEGIN DIALOG |")]
+    [InlineData("DECLARE @readerId UNIQUEIDENTIFIER;\r\nBEGIN DIALOG CONVERSATION |")]
     public void 收變數的封閉片語連變數一起列(string sqlWithCaret)
     {
         var input = SqlWithCaret.Parse(sqlWithCaret);

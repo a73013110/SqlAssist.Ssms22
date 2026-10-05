@@ -406,6 +406,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE ENDPOINT LoanBroker AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ENCRYPTION = ", "REQUIRED", "DISABLED")]
     [InlineData("CREATE REMOTE SERVICE BINDING LoanBinding TO ", "SERVICE")]
     [InlineData("WAITFOR (", "RECEIVE", "GET")]
+    [InlineData("", "RECEIVE", "SEND")]
+    [InlineData("SEND ON CONVERSATION @handle MESSAGE TYPE LoanRequest (@body)\n", "SEND", "RECEIVE")]
+    [InlineData("SEND ", "ON CONVERSATION")]
     [InlineData("WAITFOR (RECEIVE * FROM LoanQueue), ", "TIMEOUT")]
     [InlineData("ALTER EVENT SESSION LoanTrace ON SERVER DROP EVENT sqlserver.rpc_completed, ", "DROP")]
     [InlineData("ALTER EVENT SESSION LoanTrace ON SERVER DROP TARGET package0.ring_buffer, DROP ", "TARGET")]
@@ -512,7 +515,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("DBCC CHECKIDENT (", "REPAIR_REBUILD")]
     [InlineData("DBCC CHECKDB (", "RESEED")]
     [InlineData("SELECT CONVERT(int, ", "RESEED")]
-    [InlineData("WAITFOR (RECEIVE message_body, ", "RECEIVE")]
+    [InlineData("WAITFOR (RECEIVE message_body, ", "GET")]
     [InlineData("SELECT STRING_AGG(Title, ',') WITHIN GROUP (ORDER BY Title, ", "GRAPH")]
     [InlineData("UPDATE dbo.Copy SET Shelf = 1, Floor = 2 ", "ACTION")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)

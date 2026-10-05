@@ -93,6 +93,9 @@ UPDATE 的目標是 FROM 才取的別名（`UPDATE l SET … FROM Loan l`）時�
    { "clusters": { "1c63f62a": { "status": "gap", "reason": "SET 之後的 @ 沒有列變數" } } }
    ```
 
+   直接標 `ignore`、理由寫明哪一種：Azure Synapse／PDW 才有的語法、已淘汰的功能（Stretch、HTTP／SOAP 端點）、
+   sql-docs 沒有記載而只在 ScriptDom 測試腳本出現的語法。
+
 3. 稽核自己的誤判改 `tools/SqlAssist.CompletionAudit` 的判定，不標 `ignore`。判定新認得的名稱會讓召回語料
    轉紅時，與補上它的產品修正放同一批：認得 `inserted`／`deleted` 讓語料的 `OUTPUT inserted.CopyNo`
    轉紅，同一個 commit 裡產品在 OUTPUT 子句與觸發程序列出它們。

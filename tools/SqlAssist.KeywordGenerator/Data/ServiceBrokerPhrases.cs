@@ -27,6 +27,16 @@ internal static class ServiceBrokerPhrases
            }
            select declaration,
 
+        // 對話代碼那一格只收變數：以名稱結尾的格子證據不立，另外宣告；否則 CONVERSATION 被讀成 DIALOG {name} 的名稱，只列 FROM。
+        new("DIALOG CONVERSATION") { After = ["BlockStart"] },
+
+        // 對話的 SEND 與 RECEIVE 不是保留字：從語句開頭宣告，兩個字才成為語句開頭（StartsStatementAsPhrase），
+        // 前一句寫完換行之後列得出、範圍分析也切得開。RECEIVE 之後是選取清單，不展開；單寫 RECEIVE 是批次開頭省略 EXEC
+        // 的程序呼叫（名稱讀法），寫到 FROM 才是它的證據。
+        new("SEND ON CONVERSATION"),
+        new("RECEIVE") { Closed = false },
+        new("RECEIVE ... FROM") { Gap = "*" },
+
         // 服務、訊息類型與遠端服務繫結的名稱之後：種類展開只列一層（ON、VALIDATION、TO），再往下的由這幾條展開。
         new("CREATE SERVICE {name} ON") { Expand = 3 },
         new("CREATE SERVICE {name} AUTHORIZATION {name}") { Expand = 4 },

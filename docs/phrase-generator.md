@@ -25,7 +25,7 @@
 讓前面的字被拒過的字，要有續尾把整句寫完才算。
 普通名稱在任何續尾都過不了的片語是**封閉**的；名稱後面還要再寫一段的
 （`UPDATE t SET`）也會判成封閉，由 `Closed = false` 宣告不封閉。
-換 `@ReaderId` 過得了的另記 `TakesVariable`（收變數），收名稱不收值的另記 `TakesName`（[目錄物件](completion-catalog-names.md)拿它認名稱格）。
+換 `@ReaderId` 過得了或只收變數的（`BEGIN DIALOG @h`）另記 `TakesVariable`，收名稱不收值的另記 `TakesName`（[目錄物件](completion-catalog-names.md)拿它認名稱格）。
 選項的字在剖析器眼中也是名稱，名稱格照樣封閉；證據補完仍一個字都沒有的才改成不封閉（`CREATE CERTIFICATE c AUTHORIZATION ` 還要 `FROM`）。
 
 探測文字本身已是完整語句時（`CREATE INDEX i ON t (a) `），接得上的字也含下一句的開頭；
@@ -39,7 +39,7 @@
   值、名稱與選項的等號各是一步、不算一層（`FETCH ABSOLUTE 1 FROM`）；接得了值的格子是運算式，
   不走名稱與等號。等號之後的值不逐一展開，以第一個字與數值各往下一次（`SIZE = 5 MB`）。同一格只有層數比上次多才再展開，已由位置片語說了的不立。
   宣告的 `Endings` 跟著往下：展開出來的每一格是同一條宣告（`MASKED` 要寫完 `WITH (FUNCTION = …)` 才驗）。
-- 探測代入：`{value}` 用剖析器收的數值或字串，都不收的照 `{name}`（`CONTAINSTABLE (` 的資料行）；`{name}` 用普通名稱，只收變數的（`BEGIN DIALOG @h`）用變數，其餘收不了的格子與等號之後用那一格列得出的
+- 探測代入：`{value}` 用剖析器收的數值或字串，都不收的照 `{name}`（`CONTAINSTABLE (` 的資料行）；`{name}` 用普通名稱，只收變數的用變數，其餘收不了的格子與等號之後用那一格列得出的
   第一個字（手寫的也算）：`ALGORITHM =` 什麼名稱都先收，整句寫完才驗。剖析器要看到下一個字才收名稱的
   （`ALTER SERVER AUDIT a WITH`）接上片語的下一項判，只收兩段的（擴充事件）代入 `t.t`。
 - `Kinds`：`CREATE`、`ALTER`、`DROP` 之後是物件種類，展開到名稱為止，名稱之後只列一層（`CREATE TABLE t ` 之後的 `AS`）：

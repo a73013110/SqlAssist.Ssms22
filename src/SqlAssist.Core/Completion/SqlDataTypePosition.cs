@@ -14,10 +14,10 @@ namespace SqlAssist.Core.Completion;
 /// （判錯就等於那個位置什麼都打不出來），只收<b>看得出來</b>的寫法，
 /// 其餘一律照常，寧可少認幾個位置。
 ///
-/// 新資料行的名稱之後不自己認形狀：名稱前面那一格是不是資料行定義的開頭，問位置分析
+/// 資料行定義的名稱之後不自己認形狀：名稱前面那一格是不是資料行定義的開頭，問位置分析
 /// （<see cref="SqlKeywordPosition.ColumnDefinition"/>、<see cref="SqlKeywordPosition.AlterTableAdd"/>、
-/// <see cref="SqlKeywordPosition.ResultSetColumn"/>）。
-/// 各認一份的症狀是 CREATE TABLE 認得、ALTER TABLE ADD 認不得。
+/// <see cref="SqlKeywordPosition.ResultSetColumn"/>、<c>ALTER COLUMN</c> 的 <see cref="SqlKeywordPosition.AlterTableColumn"/>）。
+/// 各認一份的症狀是 CREATE TABLE 認得、ALTER TABLE ADD 認不得，名稱沒加方括號認得、加了認不得。
 ///
 /// 沒有做成 <see cref="SqlKeywordPosition"/> 的一個新成員：那個列舉的每個成員都對應
 /// 產生器 <c>tools/SqlAssist.KeywordGenerator/Data/PositionTemplates.cs</c> 裡的一個樣板，而型別根本不在關鍵字目錄裡，
@@ -110,7 +110,7 @@ public static class SqlDataTypePosition
         // 加了方括號的只可能是名稱：SSMS 產生的指令碼一律寫 CREATE TABLE [dbo].[Loan]([LoanId] |。
         if (token.IsQuoted)
         {
-            return IsNewColumn(tokens, last, textBeforeToken);
+            return NamesDefinedColumn(tokens, last, textBeforeToken);
         }
 
         if (TypeIntroducers.Contains(token.Value))
@@ -128,20 +128,15 @@ public static class SqlDataTypePosition
             return TypeFollowsAs(tokens, last);
         }
 
-        // ALTER TABLE t ALTER COLUMN c |；DROP COLUMN c 之後不接型別。
-        if (last >= 2 && tokens[last - 1].IsKeyword("COLUMN") && tokens[last - 2].IsKeyword("ALTER"))
-        {
-            return true;
-        }
-
-        return IsNewColumn(tokens, last, textBeforeToken);
+        return NamesDefinedColumn(tokens, last, textBeforeToken);
     }
 
-    /// <summary><paramref name="last"/> 是剛寫完的新資料行名稱，之後是它的型別。</summary>
-    private static bool IsNewColumn(IReadOnlyList<SqlToken> tokens, int last, string textBeforeToken)
+    /// <summary><paramref name="last"/> 是剛寫完、正要定義的資料行名稱，之後是它的型別。</summary>
+    private static bool NamesDefinedColumn(IReadOnlyList<SqlToken> tokens, int last, string textBeforeToken)
     {
-        return NewColumnPosition(tokens, last, textBeforeToken) is
-            SqlKeywordPosition.ColumnDefinition or SqlKeywordPosition.AlterTableAdd or SqlKeywordPosition.ResultSetColumn;
+        return DefinedColumnPosition(tokens, last, textBeforeToken) is
+            SqlKeywordPosition.ColumnDefinition or SqlKeywordPosition.AlterTableAdd or SqlKeywordPosition.ResultSetColumn or
+            SqlKeywordPosition.AlterTableColumn;
     }
 
     /// <summary>
@@ -174,7 +169,7 @@ public static class SqlDataTypePosition
         return last >= 0 &&
             SqlOperand.Ends(tokens, last) &&
             (TypeFollowsAs(tokens, tokens.Count) ||
-                NewColumnPosition(tokens, last, textBeforeToken) is
+                DefinedColumnPosition(tokens, last, textBeforeToken) is
                     SqlKeywordPosition.ColumnDefinition or SqlKeywordPosition.AlterTableAdd);
     }
 
@@ -280,16 +275,17 @@ public static class SqlDataTypePosition
     }
 
     /// <summary>
-    /// <paramref name="last"/> 可能是剛寫完的新資料行名稱時，回傳名稱前面那一格的位置；否則
+    /// <paramref name="last"/> 可能是正要定義的資料行名稱時，回傳名稱前面那一格的位置；否則
     /// <see cref="SqlKeywordPosition.None"/>。是的話那一格是資料行定義的開頭：<c>CREATE TABLE dbo.Loan (LoanId |</c>、
     /// <c>DECLARE @t TABLE (Id INT, Name |</c>、<c>ALTER TABLE t ADD ReaderId |</c>、
-    /// <c>EXEC p WITH RESULT SETS ((Branch |</c>。
+    /// <c>EXEC p WITH RESULT SETS ((Branch |</c>，以及重新定義既有資料行的 <c>ALTER TABLE t ALTER COLUMN CopyNo |</c>。
     /// </summary>
     /// <remarks>
-    /// 名稱前面那一格要是資料行定義的開頭，判準是位置分析的。只在名稱緊接著 <c>(</c>、逗號或
-    /// <c>ADD</c> 時問——其餘的名稱前面不可能是那兩個位置，不必每一鍵都多分析一次。
+    /// 名稱前面那一格要是資料行定義的開頭，判準是位置分析的。只在名稱緊接著 <c>(</c>、逗號、
+    /// <c>ADD</c> 或 <c>ALTER COLUMN</c> 時問——其餘的名稱前面不可能是那幾個位置，不必每一鍵都多分析一次。
+    /// <c>DROP COLUMN</c> 與 <c>ALTER COLUMN</c> 共用位置，名稱之後卻不接型別，所以這裡就擋掉。
     /// </remarks>
-    private static SqlKeywordPosition NewColumnPosition(IReadOnlyList<SqlToken> tokens, int last, string textBeforeToken)
+    private static SqlKeywordPosition DefinedColumnPosition(IReadOnlyList<SqlToken> tokens, int last, string textBeforeToken)
     {
         if (last < 1 || tokens[last].Kind != SqlTokenKind.Identifier ||
             (!tokens[last].IsQuoted && SqlKeywordCatalog.IsKeyword(tokens[last].Value)))
@@ -299,7 +295,8 @@ public static class SqlDataTypePosition
 
         var previous = tokens[last - 1];
 
-        if (!previous.IsPunctuation("(") && !previous.IsPunctuation(",") && !previous.IsKeyword("ADD"))
+        if (!previous.IsPunctuation("(") && !previous.IsPunctuation(",") && !previous.IsKeyword("ADD") &&
+            !(previous.IsKeyword("COLUMN") && last >= 2 && tokens[last - 2].IsKeyword("ALTER")))
         {
             return SqlKeywordPosition.None;
         }
@@ -311,7 +308,7 @@ public static class SqlDataTypePosition
     /// <paramref name="index"/> 那個字寫在一個資料行定義裡：<c>CREATE TABLE t (Id int IDENTITY(</c> 的 IDENTITY 是屬性，
     /// 引數是種子與遞增；<c>SELECT IDENTITY(int, 1, 1)</c> 才是第一個參數是型別的函式。
     /// </summary>
-    /// <remarks>那一項的第一個詞元是新資料行的名稱，與型別的位置同一條判斷。</remarks>
+    /// <remarks>那一項的第一個詞元是資料行定義的名稱，與型別的位置同一條判斷。</remarks>
     private static bool DefinesColumn(IReadOnlyList<SqlToken> tokens, int index, string textBeforeToken)
     {
         var first = index;
@@ -338,7 +335,7 @@ public static class SqlDataTypePosition
             first--;
         }
 
-        return first < index && IsNewColumn(tokens, first, textBeforeToken);
+        return first < index && NamesDefinedColumn(tokens, first, textBeforeToken);
     }
 
     private static bool IsBareIdentifier(SqlToken token)

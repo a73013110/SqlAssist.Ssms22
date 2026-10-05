@@ -71,8 +71,7 @@ SQL Server 2025 才有的 `JSON`、`VECTOR` 同樣照收、不看連線的版本
 | `RETURNS ` | 一個詞元就決定得了 |
 | `CAST(x AS `、`TRY_CAST`、`PARSE`、`TRY_PARSE` | `AS` 而且還沒關上的那個左括號屬於簽章寫 `AS type` 的函式 |
 | `CONVERT(`、`TRY_CONVERT(`、`SELECT IDENTITY(` | 左括號前面是簽章第一個參數為 `type` 的函式；資料行定義裡的 `IDENTITY(1, 1)` 是屬性，不算 |
-| `CREATE TABLE t (Id `、`DECLARE @t TABLE (Id `、`ALTER TABLE t ADD Id `、`WITH RESULT SETS ((Id ` | 名稱前面那一格是資料行定義的開頭（位置分析的 `ColumnDefinition`、`AlterTableAdd`、`ResultSetColumn`）；名稱可加方括號 |
-| `ALTER TABLE t ALTER COLUMN c ` | 前兩個詞元是 `ALTER COLUMN`；`DROP COLUMN c` 之後不是 |
+| `CREATE TABLE t (Id `、`DECLARE @t TABLE (Id `、`ALTER TABLE t ADD Id `、`ALTER COLUMN Id `、`WITH RESULT SETS ((Id ` | 名稱前面那一格是資料行定義的開頭（位置分析的 `ColumnDefinition`、`AlterTableAdd`、`ResultSetColumn`，`ALTER COLUMN` 的 `AlterTableColumn`，`DROP COLUMN` 不算）；名稱可加方括號 |
 | `CREATE SEQUENCE s AS `、`CREATE TYPE t FROM ` | 以型別為底的物件，名稱之後的那個字 |
 | `CREATE PARTITION FUNCTION pf (` | 唯一的參數只寫型別、沒有名稱 |
 | 選擇性 XML 索引的 `FOR (p = '/a' AS SQL ` | `SQL` 緊接 `AS`，寫在 `FOR (` 開的清單裡；選取清單的別名 `SQL` 不在那種括號裡 |

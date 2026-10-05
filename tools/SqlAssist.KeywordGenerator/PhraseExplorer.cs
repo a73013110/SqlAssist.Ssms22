@@ -686,7 +686,8 @@ internal sealed class PhraseExplorer
                 Closed = closed ?? (kinds != ObjectKinds.None
                     ? !takesName
                     : !_prober.AcceptsName(probe, Continuations.PlainName, _continuations)),
-                TakesVariable = _prober.AcceptsName(probe, Continuations.PlainVariable, _continuations),
+                // 變數寫得完一句，或這一格只收變數：BEGIN DIALOG @h 之後還要一長段標頭，續尾寫不完。
+                TakesVariable = TakesVariableOnly(probe) || _prober.AcceptsName(probe, Continuations.PlainVariable, _continuations),
                 TakesName = takesName,
                 DeclaredClosed = closed == true,
                 EndsStatement = endsStatement,
@@ -995,10 +996,11 @@ internal sealed class PhraseExplorer
         return _prober.FirstEndingPast(probe + Continuations.PlainName + " " + next, _continuations, probe.Length) != null;
     }
 
-    // 這一格接得了變數：變數之後再接一個字，剖析器也不在變數本身報錯。收名稱或值的格子早已判過，這裡只多認只收變數的那幾格。
+    // 這一格只收變數：變數之後再接一個字，剖析器也不在變數本身報錯，普通名稱卻過不了。只看變數的話，剖析器在更前面報
+    // 別種錯的格子（DROP STATISTICS t 要兩段名稱）什麼都過得了，名稱與變數一起過的不算。
     private bool TakesVariableOnly(string probe)
     {
-        return !probe.EndsWith("= ", StringComparison.Ordinal) &&
+        return !probe.EndsWith("= ", StringComparison.Ordinal) && !TakesName(probe, null) &&
             _prober.FirstRejection(probe + Continuations.PlainVariable + " x") > probe.Length;
     }
 

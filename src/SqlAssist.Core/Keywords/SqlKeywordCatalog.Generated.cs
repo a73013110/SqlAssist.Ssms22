@@ -10402,14 +10402,14 @@ internal static class SqlKeywordCatalogData
         {
             "OF",
         }),
-        ("FOR SYSTEM_TIME BETWEEN", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME BETWEEN ", true, false, false, false, new string[]
+        ("FOR SYSTEM_TIME BETWEEN", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME BETWEEN ", true, true, false, false, new string[]
         {
         }),
         ("FOR SYSTEM_TIME CONTAINED", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME CONTAINED ", true, false, false, false, new string[]
         {
             "IN",
         }),
-        ("FOR SYSTEM_TIME FROM", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME FROM ", true, false, false, false, new string[]
+        ("FOR SYSTEM_TIME FROM", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME FROM ", true, true, false, false, new string[]
         {
         }),
         ("FOR SYSTEM_TIME BETWEEN {value} AND {value}", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME BETWEEN 'x' AND 'x' ", false, false, true, true, new string[]
@@ -12596,6 +12596,24 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {value} COLLATE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = 1 COLLATE ", false, false, true, false, new string[]
         {
         }),
+        ("DIALOG CONVERSATION", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION ", true, true, false, false, new string[]
+        {
+        }),
+        ("SEND ON CONVERSATION", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("RECEIVE", SqlKeywordPosition.StatementStart, "RECEIVE ", false, true, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER", "TOP",
+            "TRY_CONVERT", "USER",
+        }),
+        ("RECEIVE ... FROM", SqlKeywordPosition.StatementStart, "RECEIVE * FROM ", false, false, true, false, new string[]
+        {
+        }),
         ("CREATE SERVICE {name} ON", SqlKeywordPosition.StatementStart, "CREATE SERVICE t ON ", true, false, false, false, new string[]
         {
             "QUEUE",
@@ -14301,7 +14319,7 @@ internal static class SqlKeywordCatalogData
         {
             "SERVICE",
         }),
-        ("DIALOG", SqlKeywordPosition.BlockStart, "BEGIN DIALOG ", true, false, false, false, new string[]
+        ("DIALOG", SqlKeywordPosition.BlockStart, "BEGIN DIALOG ", true, true, false, false, new string[]
         {
             "CONVERSATION",
         }),
@@ -14320,6 +14338,14 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO ", true, false, true, false, new string[]
         {
             "SERVICE",
+        }),
+        ("SEND", SqlKeywordPosition.StatementStart, "SEND ", true, false, false, false, new string[]
+        {
+            "ON CONVERSATION",
+        }),
+        ("SEND ON", SqlKeywordPosition.StatementStart, "SEND ON ", true, false, false, false, new string[]
+        {
+            "CONVERSATION",
         }),
         ("CREATE MESSAGE TYPE {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t AUTHORIZATION t ", true, false, false, true, new string[]
         {
@@ -14546,7 +14572,7 @@ internal static class SqlKeywordCatalogData
     internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
         ("", SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC", "DIALOG" }),
-        ("", SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY" }),
+        ("", SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY", "SEND", "RECEIVE" }),
         ("", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
         ("", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),
         ("", SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),

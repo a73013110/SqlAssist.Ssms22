@@ -12,6 +12,8 @@ public sealed class SqlStatementHeadsTests
     [InlineData("SELECT a FROM Loan\nUPDATE Loan SET a = 1", "SELECT|UPDATE")]
     [InlineData("SELECT 1\nGO\nTHROW 50000, 'x', 1", "SELECT|THROW")]
     [InlineData("BACKUP DATABASE LibArchive TO DISK = 'x'\nRESTORE VERIFYONLY FROM DISK = 'x'", "BACKUP|RESTORE")]
+    [InlineData("SEND ON CONVERSATION @handle MESSAGE TYPE LoanRequest (@body)\nSEND ON CONVERSATION @handle", "SEND|SEND")]
+    [InlineData("RECEIVE TOP (1) * FROM LoanQueue\nSELECT 1", "RECEIVE|SELECT")]
     public void 每一句的第一個詞元與位置分析的界線相同(string sql, string expected)
     {
         var tokens = SqlTokenizer.Tokenize(sql);
