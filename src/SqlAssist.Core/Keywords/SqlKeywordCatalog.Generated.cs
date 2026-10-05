@@ -1011,7 +1011,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE FULLTEXT INDEX ON {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t ", true, false, false, false, new string[]
         {
-            "KEY",
+            "KEY INDEX",
         }),
         ("CREATE FULLTEXT STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT STOPLIST ", false, false, true, false, new string[]
         {
@@ -1806,8 +1806,8 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER FULLTEXT INDEX ON {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ", true, false, false, false, new string[]
         {
-            "ADD", "ALTER", "DISABLE", "DROP", "ENABLE", "PAUSE", "RESUME", "SET", "START",
-            "STOP",
+            "ADD", "ALTER", "DISABLE", "DROP", "ENABLE", "PAUSE POPULATION",
+            "RESUME POPULATION", "SET", "START", "STOP POPULATION",
         }),
         ("ALTER FULLTEXT STOPLIST", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT STOPLIST ", false, false, true, false, new string[]
         {
@@ -4907,6 +4907,72 @@ internal static class SqlKeywordCatalogData
         ("FOR (* {name} = {value} AS XQUERY SINGLETON", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS XQUERY SINGLETON ", true, false, false, false, new string[]
         {
         }),
+        ("FOR (* {name} = {value} AS SQL {name} ()", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS SQL t (20) ", true, false, false, false, new string[]
+        {
+            "SINGLETON",
+        }),
+        ("FOR (* {name} = {value} AS XQUERY {value} MAXLENGTH ()", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS XQUERY 'x' MAXLENGTH (20) ", true, false, false, false, new string[]
+        {
+            "SINGLETON",
+        }),
+        ("ALTER INDEX {name} ON {name} FOR (*", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t FOR (", true, false, false, false, new string[]
+        {
+            "ADD", "REMOVE",
+        }),
+        ("FOR (* ADD {name} = {value} AS", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS ", true, false, false, false, new string[]
+        {
+            "SQL", "XQUERY",
+        }),
+        ("FOR (* ADD {name} = {value} AS SQL", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS SQL ", false, false, true, false, new string[]
+        {
+            "DOUBLE PRECISION", "NATIONAL", "XML",
+        }),
+        ("FOR (* ADD {name} = {value} AS SQL {name}", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS SQL t ", true, false, false, false, new string[]
+        {
+            "SINGLETON",
+        }),
+        ("FOR (* ADD {name} = {value} AS SQL {name} SINGLETON", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS SQL t SINGLETON ", true, false, false, false, new string[]
+        {
+        }),
+        ("FOR (* ADD {name} = {value} AS SQL DOUBLE", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS SQL DOUBLE ", true, false, false, false, new string[]
+        {
+            "PRECISION",
+        }),
+        ("FOR (* ADD {name} = {value} AS SQL NATIONAL", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS SQL NATIONAL ", false, false, true, false, new string[]
+        {
+        }),
+        ("FOR (* ADD {name} = {value} AS SQL XML", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS SQL XML ", true, false, false, false, new string[]
+        {
+            "SINGLETON",
+        }),
+        ("FOR (* ADD {name} = {value} AS XQUERY", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS XQUERY ", true, false, false, false, new string[]
+        {
+            "MAXLENGTH", "SINGLETON",
+        }),
+        ("FOR (* ADD {name} = {value} AS XQUERY {value}", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS XQUERY 'x' ", true, false, false, false, new string[]
+        {
+            "MAXLENGTH", "SINGLETON",
+        }),
+        ("FOR (* ADD {name} = {value} AS XQUERY {value} MAXLENGTH", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS XQUERY 'x' MAXLENGTH ", true, false, false, false, new string[]
+        {
+        }),
+        ("FOR (* ADD {name} = {value} AS XQUERY {value} SINGLETON", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS XQUERY 'x' SINGLETON ", true, false, false, false, new string[]
+        {
+        }),
+        ("FOR (* ADD {name} = {value} AS XQUERY MAXLENGTH", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS XQUERY MAXLENGTH ", true, false, false, false, new string[]
+        {
+        }),
+        ("FOR (* ADD {name} = {value} AS XQUERY SINGLETON", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS XQUERY SINGLETON ", true, false, false, false, new string[]
+        {
+        }),
+        ("FOR (* ADD {name} = {value} AS SQL {name} ()", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS SQL t (20) ", true, false, false, false, new string[]
+        {
+            "SINGLETON",
+        }),
+        ("FOR (* ADD {name} = {value} AS XQUERY {value} MAXLENGTH ()", SqlKeywordPosition.Any, "ALTER INDEX t ON t FOR (ADD t = 'x' AS XQUERY 'x' MAXLENGTH (20) ", true, false, false, false, new string[]
+        {
+            "SINGLETON",
+        }),
         ("CREATE JSON INDEX {name} ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE JSON INDEX t ON t (a) ", true, false, false, true, new string[]
         {
             "FOR", "WITH",
@@ -5921,6 +5987,303 @@ internal static class SqlKeywordCatalogData
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX ", false, false, true, false, new string[]
         {
         }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ", true, false, false, true, new string[]
+        {
+            "ON", "WITH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON ", false, false, true, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST", "NO POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* CHANGE_TRACKING AUTO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (CHANGE_TRACKING AUTO ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* CHANGE_TRACKING MANUAL", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (CHANGE_TRACKING MANUAL ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* CHANGE_TRACKING OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (CHANGE_TRACKING OFF ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* STOPLIST OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (STOPLIST OFF ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
+        {
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST", "NO POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* CHANGE_TRACKING AUTO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (CHANGE_TRACKING AUTO ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* CHANGE_TRACKING MANUAL", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (CHANGE_TRACKING MANUAL ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* CHANGE_TRACKING OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (CHANGE_TRACKING OFF ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* STOPLIST OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (STOPLIST OFF ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
+        {
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON ()", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST", "NO POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* CHANGE_TRACKING AUTO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (CHANGE_TRACKING AUTO ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* CHANGE_TRACKING MANUAL", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (CHANGE_TRACKING MANUAL ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* CHANGE_TRACKING OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* STOPLIST OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (STOPLIST OFF ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
+        {
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, false, new string[]
+        {
+        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ", true, false, false, true, new string[]
         {
             "ON", "WITH",
@@ -5950,27 +6313,23 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST ", false, false, true, false, new string[]
         {
-            "OFF",
+            "OFF", "SYSTEM",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = ", false, false, true, false, new string[]
         {
-            "OFF",
+            "OFF", "SYSTEM",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
         {
-            "NO", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+            "OFF",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
         {
             "OFF",
         }),
-        (", SEARCH PROPERTY LIST =", SqlKeywordPosition.Any, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF, SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
-        {
-            "OFF",
-        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (", true, false, true, false, new string[]
         {
-            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST", "NO",
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST", "NO POPULATION",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (CHANGE_TRACKING ", true, false, false, false, new string[]
         {
@@ -5999,16 +6358,230 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (STOPLIST ", false, false, true, false, new string[]
         {
-            "OFF",
+            "OFF", "SYSTEM",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* STOPLIST OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (STOPLIST OFF ", true, false, false, false, new string[]
         {
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (STOPLIST = ", false, false, true, false, new string[]
         {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
             "OFF",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
+        {
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST", "NO POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* CHANGE_TRACKING AUTO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (CHANGE_TRACKING AUTO ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* CHANGE_TRACKING MANUAL", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (CHANGE_TRACKING MANUAL ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* CHANGE_TRACKING OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (CHANGE_TRACKING OFF ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* STOPLIST OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (STOPLIST OFF ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
+        {
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON ()", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST", "NO POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* CHANGE_TRACKING AUTO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING AUTO ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* CHANGE_TRACKING MANUAL", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING MANUAL ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* CHANGE_TRACKING OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* STOPLIST OFF", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (STOPLIST OFF ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
+        {
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, false, new string[]
+        {
+        }),
+        (", SEARCH PROPERTY LIST =", SqlKeywordPosition.Any, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF, SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
         {
             "OFF",
         }),
@@ -6034,13 +6607,17 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST ", false, false, true, false, new string[]
         {
-            "OFF",
+            "OFF", "SYSTEM",
         }),
         ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST =", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST = ", false, false, true, false, new string[]
         {
             "OFF", "SYSTEM",
         }),
         ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        {
+            "OFF",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
         {
             "OFF",
         }),
@@ -6132,6 +6709,9 @@ internal static class SqlKeywordCatalogData
         ("ALTER FULLTEXT INDEX ON {name} DROP () WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t DROP (a) WITH NO POPULATION ", true, false, false, true, new string[]
         {
         }),
+        ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST {name} WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST t WITH NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
         ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST = {name} WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST = OFF WITH NO POPULATION ", true, false, false, true, new string[]
         {
         }),
@@ -6139,6 +6719,24 @@ internal static class SqlKeywordCatalogData
         {
         }),
         ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST = {name} WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST = OFF WITH NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} START FULL POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t START FULL POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} START INCREMENTAL POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t START INCREMENTAL POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} START UPDATE POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t START UPDATE POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} STOP POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t STOP POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} PAUSE POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t PAUSE POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} RESUME POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t RESUME POPULATION ", true, false, false, true, new string[]
         {
         }),
         ("ALTER FULLTEXT CATALOG {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT CATALOG t ", true, false, false, false, new string[]
@@ -13419,6 +14017,58 @@ internal static class SqlKeywordCatalogData
         {
             "ON", "WITH",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY ", true, false, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
         (", SEARCH", SqlKeywordPosition.Any, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF, SEARCH ", true, false, false, false, new string[]
         {
             "PROPERTY LIST",
@@ -13440,6 +14090,18 @@ internal static class SqlKeywordCatalogData
             "NO POPULATION",
         }),
         ("ALTER FULLTEXT INDEX ON {name} DROP () WITH NO", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t DROP (a) WITH NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST t ", true, false, false, true, new string[]
+        {
+            "WITH NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST {name} WITH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST t WITH ", true, false, false, false, new string[]
+        {
+            "NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST {name} WITH NO", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST t WITH NO ", true, false, false, false, new string[]
         {
             "POPULATION",
         }),
@@ -13476,6 +14138,34 @@ internal static class SqlKeywordCatalogData
             "NO POPULATION",
         }),
         ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST = {name} WITH NO", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST = OFF WITH NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} START", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t START ", true, false, false, false, new string[]
+        {
+            "FULL POPULATION", "INCREMENTAL POPULATION", "UPDATE POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} START FULL", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t START FULL ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} START INCREMENTAL", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t START INCREMENTAL ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} START UPDATE", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t START UPDATE ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} STOP", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t STOP ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} PAUSE", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t PAUSE ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} RESUME", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t RESUME ", true, false, false, false, new string[]
         {
             "POPULATION",
         }),

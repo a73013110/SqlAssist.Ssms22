@@ -11,6 +11,21 @@ internal static class IndexPhrases
     // 條件約束的索引鍵前面可夾的種類；記憶體最佳化的雜湊索引只寫得成 NONCLUSTERED HASH（PRIMARY KEY HASH 剖析不過）。
     private static readonly string[] ConstraintIndexKinds = ["", "CLUSTERED ", "NONCLUSTERED ", "NONCLUSTERED HASH "];
 
+    // 全文檢索索引 KEY INDEX 那一段的每一種寫法：資料行清單可以省略，之後可以夾 ON 目錄或括號裡的目錄與檔案群組。
+    private static readonly string[] FullTextKeyIndexes =
+    [
+        .. new[] { "", " ()" }.SelectMany(columns => new[] { "", " ON {name}", " ON ()" }
+            .Select(catalog => $"CREATE FULLTEXT INDEX ON {{name}}{columns} KEY INDEX {{name}}{catalog}")),
+    ];
+
+    // 母體擴展：CREATE 在 CHANGE_TRACKING OFF 之後、ALTER 在一個動作之後以 NO POPULATION 不擴展，ALTER 另有開始、停止擴展的動作。
+    private const string NoPopulation = "NO POPULATION";
+    private const string ChangeTrackingOff = "CHANGE_TRACKING OFF";
+    private static readonly string[] FullTextPopulatedActions =
+        ["ADD ()", "DROP ()", "SET STOPLIST {name}", "SET STOPLIST = {name}", "SET SEARCH PROPERTY LIST {name}", "SET SEARCH PROPERTY LIST = {name}"];
+    private static readonly string[] FullTextPopulations =
+        ["START FULL POPULATION", "START INCREMENTAL POPULATION", "START UPDATE POPULATION", "STOP POPULATION", "PAUSE POPULATION", "RESUME POPULATION"];
+
     internal static readonly PhraseDeclaration[] Options =
     [
         // CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了，手寫補回來。
@@ -98,7 +113,10 @@ internal static class IndexPhrases
         new("CREATE XML INDEX {name} ON {name} () USING XML INDEX {name} FOR") { Expand = 1 },
         new("CREATE PRIMARY XML INDEX {name} ON {name} ()") { Values = ["WITH"] },
         new("CREATE SELECTIVE XML INDEX {name} ON {name} ()") { Expand = 2 },
-        new("FOR (* {name} = {value} AS") { Lead = "CREATE SELECTIVE XML INDEX t ON t (a) ", Expand = 2, Endings = [" int)", " 'x')"] },
+        .. XmlPaths("FOR (*", "CREATE SELECTIVE XML INDEX t ON t (a) "),
+        // ALTER INDEX 改選擇性 XML 索引的路徑：清單一項以 ADD 或 REMOVE 開頭，ADD 之後的路徑定義與 CREATE 相同。
+        new("ALTER INDEX {name} ON {name} FOR (*"),
+        .. XmlPaths("FOR (* ADD", "ALTER INDEX t ON t "),
         new("CREATE JSON INDEX {name} ON {name} ()") { Values = ["WITH"] },
 
         // 向量索引：METRIC、TYPE 的值是字串，METRIC 只收距離的名稱。
@@ -117,31 +135,31 @@ internal static class IndexPhrases
         new("CREATE SPATIAL INDEX {name} ON {name} () USING GEOMETRY_AUTO_GRID WITH (*") { Expand = 2 },
         new("CREATE SPATIAL INDEX {name} ON {name} () USING GEOGRAPHY_AUTO_GRID WITH (*") { Expand = 2 },
 
-        // 全文檢索索引：資料行清單之後是 KEY INDEX，再來是 ON 目錄與 WITH 選項，WITH 可以帶括號也可以不帶。
-        // SEARCH PROPERTY LIST 剖析器要看到整段才收，整段是證據；不帶括號的清單逗號之後由尾巴認。
+        // 全文檢索索引：資料行清單可以省略，KEY INDEX 之後可以夾 ON 目錄（或括號裡的目錄與檔案群組），再來是 WITH 選項，
+        // WITH 可以帶括號也可以不帶。標頭逐一寫成整段：清單片語要從語句開頭比對標頭。
+        // 選項與 ALTER 的 SET 是同一組（FullTextSettings）；NO POPULATION 只接在 CHANGE_TRACKING OFF 之後，探測墊這一項。
+        // 不帶括號的清單逗號之後寫到一半的 SEARCH PROPERTY LIST 由尾巴認。
         new("CREATE FULLTEXT INDEX ON {name} ()") { Expand = 2 },
-        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name}") { Expand = 1 },
-        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH") { Expand = 2 },
-        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,*"),
-        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH PROPERTY LIST ="),
+        // 設定寫在清單片語之前：清單項的等號那一格（WITH ,* STOPLIST =）與已立的片語探測文字相同就不另立。
+        .. FullTextKeyIndexes.SelectMany(head => new[] { new PhraseDeclaration(head) { Expand = 1 } }
+            .Concat(FullTextSettings($"{head} WITH"))
+            .Concat(FullTextSettings($"{head} WITH (*"))
+            .Concat(
+            [
+                new($"{head} WITH ,*"),
+                new($"{head} WITH ,* {NoPopulation}") { Gap = ChangeTrackingOff + "," },
+                new($"{head} WITH (* {NoPopulation}") { Items = ChangeTrackingOff + ", " },
+            ])),
         new(", SEARCH PROPERTY LIST =") { Lead = "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF" },
-        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (*") { Expand = 2 },
-        new("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* SEARCH PROPERTY LIST ="),
-        new("ALTER FULLTEXT INDEX ON {name} SET") { Expand = 2 },
-        new("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST"),
+        .. FullTextSettings("ALTER FULLTEXT INDEX ON {name} SET"),
 
         // 資料行清單的每一項：資料行之後依序是 TYPE COLUMN 型別資料行、LANGUAGE、STATISTICAL_SEMANTICS，CREATE 與 ALTER … ADD 相同。
         // TYPE 要看到 COLUMN 與型別資料行才收，整段是證據。一項寫完要關上括號：CREATE 還要 KEY INDEX 才完整，續尾各自寫完。
         .. FullTextColumns("CREATE FULLTEXT INDEX ON {name} (*", " KEY INDEX k"),
         .. FullTextColumns("ALTER FULLTEXT INDEX ON {name} ADD (*", ""),
-        // NO POPULATION 剖析器要看到整段才收，整段是證據。
-        new("ALTER FULLTEXT INDEX ON {name} ADD () WITH NO POPULATION"),
-        new("ALTER FULLTEXT INDEX ON {name} DROP () WITH NO POPULATION"),
-        new("ALTER FULLTEXT INDEX ON {name} SET STOPLIST = {name} WITH NO POPULATION"),
-        new("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST {name} WITH NO POPULATION"),
-        new("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST = {name} WITH NO POPULATION"),
-        // 停用字詞表的值剖析器當名稱讀：系統的那份（SYSTEM）手寫，其餘是既有的停用字詞表。
-        new("ALTER FULLTEXT INDEX ON {name} SET STOPLIST =") { Values = ["SYSTEM"] },
+        // ALTER 的母體擴展：一個動作之後的 WITH NO POPULATION 與自成一句的 START … POPULATION 這些，剖析器都要看到整段才收，整段是證據。
+        .. FullTextPopulatedActions.Select(action => new PhraseDeclaration($"ALTER FULLTEXT INDEX ON {{name}} {action} WITH {NoPopulation}")),
+        .. FullTextPopulations.Select(population => new PhraseDeclaration($"ALTER FULLTEXT INDEX ON {{name}} {population}")),
         // 目錄名稱之後非接 REBUILD、REORGANIZE、AS DEFAULT 不可，ALTER 的展開探不出 CATALOG，整段是證據。
         // REBUILD 已是完整的語句，WITH 被當成下一句扣掉了，另外宣告。
         new("ALTER FULLTEXT CATALOG {name}") { Expand = 1 },
@@ -149,6 +167,26 @@ internal static class IndexPhrases
         // 停用字詞表的語句非以分號結尾不可。
         new("ALTER FULLTEXT STOPLIST {name} ADD {value}") { Endings = [" 1;"] },
         new("ALTER FULLTEXT STOPLIST {name} DROP {value}") { Endings = [" 1;"] },
+    ];
+
+    // 選擇性 XML 索引的路徑定義：CREATE 的 FOR (…) 與 ALTER INDEX … FOR (ADD …) 是同一份文法。一項是 名稱 = '路徑' AS SQL 型別
+    // 或 AS XQUERY '型別' [MAXLENGTH (n)]，最後可以接 SINGLETON；型別帶長度（nvarchar(20)）的那一格名稱之後是一整組括號。
+    private static PhraseDeclaration[] XmlPaths(string head, string lead) =>
+    [
+        new($"{head} {{name}} = {{value}} AS") { Lead = lead, Expand = 2, Endings = [" int)", " 'x')"] },
+        new($"{head} {{name}} = {{value}} AS SQL {{name}} ()") { Lead = lead, Group = "(20)" },
+        new($"{head} {{name}} = {{value}} AS XQUERY {{value}} MAXLENGTH ()") { Lead = lead, Group = "(20)" },
+    ];
+
+    // 全文檢索的設定：CREATE 的 WITH 選項與 ALTER 的 SET 收同一組（CHANGE_TRACKING、STOPLIST、SEARCH PROPERTY LIST）。
+    // SEARCH PROPERTY LIST 剖析器要看到整段才收，整段是證據；停用字詞表的值剖析器當名稱讀，系統的那份（SYSTEM）手寫，其餘是既有的停用字詞表。
+    private static PhraseDeclaration[] FullTextSettings(string head) =>
+    [
+        new(head) { Expand = 2 },
+        new($"{head} SEARCH PROPERTY LIST"),
+        new($"{head} SEARCH PROPERTY LIST ="),
+        new($"{head} STOPLIST") { Values = ["SYSTEM"] },
+        new($"{head} STOPLIST =") { Values = ["SYSTEM"] },
     ];
 
     private static PhraseDeclaration[] FullTextColumns(string head, string statementEnd)

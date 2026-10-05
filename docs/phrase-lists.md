@@ -22,6 +22,9 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 
 標頭夾著長度不定的一段（EXEC 的參數、BACKUP 的裝置清單、統計資料的資料行清單與篩選）寫成 `EXEC ... WITH ,*`：尾巴的 `WITH`
 對上了才找動詞，探測代入 `Gap`。宣告的 `Endings` 標頭也用：`RESTORE … WITH MOVE` 要寫完 `'a' TO 'b'` 才是一項。
+標頭裡可省的一段（全文檢索索引的資料行清單、`KEY INDEX k` 之後的 `ON` 目錄）不寫成 `...`：那會失去展開與項的等號之後那一格，
+每一種寫法各宣告一份整段標頭（`FullTextKeyIndexes`），同一組選項由同一個函式宣告（CREATE 的 `WITH`、`WITH (` 與 ALTER 的 `SET`）。
+只接在某一項之後的項（`CHANGE_TRACKING OFF, NO POPULATION`）寫成中段的 `,* NO POPULATION`，`Gap` 墊前一項；括號清單同理以 `Items` 墊。
 
 備份裝置本身也是 `,*` 清單（`BACKUP DATABASE {name} TO ,*`），寫完一個裝置寫成中段的 `,* {value}`（接 `MIRROR TO`、`WITH`）：
 `DISK` 是關鍵字、不是運算元，`TO DISK ` 之後不會比對成寫完；寫 `{name}` 的話剖析器把它當邏輯裝置名稱。
