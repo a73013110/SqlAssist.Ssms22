@@ -20,6 +20,9 @@ internal static class DdlPhrases
         "TSQL_SCALAR_UDF_INLINING", "VERBOSE_TRUNCATION_WARNINGS", "XTP_PROCEDURE_EXECUTION_STATISTICS", "XTP_QUERY_EXECUTION_STATISTICS",
     ];
 
+    // CLR 物件指向組件的寫法（組件.類別[.方法]）：模組、彙總與型別共用。
+    private const string ExternalName = "EXTERNAL NAME {name}";
+
     // 靜態欄位依序初始化，要寫在用到它的 Tables 之前。
     private static readonly string[] InlineIndexKinds =
         ["", "CLUSTERED ", "NONCLUSTERED ", "UNIQUE ", "UNIQUE CLUSTERED ", "UNIQUE NONCLUSTERED ", "HASH ", "NONCLUSTERED HASH "];
@@ -99,10 +102,11 @@ internal static class DdlPhrases
 
         // 本體的 AS：一句的開頭，CLR 模組改寫 EXTERNAL NAME 組件.類別.方法。位置分析把開本體的 AS 前一格判成 ModuleHeader，
         // 拿程序的樣板探；空本體的程序也剖析得過，下一句的開頭被當成下一句扣掉，所以只加字，EXTERNAL 加在語句開頭旁邊。
-        // EXTERNAL NAME 剖析器要看到整段才收，整段是證據。彙總沒有 AS，型別之後直接 EXTERNAL NAME。
+        // EXTERNAL NAME 剖析器要看到整段才收，整段是證據。彙總沒有 AS，回傳型別之後直接接；CLR 型別接在名稱之後。
         new("AS") { After = ["ModuleHeader"], Template = 1, Additive = true },
-        new("AS EXTERNAL NAME {name}") { After = ["ModuleHeader"], Template = 1 },
-        new("CREATE AGGREGATE ... EXTERNAL NAME {name}") { Gap = "a (@x int) RETURNS int" },
+        new("AS " + ExternalName) { After = ["ModuleHeader"], Template = 1 },
+        new("CREATE AGGREGATE ... " + ExternalName) { Gap = "a (@x int) RETURNS int" },
+        new("CREATE TYPE {name} " + ExternalName),
         new("DROP ASSEMBLY {name} WITH") { Expand = 1 },
 
         // 原生編譯模組的 BEGIN ATOMIC WITH (…)：ATOMIC 不是關鍵字，由這裡的證據進區塊開頭的附加片語。

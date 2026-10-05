@@ -59,6 +59,9 @@ internal static class SecurityPhrases
         // 目的地之後的 WITH (…) 兩者相同：APPLICATION_LOG 這類目的地是一個字，FILE、URL 帶一組括號。
         // 不寫成 ... WITH (*：SPECIFICATION 不是關鍵字，ALTER SERVER AUDIT SPECIFICATION s WITH ( 也比對得上。
         new("ALTER SERVER AUDIT {name} WITH (*"),
+        // 改名與拿掉篩選：MODIFY、REMOVE 剖析器要看到整段才收，整段是證據。
+        new("ALTER SERVER AUDIT {name} MODIFY NAME = {name}"),
+        new("ALTER SERVER AUDIT {name} REMOVE WHERE"),
         .. AuditDestinations("CREATE SERVER AUDIT {name}"),
         .. AuditDestinations("ALTER SERVER AUDIT {name}"),
 

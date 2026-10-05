@@ -114,6 +114,10 @@ internal static class StatementPhrases
         new("WAITFOR ("),
         new("WAITFOR ( " + ServiceBrokerPhrases.GetConversationGroup),
         new("WAITFOR () ,") { Group = "(RECEIVE * FROM q)" },
+
+        // KILL 之後是工作階段、工作單位或這兩種寫法：QUERY、STATS 剖析器要看到整段才收，整段是證據。
+        new("KILL QUERY NOTIFICATION SUBSCRIPTION ALL"),
+        new("KILL STATS JOB {value}"),
     ];
 
     internal static readonly PhraseDeclaration[] Dbcc =

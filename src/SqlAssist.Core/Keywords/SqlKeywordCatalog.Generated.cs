@@ -1358,7 +1358,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE TYPE {name}", SqlKeywordPosition.StatementStart, "CREATE TYPE t ", true, false, false, false, new string[]
         {
-            "AS TABLE", "EXTERNAL", "FROM",
+            "AS TABLE", "EXTERNAL NAME", "FROM",
         }),
         ("CREATE UNIQUE", SqlKeywordPosition.StatementStart, "CREATE UNIQUE ", true, false, false, false, new string[]
         {
@@ -7832,6 +7832,9 @@ internal static class SqlKeywordCatalogData
         ("CREATE AGGREGATE ... EXTERNAL NAME {name}", SqlKeywordPosition.StatementStart, "CREATE AGGREGATE a (@x int) RETURNS int EXTERNAL NAME t ", true, false, false, true, new string[]
         {
         }),
+        ("CREATE TYPE {name} EXTERNAL NAME {name}", SqlKeywordPosition.StatementStart, "CREATE TYPE t EXTERNAL NAME t ", true, false, false, true, new string[]
+        {
+        }),
         ("DROP ASSEMBLY {name} WITH", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY t WITH ", true, false, false, false, new string[]
         {
             "NO DEPENDENTS",
@@ -8523,6 +8526,12 @@ internal static class SqlKeywordCatalogData
         ("ALTER SERVER AUDIT {name} WITH (*", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t WITH (", true, false, true, false, new string[]
         {
             "ON_FAILURE", "OPERATOR_AUDIT", "QUEUE_DELAY", "STATE",
+        }),
+        ("ALTER SERVER AUDIT {name} MODIFY NAME = {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t MODIFY NAME = t ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER SERVER AUDIT {name} REMOVE WHERE", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t REMOVE WHERE ", true, false, false, true, new string[]
+        {
         }),
         ("CREATE SERVER AUDIT {name} TO FILE (*", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t TO FILE (", true, false, false, false, new string[]
         {
@@ -10225,6 +10234,12 @@ internal static class SqlKeywordCatalogData
         ("WAITFOR () ,", SqlKeywordPosition.StatementStart, "WAITFOR (RECEIVE * FROM q) , ", true, false, true, false, new string[]
         {
             "TIMEOUT",
+        }),
+        ("KILL QUERY NOTIFICATION SUBSCRIPTION ALL", SqlKeywordPosition.StatementStart, "KILL QUERY NOTIFICATION SUBSCRIPTION ALL ", true, false, false, true, new string[]
+        {
+        }),
+        ("KILL STATS JOB {value}", SqlKeywordPosition.StatementStart, "KILL STATS JOB 1 ", true, false, false, true, new string[]
+        {
         }),
         ("OPEN", SqlKeywordPosition.StatementStart, "OPEN ", false, true, true, false, new string[]
         {
@@ -15667,6 +15682,10 @@ internal static class SqlKeywordCatalogData
         {
             "NAME",
         }),
+        ("CREATE TYPE {name} EXTERNAL", SqlKeywordPosition.StatementStart, "CREATE TYPE t EXTERNAL ", true, false, false, false, new string[]
+        {
+            "NAME",
+        }),
         ("DROP ASSEMBLY {name}", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY t ", true, false, false, true, new string[]
         {
             "WITH NO DEPENDENTS",
@@ -15828,7 +15847,15 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t ", true, false, false, false, new string[]
         {
-            "TO", "WHERE", "WITH",
+            "TO", "WHERE", "WITH", "MODIFY", "REMOVE WHERE",
+        }),
+        ("ALTER SERVER AUDIT {name} MODIFY", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t MODIFY ", true, false, true, false, new string[]
+        {
+            "NAME",
+        }),
+        ("ALTER SERVER AUDIT {name} REMOVE", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t REMOVE ", true, false, false, false, new string[]
+        {
+            "WHERE",
         }),
         ("CREATE SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "CREATE SERVER AUDIT t ", true, false, false, false, new string[]
         {
@@ -15966,6 +15993,26 @@ internal static class SqlKeywordCatalogData
         ("WAITFOR ( GET CONVERSATION GROUP {name}", SqlKeywordPosition.StatementStart, "WAITFOR (GET CONVERSATION GROUP @ReaderId ", true, false, false, false, new string[]
         {
             "FROM",
+        }),
+        ("KILL", SqlKeywordPosition.StatementStart, "KILL ", true, false, false, false, new string[]
+        {
+            "QUERY NOTIFICATION SUBSCRIPTION", "STATS JOB",
+        }),
+        ("KILL QUERY", SqlKeywordPosition.StatementStart, "KILL QUERY ", true, false, false, false, new string[]
+        {
+            "NOTIFICATION SUBSCRIPTION",
+        }),
+        ("KILL QUERY NOTIFICATION", SqlKeywordPosition.StatementStart, "KILL QUERY NOTIFICATION ", true, false, false, false, new string[]
+        {
+            "SUBSCRIPTION",
+        }),
+        ("KILL QUERY NOTIFICATION SUBSCRIPTION", SqlKeywordPosition.StatementStart, "KILL QUERY NOTIFICATION SUBSCRIPTION ", true, false, false, false, new string[]
+        {
+            "ALL",
+        }),
+        ("KILL STATS", SqlKeywordPosition.StatementStart, "KILL STATS ", true, false, false, false, new string[]
+        {
+            "JOB",
         }),
         ("ALTER SYMMETRIC KEY {name} ADD", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ", true, false, true, false, new string[]
         {
