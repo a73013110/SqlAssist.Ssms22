@@ -28,6 +28,9 @@ internal sealed class CatalogData
 
     public IReadOnlyList<AdditivePhrase> Additive { get; init; } = [];
 
+    /// <summary>帶尾巴的附加片語，照片語表的順序。</summary>
+    public IReadOnlyList<ProbedPhrase> TailAdditive { get; init; } = [];
+
     public IReadOnlyList<(string Kind, bool AlsoWords, bool SchemaQualified)> CreatedKinds { get; init; } = [];
 }
 
@@ -142,13 +145,21 @@ internal static class CatalogWriter
 
         Line("    };");
         Line();
-        Line("    /// <summary>附加片語：只認位置、比對永遠是「可能」，把關鍵字目錄給不了的片語開頭加進那個位置。</summary>");
-        Line("    internal static readonly (SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =");
+        Line("    /// <summary>");
+        Line("    /// 附加片語：比對永遠是「可能」，只把字加進那一格。尾巴是空的只認位置，把關鍵字目錄給不了的片語開頭加進那個位置；");
+        Line("    /// 帶尾巴的照尾巴比對（剖析器分不出字的權限名稱、模組本體的 AS）。");
+        Line("    /// </summary>");
+        Line("    internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =");
         Line("    {");
 
         foreach (var additive in data.Additive)
         {
-            Line($"        (SqlKeywordPosition.{additive.After}, {Quote(additive.Probe)}, new string[] {{ {string.Join(", ", additive.Words.Select(Quote))} }}),");
+            Line($"        (\"\", SqlKeywordPosition.{additive.After}, {Quote(additive.Probe)}, new string[] {{ {string.Join(", ", additive.Words.Select(Quote))} }}),");
+        }
+
+        foreach (var phrase in data.TailAdditive)
+        {
+            Line($"        ({Quote(phrase.Pattern)}, {Flags(phrase.After)}, {Quote(phrase.Probe)}, new string[] {{ {string.Join(", ", phrase.Words.Select(Quote))} }}),");
         }
 
         Line("    };");

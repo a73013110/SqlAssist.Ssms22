@@ -198,6 +198,12 @@ internal sealed class PhraseExplorer
 
                 var key = ProbedPhrase.Key(position, declaration.Pattern);
 
+                if (declaration.Additive && Phrases.TryGet(key, out var additive))
+                {
+                    additive.Additive = true;
+                    additive.Closed = false;
+                }
+
                 if (declaration.IsOpenList && Phrases.Contains(key))
                 {
                     AddOpenListItems(key, declaration.Endings);
@@ -242,7 +248,15 @@ internal sealed class PhraseExplorer
     /// </remarks>
     public void AddEvidence(IReadOnlyList<PhraseDeclaration> declarations)
     {
-        foreach (var declaration in declarations.Concat(declarations.Where(declaration => declaration.Classes).SelectMany(ClassEvidence)))
+        // 先換掉探到的字，證據補進來的（REVOKE 之後的 GRANT）才留得住。
+        AddListFirsts(declarations);
+
+        var evidence = declarations
+            .Concat(declarations.Where(declaration => declaration.Classes).SelectMany(ClassEvidence))
+            .Select(declaration => (Declaration: declaration, Written: false))
+            .Concat(declarations.SelectMany(WrittenEvidence).Select(declaration => (Declaration: declaration, Written: true)));
+
+        foreach (var (declaration, written) in evidence)
         {
             var items = declaration.Pattern.Split([' '], StringSplitOptions.RemoveEmptyEntries);
             var lead = declaration.Lead;
@@ -326,7 +340,15 @@ internal sealed class PhraseExplorer
                             continue;
                         }
 
-                        Add(prefix, prefixProbe, position, closed: single ? false : null);
+                        // 手寫證據的那一格剖析器什麼都收，探出來的字不算數：只列證據的字，而且只加字。
+                        if (written)
+                        {
+                            Phrases.Set(key, new ProbedPhrase(prefix, position, prefixProbe, []) { Additive = true });
+                        }
+                        else
+                        {
+                            Add(prefix, prefixProbe, position, closed: single ? false : null);
+                        }
                     }
 
                     var phrase = Phrases[key];
@@ -340,6 +362,39 @@ internal sealed class PhraseExplorer
         }
 
         DropUnpositionedDuplicates();
+    }
+
+    // 手寫的證據（Evidence）：每一條接在尾巴之後，與 Classes 代入的多字類別同一種證據，不另立片語。
+    private static IEnumerable<PhraseDeclaration> WrittenEvidence(PhraseDeclaration declaration) =>
+        (declaration.Evidence ?? []).Select(tail => declaration with
+        {
+            Pattern = declaration.Pattern + " " + tail,
+            Evidence = null,
+            Expand = 0,
+            Values = null,
+            Lagging = null,
+        });
+
+    // 手寫證據的清單：標頭那一格（第一項）與逗號之後只列證據的第一個字，探到的字剖析器什麼都收、不算數；
+    // 那一格也沒有名稱，封閉。
+    private void AddListFirsts(IReadOnlyList<PhraseDeclaration> declarations)
+    {
+        foreach (var declaration in declarations.Where(declaration => declaration.IsList && declaration.Evidence != null))
+        {
+            var firsts = declaration.Evidence!.Select(tail => tail.Split(' ')[0]).Distinct(IgnoreCase).ToList();
+
+            foreach (var (position, _) in Anchors(declaration))
+            {
+                foreach (var pattern in new[] { declaration.ListHead, declaration.Pattern })
+                {
+                    if (Phrases.TryGet(ProbedPhrase.Key(position, pattern), out var phrase))
+                    {
+                        phrase.Words = firsts.ToList();
+                        phrase.Closed = true;
+                    }
+                }
+            }
+        }
     }
 
     private void AddCreatedKind(string kind, string probe)

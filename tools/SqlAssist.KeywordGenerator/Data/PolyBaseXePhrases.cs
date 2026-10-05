@@ -42,6 +42,23 @@ internal static class PolyBaseXePhrases
         new("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET (*"),
         new("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
         new("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET () WITH (*") { Group = "(CONTENT = 'x')" },
+
+        // 外部語言：與外部程式庫同一種檔案規格（CONTENT、FILE_NAME、PLATFORM、PARAMETERS、ENVIRONMENT_VARIABLES），
+        // CREATE 的 FROM 一個平台一組，ALTER 以 SET、ADD 換或加一組，REMOVE PLATFORM 刪一組；名稱之後都可以寫 AUTHORIZATION。
+        new("CREATE EXTERNAL LANGUAGE {name} FROM ,* (*"),
+        new("CREATE EXTERNAL LANGUAGE {name} AUTHORIZATION {name} FROM ,* (*"),
+        new("CREATE EXTERNAL LANGUAGE {name} FROM ,* (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
+        new("ALTER EXTERNAL LANGUAGE {name}") { Expand = 2 },
+        new("ALTER EXTERNAL LANGUAGE {name} SET (*"),
+        new("ALTER EXTERNAL LANGUAGE {name} ADD (*"),
+        new("ALTER EXTERNAL LANGUAGE {name} SET (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
+        new("ALTER EXTERNAL LANGUAGE {name} ADD (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
+        new("ALTER EXTERNAL LANGUAGE {name} REMOVE PLATFORM") { Values = LibraryPlatforms, Closed = true },
+        new("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name}") { Expand = 2 },
+        new("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} SET (*"),
+        new("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} ADD (*"),
+        new("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} SET (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
+        new("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} ADD (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
     ];
 
     internal static readonly PhraseDeclaration[] Events =

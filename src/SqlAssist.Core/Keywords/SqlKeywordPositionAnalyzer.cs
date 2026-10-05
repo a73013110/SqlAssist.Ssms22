@@ -323,6 +323,13 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return SqlKeywordPosition.StatementStart;
         }
 
+        // 開本體的 AS 之前，模組的標頭一定寫完了：參數清單、RETURNS 型別、觸發程序的動作之後位置分析多半判不出來，
+        // 標頭寫完的那一格只在 WITH 選項之後回報得出。以 AS 為第一個字的片語（AS EXTERNAL NAME）要的就是這一格。
+        if (tokens[index].IsKeyword("AS") && OpensModuleBody(index))
+        {
+            return SqlKeywordPosition.ModuleHeader;
+        }
+
         var before = KeywordsBefore(index);
         var position = AddStatementEnd(before, index - 1, tokens[index].Start);
 
@@ -1465,6 +1472,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <summary>
     /// 建立敘述的物件種類：<paramref name="endsAt"/> 為真時是以 <paramref name="index"/> 結尾、前面緊接 CREATE 的那一種，
     /// 否則是 <paramref name="index"/> 的 CREATE 之後寫的那一種；都不是回 null。
+    /// 權限清單的一項不是建立敘述：<c>GRANT CREATE TABLE </c>之後是 TO，不是新資料表的名稱。
     /// </summary>
     private (string[] Words, bool MayExist, bool SchemaQualified)? FindCreatedKind(int index, bool endsAt)
     {
@@ -1475,6 +1483,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             if (create >= 0 &&
                 create + kind.Words.Length < tokens.Count &&
                 tokens[create].IsKeyword("CREATE") &&
+                !NamesPermission(create) &&
                 WritesWords(create + 1, kind.Words))
             {
                 return kind;

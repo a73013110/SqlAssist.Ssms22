@@ -48,6 +48,9 @@ public sealed class ProbedPhrase
 
     public List<string> Words { get; set; }
 
+    /// <summary>附加片語：只加字，比對永遠是「可能」；寫進 AdditivePhrases，帶著尾巴。</summary>
+    public bool Additive { get; set; }
+
     /// <summary>探測時的鍵：同一條尾巴在不同位置是不同的片語。表裡的鍵不分大小寫。</summary>
     internal static string Key(string after, string pattern)
     {

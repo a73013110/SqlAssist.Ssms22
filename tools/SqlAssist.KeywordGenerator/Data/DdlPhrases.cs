@@ -95,6 +95,14 @@ internal static class DdlPhrases
         new("RETURNS NULL ON NULL INPUT") { After = ["FunctionOption"] },
         new("CALLED ON NULL INPUT") { After = ["FunctionOption"] },
 
+        // 本體的 AS：一句的開頭，CLR 模組改寫 EXTERNAL NAME 組件.類別.方法。位置分析把開本體的 AS 前一格判成 ModuleHeader，
+        // 拿程序的樣板探；空本體的程序也剖析得過，下一句的開頭被當成下一句扣掉，所以只加字，EXTERNAL 加在語句開頭旁邊。
+        // EXTERNAL NAME 剖析器要看到整段才收，整段是證據。彙總沒有 AS，型別之後直接 EXTERNAL NAME。
+        new("AS") { After = ["ModuleHeader"], Template = 1, Additive = true },
+        new("AS EXTERNAL NAME {name}") { After = ["ModuleHeader"], Template = 1 },
+        new("CREATE AGGREGATE ... EXTERNAL NAME {name}") { Gap = "a (@x int) RETURNS int" },
+        new("DROP ASSEMBLY {name} WITH") { Expand = 1 },
+
         // 原生編譯模組的 BEGIN ATOMIC WITH (…)：ATOMIC 不是關鍵字，由這裡的證據進區塊開頭的附加片語。
         // BEGIN x WITH ( 剖析器要一項寫完才在 x 報錯，續尾把那一項寫完，才分得出 ATOMIC 不是名稱。
         new("ATOMIC WITH (*") { After = ["BlockStart"], Endings = [" TRANSACTION ISOLATION LEVEL = SNAPSHOT)"] },

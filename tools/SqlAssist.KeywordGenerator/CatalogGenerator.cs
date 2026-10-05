@@ -224,7 +224,9 @@ public static class CatalogGenerator
 
         PhraseMerging.ChainUniqueContinuations(explorer.Phrases);
         explorer.ReturnCompletedOptionsToPosition();
-        var phrases = PhraseMerging.MergePositions(explorer.Phrases.Values);
+        var merged = PhraseMerging.MergePositions(explorer.Phrases.Values);
+        var phrases = merged.Where(phrase => !phrase.Additive).ToList();
+        var tailAdditive = merged.Where(phrase => phrase.Additive).ToList();
         var keywordSet = new HashSet<string>(keywords, IgnoreCase);
         var phraseWords = SortUnique(phrases.SelectMany(phrase => phrase.Words).Where(word => !keywordSet.Contains(word)));
         log.Info($"子句片語：{phrases.Count} 個，其中關鍵字清單以外的字 {phraseWords.Count} 個");
@@ -265,6 +267,7 @@ public static class CatalogGenerator
             StatementEndings = statementEndings,
             Phrases = phrases,
             Additive = explorer.Additive,
+            TailAdditive = tailAdditive,
             CreatedKinds = createdKinds,
         };
     }

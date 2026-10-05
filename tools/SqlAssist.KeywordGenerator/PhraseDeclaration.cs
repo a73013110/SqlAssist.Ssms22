@@ -61,6 +61,12 @@ public enum ObjectKinds
 // Lagging 是清單片語才有的手寫選項：官方文件有、ScriptDom 還不收的（CREATE USER … WITH ALLOW_ENCRYPTED_VALUE_MODIFICATIONS = ON
 // 在 TSql170 的值就報錯）。剖析器證明不了，所以不驗字本身，只驗標頭剖析得過；補進第一項與逗號之後兩格。
 // 這是唯一一種不經剖析器證明的字，只收官方語法圖寫得出來、而剖析器落後的選項。
+// Evidence 是剖析器什麼名稱都收、分不出哪些字才有意義的那一格裡手寫的多字寫法（權限名稱：GRANT 收任何一串識別字，
+// 權威是 sys.fn_builtin_permissions）。每一條接在尾巴之後整段當證據，每一個字由它前面那段列出，與 Classes 同一條路
+// （見 PhraseExplorer 的證據那一段）；證據本身不另立片語。剖析器在那一格收的字探出來不算數：清單標頭與逗號之後
+// 只列證據的第一個字（封閉），證據中段立起的片語是附加片語，只把字加進那一格（VIEW 之後的 DEFINITION 加在 ON、TO 旁邊）。
+// Additive 宣告這條片語只加字：比對永遠是「可能」，字加進游標處那一格。寫完一句卻還接得了下一句的格子用它
+// （模組本體的 AS：空本體也剖析得過，下一句的開頭全被當成下一句扣掉）。
 // 同一條尾巴、同一個位置後寫的覆蓋先寫的，所以 Expand 展開出來的片語可以在後面補 Values。
 
 /// <summary>一條子句片語的宣告：手寫的只有這些，接得上的字全由剖析器決定。寫法見上方註解。</summary>
@@ -93,6 +99,10 @@ public sealed record PhraseDeclaration(string Pattern)
     public bool Classes { get; init; }
 
     public string[]? Lagging { get; init; }
+
+    public string[]? Evidence { get; init; }
+
+    public bool Additive { get; init; }
 
     internal bool IsList => Pattern.EndsWith(" ,*", StringComparison.Ordinal);
 

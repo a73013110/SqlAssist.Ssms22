@@ -30,11 +30,14 @@ public static class SqlClausePhraseCatalog
     private static readonly SqlClausePhrase[] AtPosition =
         Phrases.Where(phrase => phrase.Length == 0 && !phrase.IsAdditive).ToArray();
 
-    /// <summary>附加片語，依產生器的順序。</summary>
-    private static readonly SqlClausePhrase[] Additive = Phrases.Where(phrase => phrase.IsAdditive).ToArray();
+    /// <summary>只認位置的附加片語，依產生器的順序；帶尾巴的附加片語與一般片語一樣以尾巴比對。</summary>
+    private static readonly SqlClausePhrase[] Additive = Phrases.Where(phrase => phrase.IsAdditive && phrase.Length == 0).ToArray();
 
     /// <summary>同時對上的附加片語合成的片語，鍵是它們在 <see cref="Additive"/> 裡的位元；建議項的 Tag 要一直是同一個物件。</summary>
     private static readonly ConcurrentDictionary<long, SqlClausePhrase> AdditiveUnions = new();
+
+    /// <summary>帶尾巴的附加片語與游標處只認位置的附加片語合成的片語；理由同 <see cref="AdditiveUnions"/>。</summary>
+    private static readonly ConcurrentDictionary<(SqlClausePhrase Tail, SqlClausePhrase Position), SqlClausePhrase> TailAdditiveUnions = new();
 
     /// <summary>同一條尾巴在幾個位置同時確定成立時合成的片語，鍵是尾巴與那幾個位置；理由同 <see cref="AdditiveUnions"/>。</summary>
     private static readonly ConcurrentDictionary<(string Pattern, SqlKeywordPosition After), SqlClausePhrase> PositionUnions = new();
@@ -172,7 +175,32 @@ public static class SqlClausePhraseCatalog
         }
 
         // 附加片語排在最後，只在什麼都沒比對到時才輪到：它只加字，不該擠掉一個可能的尾巴。
-        return FirstMatch(AtPosition, tokens, count, onNewLine, caret, analyzer, minimumLength: 0) ?? best ?? MatchAdditive(caret);
+        // 帶尾巴的附加片語也只加字，兩種同時對上時取聯集（開模組本體的 AS 之後，EXTERNAL 與 ENABLE、COPY 都在）。
+        return FirstMatch(AtPosition, tokens, count, onNewLine, caret, analyzer, minimumLength: 0) ?? WithAdditive(best, caret);
+    }
+
+    private static SqlClausePhraseMatch? WithAdditive(SqlClausePhraseMatch? best, SqlKeywordPosition caret)
+    {
+        if (best is not null && !best.Phrase.IsAdditive)
+        {
+            return best;
+        }
+
+        var position = MatchAdditive(caret);
+
+        if (best is null || position is null)
+        {
+            return best ?? position;
+        }
+
+        return TailAdditiveUnions.GetOrAdd((best.Phrase, position.Phrase), pair => new SqlClausePhrase(
+            pair.Tail.Pattern,
+            pair.Tail.After,
+            pair.Tail.Probe,
+            isClosed: false,
+            endsStatement: false,
+            pair.Tail.Words.Concat(pair.Position.Words).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            isAdditive: true)).Tentative;
     }
 
     /// <summary>游標處的位置接得上的附加片語；對上幾個就取它們的字的聯集。</summary>
@@ -396,9 +424,9 @@ public static class SqlClausePhraseCatalog
 
         for (var index = 0; index < additive.Length; index++)
         {
-            var (after, probe, words) = additive[index];
+            var (pattern, after, probe, words) = additive[index];
             phrases[data.Length + index] = new SqlClausePhrase(
-                string.Empty, after, probe, isClosed: false, endsStatement: false, words, isAdditive: true);
+                pattern, after, probe, isClosed: false, endsStatement: false, words, isAdditive: true);
         }
 
         return phrases;

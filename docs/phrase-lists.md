@@ -6,6 +6,8 @@
 標頭開的逗號選項清單寫成 `ALTER USER {name} WITH ,*`，共用位置 `OptionItem`（各佔位元不夠）；
 DDL 觸發程序的事件（`ON DATABASE FOR`）也是，事件依標頭而不同，寫完一項仍回報 `TriggerEventEnd`。
 分析器走訪清單交出錨點，比對錨點前的標頭。
+GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限清單的走訪回報 `OptionItem`，寫完一個權限照舊是 `PermissionList`。
+中段 `,*` 之後是字面字時，那個字開始一項、前面緊接標頭或逗號，否則 `GRANT SELECT ON EXTERNAL` 的類別會比對成權限。
 標頭的片語給第一項；逗號之後以每種第一項接逗號探測取聯集（用過的選項剖析器不收第二次），
 探到新字再取第一個往下一項探（`VECTOR_SEARCH` 的引數順序固定）。一項接得了逗號就好，整句寫不寫得完不論；
 值要過剖析器的（`FORMAT_TYPE =`）代入那一格列得出的第一個字，只收特定值的（`METRIC`）由 `Endings` 補。
@@ -13,6 +15,9 @@ DDL 觸發程序的事件（`ON DATABASE FOR`）也是，事件依標頭而不�
 在第幾項都一樣。沒有字、探測文字已有片語、這一項在這份清單不合法、標頭含 `...` 的不立。
 官方有、ScriptDom 還不收的選項（`ALLOW_ENCRYPTED_VALUE_MODIFICATIONS`，TSql170 在值就報錯）寫在 `Lagging`：
 唯一不經剖析器證明的字，只驗標頭；ScriptDom 跟上就刪。
+剖析器什麼都收的清單探不出字：`GRANT` 收任何一串識別字（連 `AND` 都收），權限名稱由 `Evidence` 手寫（`sys.fn_builtin_permissions`），
+每一條接在尾巴之後當證據、一個字一個字列。探到的字不算數：標頭與逗號之後只列證據的第一個字並封閉，證據中段立起的片語
+（`GRANT ,* VIEW`）是帶尾巴的附加片語，`DEFINITION` 加在 `PermissionList` 的 `ON`、`TO` 旁邊——`CONTROL` 寫完了也還接 `SERVER`。
 `()` 探測代入 `(a)`，對括號內容有要求的（RAISERROR）由 `Group` 指定。
 
 標頭夾著長度不定的一段（EXEC 的參數、BACKUP 的裝置清單、統計資料的資料行清單與篩選）寫成 `EXEC ... WITH ,*`：尾巴的 `WITH`

@@ -209,9 +209,9 @@ public static class SqlKeywordCatalog
     {
         var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (after, _, phraseWords) in SqlKeywordCatalogData.AdditivePhrases)
+        foreach (var (pattern, after, _, phraseWords) in SqlKeywordCatalogData.AdditivePhrases)
         {
-            if ((after & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None)
+            if (pattern.Length == 0 && (after & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None)
             {
                 words.UnionWith(phraseWords);
             }

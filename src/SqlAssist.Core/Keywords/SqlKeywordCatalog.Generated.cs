@@ -1684,6 +1684,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER DATABASE ENCRYPTION KEY", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ", true, false, false, false, new string[]
         {
+            "REGENERATE", "ENCRYPTION",
         }),
         ("ALTER DATABASE ENCRYPTION MODIFY", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION MODIFY ", true, false, false, false, new string[]
         {
@@ -6034,7 +6035,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST =", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST = ", false, false, true, false, new string[]
         {
-            "OFF",
+            "OFF", "SYSTEM",
         }),
         ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST ", false, false, true, false, new string[]
         {
@@ -6126,6 +6127,15 @@ internal static class SqlKeywordCatalogData
         {
         }),
         ("ALTER FULLTEXT INDEX ON {name} DROP () WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t DROP (a) WITH NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST = {name} WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST = OFF WITH NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST {name} WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST t WITH NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST = {name} WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST = OFF WITH NO POPULATION ", true, false, false, true, new string[]
         {
         }),
         ("ALTER FULLTEXT CATALOG {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT CATALOG t ", true, false, false, false, new string[]
@@ -7146,6 +7156,20 @@ internal static class SqlKeywordCatalogData
         ("CALLED ON NULL INPUT", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ON NULL INPUT ", true, false, false, false, new string[]
         {
             "AS", "BEGIN", "EXTERNAL",
+        }),
+        ("AS EXTERNAL NAME {name}", SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE AS EXTERNAL NAME t ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE AGGREGATE ... EXTERNAL NAME {name}", SqlKeywordPosition.StatementStart, "CREATE AGGREGATE a (@x int) RETURNS int EXTERNAL NAME t ", true, false, false, true, new string[]
+        {
+        }),
+        ("DROP ASSEMBLY {name} WITH", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY t WITH ", true, false, false, false, new string[]
+        {
+            "NO DEPENDENTS",
+        }),
+        ("DROP ASSEMBLY {name} WITH NO", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY t WITH NO ", true, false, false, false, new string[]
+        {
+            "DEPENDENTS",
         }),
         ("ATOMIC WITH (*", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC WITH (", true, false, false, false, new string[]
         {
@@ -8435,6 +8459,80 @@ internal static class SqlKeywordCatalogData
         ("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET () WITH (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t AUTHORIZATION t SET (CONTENT = 'x') WITH (", true, false, true, false, new string[]
         {
             "LANGUAGE",
+        }),
+        ("CREATE EXTERNAL LANGUAGE {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE t FROM (", true, false, true, false, new string[]
+        {
+            "CONTENT", "FILE_NAME", "ENVIRONMENT_VARIABLES", "PARAMETERS", "PLATFORM",
+        }),
+        ("CREATE EXTERNAL LANGUAGE {name} AUTHORIZATION {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE t AUTHORIZATION t FROM (", true, false, true, false, new string[]
+        {
+            "CONTENT", "FILE_NAME", "ENVIRONMENT_VARIABLES", "PARAMETERS", "PLATFORM",
+        }),
+        ("CREATE EXTERNAL LANGUAGE {name} FROM ,* (* PLATFORM =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE t FROM (CONTENT = 'x', FILE_NAME = 'x', PLATFORM = ", true, false, true, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} ADD", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t ADD ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t ", true, false, false, false, new string[]
+        {
+            "ADD", "REMOVE", "SET",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} ADD", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t ADD ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} REMOVE", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t REMOVE ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} SET", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t SET ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} REMOVE", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t REMOVE ", false, false, true, false, new string[]
+        {
+            "PLATFORM",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} SET", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t SET ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} SET (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t SET (", true, false, true, false, new string[]
+        {
+            "CONTENT", "FILE_NAME", "ENVIRONMENT_VARIABLES", "PARAMETERS", "PLATFORM",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} ADD (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t ADD (", true, false, true, false, new string[]
+        {
+            "CONTENT", "FILE_NAME", "ENVIRONMENT_VARIABLES", "PARAMETERS", "PLATFORM",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} SET (* PLATFORM =", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t SET (CONTENT = 'x', FILE_NAME = 'x', PLATFORM = ", true, false, true, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} ADD (* PLATFORM =", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t ADD (CONTENT = 'x', FILE_NAME = 'x', PLATFORM = ", true, false, true, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} REMOVE PLATFORM", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t REMOVE PLATFORM ", true, false, true, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} SET (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t SET (", true, false, true, false, new string[]
+        {
+            "CONTENT", "FILE_NAME", "ENVIRONMENT_VARIABLES", "PARAMETERS", "PLATFORM",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} ADD (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t ADD (", true, false, true, false, new string[]
+        {
+            "CONTENT", "FILE_NAME", "ENVIRONMENT_VARIABLES", "PARAMETERS", "PLATFORM",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} SET (* PLATFORM =", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t SET (CONTENT = 'x', FILE_NAME = 'x', PLATFORM = ", true, false, true, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} ADD (* PLATFORM =", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t ADD (CONTENT = 'x', FILE_NAME = 'x', PLATFORM = ", true, false, true, false, new string[]
+        {
+            "WINDOWS", "LINUX",
         }),
         ("CREATE EVENT NOTIFICATION {name} ON", SqlKeywordPosition.StatementStart, "CREATE EVENT NOTIFICATION t ON ", true, false, false, false, new string[]
         {
@@ -9998,6 +10096,138 @@ internal static class SqlKeywordCatalogData
         ("DROP DATABASE SCOPED CREDENTIAL", SqlKeywordPosition.StatementStart, "DROP DATABASE SCOPED CREDENTIAL ", false, false, true, false, new string[]
         {
         }),
+        ("CREATE CREDENTIAL ... FOR CRYPTOGRAPHIC PROVIDER {name}", SqlKeywordPosition.StatementStart, "CREATE CREDENTIAL t WITH IDENTITY = 'x' FOR CRYPTOGRAPHIC PROVIDER t ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = ", true, false, false, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "TRIPLE_DES_3KEY",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE t ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYMMETRIC KEY t ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("ADD SIGNATURE TO {name} BY ASYMMETRIC", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ADD SIGNATURE TO {name} BY ASYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ASYMMETRIC KEY ", false, false, true, false, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY CERTIFICATE", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY PASSWORD", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY PASSWORD ", true, false, false, false, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY SYMMETRIC", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ADD SIGNATURE TO {name} BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY SYMMETRIC KEY ", false, false, true, false, new string[]
+        {
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ASYMMETRIC", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ASYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC KEY ", false, false, true, false, new string[]
+        {
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY CERTIFICATE", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY PASSWORD", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY PASSWORD ", true, false, false, false, new string[]
+        {
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY SYMMETRIC", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY SYMMETRIC KEY ", false, false, true, false, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY CERTIFICATE {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY CERTIFICATE {name} WITH SIGNATURE = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE t WITH SIGNATURE = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ASYMMETRIC KEY t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY CERTIFICATE {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC KEY t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("DROP SIGNATURE FROM {name} BY", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("DROP SIGNATURE FROM {name} BY ASYMMETRIC", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP SIGNATURE FROM {name} BY ASYMMETRIC KEY", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY ASYMMETRIC KEY ", false, false, true, false, new string[]
+        {
+        }),
+        ("DROP SIGNATURE FROM {name} BY CERTIFICATE", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY CERTIFICATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DROP SIGNATURE FROM {name} BY PASSWORD", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY PASSWORD ", true, false, false, false, new string[]
+        {
+        }),
+        ("DROP SIGNATURE FROM {name} BY SYMMETRIC", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP SIGNATURE FROM {name} BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY SYMMETRIC KEY ", false, false, true, false, new string[]
+        {
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name} BY", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name} BY ASYMMETRIC", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name} BY ASYMMETRIC KEY", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY ASYMMETRIC KEY ", false, false, true, false, new string[]
+        {
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name} BY CERTIFICATE", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY CERTIFICATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name} BY PASSWORD", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY PASSWORD ", true, false, false, false, new string[]
+        {
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name} BY SYMMETRIC", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name} BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY SYMMETRIC KEY ", false, false, true, false, new string[]
+        {
+        }),
+        ("ADD SENSITIVITY CLASSIFICATION TO ... WITH (*", SqlKeywordPosition.StatementStart, "ADD SENSITIVITY CLASSIFICATION TO t.c WITH (", true, false, true, false, new string[]
+        {
+            "LABEL", "LABEL_ID", "INFORMATION_TYPE", "INFORMATION_TYPE_ID", "RANK",
+        }),
+        ("ADD SENSITIVITY CLASSIFICATION TO ... WITH (* RANK =", SqlKeywordPosition.StatementStart, "ADD SENSITIVITY CLASSIFICATION TO t.c WITH (RANK = ", true, false, false, false, new string[]
+        {
+            "NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL",
+        }),
         ("ALTER DATABASE SCOPED CREDENTIAL {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CREDENTIAL t WITH ", true, false, false, false, new string[]
         {
             "IDENTITY",
@@ -10385,9 +10615,77 @@ internal static class SqlKeywordCatalogData
             "ASYMMETRIC", "EXTERNAL MODEL", "FULLTEXT", "MESSAGE", "REMOTE", "SEARCH",
             "SYMMETRIC", "XML", "AVAILABILITY",
         }),
-        ("SCHEMA", SqlKeywordPosition.PermissionGrantee, "ALTER AUTHORIZATION ON OBJECT::t TO SCHEMA ", true, false, false, false, new string[]
+        ("TO SCHEMA OWNER", SqlKeywordPosition.Any, "ALTER AUTHORIZATION ON OBJECT::t TO SCHEMA OWNER ", true, false, false, true, new string[]
         {
-            "OWNER",
+        }),
+        ("GRANT", SqlKeywordPosition.StatementStart, "GRANT ", true, false, true, false, new string[]
+        {
+            "ADMINISTER", "ALTER", "AUTHENTICATE", "BACKUP", "CHECKPOINT", "CONNECT", "CONTROL",
+            "CREATE", "DELETE", "DROP", "ENABLE", "EXECUTE", "EXTERNAL", "IMPERSONATE",
+            "INSERT", "KILL", "RECEIVE", "REFERENCES", "SELECT", "SEND", "SHOWPLAN", "SHUTDOWN",
+            "SUBSCRIBE", "TAKE", "UNMASK", "UNSAFE", "UPDATE", "VIEW", "ALL",
+        }),
+        ("GRANT ,*", SqlKeywordPosition.StatementStart, "GRANT ADD, ", true, false, false, false, new string[]
+        {
+            "ADMINISTER", "ALTER", "AUTHENTICATE", "BACKUP", "CHECKPOINT", "CONNECT", "CONTROL",
+            "CREATE", "DELETE", "DROP", "ENABLE", "EXECUTE", "EXTERNAL", "IMPERSONATE",
+            "INSERT", "KILL", "RECEIVE", "REFERENCES", "SELECT", "SEND", "SHOWPLAN", "SHUTDOWN",
+            "SUBSCRIBE", "TAKE", "UNMASK", "UNSAFE", "UPDATE", "VIEW", "ALL",
+        }),
+        ("DENY", SqlKeywordPosition.StatementStart, "DENY ", true, false, true, false, new string[]
+        {
+            "ADMINISTER", "ALTER", "AUTHENTICATE", "BACKUP", "CHECKPOINT", "CONNECT", "CONTROL",
+            "CREATE", "DELETE", "DROP", "ENABLE", "EXECUTE", "EXTERNAL", "IMPERSONATE",
+            "INSERT", "KILL", "RECEIVE", "REFERENCES", "SELECT", "SEND", "SHOWPLAN", "SHUTDOWN",
+            "SUBSCRIBE", "TAKE", "UNMASK", "UNSAFE", "UPDATE", "VIEW", "ALL",
+        }),
+        ("DENY ,*", SqlKeywordPosition.StatementStart, "DENY ADD, ", true, false, false, false, new string[]
+        {
+            "ADMINISTER", "ALTER", "AUTHENTICATE", "BACKUP", "CHECKPOINT", "CONNECT", "CONTROL",
+            "CREATE", "DELETE", "DROP", "ENABLE", "EXECUTE", "EXTERNAL", "IMPERSONATE",
+            "INSERT", "KILL", "RECEIVE", "REFERENCES", "SELECT", "SEND", "SHOWPLAN", "SHUTDOWN",
+            "SUBSCRIBE", "TAKE", "UNMASK", "UNSAFE", "UPDATE", "VIEW", "ALL",
+        }),
+        ("REVOKE", SqlKeywordPosition.StatementStart, "REVOKE ", true, false, true, false, new string[]
+        {
+            "ADMINISTER", "ALTER", "AUTHENTICATE", "BACKUP", "CHECKPOINT", "CONNECT", "CONTROL",
+            "CREATE", "DELETE", "DROP", "ENABLE", "EXECUTE", "EXTERNAL", "IMPERSONATE",
+            "INSERT", "KILL", "RECEIVE", "REFERENCES", "SELECT", "SEND", "SHOWPLAN", "SHUTDOWN",
+            "SUBSCRIBE", "TAKE", "UNMASK", "UNSAFE", "UPDATE", "VIEW", "ALL",
+            "GRANT OPTION FOR",
+        }),
+        ("REVOKE ,*", SqlKeywordPosition.StatementStart, "REVOKE ADD, ", true, false, false, false, new string[]
+        {
+            "ADMINISTER", "ALTER", "AUTHENTICATE", "BACKUP", "CHECKPOINT", "CONNECT", "CONTROL",
+            "CREATE", "DELETE", "DROP", "ENABLE", "EXECUTE", "EXTERNAL", "IMPERSONATE",
+            "INSERT", "KILL", "RECEIVE", "REFERENCES", "SELECT", "SEND", "SHOWPLAN", "SHUTDOWN",
+            "SUBSCRIBE", "TAKE", "UNMASK", "UNSAFE", "UPDATE", "VIEW", "ALL",
+        }),
+        ("REVOKE GRANT OPTION FOR", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ", true, false, true, false, new string[]
+        {
+            "ADMINISTER", "ALTER", "AUTHENTICATE", "BACKUP", "CHECKPOINT", "CONNECT", "CONTROL",
+            "CREATE", "DELETE", "DROP", "ENABLE", "EXECUTE", "EXTERNAL", "IMPERSONATE",
+            "INSERT", "KILL", "RECEIVE", "REFERENCES", "SELECT", "SEND", "SHOWPLAN", "SHUTDOWN",
+            "SUBSCRIBE", "TAKE", "UNMASK", "UNSAFE", "UPDATE", "VIEW", "ALL",
+        }),
+        ("REVOKE GRANT OPTION FOR ,*", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ADD, ", true, false, false, false, new string[]
+        {
+            "ADMINISTER", "ALTER", "AUTHENTICATE", "BACKUP", "CHECKPOINT", "CONNECT", "CONTROL",
+            "CREATE", "DELETE", "DROP", "ENABLE", "EXECUTE", "EXTERNAL", "IMPERSONATE",
+            "INSERT", "KILL", "RECEIVE", "REFERENCES", "SELECT", "SEND", "SHOWPLAN", "SHUTDOWN",
+            "SUBSCRIBE", "TAKE", "UNMASK", "UNSAFE", "UPDATE", "VIEW", "ALL",
+        }),
+        ("TO {name}", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "REVOKE SELECT ON t TO t ", true, false, false, true, new string[]
+        {
+            "AS", "CASCADE", "WITH GRANT OPTION",
+        }),
+        ("FROM {name}", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "REVOKE SELECT ON t FROM t ", true, false, false, true, new string[]
+        {
+            "AS", "CASCADE",
+        }),
+        ("TO {name} WITH GRANT OPTION", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "GRANT SELECT ON t TO t WITH GRANT OPTION ", true, false, false, true, new string[]
+        {
+            "AS",
         }),
         ("CREATE USER {name} FOR", SqlKeywordPosition.StatementStart, "CREATE USER t FOR ", true, false, false, false, new string[]
         {
@@ -12869,6 +13167,42 @@ internal static class SqlKeywordCatalogData
         {
             "POPULATION",
         }),
+        ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST = {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST = OFF ", true, false, false, true, new string[]
+        {
+            "WITH NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST = {name} WITH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST = OFF WITH ", true, false, false, false, new string[]
+        {
+            "NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST = {name} WITH NO", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST = OFF WITH NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST t ", true, false, false, true, new string[]
+        {
+            "WITH NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST {name} WITH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST t WITH ", true, false, false, false, new string[]
+        {
+            "NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST {name} WITH NO", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST t WITH NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST = {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST = OFF ", true, false, false, true, new string[]
+        {
+            "WITH NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST = {name} WITH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST = OFF WITH ", true, false, false, false, new string[]
+        {
+            "NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST = {name} WITH NO", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET SEARCH PROPERTY LIST = OFF WITH NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
         ("ALTER FULLTEXT CATALOG {name} REBUILD", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT CATALOG t REBUILD ", true, false, false, true, new string[]
         {
             "WITH",
@@ -12932,6 +13266,18 @@ internal static class SqlKeywordCatalogData
         ("CALLED ON NULL", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ON NULL ", true, false, false, false, new string[]
         {
             "INPUT",
+        }),
+        ("AS EXTERNAL", SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE AS EXTERNAL ", true, false, false, false, new string[]
+        {
+            "NAME",
+        }),
+        ("CREATE AGGREGATE ... EXTERNAL", SqlKeywordPosition.StatementStart, "CREATE AGGREGATE a (@x int) RETURNS int EXTERNAL ", true, false, false, false, new string[]
+        {
+            "NAME",
+        }),
+        ("DROP ASSEMBLY {name}", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY t ", true, false, false, true, new string[]
+        {
+            "WITH NO DEPENDENTS",
         }),
         ("ATOMIC", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC ", true, false, false, false, new string[]
         {
@@ -13196,6 +13542,10 @@ internal static class SqlKeywordCatalogData
         ("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t AUTHORIZATION t ", true, false, false, false, new string[]
         {
             "SET",
+        }),
+        ("CREATE EXTERNAL LANGUAGE {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE t AUTHORIZATION t ", true, false, false, false, new string[]
+        {
+            "FROM",
         }),
         ("ALTER EVENT SESSION {name} ON SERVER ADD", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER ADD ", true, false, false, false, new string[]
         {
@@ -13493,6 +13843,102 @@ internal static class SqlKeywordCatalogData
         {
             "CREDENTIAL",
         }),
+        ("CREATE CREDENTIAL ... FOR", SqlKeywordPosition.StatementStart, "CREATE CREDENTIAL t WITH IDENTITY = 'x' FOR ", true, false, true, false, new string[]
+        {
+            "CRYPTOGRAPHIC PROVIDER",
+        }),
+        ("CREATE CREDENTIAL ... FOR CRYPTOGRAPHIC", SqlKeywordPosition.StatementStart, "CREATE CREDENTIAL t WITH IDENTITY = 'x' FOR CRYPTOGRAPHIC ", true, false, false, false, new string[]
+        {
+            "PROVIDER",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY REGENERATE", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE ", true, false, false, false, new string[]
+        {
+            "BY", "WITH",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ", true, false, true, false, new string[]
+        {
+            "ALGORITHM",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ENCRYPTION ", true, false, false, false, new string[]
+        {
+            "BY SERVER", "WITH",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY ", true, false, false, false, new string[]
+        {
+            "SERVER",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ADD", SqlKeywordPosition.StatementStart, "ADD ", true, false, false, false, new string[]
+        {
+            "COUNTER SIGNATURE TO", "SENSITIVITY", "SIGNATURE TO",
+        }),
+        ("ADD SIGNATURE", SqlKeywordPosition.StatementStart, "ADD SIGNATURE ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
+        ("ADD SIGNATURE TO {name}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t ", true, false, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("ADD COUNTER", SqlKeywordPosition.StatementStart, "ADD COUNTER ", true, false, false, false, new string[]
+        {
+            "SIGNATURE TO",
+        }),
+        ("ADD COUNTER SIGNATURE", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t ", true, false, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("ADD SIGNATURE TO {name} BY CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ADD SIGNATURE TO {name} BY CERTIFICATE {name} WITH", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE t WITH ", false, false, true, false, new string[]
+        {
+            "PASSWORD", "SIGNATURE",
+        }),
+        ("ADD SIGNATURE TO {name} BY ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ASYMMETRIC KEY t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ADD SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ASYMMETRIC KEY t WITH ", false, false, true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY CERTIFICATE {name} WITH", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE t WITH ", false, false, true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC KEY t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC KEY t WITH ", false, false, true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("ADD SENSITIVITY", SqlKeywordPosition.StatementStart, "ADD SENSITIVITY ", true, false, true, false, new string[]
+        {
+            "CLASSIFICATION TO",
+        }),
+        ("ADD SENSITIVITY CLASSIFICATION", SqlKeywordPosition.StatementStart, "ADD SENSITIVITY CLASSIFICATION ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
         ("ALTER DATABASE SCOPED CREDENTIAL {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CREDENTIAL t ", true, false, false, false, new string[]
         {
             "WITH IDENTITY",
@@ -13538,6 +13984,26 @@ internal static class SqlKeywordCatalogData
         ("RESULT", SqlKeywordPosition.OptionItem, "EXEC p WITH RESULT ", true, false, false, false, new string[]
         {
             "SETS",
+        }),
+        ("TO SCHEMA", SqlKeywordPosition.Any, "ALTER AUTHORIZATION ON OBJECT::t TO SCHEMA ", true, false, false, false, new string[]
+        {
+            "OWNER",
+        }),
+        ("REVOKE GRANT", SqlKeywordPosition.StatementStart, "REVOKE GRANT ", true, false, false, false, new string[]
+        {
+            "OPTION FOR",
+        }),
+        ("REVOKE GRANT OPTION", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION ", true, false, false, false, new string[]
+        {
+            "FOR",
+        }),
+        ("TO {name} WITH", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "GRANT SELECT ON t TO t WITH ", true, false, false, false, new string[]
+        {
+            "GRANT OPTION",
+        }),
+        ("TO {name} WITH GRANT", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "GRANT SELECT ON t TO t WITH GRANT ", true, false, false, false, new string[]
+        {
+            "OPTION",
         }),
         ("CREATE LOGIN {name} FROM WINDOWS", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM WINDOWS ", true, false, false, true, new string[]
         {
@@ -14073,15 +14539,475 @@ internal static class SqlKeywordCatalogData
         }),
     };
 
-    /// <summary>附加片語：只認位置、比對永遠是「可能」，把關鍵字目錄給不了的片語開頭加進那個位置。</summary>
-    internal static readonly (SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
+    /// <summary>
+    /// 附加片語：比對永遠是「可能」，只把字加進那一格。尾巴是空的只認位置，把關鍵字目錄給不了的片語開頭加進那個位置；
+    /// 帶尾巴的照尾巴比對（剖析器分不出字的權限名稱、模組本體的 AS）。
+    /// </summary>
+    internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
-        (SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC", "DIALOG" }),
-        (SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY" }),
-        (SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
-        (SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),
-        (SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),
-        (SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN", "IGNORE", "RESPECT" }),
+        ("", SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC", "DIALOG" }),
+        ("", SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY" }),
+        ("", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
+        ("", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),
+        ("", SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),
+        ("", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN", "IGNORE", "RESPECT" }),
+        ("AS", SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE AS ", new string[] { "EXTERNAL NAME" }),
+        ("GRANT ,* ADMINISTER", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER ", new string[] { "BULK", "DATABASE" }),
+        ("GRANT ,* ADMINISTER BULK", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER BULK ", new string[] { "OPERATIONS" }),
+        ("GRANT ,* ADMINISTER DATABASE", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER DATABASE ", new string[] { "BULK" }),
+        ("GRANT ,* ADMINISTER DATABASE BULK", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER DATABASE BULK ", new string[] { "OPERATIONS" }),
+        ("GRANT ,* ALTER", SqlKeywordPosition.StatementStart, "GRANT ALTER ", new string[] { "ANY", "LEDGER", "RESOURCES", "SERVER", "SETTINGS", "TRACE" }),
+        ("GRANT ,* ALTER ANY", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY ", new string[] { "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "AVAILABILITY", "CERTIFICATE", "COLUMN", "CONNECTION", "CONTRACT", "CREDENTIAL", "DATABASE", "DATASPACE", "ENDPOINT", "EVENT", "EXTERNAL", "FULLTEXT", "LINKED", "LOGIN", "MASK", "MESSAGE", "REMOTE", "ROLE", "ROUTE", "SCHEMA", "SECURITY", "SENSITIVITY", "SERVER", "SERVICE", "SYMMETRIC", "USER" }),
+        ("GRANT ,* ALTER ANY APPLICATION", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY APPLICATION ", new string[] { "ROLE" }),
+        ("GRANT ,* ALTER ANY ASYMMETRIC", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY ASYMMETRIC ", new string[] { "KEY" }),
+        ("GRANT ,* ALTER ANY AVAILABILITY", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY AVAILABILITY ", new string[] { "GROUP" }),
+        ("GRANT ,* ALTER ANY COLUMN", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY COLUMN ", new string[] { "ENCRYPTION", "MASTER" }),
+        ("GRANT ,* ALTER ANY COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY COLUMN ENCRYPTION ", new string[] { "KEY" }),
+        ("GRANT ,* ALTER ANY COLUMN MASTER", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY COLUMN MASTER ", new string[] { "KEY" }),
+        ("GRANT ,* ALTER ANY DATABASE", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY DATABASE ", new string[] { "AUDIT", "DDL", "EVENT", "SCOPED" }),
+        ("GRANT ,* ALTER ANY DATABASE DDL", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY DATABASE DDL ", new string[] { "TRIGGER" }),
+        ("GRANT ,* ALTER ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY DATABASE EVENT ", new string[] { "NOTIFICATION", "SESSION" }),
+        ("GRANT ,* ALTER ANY DATABASE EVENT SESSION", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY DATABASE EVENT SESSION ", new string[] { "ADD", "DISABLE", "DROP", "ENABLE", "OPTION" }),
+        ("GRANT ,* ALTER ANY DATABASE EVENT SESSION ADD", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY DATABASE EVENT SESSION ADD ", new string[] { "EVENT", "TARGET" }),
+        ("GRANT ,* ALTER ANY DATABASE EVENT SESSION DROP", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY DATABASE EVENT SESSION DROP ", new string[] { "EVENT", "TARGET" }),
+        ("GRANT ,* ALTER ANY DATABASE SCOPED", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY DATABASE SCOPED ", new string[] { "CONFIGURATION" }),
+        ("GRANT ,* ALTER ANY EVENT", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY EVENT ", new string[] { "NOTIFICATION", "SESSION" }),
+        ("GRANT ,* ALTER ANY EVENT SESSION", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY EVENT SESSION ", new string[] { "ADD", "DISABLE", "DROP", "ENABLE", "OPTION" }),
+        ("GRANT ,* ALTER ANY EVENT SESSION ADD", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY EVENT SESSION ADD ", new string[] { "EVENT", "TARGET" }),
+        ("GRANT ,* ALTER ANY EVENT SESSION DROP", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY EVENT SESSION DROP ", new string[] { "EVENT", "TARGET" }),
+        ("GRANT ,* ALTER ANY EXTERNAL", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY EXTERNAL ", new string[] { "DATA", "FILE", "JOB", "LANGUAGE", "LIBRARY", "STREAM" }),
+        ("GRANT ,* ALTER ANY EXTERNAL DATA", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY EXTERNAL DATA ", new string[] { "SOURCE" }),
+        ("GRANT ,* ALTER ANY EXTERNAL FILE", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY EXTERNAL FILE ", new string[] { "FORMAT" }),
+        ("GRANT ,* ALTER ANY FULLTEXT", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY FULLTEXT ", new string[] { "CATALOG" }),
+        ("GRANT ,* ALTER ANY LINKED", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY LINKED ", new string[] { "SERVER" }),
+        ("GRANT ,* ALTER ANY MESSAGE", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY MESSAGE ", new string[] { "TYPE" }),
+        ("GRANT ,* ALTER ANY REMOTE", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY REMOTE ", new string[] { "SERVICE" }),
+        ("GRANT ,* ALTER ANY REMOTE SERVICE", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY REMOTE SERVICE ", new string[] { "BINDING" }),
+        ("GRANT ,* ALTER ANY SECURITY", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY SECURITY ", new string[] { "POLICY" }),
+        ("GRANT ,* ALTER ANY SENSITIVITY", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY SENSITIVITY ", new string[] { "CLASSIFICATION" }),
+        ("GRANT ,* ALTER ANY SERVER", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY SERVER ", new string[] { "AUDIT", "ROLE" }),
+        ("GRANT ,* ALTER ANY SYMMETRIC", SqlKeywordPosition.StatementStart, "GRANT ALTER ANY SYMMETRIC ", new string[] { "KEY" }),
+        ("GRANT ,* ALTER LEDGER", SqlKeywordPosition.StatementStart, "GRANT ALTER LEDGER ", new string[] { "CONFIGURATION" }),
+        ("GRANT ,* ALTER SERVER", SqlKeywordPosition.StatementStart, "GRANT ALTER SERVER ", new string[] { "STATE" }),
+        ("GRANT ,* AUTHENTICATE", SqlKeywordPosition.StatementStart, "GRANT AUTHENTICATE ", new string[] { "SERVER" }),
+        ("GRANT ,* BACKUP", SqlKeywordPosition.StatementStart, "GRANT BACKUP ", new string[] { "DATABASE", "LOG" }),
+        ("GRANT ,* CONNECT", SqlKeywordPosition.StatementStart, "GRANT CONNECT ", new string[] { "ANY", "REPLICATION", "SQL" }),
+        ("GRANT ,* CONNECT ANY", SqlKeywordPosition.StatementStart, "GRANT CONNECT ANY ", new string[] { "DATABASE" }),
+        ("GRANT ,* CONTROL", SqlKeywordPosition.StatementStart, "GRANT CONTROL ", new string[] { "SERVER" }),
+        ("GRANT ,* CREATE", SqlKeywordPosition.StatementStart, "GRANT CREATE ", new string[] { "AGGREGATE", "ANY", "ASSEMBLY", "ASYMMETRIC", "AVAILABILITY", "CERTIFICATE", "CONTRACT", "DATABASE", "DDL", "DEFAULT", "ENDPOINT", "EXTERNAL", "FULLTEXT", "FUNCTION", "LOGIN", "MESSAGE", "PROCEDURE", "QUEUE", "REMOTE", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEQUENCE", "SERVER", "SERVICE", "SYMMETRIC", "SYNONYM", "TABLE", "TRACE", "TYPE", "USER", "VIEW", "XML" }),
+        ("GRANT ,* CREATE ANY", SqlKeywordPosition.StatementStart, "GRANT CREATE ANY ", new string[] { "DATABASE", "EVENT" }),
+        ("GRANT ,* CREATE ANY DATABASE", SqlKeywordPosition.StatementStart, "GRANT CREATE ANY DATABASE ", new string[] { "EVENT" }),
+        ("GRANT ,* CREATE ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "GRANT CREATE ANY DATABASE EVENT ", new string[] { "SESSION" }),
+        ("GRANT ,* CREATE ANY EVENT", SqlKeywordPosition.StatementStart, "GRANT CREATE ANY EVENT ", new string[] { "SESSION" }),
+        ("GRANT ,* CREATE ASYMMETRIC", SqlKeywordPosition.StatementStart, "GRANT CREATE ASYMMETRIC ", new string[] { "KEY" }),
+        ("GRANT ,* CREATE AVAILABILITY", SqlKeywordPosition.StatementStart, "GRANT CREATE AVAILABILITY ", new string[] { "GROUP" }),
+        ("GRANT ,* CREATE DATABASE", SqlKeywordPosition.StatementStart, "GRANT CREATE DATABASE ", new string[] { "DDL" }),
+        ("GRANT ,* CREATE DATABASE DDL", SqlKeywordPosition.StatementStart, "GRANT CREATE DATABASE DDL ", new string[] { "EVENT" }),
+        ("GRANT ,* CREATE DATABASE DDL EVENT", SqlKeywordPosition.StatementStart, "GRANT CREATE DATABASE DDL EVENT ", new string[] { "NOTIFICATION" }),
+        ("GRANT ,* CREATE DDL", SqlKeywordPosition.StatementStart, "GRANT CREATE DDL ", new string[] { "EVENT" }),
+        ("GRANT ,* CREATE DDL EVENT", SqlKeywordPosition.StatementStart, "GRANT CREATE DDL EVENT ", new string[] { "NOTIFICATION" }),
+        ("GRANT ,* CREATE EXTERNAL", SqlKeywordPosition.StatementStart, "GRANT CREATE EXTERNAL ", new string[] { "LANGUAGE", "LIBRARY" }),
+        ("GRANT ,* CREATE FULLTEXT", SqlKeywordPosition.StatementStart, "GRANT CREATE FULLTEXT ", new string[] { "CATALOG" }),
+        ("GRANT ,* CREATE MESSAGE", SqlKeywordPosition.StatementStart, "GRANT CREATE MESSAGE ", new string[] { "TYPE" }),
+        ("GRANT ,* CREATE REMOTE", SqlKeywordPosition.StatementStart, "GRANT CREATE REMOTE ", new string[] { "SERVICE" }),
+        ("GRANT ,* CREATE REMOTE SERVICE", SqlKeywordPosition.StatementStart, "GRANT CREATE REMOTE SERVICE ", new string[] { "BINDING" }),
+        ("GRANT ,* CREATE SERVER", SqlKeywordPosition.StatementStart, "GRANT CREATE SERVER ", new string[] { "ROLE" }),
+        ("GRANT ,* CREATE SYMMETRIC", SqlKeywordPosition.StatementStart, "GRANT CREATE SYMMETRIC ", new string[] { "KEY" }),
+        ("GRANT ,* CREATE TRACE", SqlKeywordPosition.StatementStart, "GRANT CREATE TRACE ", new string[] { "EVENT" }),
+        ("GRANT ,* CREATE TRACE EVENT", SqlKeywordPosition.StatementStart, "GRANT CREATE TRACE EVENT ", new string[] { "NOTIFICATION" }),
+        ("GRANT ,* CREATE XML", SqlKeywordPosition.StatementStart, "GRANT CREATE XML ", new string[] { "SCHEMA" }),
+        ("GRANT ,* CREATE XML SCHEMA", SqlKeywordPosition.StatementStart, "GRANT CREATE XML SCHEMA ", new string[] { "COLLECTION" }),
+        ("GRANT ,* DROP", SqlKeywordPosition.StatementStart, "GRANT DROP ", new string[] { "ANY" }),
+        ("GRANT ,* DROP ANY", SqlKeywordPosition.StatementStart, "GRANT DROP ANY ", new string[] { "DATABASE", "EVENT" }),
+        ("GRANT ,* DROP ANY DATABASE", SqlKeywordPosition.StatementStart, "GRANT DROP ANY DATABASE ", new string[] { "EVENT" }),
+        ("GRANT ,* DROP ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "GRANT DROP ANY DATABASE EVENT ", new string[] { "SESSION" }),
+        ("GRANT ,* DROP ANY EVENT", SqlKeywordPosition.StatementStart, "GRANT DROP ANY EVENT ", new string[] { "SESSION" }),
+        ("GRANT ,* ENABLE", SqlKeywordPosition.StatementStart, "GRANT ENABLE ", new string[] { "LEDGER" }),
+        ("GRANT ,* EXECUTE", SqlKeywordPosition.StatementStart, "GRANT EXECUTE ", new string[] { "ANY", "EXTERNAL" }),
+        ("GRANT ,* EXECUTE ANY", SqlKeywordPosition.StatementStart, "GRANT EXECUTE ANY ", new string[] { "EXTERNAL" }),
+        ("GRANT ,* EXECUTE ANY EXTERNAL", SqlKeywordPosition.StatementStart, "GRANT EXECUTE ANY EXTERNAL ", new string[] { "ENDPOINT", "SCRIPT" }),
+        ("GRANT ,* EXECUTE EXTERNAL", SqlKeywordPosition.StatementStart, "GRANT EXECUTE EXTERNAL ", new string[] { "SCRIPT" }),
+        ("GRANT ,* EXTERNAL", SqlKeywordPosition.StatementStart, "GRANT EXTERNAL ", new string[] { "ACCESS" }),
+        ("GRANT ,* EXTERNAL ACCESS", SqlKeywordPosition.StatementStart, "GRANT EXTERNAL ACCESS ", new string[] { "ASSEMBLY" }),
+        ("GRANT ,* IMPERSONATE", SqlKeywordPosition.StatementStart, "GRANT IMPERSONATE ", new string[] { "ANY" }),
+        ("GRANT ,* IMPERSONATE ANY", SqlKeywordPosition.StatementStart, "GRANT IMPERSONATE ANY ", new string[] { "LOGIN" }),
+        ("GRANT ,* KILL", SqlKeywordPosition.StatementStart, "GRANT KILL ", new string[] { "DATABASE" }),
+        ("GRANT ,* KILL DATABASE", SqlKeywordPosition.StatementStart, "GRANT KILL DATABASE ", new string[] { "CONNECTION" }),
+        ("GRANT ,* SELECT", SqlKeywordPosition.StatementStart, "GRANT SELECT ", new string[] { "ALL" }),
+        ("GRANT ,* SELECT ALL", SqlKeywordPosition.StatementStart, "GRANT SELECT ALL ", new string[] { "USER" }),
+        ("GRANT ,* SELECT ALL USER", SqlKeywordPosition.StatementStart, "GRANT SELECT ALL USER ", new string[] { "SECURABLES" }),
+        ("GRANT ,* SUBSCRIBE", SqlKeywordPosition.StatementStart, "GRANT SUBSCRIBE ", new string[] { "QUERY" }),
+        ("GRANT ,* SUBSCRIBE QUERY", SqlKeywordPosition.StatementStart, "GRANT SUBSCRIBE QUERY ", new string[] { "NOTIFICATIONS" }),
+        ("GRANT ,* TAKE", SqlKeywordPosition.StatementStart, "GRANT TAKE ", new string[] { "OWNERSHIP" }),
+        ("GRANT ,* UNSAFE", SqlKeywordPosition.StatementStart, "GRANT UNSAFE ", new string[] { "ASSEMBLY" }),
+        ("GRANT ,* VIEW", SqlKeywordPosition.StatementStart, "GRANT VIEW ", new string[] { "ANY", "CHANGE", "CRYPTOGRAPHICALLY", "DATABASE", "DEFINITION", "LEDGER", "PERFORMANCE", "SECURITY", "SERVER" }),
+        ("GRANT ,* VIEW ANY", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY ", new string[] { "COLUMN", "CRYPTOGRAPHICALLY", "DATABASE", "DEFINITION", "ERROR", "PERFORMANCE", "SECURITY", "SENSITIVITY" }),
+        ("GRANT ,* VIEW ANY COLUMN", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY COLUMN ", new string[] { "ENCRYPTION", "MASTER" }),
+        ("GRANT ,* VIEW ANY COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY COLUMN ENCRYPTION ", new string[] { "KEY" }),
+        ("GRANT ,* VIEW ANY COLUMN ENCRYPTION KEY", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY COLUMN ENCRYPTION KEY ", new string[] { "DEFINITION" }),
+        ("GRANT ,* VIEW ANY COLUMN MASTER", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY COLUMN MASTER ", new string[] { "KEY" }),
+        ("GRANT ,* VIEW ANY COLUMN MASTER KEY", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY COLUMN MASTER KEY ", new string[] { "DEFINITION" }),
+        ("GRANT ,* VIEW ANY CRYPTOGRAPHICALLY", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY CRYPTOGRAPHICALLY ", new string[] { "SECURED" }),
+        ("GRANT ,* VIEW ANY CRYPTOGRAPHICALLY SECURED", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY CRYPTOGRAPHICALLY SECURED ", new string[] { "DEFINITION" }),
+        ("GRANT ,* VIEW ANY ERROR", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY ERROR ", new string[] { "LOG" }),
+        ("GRANT ,* VIEW ANY PERFORMANCE", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY PERFORMANCE ", new string[] { "DEFINITION" }),
+        ("GRANT ,* VIEW ANY SECURITY", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY SECURITY ", new string[] { "DEFINITION" }),
+        ("GRANT ,* VIEW ANY SENSITIVITY", SqlKeywordPosition.StatementStart, "GRANT VIEW ANY SENSITIVITY ", new string[] { "CLASSIFICATION" }),
+        ("GRANT ,* VIEW CHANGE", SqlKeywordPosition.StatementStart, "GRANT VIEW CHANGE ", new string[] { "TRACKING" }),
+        ("GRANT ,* VIEW CRYPTOGRAPHICALLY", SqlKeywordPosition.StatementStart, "GRANT VIEW CRYPTOGRAPHICALLY ", new string[] { "SECURED" }),
+        ("GRANT ,* VIEW CRYPTOGRAPHICALLY SECURED", SqlKeywordPosition.StatementStart, "GRANT VIEW CRYPTOGRAPHICALLY SECURED ", new string[] { "DEFINITION" }),
+        ("GRANT ,* VIEW DATABASE", SqlKeywordPosition.StatementStart, "GRANT VIEW DATABASE ", new string[] { "PERFORMANCE", "SECURITY", "STATE" }),
+        ("GRANT ,* VIEW DATABASE PERFORMANCE", SqlKeywordPosition.StatementStart, "GRANT VIEW DATABASE PERFORMANCE ", new string[] { "STATE" }),
+        ("GRANT ,* VIEW DATABASE SECURITY", SqlKeywordPosition.StatementStart, "GRANT VIEW DATABASE SECURITY ", new string[] { "AUDIT", "STATE" }),
+        ("GRANT ,* VIEW LEDGER", SqlKeywordPosition.StatementStart, "GRANT VIEW LEDGER ", new string[] { "CONTENT" }),
+        ("GRANT ,* VIEW PERFORMANCE", SqlKeywordPosition.StatementStart, "GRANT VIEW PERFORMANCE ", new string[] { "DEFINITION" }),
+        ("GRANT ,* VIEW SECURITY", SqlKeywordPosition.StatementStart, "GRANT VIEW SECURITY ", new string[] { "DEFINITION" }),
+        ("GRANT ,* VIEW SERVER", SqlKeywordPosition.StatementStart, "GRANT VIEW SERVER ", new string[] { "PERFORMANCE", "SECURITY", "STATE" }),
+        ("GRANT ,* VIEW SERVER PERFORMANCE", SqlKeywordPosition.StatementStart, "GRANT VIEW SERVER PERFORMANCE ", new string[] { "STATE" }),
+        ("GRANT ,* VIEW SERVER SECURITY", SqlKeywordPosition.StatementStart, "GRANT VIEW SERVER SECURITY ", new string[] { "AUDIT", "STATE" }),
+        ("GRANT ,* ALL", SqlKeywordPosition.StatementStart, "GRANT ALL ", new string[] { "PRIVILEGES" }),
+        ("DENY ,* ADMINISTER", SqlKeywordPosition.StatementStart, "DENY ADMINISTER ", new string[] { "BULK", "DATABASE" }),
+        ("DENY ,* ADMINISTER BULK", SqlKeywordPosition.StatementStart, "DENY ADMINISTER BULK ", new string[] { "OPERATIONS" }),
+        ("DENY ,* ADMINISTER DATABASE", SqlKeywordPosition.StatementStart, "DENY ADMINISTER DATABASE ", new string[] { "BULK" }),
+        ("DENY ,* ADMINISTER DATABASE BULK", SqlKeywordPosition.StatementStart, "DENY ADMINISTER DATABASE BULK ", new string[] { "OPERATIONS" }),
+        ("DENY ,* ALTER", SqlKeywordPosition.StatementStart, "DENY ALTER ", new string[] { "ANY", "LEDGER", "RESOURCES", "SERVER", "SETTINGS", "TRACE" }),
+        ("DENY ,* ALTER ANY", SqlKeywordPosition.StatementStart, "DENY ALTER ANY ", new string[] { "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "AVAILABILITY", "CERTIFICATE", "COLUMN", "CONNECTION", "CONTRACT", "CREDENTIAL", "DATABASE", "DATASPACE", "ENDPOINT", "EVENT", "EXTERNAL", "FULLTEXT", "LINKED", "LOGIN", "MASK", "MESSAGE", "REMOTE", "ROLE", "ROUTE", "SCHEMA", "SECURITY", "SENSITIVITY", "SERVER", "SERVICE", "SYMMETRIC", "USER" }),
+        ("DENY ,* ALTER ANY APPLICATION", SqlKeywordPosition.StatementStart, "DENY ALTER ANY APPLICATION ", new string[] { "ROLE" }),
+        ("DENY ,* ALTER ANY ASYMMETRIC", SqlKeywordPosition.StatementStart, "DENY ALTER ANY ASYMMETRIC ", new string[] { "KEY" }),
+        ("DENY ,* ALTER ANY AVAILABILITY", SqlKeywordPosition.StatementStart, "DENY ALTER ANY AVAILABILITY ", new string[] { "GROUP" }),
+        ("DENY ,* ALTER ANY COLUMN", SqlKeywordPosition.StatementStart, "DENY ALTER ANY COLUMN ", new string[] { "ENCRYPTION", "MASTER" }),
+        ("DENY ,* ALTER ANY COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "DENY ALTER ANY COLUMN ENCRYPTION ", new string[] { "KEY" }),
+        ("DENY ,* ALTER ANY COLUMN MASTER", SqlKeywordPosition.StatementStart, "DENY ALTER ANY COLUMN MASTER ", new string[] { "KEY" }),
+        ("DENY ,* ALTER ANY DATABASE", SqlKeywordPosition.StatementStart, "DENY ALTER ANY DATABASE ", new string[] { "AUDIT", "DDL", "EVENT", "SCOPED" }),
+        ("DENY ,* ALTER ANY DATABASE DDL", SqlKeywordPosition.StatementStart, "DENY ALTER ANY DATABASE DDL ", new string[] { "TRIGGER" }),
+        ("DENY ,* ALTER ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "DENY ALTER ANY DATABASE EVENT ", new string[] { "NOTIFICATION", "SESSION" }),
+        ("DENY ,* ALTER ANY DATABASE EVENT SESSION", SqlKeywordPosition.StatementStart, "DENY ALTER ANY DATABASE EVENT SESSION ", new string[] { "ADD", "DISABLE", "DROP", "ENABLE", "OPTION" }),
+        ("DENY ,* ALTER ANY DATABASE EVENT SESSION ADD", SqlKeywordPosition.StatementStart, "DENY ALTER ANY DATABASE EVENT SESSION ADD ", new string[] { "EVENT", "TARGET" }),
+        ("DENY ,* ALTER ANY DATABASE EVENT SESSION DROP", SqlKeywordPosition.StatementStart, "DENY ALTER ANY DATABASE EVENT SESSION DROP ", new string[] { "EVENT", "TARGET" }),
+        ("DENY ,* ALTER ANY DATABASE SCOPED", SqlKeywordPosition.StatementStart, "DENY ALTER ANY DATABASE SCOPED ", new string[] { "CONFIGURATION" }),
+        ("DENY ,* ALTER ANY EVENT", SqlKeywordPosition.StatementStart, "DENY ALTER ANY EVENT ", new string[] { "NOTIFICATION", "SESSION" }),
+        ("DENY ,* ALTER ANY EVENT SESSION", SqlKeywordPosition.StatementStart, "DENY ALTER ANY EVENT SESSION ", new string[] { "ADD", "DISABLE", "DROP", "ENABLE", "OPTION" }),
+        ("DENY ,* ALTER ANY EVENT SESSION ADD", SqlKeywordPosition.StatementStart, "DENY ALTER ANY EVENT SESSION ADD ", new string[] { "EVENT", "TARGET" }),
+        ("DENY ,* ALTER ANY EVENT SESSION DROP", SqlKeywordPosition.StatementStart, "DENY ALTER ANY EVENT SESSION DROP ", new string[] { "EVENT", "TARGET" }),
+        ("DENY ,* ALTER ANY EXTERNAL", SqlKeywordPosition.StatementStart, "DENY ALTER ANY EXTERNAL ", new string[] { "DATA", "FILE", "JOB", "LANGUAGE", "LIBRARY", "STREAM" }),
+        ("DENY ,* ALTER ANY EXTERNAL DATA", SqlKeywordPosition.StatementStart, "DENY ALTER ANY EXTERNAL DATA ", new string[] { "SOURCE" }),
+        ("DENY ,* ALTER ANY EXTERNAL FILE", SqlKeywordPosition.StatementStart, "DENY ALTER ANY EXTERNAL FILE ", new string[] { "FORMAT" }),
+        ("DENY ,* ALTER ANY FULLTEXT", SqlKeywordPosition.StatementStart, "DENY ALTER ANY FULLTEXT ", new string[] { "CATALOG" }),
+        ("DENY ,* ALTER ANY LINKED", SqlKeywordPosition.StatementStart, "DENY ALTER ANY LINKED ", new string[] { "SERVER" }),
+        ("DENY ,* ALTER ANY MESSAGE", SqlKeywordPosition.StatementStart, "DENY ALTER ANY MESSAGE ", new string[] { "TYPE" }),
+        ("DENY ,* ALTER ANY REMOTE", SqlKeywordPosition.StatementStart, "DENY ALTER ANY REMOTE ", new string[] { "SERVICE" }),
+        ("DENY ,* ALTER ANY REMOTE SERVICE", SqlKeywordPosition.StatementStart, "DENY ALTER ANY REMOTE SERVICE ", new string[] { "BINDING" }),
+        ("DENY ,* ALTER ANY SECURITY", SqlKeywordPosition.StatementStart, "DENY ALTER ANY SECURITY ", new string[] { "POLICY" }),
+        ("DENY ,* ALTER ANY SENSITIVITY", SqlKeywordPosition.StatementStart, "DENY ALTER ANY SENSITIVITY ", new string[] { "CLASSIFICATION" }),
+        ("DENY ,* ALTER ANY SERVER", SqlKeywordPosition.StatementStart, "DENY ALTER ANY SERVER ", new string[] { "AUDIT", "ROLE" }),
+        ("DENY ,* ALTER ANY SYMMETRIC", SqlKeywordPosition.StatementStart, "DENY ALTER ANY SYMMETRIC ", new string[] { "KEY" }),
+        ("DENY ,* ALTER LEDGER", SqlKeywordPosition.StatementStart, "DENY ALTER LEDGER ", new string[] { "CONFIGURATION" }),
+        ("DENY ,* ALTER SERVER", SqlKeywordPosition.StatementStart, "DENY ALTER SERVER ", new string[] { "STATE" }),
+        ("DENY ,* AUTHENTICATE", SqlKeywordPosition.StatementStart, "DENY AUTHENTICATE ", new string[] { "SERVER" }),
+        ("DENY ,* BACKUP", SqlKeywordPosition.StatementStart, "DENY BACKUP ", new string[] { "DATABASE", "LOG" }),
+        ("DENY ,* CONNECT", SqlKeywordPosition.StatementStart, "DENY CONNECT ", new string[] { "ANY", "REPLICATION", "SQL" }),
+        ("DENY ,* CONNECT ANY", SqlKeywordPosition.StatementStart, "DENY CONNECT ANY ", new string[] { "DATABASE" }),
+        ("DENY ,* CONTROL", SqlKeywordPosition.StatementStart, "DENY CONTROL ", new string[] { "SERVER" }),
+        ("DENY ,* CREATE", SqlKeywordPosition.StatementStart, "DENY CREATE ", new string[] { "AGGREGATE", "ANY", "ASSEMBLY", "ASYMMETRIC", "AVAILABILITY", "CERTIFICATE", "CONTRACT", "DATABASE", "DDL", "DEFAULT", "ENDPOINT", "EXTERNAL", "FULLTEXT", "FUNCTION", "LOGIN", "MESSAGE", "PROCEDURE", "QUEUE", "REMOTE", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEQUENCE", "SERVER", "SERVICE", "SYMMETRIC", "SYNONYM", "TABLE", "TRACE", "TYPE", "USER", "VIEW", "XML" }),
+        ("DENY ,* CREATE ANY", SqlKeywordPosition.StatementStart, "DENY CREATE ANY ", new string[] { "DATABASE", "EVENT" }),
+        ("DENY ,* CREATE ANY DATABASE", SqlKeywordPosition.StatementStart, "DENY CREATE ANY DATABASE ", new string[] { "EVENT" }),
+        ("DENY ,* CREATE ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "DENY CREATE ANY DATABASE EVENT ", new string[] { "SESSION" }),
+        ("DENY ,* CREATE ANY EVENT", SqlKeywordPosition.StatementStart, "DENY CREATE ANY EVENT ", new string[] { "SESSION" }),
+        ("DENY ,* CREATE ASYMMETRIC", SqlKeywordPosition.StatementStart, "DENY CREATE ASYMMETRIC ", new string[] { "KEY" }),
+        ("DENY ,* CREATE AVAILABILITY", SqlKeywordPosition.StatementStart, "DENY CREATE AVAILABILITY ", new string[] { "GROUP" }),
+        ("DENY ,* CREATE DATABASE", SqlKeywordPosition.StatementStart, "DENY CREATE DATABASE ", new string[] { "DDL" }),
+        ("DENY ,* CREATE DATABASE DDL", SqlKeywordPosition.StatementStart, "DENY CREATE DATABASE DDL ", new string[] { "EVENT" }),
+        ("DENY ,* CREATE DATABASE DDL EVENT", SqlKeywordPosition.StatementStart, "DENY CREATE DATABASE DDL EVENT ", new string[] { "NOTIFICATION" }),
+        ("DENY ,* CREATE DDL", SqlKeywordPosition.StatementStart, "DENY CREATE DDL ", new string[] { "EVENT" }),
+        ("DENY ,* CREATE DDL EVENT", SqlKeywordPosition.StatementStart, "DENY CREATE DDL EVENT ", new string[] { "NOTIFICATION" }),
+        ("DENY ,* CREATE EXTERNAL", SqlKeywordPosition.StatementStart, "DENY CREATE EXTERNAL ", new string[] { "LANGUAGE", "LIBRARY" }),
+        ("DENY ,* CREATE FULLTEXT", SqlKeywordPosition.StatementStart, "DENY CREATE FULLTEXT ", new string[] { "CATALOG" }),
+        ("DENY ,* CREATE MESSAGE", SqlKeywordPosition.StatementStart, "DENY CREATE MESSAGE ", new string[] { "TYPE" }),
+        ("DENY ,* CREATE REMOTE", SqlKeywordPosition.StatementStart, "DENY CREATE REMOTE ", new string[] { "SERVICE" }),
+        ("DENY ,* CREATE REMOTE SERVICE", SqlKeywordPosition.StatementStart, "DENY CREATE REMOTE SERVICE ", new string[] { "BINDING" }),
+        ("DENY ,* CREATE SERVER", SqlKeywordPosition.StatementStart, "DENY CREATE SERVER ", new string[] { "ROLE" }),
+        ("DENY ,* CREATE SYMMETRIC", SqlKeywordPosition.StatementStart, "DENY CREATE SYMMETRIC ", new string[] { "KEY" }),
+        ("DENY ,* CREATE TRACE", SqlKeywordPosition.StatementStart, "DENY CREATE TRACE ", new string[] { "EVENT" }),
+        ("DENY ,* CREATE TRACE EVENT", SqlKeywordPosition.StatementStart, "DENY CREATE TRACE EVENT ", new string[] { "NOTIFICATION" }),
+        ("DENY ,* CREATE XML", SqlKeywordPosition.StatementStart, "DENY CREATE XML ", new string[] { "SCHEMA" }),
+        ("DENY ,* CREATE XML SCHEMA", SqlKeywordPosition.StatementStart, "DENY CREATE XML SCHEMA ", new string[] { "COLLECTION" }),
+        ("DENY ,* DROP", SqlKeywordPosition.StatementStart, "DENY DROP ", new string[] { "ANY" }),
+        ("DENY ,* DROP ANY", SqlKeywordPosition.StatementStart, "DENY DROP ANY ", new string[] { "DATABASE", "EVENT" }),
+        ("DENY ,* DROP ANY DATABASE", SqlKeywordPosition.StatementStart, "DENY DROP ANY DATABASE ", new string[] { "EVENT" }),
+        ("DENY ,* DROP ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "DENY DROP ANY DATABASE EVENT ", new string[] { "SESSION" }),
+        ("DENY ,* DROP ANY EVENT", SqlKeywordPosition.StatementStart, "DENY DROP ANY EVENT ", new string[] { "SESSION" }),
+        ("DENY ,* ENABLE", SqlKeywordPosition.StatementStart, "DENY ENABLE ", new string[] { "LEDGER" }),
+        ("DENY ,* EXECUTE", SqlKeywordPosition.StatementStart, "DENY EXECUTE ", new string[] { "ANY", "EXTERNAL" }),
+        ("DENY ,* EXECUTE ANY", SqlKeywordPosition.StatementStart, "DENY EXECUTE ANY ", new string[] { "EXTERNAL" }),
+        ("DENY ,* EXECUTE ANY EXTERNAL", SqlKeywordPosition.StatementStart, "DENY EXECUTE ANY EXTERNAL ", new string[] { "ENDPOINT", "SCRIPT" }),
+        ("DENY ,* EXECUTE EXTERNAL", SqlKeywordPosition.StatementStart, "DENY EXECUTE EXTERNAL ", new string[] { "SCRIPT" }),
+        ("DENY ,* EXTERNAL", SqlKeywordPosition.StatementStart, "DENY EXTERNAL ", new string[] { "ACCESS" }),
+        ("DENY ,* EXTERNAL ACCESS", SqlKeywordPosition.StatementStart, "DENY EXTERNAL ACCESS ", new string[] { "ASSEMBLY" }),
+        ("DENY ,* IMPERSONATE", SqlKeywordPosition.StatementStart, "DENY IMPERSONATE ", new string[] { "ANY" }),
+        ("DENY ,* IMPERSONATE ANY", SqlKeywordPosition.StatementStart, "DENY IMPERSONATE ANY ", new string[] { "LOGIN" }),
+        ("DENY ,* KILL", SqlKeywordPosition.StatementStart, "DENY KILL ", new string[] { "DATABASE" }),
+        ("DENY ,* KILL DATABASE", SqlKeywordPosition.StatementStart, "DENY KILL DATABASE ", new string[] { "CONNECTION" }),
+        ("DENY ,* SELECT", SqlKeywordPosition.StatementStart, "DENY SELECT ", new string[] { "ALL" }),
+        ("DENY ,* SELECT ALL", SqlKeywordPosition.StatementStart, "DENY SELECT ALL ", new string[] { "USER" }),
+        ("DENY ,* SELECT ALL USER", SqlKeywordPosition.StatementStart, "DENY SELECT ALL USER ", new string[] { "SECURABLES" }),
+        ("DENY ,* SUBSCRIBE", SqlKeywordPosition.StatementStart, "DENY SUBSCRIBE ", new string[] { "QUERY" }),
+        ("DENY ,* SUBSCRIBE QUERY", SqlKeywordPosition.StatementStart, "DENY SUBSCRIBE QUERY ", new string[] { "NOTIFICATIONS" }),
+        ("DENY ,* TAKE", SqlKeywordPosition.StatementStart, "DENY TAKE ", new string[] { "OWNERSHIP" }),
+        ("DENY ,* UNSAFE", SqlKeywordPosition.StatementStart, "DENY UNSAFE ", new string[] { "ASSEMBLY" }),
+        ("DENY ,* VIEW", SqlKeywordPosition.StatementStart, "DENY VIEW ", new string[] { "ANY", "CHANGE", "CRYPTOGRAPHICALLY", "DATABASE", "DEFINITION", "LEDGER", "PERFORMANCE", "SECURITY", "SERVER" }),
+        ("DENY ,* VIEW ANY", SqlKeywordPosition.StatementStart, "DENY VIEW ANY ", new string[] { "COLUMN", "CRYPTOGRAPHICALLY", "DATABASE", "DEFINITION", "ERROR", "PERFORMANCE", "SECURITY", "SENSITIVITY" }),
+        ("DENY ,* VIEW ANY COLUMN", SqlKeywordPosition.StatementStart, "DENY VIEW ANY COLUMN ", new string[] { "ENCRYPTION", "MASTER" }),
+        ("DENY ,* VIEW ANY COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "DENY VIEW ANY COLUMN ENCRYPTION ", new string[] { "KEY" }),
+        ("DENY ,* VIEW ANY COLUMN ENCRYPTION KEY", SqlKeywordPosition.StatementStart, "DENY VIEW ANY COLUMN ENCRYPTION KEY ", new string[] { "DEFINITION" }),
+        ("DENY ,* VIEW ANY COLUMN MASTER", SqlKeywordPosition.StatementStart, "DENY VIEW ANY COLUMN MASTER ", new string[] { "KEY" }),
+        ("DENY ,* VIEW ANY COLUMN MASTER KEY", SqlKeywordPosition.StatementStart, "DENY VIEW ANY COLUMN MASTER KEY ", new string[] { "DEFINITION" }),
+        ("DENY ,* VIEW ANY CRYPTOGRAPHICALLY", SqlKeywordPosition.StatementStart, "DENY VIEW ANY CRYPTOGRAPHICALLY ", new string[] { "SECURED" }),
+        ("DENY ,* VIEW ANY CRYPTOGRAPHICALLY SECURED", SqlKeywordPosition.StatementStart, "DENY VIEW ANY CRYPTOGRAPHICALLY SECURED ", new string[] { "DEFINITION" }),
+        ("DENY ,* VIEW ANY ERROR", SqlKeywordPosition.StatementStart, "DENY VIEW ANY ERROR ", new string[] { "LOG" }),
+        ("DENY ,* VIEW ANY PERFORMANCE", SqlKeywordPosition.StatementStart, "DENY VIEW ANY PERFORMANCE ", new string[] { "DEFINITION" }),
+        ("DENY ,* VIEW ANY SECURITY", SqlKeywordPosition.StatementStart, "DENY VIEW ANY SECURITY ", new string[] { "DEFINITION" }),
+        ("DENY ,* VIEW ANY SENSITIVITY", SqlKeywordPosition.StatementStart, "DENY VIEW ANY SENSITIVITY ", new string[] { "CLASSIFICATION" }),
+        ("DENY ,* VIEW CHANGE", SqlKeywordPosition.StatementStart, "DENY VIEW CHANGE ", new string[] { "TRACKING" }),
+        ("DENY ,* VIEW CRYPTOGRAPHICALLY", SqlKeywordPosition.StatementStart, "DENY VIEW CRYPTOGRAPHICALLY ", new string[] { "SECURED" }),
+        ("DENY ,* VIEW CRYPTOGRAPHICALLY SECURED", SqlKeywordPosition.StatementStart, "DENY VIEW CRYPTOGRAPHICALLY SECURED ", new string[] { "DEFINITION" }),
+        ("DENY ,* VIEW DATABASE", SqlKeywordPosition.StatementStart, "DENY VIEW DATABASE ", new string[] { "PERFORMANCE", "SECURITY", "STATE" }),
+        ("DENY ,* VIEW DATABASE PERFORMANCE", SqlKeywordPosition.StatementStart, "DENY VIEW DATABASE PERFORMANCE ", new string[] { "STATE" }),
+        ("DENY ,* VIEW DATABASE SECURITY", SqlKeywordPosition.StatementStart, "DENY VIEW DATABASE SECURITY ", new string[] { "AUDIT", "STATE" }),
+        ("DENY ,* VIEW LEDGER", SqlKeywordPosition.StatementStart, "DENY VIEW LEDGER ", new string[] { "CONTENT" }),
+        ("DENY ,* VIEW PERFORMANCE", SqlKeywordPosition.StatementStart, "DENY VIEW PERFORMANCE ", new string[] { "DEFINITION" }),
+        ("DENY ,* VIEW SECURITY", SqlKeywordPosition.StatementStart, "DENY VIEW SECURITY ", new string[] { "DEFINITION" }),
+        ("DENY ,* VIEW SERVER", SqlKeywordPosition.StatementStart, "DENY VIEW SERVER ", new string[] { "PERFORMANCE", "SECURITY", "STATE" }),
+        ("DENY ,* VIEW SERVER PERFORMANCE", SqlKeywordPosition.StatementStart, "DENY VIEW SERVER PERFORMANCE ", new string[] { "STATE" }),
+        ("DENY ,* VIEW SERVER SECURITY", SqlKeywordPosition.StatementStart, "DENY VIEW SERVER SECURITY ", new string[] { "AUDIT", "STATE" }),
+        ("DENY ,* ALL", SqlKeywordPosition.StatementStart, "DENY ALL ", new string[] { "PRIVILEGES" }),
+        ("REVOKE ,* ADMINISTER", SqlKeywordPosition.StatementStart, "REVOKE ADMINISTER ", new string[] { "BULK", "DATABASE" }),
+        ("REVOKE ,* ADMINISTER BULK", SqlKeywordPosition.StatementStart, "REVOKE ADMINISTER BULK ", new string[] { "OPERATIONS" }),
+        ("REVOKE ,* ADMINISTER DATABASE", SqlKeywordPosition.StatementStart, "REVOKE ADMINISTER DATABASE ", new string[] { "BULK" }),
+        ("REVOKE ,* ADMINISTER DATABASE BULK", SqlKeywordPosition.StatementStart, "REVOKE ADMINISTER DATABASE BULK ", new string[] { "OPERATIONS" }),
+        ("REVOKE ,* ALTER", SqlKeywordPosition.StatementStart, "REVOKE ALTER ", new string[] { "ANY", "LEDGER", "RESOURCES", "SERVER", "SETTINGS", "TRACE" }),
+        ("REVOKE ,* ALTER ANY", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY ", new string[] { "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "AVAILABILITY", "CERTIFICATE", "COLUMN", "CONNECTION", "CONTRACT", "CREDENTIAL", "DATABASE", "DATASPACE", "ENDPOINT", "EVENT", "EXTERNAL", "FULLTEXT", "LINKED", "LOGIN", "MASK", "MESSAGE", "REMOTE", "ROLE", "ROUTE", "SCHEMA", "SECURITY", "SENSITIVITY", "SERVER", "SERVICE", "SYMMETRIC", "USER" }),
+        ("REVOKE ,* ALTER ANY APPLICATION", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY APPLICATION ", new string[] { "ROLE" }),
+        ("REVOKE ,* ALTER ANY ASYMMETRIC", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY ASYMMETRIC ", new string[] { "KEY" }),
+        ("REVOKE ,* ALTER ANY AVAILABILITY", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY AVAILABILITY ", new string[] { "GROUP" }),
+        ("REVOKE ,* ALTER ANY COLUMN", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY COLUMN ", new string[] { "ENCRYPTION", "MASTER" }),
+        ("REVOKE ,* ALTER ANY COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY COLUMN ENCRYPTION ", new string[] { "KEY" }),
+        ("REVOKE ,* ALTER ANY COLUMN MASTER", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY COLUMN MASTER ", new string[] { "KEY" }),
+        ("REVOKE ,* ALTER ANY DATABASE", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY DATABASE ", new string[] { "AUDIT", "DDL", "EVENT", "SCOPED" }),
+        ("REVOKE ,* ALTER ANY DATABASE DDL", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY DATABASE DDL ", new string[] { "TRIGGER" }),
+        ("REVOKE ,* ALTER ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY DATABASE EVENT ", new string[] { "NOTIFICATION", "SESSION" }),
+        ("REVOKE ,* ALTER ANY DATABASE EVENT SESSION", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY DATABASE EVENT SESSION ", new string[] { "ADD", "DISABLE", "DROP", "ENABLE", "OPTION" }),
+        ("REVOKE ,* ALTER ANY DATABASE EVENT SESSION ADD", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY DATABASE EVENT SESSION ADD ", new string[] { "EVENT", "TARGET" }),
+        ("REVOKE ,* ALTER ANY DATABASE EVENT SESSION DROP", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY DATABASE EVENT SESSION DROP ", new string[] { "EVENT", "TARGET" }),
+        ("REVOKE ,* ALTER ANY DATABASE SCOPED", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY DATABASE SCOPED ", new string[] { "CONFIGURATION" }),
+        ("REVOKE ,* ALTER ANY EVENT", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY EVENT ", new string[] { "NOTIFICATION", "SESSION" }),
+        ("REVOKE ,* ALTER ANY EVENT SESSION", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY EVENT SESSION ", new string[] { "ADD", "DISABLE", "DROP", "ENABLE", "OPTION" }),
+        ("REVOKE ,* ALTER ANY EVENT SESSION ADD", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY EVENT SESSION ADD ", new string[] { "EVENT", "TARGET" }),
+        ("REVOKE ,* ALTER ANY EVENT SESSION DROP", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY EVENT SESSION DROP ", new string[] { "EVENT", "TARGET" }),
+        ("REVOKE ,* ALTER ANY EXTERNAL", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY EXTERNAL ", new string[] { "DATA", "FILE", "JOB", "LANGUAGE", "LIBRARY", "STREAM" }),
+        ("REVOKE ,* ALTER ANY EXTERNAL DATA", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY EXTERNAL DATA ", new string[] { "SOURCE" }),
+        ("REVOKE ,* ALTER ANY EXTERNAL FILE", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY EXTERNAL FILE ", new string[] { "FORMAT" }),
+        ("REVOKE ,* ALTER ANY FULLTEXT", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY FULLTEXT ", new string[] { "CATALOG" }),
+        ("REVOKE ,* ALTER ANY LINKED", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY LINKED ", new string[] { "SERVER" }),
+        ("REVOKE ,* ALTER ANY MESSAGE", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY MESSAGE ", new string[] { "TYPE" }),
+        ("REVOKE ,* ALTER ANY REMOTE", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY REMOTE ", new string[] { "SERVICE" }),
+        ("REVOKE ,* ALTER ANY REMOTE SERVICE", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY REMOTE SERVICE ", new string[] { "BINDING" }),
+        ("REVOKE ,* ALTER ANY SECURITY", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY SECURITY ", new string[] { "POLICY" }),
+        ("REVOKE ,* ALTER ANY SENSITIVITY", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY SENSITIVITY ", new string[] { "CLASSIFICATION" }),
+        ("REVOKE ,* ALTER ANY SERVER", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY SERVER ", new string[] { "AUDIT", "ROLE" }),
+        ("REVOKE ,* ALTER ANY SYMMETRIC", SqlKeywordPosition.StatementStart, "REVOKE ALTER ANY SYMMETRIC ", new string[] { "KEY" }),
+        ("REVOKE ,* ALTER LEDGER", SqlKeywordPosition.StatementStart, "REVOKE ALTER LEDGER ", new string[] { "CONFIGURATION" }),
+        ("REVOKE ,* ALTER SERVER", SqlKeywordPosition.StatementStart, "REVOKE ALTER SERVER ", new string[] { "STATE" }),
+        ("REVOKE ,* AUTHENTICATE", SqlKeywordPosition.StatementStart, "REVOKE AUTHENTICATE ", new string[] { "SERVER" }),
+        ("REVOKE ,* BACKUP", SqlKeywordPosition.StatementStart, "REVOKE BACKUP ", new string[] { "DATABASE", "LOG" }),
+        ("REVOKE ,* CONNECT", SqlKeywordPosition.StatementStart, "REVOKE CONNECT ", new string[] { "ANY", "REPLICATION", "SQL" }),
+        ("REVOKE ,* CONNECT ANY", SqlKeywordPosition.StatementStart, "REVOKE CONNECT ANY ", new string[] { "DATABASE" }),
+        ("REVOKE ,* CONTROL", SqlKeywordPosition.StatementStart, "REVOKE CONTROL ", new string[] { "SERVER" }),
+        ("REVOKE ,* CREATE", SqlKeywordPosition.StatementStart, "REVOKE CREATE ", new string[] { "AGGREGATE", "ANY", "ASSEMBLY", "ASYMMETRIC", "AVAILABILITY", "CERTIFICATE", "CONTRACT", "DATABASE", "DDL", "DEFAULT", "ENDPOINT", "EXTERNAL", "FULLTEXT", "FUNCTION", "LOGIN", "MESSAGE", "PROCEDURE", "QUEUE", "REMOTE", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEQUENCE", "SERVER", "SERVICE", "SYMMETRIC", "SYNONYM", "TABLE", "TRACE", "TYPE", "USER", "VIEW", "XML" }),
+        ("REVOKE ,* CREATE ANY", SqlKeywordPosition.StatementStart, "REVOKE CREATE ANY ", new string[] { "DATABASE", "EVENT" }),
+        ("REVOKE ,* CREATE ANY DATABASE", SqlKeywordPosition.StatementStart, "REVOKE CREATE ANY DATABASE ", new string[] { "EVENT" }),
+        ("REVOKE ,* CREATE ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "REVOKE CREATE ANY DATABASE EVENT ", new string[] { "SESSION" }),
+        ("REVOKE ,* CREATE ANY EVENT", SqlKeywordPosition.StatementStart, "REVOKE CREATE ANY EVENT ", new string[] { "SESSION" }),
+        ("REVOKE ,* CREATE ASYMMETRIC", SqlKeywordPosition.StatementStart, "REVOKE CREATE ASYMMETRIC ", new string[] { "KEY" }),
+        ("REVOKE ,* CREATE AVAILABILITY", SqlKeywordPosition.StatementStart, "REVOKE CREATE AVAILABILITY ", new string[] { "GROUP" }),
+        ("REVOKE ,* CREATE DATABASE", SqlKeywordPosition.StatementStart, "REVOKE CREATE DATABASE ", new string[] { "DDL" }),
+        ("REVOKE ,* CREATE DATABASE DDL", SqlKeywordPosition.StatementStart, "REVOKE CREATE DATABASE DDL ", new string[] { "EVENT" }),
+        ("REVOKE ,* CREATE DATABASE DDL EVENT", SqlKeywordPosition.StatementStart, "REVOKE CREATE DATABASE DDL EVENT ", new string[] { "NOTIFICATION" }),
+        ("REVOKE ,* CREATE DDL", SqlKeywordPosition.StatementStart, "REVOKE CREATE DDL ", new string[] { "EVENT" }),
+        ("REVOKE ,* CREATE DDL EVENT", SqlKeywordPosition.StatementStart, "REVOKE CREATE DDL EVENT ", new string[] { "NOTIFICATION" }),
+        ("REVOKE ,* CREATE EXTERNAL", SqlKeywordPosition.StatementStart, "REVOKE CREATE EXTERNAL ", new string[] { "LANGUAGE", "LIBRARY" }),
+        ("REVOKE ,* CREATE FULLTEXT", SqlKeywordPosition.StatementStart, "REVOKE CREATE FULLTEXT ", new string[] { "CATALOG" }),
+        ("REVOKE ,* CREATE MESSAGE", SqlKeywordPosition.StatementStart, "REVOKE CREATE MESSAGE ", new string[] { "TYPE" }),
+        ("REVOKE ,* CREATE REMOTE", SqlKeywordPosition.StatementStart, "REVOKE CREATE REMOTE ", new string[] { "SERVICE" }),
+        ("REVOKE ,* CREATE REMOTE SERVICE", SqlKeywordPosition.StatementStart, "REVOKE CREATE REMOTE SERVICE ", new string[] { "BINDING" }),
+        ("REVOKE ,* CREATE SERVER", SqlKeywordPosition.StatementStart, "REVOKE CREATE SERVER ", new string[] { "ROLE" }),
+        ("REVOKE ,* CREATE SYMMETRIC", SqlKeywordPosition.StatementStart, "REVOKE CREATE SYMMETRIC ", new string[] { "KEY" }),
+        ("REVOKE ,* CREATE TRACE", SqlKeywordPosition.StatementStart, "REVOKE CREATE TRACE ", new string[] { "EVENT" }),
+        ("REVOKE ,* CREATE TRACE EVENT", SqlKeywordPosition.StatementStart, "REVOKE CREATE TRACE EVENT ", new string[] { "NOTIFICATION" }),
+        ("REVOKE ,* CREATE XML", SqlKeywordPosition.StatementStart, "REVOKE CREATE XML ", new string[] { "SCHEMA" }),
+        ("REVOKE ,* CREATE XML SCHEMA", SqlKeywordPosition.StatementStart, "REVOKE CREATE XML SCHEMA ", new string[] { "COLLECTION" }),
+        ("REVOKE ,* DROP", SqlKeywordPosition.StatementStart, "REVOKE DROP ", new string[] { "ANY" }),
+        ("REVOKE ,* DROP ANY", SqlKeywordPosition.StatementStart, "REVOKE DROP ANY ", new string[] { "DATABASE", "EVENT" }),
+        ("REVOKE ,* DROP ANY DATABASE", SqlKeywordPosition.StatementStart, "REVOKE DROP ANY DATABASE ", new string[] { "EVENT" }),
+        ("REVOKE ,* DROP ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "REVOKE DROP ANY DATABASE EVENT ", new string[] { "SESSION" }),
+        ("REVOKE ,* DROP ANY EVENT", SqlKeywordPosition.StatementStart, "REVOKE DROP ANY EVENT ", new string[] { "SESSION" }),
+        ("REVOKE ,* ENABLE", SqlKeywordPosition.StatementStart, "REVOKE ENABLE ", new string[] { "LEDGER" }),
+        ("REVOKE ,* EXECUTE", SqlKeywordPosition.StatementStart, "REVOKE EXECUTE ", new string[] { "ANY", "EXTERNAL" }),
+        ("REVOKE ,* EXECUTE ANY", SqlKeywordPosition.StatementStart, "REVOKE EXECUTE ANY ", new string[] { "EXTERNAL" }),
+        ("REVOKE ,* EXECUTE ANY EXTERNAL", SqlKeywordPosition.StatementStart, "REVOKE EXECUTE ANY EXTERNAL ", new string[] { "ENDPOINT", "SCRIPT" }),
+        ("REVOKE ,* EXECUTE EXTERNAL", SqlKeywordPosition.StatementStart, "REVOKE EXECUTE EXTERNAL ", new string[] { "SCRIPT" }),
+        ("REVOKE ,* EXTERNAL", SqlKeywordPosition.StatementStart, "REVOKE EXTERNAL ", new string[] { "ACCESS" }),
+        ("REVOKE ,* EXTERNAL ACCESS", SqlKeywordPosition.StatementStart, "REVOKE EXTERNAL ACCESS ", new string[] { "ASSEMBLY" }),
+        ("REVOKE ,* IMPERSONATE", SqlKeywordPosition.StatementStart, "REVOKE IMPERSONATE ", new string[] { "ANY" }),
+        ("REVOKE ,* IMPERSONATE ANY", SqlKeywordPosition.StatementStart, "REVOKE IMPERSONATE ANY ", new string[] { "LOGIN" }),
+        ("REVOKE ,* KILL", SqlKeywordPosition.StatementStart, "REVOKE KILL ", new string[] { "DATABASE" }),
+        ("REVOKE ,* KILL DATABASE", SqlKeywordPosition.StatementStart, "REVOKE KILL DATABASE ", new string[] { "CONNECTION" }),
+        ("REVOKE ,* SELECT", SqlKeywordPosition.StatementStart, "REVOKE SELECT ", new string[] { "ALL" }),
+        ("REVOKE ,* SELECT ALL", SqlKeywordPosition.StatementStart, "REVOKE SELECT ALL ", new string[] { "USER" }),
+        ("REVOKE ,* SELECT ALL USER", SqlKeywordPosition.StatementStart, "REVOKE SELECT ALL USER ", new string[] { "SECURABLES" }),
+        ("REVOKE ,* SUBSCRIBE", SqlKeywordPosition.StatementStart, "REVOKE SUBSCRIBE ", new string[] { "QUERY" }),
+        ("REVOKE ,* SUBSCRIBE QUERY", SqlKeywordPosition.StatementStart, "REVOKE SUBSCRIBE QUERY ", new string[] { "NOTIFICATIONS" }),
+        ("REVOKE ,* TAKE", SqlKeywordPosition.StatementStart, "REVOKE TAKE ", new string[] { "OWNERSHIP" }),
+        ("REVOKE ,* UNSAFE", SqlKeywordPosition.StatementStart, "REVOKE UNSAFE ", new string[] { "ASSEMBLY" }),
+        ("REVOKE ,* VIEW", SqlKeywordPosition.StatementStart, "REVOKE VIEW ", new string[] { "ANY", "CHANGE", "CRYPTOGRAPHICALLY", "DATABASE", "DEFINITION", "LEDGER", "PERFORMANCE", "SECURITY", "SERVER" }),
+        ("REVOKE ,* VIEW ANY", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY ", new string[] { "COLUMN", "CRYPTOGRAPHICALLY", "DATABASE", "DEFINITION", "ERROR", "PERFORMANCE", "SECURITY", "SENSITIVITY" }),
+        ("REVOKE ,* VIEW ANY COLUMN", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY COLUMN ", new string[] { "ENCRYPTION", "MASTER" }),
+        ("REVOKE ,* VIEW ANY COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY COLUMN ENCRYPTION ", new string[] { "KEY" }),
+        ("REVOKE ,* VIEW ANY COLUMN ENCRYPTION KEY", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY COLUMN ENCRYPTION KEY ", new string[] { "DEFINITION" }),
+        ("REVOKE ,* VIEW ANY COLUMN MASTER", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY COLUMN MASTER ", new string[] { "KEY" }),
+        ("REVOKE ,* VIEW ANY COLUMN MASTER KEY", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY COLUMN MASTER KEY ", new string[] { "DEFINITION" }),
+        ("REVOKE ,* VIEW ANY CRYPTOGRAPHICALLY", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY CRYPTOGRAPHICALLY ", new string[] { "SECURED" }),
+        ("REVOKE ,* VIEW ANY CRYPTOGRAPHICALLY SECURED", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY CRYPTOGRAPHICALLY SECURED ", new string[] { "DEFINITION" }),
+        ("REVOKE ,* VIEW ANY ERROR", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY ERROR ", new string[] { "LOG" }),
+        ("REVOKE ,* VIEW ANY PERFORMANCE", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY PERFORMANCE ", new string[] { "DEFINITION" }),
+        ("REVOKE ,* VIEW ANY SECURITY", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY SECURITY ", new string[] { "DEFINITION" }),
+        ("REVOKE ,* VIEW ANY SENSITIVITY", SqlKeywordPosition.StatementStart, "REVOKE VIEW ANY SENSITIVITY ", new string[] { "CLASSIFICATION" }),
+        ("REVOKE ,* VIEW CHANGE", SqlKeywordPosition.StatementStart, "REVOKE VIEW CHANGE ", new string[] { "TRACKING" }),
+        ("REVOKE ,* VIEW CRYPTOGRAPHICALLY", SqlKeywordPosition.StatementStart, "REVOKE VIEW CRYPTOGRAPHICALLY ", new string[] { "SECURED" }),
+        ("REVOKE ,* VIEW CRYPTOGRAPHICALLY SECURED", SqlKeywordPosition.StatementStart, "REVOKE VIEW CRYPTOGRAPHICALLY SECURED ", new string[] { "DEFINITION" }),
+        ("REVOKE ,* VIEW DATABASE", SqlKeywordPosition.StatementStart, "REVOKE VIEW DATABASE ", new string[] { "PERFORMANCE", "SECURITY", "STATE" }),
+        ("REVOKE ,* VIEW DATABASE PERFORMANCE", SqlKeywordPosition.StatementStart, "REVOKE VIEW DATABASE PERFORMANCE ", new string[] { "STATE" }),
+        ("REVOKE ,* VIEW DATABASE SECURITY", SqlKeywordPosition.StatementStart, "REVOKE VIEW DATABASE SECURITY ", new string[] { "AUDIT", "STATE" }),
+        ("REVOKE ,* VIEW LEDGER", SqlKeywordPosition.StatementStart, "REVOKE VIEW LEDGER ", new string[] { "CONTENT" }),
+        ("REVOKE ,* VIEW PERFORMANCE", SqlKeywordPosition.StatementStart, "REVOKE VIEW PERFORMANCE ", new string[] { "DEFINITION" }),
+        ("REVOKE ,* VIEW SECURITY", SqlKeywordPosition.StatementStart, "REVOKE VIEW SECURITY ", new string[] { "DEFINITION" }),
+        ("REVOKE ,* VIEW SERVER", SqlKeywordPosition.StatementStart, "REVOKE VIEW SERVER ", new string[] { "PERFORMANCE", "SECURITY", "STATE" }),
+        ("REVOKE ,* VIEW SERVER PERFORMANCE", SqlKeywordPosition.StatementStart, "REVOKE VIEW SERVER PERFORMANCE ", new string[] { "STATE" }),
+        ("REVOKE ,* VIEW SERVER SECURITY", SqlKeywordPosition.StatementStart, "REVOKE VIEW SERVER SECURITY ", new string[] { "AUDIT", "STATE" }),
+        ("REVOKE ,* ALL", SqlKeywordPosition.StatementStart, "REVOKE ALL ", new string[] { "PRIVILEGES" }),
+        ("REVOKE GRANT OPTION FOR ,* ADMINISTER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ADMINISTER ", new string[] { "BULK", "DATABASE" }),
+        ("REVOKE GRANT OPTION FOR ,* ADMINISTER BULK", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ADMINISTER BULK ", new string[] { "OPERATIONS" }),
+        ("REVOKE GRANT OPTION FOR ,* ADMINISTER DATABASE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ADMINISTER DATABASE ", new string[] { "BULK" }),
+        ("REVOKE GRANT OPTION FOR ,* ADMINISTER DATABASE BULK", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ADMINISTER DATABASE BULK ", new string[] { "OPERATIONS" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ", new string[] { "ANY", "LEDGER", "RESOURCES", "SERVER", "SETTINGS", "TRACE" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY ", new string[] { "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "AVAILABILITY", "CERTIFICATE", "COLUMN", "CONNECTION", "CONTRACT", "CREDENTIAL", "DATABASE", "DATASPACE", "ENDPOINT", "EVENT", "EXTERNAL", "FULLTEXT", "LINKED", "LOGIN", "MASK", "MESSAGE", "REMOTE", "ROLE", "ROUTE", "SCHEMA", "SECURITY", "SENSITIVITY", "SERVER", "SERVICE", "SYMMETRIC", "USER" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY APPLICATION", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY APPLICATION ", new string[] { "ROLE" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY ASYMMETRIC", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY ASYMMETRIC ", new string[] { "KEY" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY AVAILABILITY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY AVAILABILITY ", new string[] { "GROUP" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY COLUMN", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY COLUMN ", new string[] { "ENCRYPTION", "MASTER" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY COLUMN ENCRYPTION ", new string[] { "KEY" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY COLUMN MASTER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY COLUMN MASTER ", new string[] { "KEY" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY DATABASE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY DATABASE ", new string[] { "AUDIT", "DDL", "EVENT", "SCOPED" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY DATABASE DDL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY DATABASE DDL ", new string[] { "TRIGGER" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY DATABASE EVENT ", new string[] { "NOTIFICATION", "SESSION" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY DATABASE EVENT SESSION", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY DATABASE EVENT SESSION ", new string[] { "ADD", "DISABLE", "DROP", "ENABLE", "OPTION" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY DATABASE EVENT SESSION ADD", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY DATABASE EVENT SESSION ADD ", new string[] { "EVENT", "TARGET" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY DATABASE EVENT SESSION DROP", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY DATABASE EVENT SESSION DROP ", new string[] { "EVENT", "TARGET" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY DATABASE SCOPED", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY DATABASE SCOPED ", new string[] { "CONFIGURATION" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY EVENT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY EVENT ", new string[] { "NOTIFICATION", "SESSION" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY EVENT SESSION", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY EVENT SESSION ", new string[] { "ADD", "DISABLE", "DROP", "ENABLE", "OPTION" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY EVENT SESSION ADD", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY EVENT SESSION ADD ", new string[] { "EVENT", "TARGET" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY EVENT SESSION DROP", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY EVENT SESSION DROP ", new string[] { "EVENT", "TARGET" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY EXTERNAL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY EXTERNAL ", new string[] { "DATA", "FILE", "JOB", "LANGUAGE", "LIBRARY", "STREAM" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY EXTERNAL DATA", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY EXTERNAL DATA ", new string[] { "SOURCE" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY EXTERNAL FILE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY EXTERNAL FILE ", new string[] { "FORMAT" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY FULLTEXT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY FULLTEXT ", new string[] { "CATALOG" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY LINKED", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY LINKED ", new string[] { "SERVER" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY MESSAGE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY MESSAGE ", new string[] { "TYPE" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY REMOTE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY REMOTE ", new string[] { "SERVICE" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY REMOTE SERVICE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY REMOTE SERVICE ", new string[] { "BINDING" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY SECURITY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY SECURITY ", new string[] { "POLICY" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY SENSITIVITY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY SENSITIVITY ", new string[] { "CLASSIFICATION" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY SERVER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY SERVER ", new string[] { "AUDIT", "ROLE" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER ANY SYMMETRIC", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER ANY SYMMETRIC ", new string[] { "KEY" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER LEDGER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER LEDGER ", new string[] { "CONFIGURATION" }),
+        ("REVOKE GRANT OPTION FOR ,* ALTER SERVER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALTER SERVER ", new string[] { "STATE" }),
+        ("REVOKE GRANT OPTION FOR ,* AUTHENTICATE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR AUTHENTICATE ", new string[] { "SERVER" }),
+        ("REVOKE GRANT OPTION FOR ,* BACKUP", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR BACKUP ", new string[] { "DATABASE", "LOG" }),
+        ("REVOKE GRANT OPTION FOR ,* CONNECT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CONNECT ", new string[] { "ANY", "REPLICATION", "SQL" }),
+        ("REVOKE GRANT OPTION FOR ,* CONNECT ANY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CONNECT ANY ", new string[] { "DATABASE" }),
+        ("REVOKE GRANT OPTION FOR ,* CONTROL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CONTROL ", new string[] { "SERVER" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE ", new string[] { "AGGREGATE", "ANY", "ASSEMBLY", "ASYMMETRIC", "AVAILABILITY", "CERTIFICATE", "CONTRACT", "DATABASE", "DDL", "DEFAULT", "ENDPOINT", "EXTERNAL", "FULLTEXT", "FUNCTION", "LOGIN", "MESSAGE", "PROCEDURE", "QUEUE", "REMOTE", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEQUENCE", "SERVER", "SERVICE", "SYMMETRIC", "SYNONYM", "TABLE", "TRACE", "TYPE", "USER", "VIEW", "XML" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE ANY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE ANY ", new string[] { "DATABASE", "EVENT" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE ANY DATABASE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE ANY DATABASE ", new string[] { "EVENT" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE ANY DATABASE EVENT ", new string[] { "SESSION" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE ANY EVENT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE ANY EVENT ", new string[] { "SESSION" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE ASYMMETRIC", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE ASYMMETRIC ", new string[] { "KEY" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE AVAILABILITY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE AVAILABILITY ", new string[] { "GROUP" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE DATABASE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE DATABASE ", new string[] { "DDL" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE DATABASE DDL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE DATABASE DDL ", new string[] { "EVENT" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE DATABASE DDL EVENT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE DATABASE DDL EVENT ", new string[] { "NOTIFICATION" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE DDL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE DDL ", new string[] { "EVENT" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE DDL EVENT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE DDL EVENT ", new string[] { "NOTIFICATION" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE EXTERNAL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE EXTERNAL ", new string[] { "LANGUAGE", "LIBRARY" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE FULLTEXT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE FULLTEXT ", new string[] { "CATALOG" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE MESSAGE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE MESSAGE ", new string[] { "TYPE" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE REMOTE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE REMOTE ", new string[] { "SERVICE" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE REMOTE SERVICE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE REMOTE SERVICE ", new string[] { "BINDING" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE SERVER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE SERVER ", new string[] { "ROLE" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE SYMMETRIC", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE SYMMETRIC ", new string[] { "KEY" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE TRACE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE TRACE ", new string[] { "EVENT" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE TRACE EVENT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE TRACE EVENT ", new string[] { "NOTIFICATION" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE XML", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE XML ", new string[] { "SCHEMA" }),
+        ("REVOKE GRANT OPTION FOR ,* CREATE XML SCHEMA", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR CREATE XML SCHEMA ", new string[] { "COLLECTION" }),
+        ("REVOKE GRANT OPTION FOR ,* DROP", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR DROP ", new string[] { "ANY" }),
+        ("REVOKE GRANT OPTION FOR ,* DROP ANY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR DROP ANY ", new string[] { "DATABASE", "EVENT" }),
+        ("REVOKE GRANT OPTION FOR ,* DROP ANY DATABASE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR DROP ANY DATABASE ", new string[] { "EVENT" }),
+        ("REVOKE GRANT OPTION FOR ,* DROP ANY DATABASE EVENT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR DROP ANY DATABASE EVENT ", new string[] { "SESSION" }),
+        ("REVOKE GRANT OPTION FOR ,* DROP ANY EVENT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR DROP ANY EVENT ", new string[] { "SESSION" }),
+        ("REVOKE GRANT OPTION FOR ,* ENABLE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ENABLE ", new string[] { "LEDGER" }),
+        ("REVOKE GRANT OPTION FOR ,* EXECUTE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR EXECUTE ", new string[] { "ANY", "EXTERNAL" }),
+        ("REVOKE GRANT OPTION FOR ,* EXECUTE ANY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR EXECUTE ANY ", new string[] { "EXTERNAL" }),
+        ("REVOKE GRANT OPTION FOR ,* EXECUTE ANY EXTERNAL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR EXECUTE ANY EXTERNAL ", new string[] { "ENDPOINT", "SCRIPT" }),
+        ("REVOKE GRANT OPTION FOR ,* EXECUTE EXTERNAL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR EXECUTE EXTERNAL ", new string[] { "SCRIPT" }),
+        ("REVOKE GRANT OPTION FOR ,* EXTERNAL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR EXTERNAL ", new string[] { "ACCESS" }),
+        ("REVOKE GRANT OPTION FOR ,* EXTERNAL ACCESS", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR EXTERNAL ACCESS ", new string[] { "ASSEMBLY" }),
+        ("REVOKE GRANT OPTION FOR ,* IMPERSONATE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR IMPERSONATE ", new string[] { "ANY" }),
+        ("REVOKE GRANT OPTION FOR ,* IMPERSONATE ANY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR IMPERSONATE ANY ", new string[] { "LOGIN" }),
+        ("REVOKE GRANT OPTION FOR ,* KILL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR KILL ", new string[] { "DATABASE" }),
+        ("REVOKE GRANT OPTION FOR ,* KILL DATABASE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR KILL DATABASE ", new string[] { "CONNECTION" }),
+        ("REVOKE GRANT OPTION FOR ,* SELECT", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR SELECT ", new string[] { "ALL" }),
+        ("REVOKE GRANT OPTION FOR ,* SELECT ALL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR SELECT ALL ", new string[] { "USER" }),
+        ("REVOKE GRANT OPTION FOR ,* SELECT ALL USER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR SELECT ALL USER ", new string[] { "SECURABLES" }),
+        ("REVOKE GRANT OPTION FOR ,* SUBSCRIBE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR SUBSCRIBE ", new string[] { "QUERY" }),
+        ("REVOKE GRANT OPTION FOR ,* SUBSCRIBE QUERY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR SUBSCRIBE QUERY ", new string[] { "NOTIFICATIONS" }),
+        ("REVOKE GRANT OPTION FOR ,* TAKE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR TAKE ", new string[] { "OWNERSHIP" }),
+        ("REVOKE GRANT OPTION FOR ,* UNSAFE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR UNSAFE ", new string[] { "ASSEMBLY" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ", new string[] { "ANY", "CHANGE", "CRYPTOGRAPHICALLY", "DATABASE", "DEFINITION", "LEDGER", "PERFORMANCE", "SECURITY", "SERVER" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY ", new string[] { "COLUMN", "CRYPTOGRAPHICALLY", "DATABASE", "DEFINITION", "ERROR", "PERFORMANCE", "SECURITY", "SENSITIVITY" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY COLUMN", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY COLUMN ", new string[] { "ENCRYPTION", "MASTER" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY COLUMN ENCRYPTION", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY COLUMN ENCRYPTION ", new string[] { "KEY" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY COLUMN ENCRYPTION KEY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY COLUMN ENCRYPTION KEY ", new string[] { "DEFINITION" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY COLUMN MASTER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY COLUMN MASTER ", new string[] { "KEY" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY COLUMN MASTER KEY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY COLUMN MASTER KEY ", new string[] { "DEFINITION" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY CRYPTOGRAPHICALLY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY CRYPTOGRAPHICALLY ", new string[] { "SECURED" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY CRYPTOGRAPHICALLY SECURED", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY CRYPTOGRAPHICALLY SECURED ", new string[] { "DEFINITION" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY ERROR", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY ERROR ", new string[] { "LOG" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY PERFORMANCE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY PERFORMANCE ", new string[] { "DEFINITION" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY SECURITY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY SECURITY ", new string[] { "DEFINITION" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW ANY SENSITIVITY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW ANY SENSITIVITY ", new string[] { "CLASSIFICATION" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW CHANGE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW CHANGE ", new string[] { "TRACKING" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW CRYPTOGRAPHICALLY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW CRYPTOGRAPHICALLY ", new string[] { "SECURED" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW CRYPTOGRAPHICALLY SECURED", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW CRYPTOGRAPHICALLY SECURED ", new string[] { "DEFINITION" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW DATABASE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW DATABASE ", new string[] { "PERFORMANCE", "SECURITY", "STATE" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW DATABASE PERFORMANCE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW DATABASE PERFORMANCE ", new string[] { "STATE" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW DATABASE SECURITY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW DATABASE SECURITY ", new string[] { "AUDIT", "STATE" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW LEDGER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW LEDGER ", new string[] { "CONTENT" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW PERFORMANCE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW PERFORMANCE ", new string[] { "DEFINITION" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW SECURITY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW SECURITY ", new string[] { "DEFINITION" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW SERVER", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW SERVER ", new string[] { "PERFORMANCE", "SECURITY", "STATE" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW SERVER PERFORMANCE", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW SERVER PERFORMANCE ", new string[] { "STATE" }),
+        ("REVOKE GRANT OPTION FOR ,* VIEW SERVER SECURITY", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR VIEW SERVER SECURITY ", new string[] { "AUDIT", "STATE" }),
+        ("REVOKE GRANT OPTION FOR ,* ALL", SqlKeywordPosition.StatementStart, "REVOKE GRANT OPTION FOR ALL ", new string[] { "PRIVILEGES" }),
     };
 
     /// <summary>

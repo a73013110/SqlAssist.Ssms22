@@ -137,6 +137,11 @@ internal static class IndexPhrases
         // NO POPULATION 剖析器要看到整段才收，整段是證據。
         new("ALTER FULLTEXT INDEX ON {name} ADD () WITH NO POPULATION"),
         new("ALTER FULLTEXT INDEX ON {name} DROP () WITH NO POPULATION"),
+        new("ALTER FULLTEXT INDEX ON {name} SET STOPLIST = {name} WITH NO POPULATION"),
+        new("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST {name} WITH NO POPULATION"),
+        new("ALTER FULLTEXT INDEX ON {name} SET SEARCH PROPERTY LIST = {name} WITH NO POPULATION"),
+        // 停用字詞表的值剖析器當名稱讀：系統的那份（SYSTEM）手寫，其餘是既有的停用字詞表。
+        new("ALTER FULLTEXT INDEX ON {name} SET STOPLIST =") { Values = ["SYSTEM"] },
         // 目錄名稱之後非接 REBUILD、REORGANIZE、AS DEFAULT 不可，ALTER 的展開探不出 CATALOG，整段是證據。
         // REBUILD 已是完整的語句，WITH 被當成下一句扣掉了，另外宣告。
         new("ALTER FULLTEXT CATALOG {name}") { Expand = 1 },

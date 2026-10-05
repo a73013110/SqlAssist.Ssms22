@@ -81,28 +81,34 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 : null),
 
         // GRANT|DENY|REVOKE SELECT, UPDATE (a, b), VIEW DEFINITION：權限寫完之後是 ON、TO、FROM。
-        // 權限之後的逗號與 GRANT 本身之後由目錄與片語給，這裡不回位置。WITH GRANT OPTION 的 GRANT 不是開頭。
-        // 資料庫稽核規格括號裡的動作（ADD (SELECT, INSERT ON t BY u)）是同一種寫法，ON 之後同樣是類別或目標。
+        // 一項的開頭（GRANT 、REVOKE GRANT OPTION FOR 與逗號之後）是清單片語的格子，權限名稱由片語給；
+        // 判不出位置的話 GRANT CREATE 的 CREATE 會比對成 CREATE 語句的片語。WITH GRANT OPTION 的 GRANT 不是開頭。
+        // 資料庫稽核規格括號裡的動作（ADD (SELECT, INSERT ON t BY u)）是同一種寫法，ON 之後同樣是類別或目標；
+        // 那裡的動作沒有清單片語，開頭不回位置。
         new(
             isAnchor: (analyzer, index) => analyzer.OpensPermissionList(index),
             isPart: (analyzer, index) => analyzer.IsPermissionPart(index),
             endsItem: (_, _) => true,
-            header: (_, _) => new OptionSlots(null, SqlKeywordPosition.PermissionList),
+            header: (analyzer, anchor) => new OptionSlots(
+                analyzer.tokens[anchor].IsPunctuation("(") ? null : SqlKeywordPosition.OptionItem,
+                SqlKeywordPosition.PermissionList),
             skipsGroups: true),
 
         // GRANT … ON [SCHEMA::]dbo.Loan：ON 之後是類別或目標，目標寫完之後是 TO、FROM。
         // ALTER AUTHORIZATION ON 的類別與目標寫法相同。類別可以是幾個字（SEARCH PROPERTY LIST::），第一個字可以是保留字。
+        // 資料行層級的權限把資料行清單寫在目標之後（ON Loan (LoanNo)），整組括號也是目標的一部分。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("ON"),
             isPart: (analyzer, index) => analyzer.IsPlainWord(index) ||
                 analyzer.tokens[index].IsPunctuation(".") || analyzer.tokens[index].IsPunctuation("::") ||
                 analyzer.NamesClass(index),
-            endsItem: (analyzer, index) => analyzer.IsPlainWord(index),
+            endsItem: (analyzer, index) => analyzer.IsPlainWord(index) || analyzer.tokens[index].IsPunctuation(")"),
             header: (analyzer, on) => on >= 1 && (analyzer.FindStatementSlot(on - 1) == SqlKeywordPosition.PermissionList ||
                     (on >= 2 && analyzer.tokens[on - 1].IsKeyword("AUTHORIZATION") && analyzer.tokens[on - 2].IsKeyword("ALTER")))
                 ? new OptionSlots(SqlKeywordPosition.PermissionOn, SqlKeywordPosition.PermissionTarget)
                 : null,
-            separatedByCommas: false),
+            separatedByCommas: false,
+            skipsGroups: true),
 
         // CREATE|ALTER PROCEDURE|FUNCTION|VIEW … WITH：EXECUTE AS、INLINE = ON、RETURNS NULL ON NULL INPUT。
         new(
@@ -546,11 +552,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
             (tokens[function - 1].IsKeyword("CREATE") || tokens[function - 1].IsKeyword("ALTER"));
     }
 
-    /// <summary><paramref name="references"/> 的 REFERENCES 是 GRANT／DENY／REVOKE 的權限，不是外部索引鍵。</summary>
-    private bool NamesPermission(int references) =>
-        references >= 1 &&
-        (tokens[references - 1].IsPunctuation(",") ||
-         tokens[references - 1].IsKeyword("GRANT") || tokens[references - 1].IsKeyword("DENY") || tokens[references - 1].IsKeyword("REVOKE"));
+    /// <summary>
+    /// <paramref name="index"/> 的字是 GRANT／DENY／REVOKE 權限清單一項的開頭（REFERENCES 不是外部索引鍵、CREATE 不是建立敘述）：
+    /// 緊接清單的開頭（含 <c>REVOKE GRANT OPTION FOR</c>）或逗號。
+    /// </summary>
+    private bool NamesPermission(int index) =>
+        index >= 1 && (tokens[index - 1].IsPunctuation(",") || OpensPermissionList(index - 1));
 
     /// <summary>
     /// 外部索引鍵的 <c>REFERENCES</c> 之後寫得出這個詞元：參考的名稱、點號，以及
@@ -708,11 +715,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
             (before & (SqlKeywordPosition.PermissionList | SqlKeywordPosition.PermissionTarget)) != SqlKeywordPosition.None;
     }
 
-    /// <summary>GRANT、DENY、REVOKE 開始權限清單；<c>WITH GRANT OPTION</c> 的 GRANT 不是。</summary>
+    /// <summary>
+    /// GRANT、DENY、REVOKE 與 <c>REVOKE GRANT OPTION FOR</c> 開始權限清單；<c>WITH GRANT OPTION</c> 的 GRANT 不是。
+    /// </summary>
     private bool OpensPermissionList(int index) =>
         (IsBareKeyword(index) &&
          (tokens[index].IsKeyword("GRANT") || tokens[index].IsKeyword("DENY") || tokens[index].IsKeyword("REVOKE")) &&
          !(index >= 1 && tokens[index - 1].IsKeyword("WITH"))) ||
+        (index >= 3 && tokens[index].IsKeyword("FOR") && tokens[index - 1].IsKeyword("OPTION") &&
+         tokens[index - 2].IsKeyword("GRANT") && tokens[index - 3].IsKeyword("REVOKE")) ||
         OpensAuditActions(index);
 
     /// <summary>
@@ -1119,7 +1130,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
         var token = tokens[index];
 
         return token.IsPunctuation(";") || token.IsPunctuation("(") ||
-            (token.Kind == SqlTokenKind.Identifier && IsBareKeyword(index) && StartsStatement(token));
+            (token.Kind == SqlTokenKind.Identifier && IsBareKeyword(index) && StartsStatement(token) && !NamesPermission(index));
     }
 
     /// <summary>一種選項清單在一項的開頭與寫完一項之後各是什麼位置；null 是那裡不歸這份清單管。</summary>

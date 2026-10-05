@@ -102,6 +102,8 @@ public sealed class SqlClausePhrase
     /// 帶 <see cref="After"/> 的片語第一個字前面那段是位置本身；那個字不是目錄在那一格的關鍵字
     /// （<c>SELECT a AT TIME ZONE</c> 的 AT、語句開頭的 ENABLE）時由它給。比對確定的話整份目錄
     /// 讓給片語，選取清單尾端只剩 AT，所以它不換掉任何字。
+    /// 帶尾巴的附加片語照尾巴比對，同樣只加字：剖析器分不出字的那一格（權限名稱，GRANT 什麼保留字都收）
+    /// 與寫完一句卻還接著下一句的那一格（模組本體的 AS，空本體也剖析得過）。
     /// </remarks>
     public bool IsAdditive { get; }
 
@@ -261,6 +263,13 @@ public sealed class SqlClausePhrase
     /// </remarks>
     private int MatchItems(IReadOnlyList<SqlToken> tokens, int last, int items, SqlKeywordPositionAnalyzer analyzer)
     {
+        // 之後是字面字的話那個字開始一項，前面緊接標頭或逗號：GRANT SELECT ON EXTERNAL 的 EXTERNAL 是類別，
+        // 不是 GRANT ,* EXTERNAL 的權限。之後是值、括號或逗號的不必（TO DISK = 'x' 的值前面是等號）。
+        if (_elements[items + 1] is { Kind: ElementKind.Word } next && IsWord(next.Word!) && !tokens[last].IsPunctuation(","))
+        {
+            return MatchBefore(tokens, last, items, analyzer);
+        }
+
         for (var index = last; index >= 0; index--)
         {
             var start = MatchBefore(tokens, index, items, analyzer);

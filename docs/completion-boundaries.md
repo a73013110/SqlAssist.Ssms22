@@ -47,7 +47,7 @@
 - `WITH` 只認明確的：CTE 前一句必須以分號結束。
 
 子句屬於哪個**動詞**另問往回第一個能開始一句的字（`FindVerb`：`UPDATE t⏎SET` 屬於 UPDATE）；
-權限清單的一項（`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式，`CASE … END` 整組跳過；
+權限清單的一項（`REVOKE SELECT`、`GRANT CREATE TABLE`）與 `WITH` 不算，清單項的走訪（`StartsClauseOfItsOwn`）同一條；`IF UPDATE(a)` 是函式，`CASE … END` 整組跳過；
 不是關鍵字的語句開頭要真的是一句的開頭才算，否則 `SELECT Copy.CopyNo FROM` 的 FROM 找不到 SELECT。
 
 - **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c `
