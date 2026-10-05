@@ -30,12 +30,18 @@ public sealed class SqlClausePhraseMatch
     /// <summary>前一格的位置判得出來，而且是片語要的那一種。</summary>
     public bool IsCertain { get; }
 
-    /// <summary>清單只有片語的字（與 <see cref="OffersVariables"/>）：片語封閉，而且比對是確定的。</summary>
+    /// <summary>清單只有片語的字（與變數，見 <see cref="OffersVariables"/>）：片語封閉，而且比對是確定的。</summary>
     public bool IsClosed => IsCertain && Phrase.IsClosed;
 
-    /// <summary>封閉的清單裡也放指令碼的變數，見 <see cref="SqlClausePhrase.TakesVariable"/>。</summary>
-    /// <remarks>不封閉時清單不在空前綴預開，打 <c>@</c> 走的是變數那一條，不必由片語給。</remarks>
-    public bool OffersVariables => IsClosed && Phrase.TakesVariable;
+    /// <summary>
+    /// 空前綴就開的清單裡也放指令碼的變數，見 <see cref="SqlClausePhrase.TakesVariable"/>；清單開不開由上下文決定
+    /// （<see cref="SqlCompletionPolicy.OffersPhraseVariables"/>），這裡只說片語那一格收變數。
+    /// </summary>
+    /// <remarks>
+    /// 封閉的片語與目標收斂是同一件事：<c>EXEC </c> 的片語不封閉（還收程序名），清單卻因為目標是程序在空前綴開好，
+    /// 只看片語封閉的話打 <c>@</c> 只篩選那一份程序，<c>EXEC @proc</c>、<c>EXEC @ret = p</c> 都列不出變數。
+    /// </remarks>
+    public bool OffersVariables => IsCertain && Phrase.TakesVariable;
 
     /// <summary>片語的字的建議項。</summary>
     public IReadOnlyList<SqlSuggestion> Suggestions => Phrase.Suggestions;

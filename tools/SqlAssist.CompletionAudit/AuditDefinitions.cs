@@ -255,8 +255,22 @@ public sealed class AuditDefinitions
             return null;
         }
 
-        if (owner.SchemaIdentifier is null &&
-            owner.DatabaseIdentifier is null &&
+        return TargetAlias(start) is { } definedAt
+            ? _aliasSources[definedAt]
+            : (name, owner.DatabaseIdentifier?.Value);
+    }
+
+    /// <summary>
+    /// <paramref name="start"/> 這裡的 <c>inserted</c>／<c>deleted</c> 指 DML 的目標，而目標是同一句 FROM 才取的別名
+    /// （<c>UPDATE l SET … OUTPUT inserted.⎵ FROM Loan l</c>）：截斷處只有一個叫 <c>l</c> 的名字，說不出是哪一張表。
+    /// </summary>
+    public bool NamesLaterTarget(string name, int start) =>
+        IsChangeTable(name, start) && TargetAlias(start) is { } definedAt && definedAt > start;
+
+    /// <summary>DML 的目標寫成別名時，同一句裡取那個別名的位置。</summary>
+    private int? TargetAlias(int start)
+    {
+        if (InnermostChangeRange(start) is { Owner: { BaseIdentifier.Value: { } name, SchemaIdentifier: null, DatabaseIdentifier: null } } &&
             _scoped.TryGetValue(AuditText.Normalize(name), out var definitions) &&
             InnermostRange(_statements, start) is { } statement)
         {
@@ -264,14 +278,14 @@ public sealed class AuditDefinitions
             {
                 if (definition.DefinedAt >= statement.Start &&
                     definition.DefinedAt < statement.End &&
-                    _aliasSources.TryGetValue(definition.DefinedAt, out var aliased))
+                    _aliasSources.ContainsKey(definition.DefinedAt))
                 {
-                    return aliased;
+                    return definition.DefinedAt;
                 }
             }
         }
 
-        return (name, owner.DatabaseIdentifier?.Value);
+        return null;
     }
 
     private (int Start, int End, SchemaObjectName? Owner)? InnermostChangeRange(int offset)

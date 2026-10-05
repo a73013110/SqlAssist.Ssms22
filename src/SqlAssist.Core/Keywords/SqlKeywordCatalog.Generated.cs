@@ -10456,6 +10456,9 @@ internal static class SqlKeywordCatalogData
         {
             "RECEIVE", "GET",
         }),
+        ("WAITFOR ( GET CONVERSATION GROUP", SqlKeywordPosition.StatementStart, "WAITFOR (GET CONVERSATION GROUP ", true, true, false, false, new string[]
+        {
+        }),
         ("WAITFOR ( GET CONVERSATION GROUP {name} FROM", SqlKeywordPosition.StatementStart, "WAITFOR (GET CONVERSATION GROUP @ReaderId FROM ", false, false, true, false, new string[]
         {
         }),
@@ -13974,6 +13977,9 @@ internal static class SqlKeywordCatalogData
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
             "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
             "TRY_CONVERT", "USER",
+        }),
+        ("GET CONVERSATION GROUP", SqlKeywordPosition.StatementStart, "GET CONVERSATION GROUP ", true, true, false, false, new string[]
+        {
         }),
         ("GET CONVERSATION GROUP {name} FROM", SqlKeywordPosition.StatementStart, "GET CONVERSATION GROUP @ReaderId FROM ", false, false, true, false, new string[]
         {

@@ -69,6 +69,22 @@ public static class SqlCompletionPolicy
             context.KeywordPosition.IsClosed();
     }
 
+    /// <summary>
+    /// 空前綴就開的清單裡放指令碼的變數：清單封閉，而片語確定那一格收變數（<c>SET </c>、<c>EXEC </c>、<c>BEGIN DIALOG </c>）。
+    /// </summary>
+    /// <remarks>
+    /// 清單在空前綴建好，打 <c>@</c> 只是篩選那一份；不封閉的清單要等打字才建，打 <c>@</c> 走的是變數那一條，不必由片語給。
+    /// </remarks>
+    public static bool OffersPhraseVariables(SqlCompletionContext context)
+    {
+        if (context is null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
+        return context.ClausePhrase is { OffersVariables: true } && IsClosed(context);
+    }
+
     /// <summary>這一格有沒有東西可列。</summary>
     /// <remarks>
     /// 一定是新名字的那一格沒有：清單裡沒有一項會是對的。可能是名字的那一格有，

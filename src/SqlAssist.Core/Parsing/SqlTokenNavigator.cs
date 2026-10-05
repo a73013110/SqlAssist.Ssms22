@@ -46,6 +46,19 @@ public static class SqlTokenNavigator
         };
 
     /// <summary>
+    /// 緊接在 <c>FROM (</c> 之後時也開啟查詢：可組合 DML（<c>FROM (MERGE … OUTPUT …) AS d</c>）的結果是 OUTPUT 的資料列。
+    /// </summary>
+    /// <remarks>
+    /// 只認 FROM 之後：別處的 <c>(INSERT</c> 是權限清單（資料庫稽核規格的 <c>ADD (INSERT ON …</c>），不是查詢。
+    /// 不認的症狀是括號裡的 DML 併進外層，<c>AS d (c1, c2) WHERE </c> 列的是 DML 目標的欄位，不是 <c>d</c> 與它的資料行。
+    /// </remarks>
+    private static readonly HashSet<string> ComposableDmlKeywords =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "INSERT", "UPDATE", "DELETE", "MERGE"
+        };
+
+    /// <summary>
     /// <paramref name="open"/> 的左括號後面是不是一個查詢。
     /// </summary>
     /// <remarks>
@@ -76,7 +89,8 @@ public static class SqlTokenNavigator
         if (!(next < tokens.Count
             && tokens[next].Kind == SqlTokenKind.Identifier
             && !tokens[next].IsQuoted
-            && QueryKeywords.Contains(tokens[next].Value)))
+            && (QueryKeywords.Contains(tokens[next].Value) ||
+                next == open + 1 && open > 0 && tokens[open - 1].IsKeyword("FROM") && IsComposableDml(tokens[next]))))
         {
             return false;
         }
@@ -94,6 +108,10 @@ public static class SqlTokenNavigator
 
         return true;
     }
+
+    /// <summary>可組合 DML 的動詞：它的結果是 OUTPUT 子句的資料列，見 <see cref="ComposableDmlKeywords"/>。</summary>
+    internal static bool IsComposableDml(SqlToken token) =>
+        token.Kind == SqlTokenKind.Identifier && !token.IsQuoted && ComposableDmlKeywords.Contains(token.Value);
 
     /// <summary>接在一組查詢括號之後、仍屬於同一個查詢運算式的詞元。</summary>
     private static bool ContinuesQuery(SqlToken token) =>

@@ -164,12 +164,34 @@ public sealed class SqlScriptVariableTests
     [InlineData("DECLARE @readerId INT;\r\nFETCH FROM c INTO |")]
     [InlineData("DECLARE @readerId UNIQUEIDENTIFIER;\r\nBEGIN DIALOG |")]
     [InlineData("DECLARE @readerId UNIQUEIDENTIFIER;\r\nBEGIN DIALOG CONVERSATION |")]
+    [InlineData("DECLARE @readerId UNIQUEIDENTIFIER;\r\nGET CONVERSATION GROUP |")]
+    [InlineData("DECLARE @readerId UNIQUEIDENTIFIER;\r\nWAITFOR (GET CONVERSATION GROUP |")]
     public void 收變數的封閉片語連變數一起列(string sqlWithCaret)
     {
         var input = SqlWithCaret.Parse(sqlWithCaret);
         var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
 
         Assert.Equal(CompletionTarget.ClauseKeyword, context.Target);
+        Assert.Contains(
+            SuggestionContextFilter.Filter(context.ScriptSources, context),
+            item => item.DisplayText == "@readerId");
+    }
+
+    /// <summary>
+    /// 清單因為目標封閉而在空前綴開好時（<c>EXEC </c> 列程序），片語那一格收變數就一起列：
+    /// <c>EXEC @proc</c> 執行變數裡的模組名稱，<c>EXEC @ret = p</c> 接回傳值。
+    /// </summary>
+    /// <remarks>只看片語封不封閉的話，打 <c>@</c> 只篩選那一份程序，一個變數都沒有。</remarks>
+    [Theory]
+    [InlineData("DECLARE @readerId NVARCHAR(100);\r\nEXEC |")]
+    [InlineData("DECLARE @readerId NVARCHAR(100);\r\nEXECUTE |")]
+    public void 目標封閉的清單也放片語收的變數(string sqlWithCaret)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+
+        Assert.Equal(CompletionTarget.Procedure, context.Target);
+        Assert.True(SqlCompletionPolicy.IsClosed(context));
         Assert.Contains(
             SuggestionContextFilter.Filter(context.ScriptSources, context),
             item => item.DisplayText == "@readerId");

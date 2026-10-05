@@ -198,6 +198,35 @@ public sealed class CompletionAuditorTests
         Assert.Equal(3, result.Tally.Excluded[AuditExclusion.Truncated]);
     }
 
+    [Theory]
+    [InlineData("UPDATE r SET PUBL_CODE = @Code OUTPUT inserted.ReaderId FROM Lib_Reader r")]
+    [InlineData("UPDATE r SET PUBL_CODE = @Code\n-- 換行之前的註解\nOUTPUT deleted.PUBL_CODE, inserted.ReaderId INTO @t FROM Lib_Reader r")]
+    [InlineData("DELETE r OUTPUT deleted.ReaderId FROM Lib_Reader r")]
+    public async Task OUTPUT_的目標是FROM才取的別名_inserted的欄位歸截斷盲點(string sql)
+    {
+        var catalog = new FakeCatalog(
+            ("ReaderId", AuditTokenClass.Column),
+            ("PUBL_CODE", AuditTokenClass.Column),
+            ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync("DECLARE @Code int, @t TABLE (a int, b int);\n" + sql, catalog);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.TokenClass == AuditTokenClass.Column);
+    }
+
+    [Fact]
+    public async Task OUTPUT_的目標是資料表名稱_inserted的欄位照常稽核()
+    {
+        var catalog = new FakeCatalog(("ReaderId", AuditTokenClass.Column), ("Lib_Reader", AuditTokenClass.Object));
+        const string sql = "UPDATE Lib_Reader SET ReaderId = 1 OUTPUT inserted.ReaderId FROM Lib_Reader JOIN Lib_Tag t ON 1 = 1";
+
+        var result = await AuditAsync(sql, catalog);
+
+        Assert.Contains(
+            result.Misses,
+            miss => miss.TokenClass == AuditTokenClass.Column && miss.Offset == sql.IndexOf("inserted.", StringComparison.Ordinal) + 9);
+    }
+
     [Fact]
     public async Task UPDATE_的目標是資料表名稱_SET的欄位照常稽核()
     {

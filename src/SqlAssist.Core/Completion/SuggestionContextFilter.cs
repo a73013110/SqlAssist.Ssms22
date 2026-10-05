@@ -56,7 +56,7 @@ public static class SuggestionContextFilter
         // 變數同理：片語證明過這一格收變數（SET @a = 1），SET 之後的位置本身卻不收名稱。
         var phraseSnippet = StartsWithPhraseWord(suggestion, context);
         var phraseVariable = suggestion.Kind == SuggestionKind.Variable &&
-            context.ClausePhrase is { OffersVariables: true };
+            SqlCompletionPolicy.OffersPhraseVariables(context);
         var typeAs = IsTypeAs(suggestion, context);
 
         return (!context.Bracketed || IsBracketable(suggestion.Kind)) &&

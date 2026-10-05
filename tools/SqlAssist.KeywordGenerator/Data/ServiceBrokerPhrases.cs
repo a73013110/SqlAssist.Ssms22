@@ -6,7 +6,7 @@ namespace SqlAssist.KeywordGenerator.Data;
 internal static class ServiceBrokerPhrases
 {
     // 語句開頭與 WAITFOR ( 之後都是這一句。
-    internal const string GetConversationGroup = "GET CONVERSATION GROUP {name} FROM";
+    internal const string GetConversationGroup = "GET CONVERSATION GROUP";
 
     // 宣告在用到它的片語之前：靜態欄位照書寫順序初始化。
     private static readonly string[] EndpointPayloads = ["SERVICE_BROKER", "DATABASE_MIRRORING"];
@@ -41,12 +41,14 @@ internal static class ServiceBrokerPhrases
         new("RECEIVE ... FROM") { Gap = "*" },
 
         // 對話代碼之後：SEND 一次可以送給一組括號裡的幾個代碼。MOVE 與 GET 也不是保留字，同樣從語句開頭宣告；
-        // GET CONVERSATION GROUP 與 WAITFOR ( 裡的那一句共用同一條尾巴。
+        // GET CONVERSATION GROUP 與 WAITFOR ( 裡的那一句共用同一條尾巴；群組代碼那一格與 DIALOG CONVERSATION 一樣只收變數，
+        // 以名稱結尾的格子證據不立，另外宣告。
         new("SEND ON CONVERSATION {value}") { Expand = 3 },
         new("SEND ON CONVERSATION ()") { Expand = 3 },
         new("MOVE CONVERSATION {value}"),
         new("MOVE CONVERSATION {value} TO"),
         new(GetConversationGroup),
+        new(GetConversationGroup + " {name} FROM"),
 
         // 優先順序名稱之後 FOR CONVERSATION SET (…)：種類展開只列一層（FOR），括號裡是選項清單。
         .. from verb in new[] { "CREATE", "ALTER" }

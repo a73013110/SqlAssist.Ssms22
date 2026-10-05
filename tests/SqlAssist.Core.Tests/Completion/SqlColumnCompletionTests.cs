@@ -339,6 +339,39 @@ public sealed class SqlColumnCompletionTests
         Assert.Equal(new[] { "Code", "Name" }, Columns(Analyze(sqlWithCaret)));
     }
 
+    /// <summary>
+    /// 可組合 DML（<c>FROM (MERGE … OUTPUT …) AS d</c>）是衍生資料表：外層看得到 <c>d</c> 與它的資料行，看不到 DML 的目標。
+    /// </summary>
+    /// <remarks>
+    /// 資料行清單照樣優先；沒寫清單時讀 OUTPUT 清單，與選取清單同一種讀法。括號沒當成查詢的話 DML 併進外層，
+    /// <c>WHERE </c> 列的是目標的欄位，別名與資料行清單一個都沒有。
+    /// </remarks>
+    [Theory]
+    [InlineData("INSERT INTO dbo.Loan (CopyNo) SELECT d.CopyNo FROM (MERGE dbo.Copy AS c USING dbo.Branch AS b ON c.CopyNo = b.CopyNo WHEN MATCHED THEN DELETE OUTPUT $action, deleted.CopyNo) AS d (Act, CopyNo) WHERE |", "d:Act", "d:CopyNo")]
+    [InlineData("INSERT INTO dbo.Loan (CopyNo) SELECT d.CopyNo FROM (DELETE dbo.Copy OUTPUT deleted.CopyNo, deleted.Title AS OldTitle) AS d WHERE |", "d:CopyNo", "d:OldTitle")]
+    [InlineData("INSERT INTO dbo.Loan (CopyNo) SELECT d.CopyNo FROM (UPDATE dbo.Copy SET Title = N'x' OUTPUT inserted.CopyNo) d WHERE |", "d:CopyNo")]
+    public void 可組合DML的衍生資料表列出它的資料行(string sqlWithCaret, params string[] expected)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(
+            expected,
+            context.ScopeSources
+                .SelectMany(source => source.Kind == SqlColumnSourceKind.Table
+                    ? new[] { $"{source.Qualifier}:表 {source.Table!.ObjectName}" }
+                    : source.Names.Select(name => $"{source.Qualifier}:{name}"))
+                .ToArray());
+    }
+
+    /// <summary>可組合 DML 的別名之後列得出 OUTPUT 清單的資料行。</summary>
+    [Fact]
+    public void 可組合DML的別名限定字列出OUTPUT的資料行()
+    {
+        Assert.Equal(
+            new[] { "CopyNo", "OldTitle" },
+            Columns(Analyze("INSERT INTO dbo.Loan (CopyNo) SELECT 1 FROM (DELETE dbo.Copy OUTPUT deleted.CopyNo, deleted.Title AS OldTitle) AS d WHERE d.|")));
+    }
+
     /// <summary>衍生資料表的選取項用字串命名時仍然攤得開。</summary>
     /// <remarks>三種命名寫法的名稱都可以是字串；只認識別字時一項叫不出名字，<c>d.</c> 一個欄位都沒有。</remarks>
     [Theory]

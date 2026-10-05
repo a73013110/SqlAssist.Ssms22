@@ -532,8 +532,9 @@ public sealed class CompletionAuditor
                 }
 
                 // 限定字是 CTE 名稱時要這個查詢的 FROM 寫出它；遞迴 CTE 第二段的選取清單寫在 FROM 之前，
-                // 截斷處還沒有來源，與之後才取的別名同一個盲點。
-                if (_definitions.NamesTable(qualifier.Text, qualifier.Start) && _definitions.NeedsLaterFrom(qualifier.Start))
+                // 截斷處還沒有來源，與之後才取的別名同一個盲點。inserted／deleted 指的目標是 FROM 才取的別名時同理。
+                if (_definitions.NamesTable(qualifier.Text, qualifier.Start) && _definitions.NeedsLaterFrom(qualifier.Start) ||
+                    _definitions.NamesLaterTarget(qualifier.Text, qualifier.Start))
                 {
                     return shape.Excluded(AuditExclusion.Truncated);
                 }

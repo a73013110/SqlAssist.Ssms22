@@ -31,7 +31,8 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 別名一個欄位都沒有。
 
 別名後面寫出來的資料行清單（`AS T (ID, Name)`）覆寫主體算出來的名稱，與 CTE 的
-`WITH c (a, b)` 同一份實作；`(VALUES …)` 不是 `SELECT`，只有這條路。是不是清單先看來源：
+`WITH c (a, b)` 同一份實作；`(VALUES …)` 不是 `SELECT`，只有這條路。可組合 DML（`FROM (MERGE … OUTPUT …) AS d`）
+沒寫清單時讀 OUTPUT 清單，讀法與選取清單相同。是不是清單先看來源：
 衍生資料表與 `OPENROWSET` 那族只接清單，具名資料表只接舊式提示。使用者定義的函式兩種都寫得出來
 （`dbo.fn(x) f (NOLOCK)`、`dbo.fn(x) AS s (CopyNo)`），只有它看內容：每一項都以資料表提示開頭才是提示。
 整份當清單會讓 `SELECT * INTO #Temp` 的結構變成一個叫 NOLOCK 的假欄位。

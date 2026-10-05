@@ -321,16 +321,30 @@ public static class SqlCompletionContextAnalyzer
         // 變數只需要「這份指令碼裡出現過哪些 @名稱」，同樣不必解析範圍與欄位來源。
         // 資料表變數要多帶一份資料行清單：INSERT INTO @rows 提交之後展的是整句，
         // 而那份清單只存在於 DECLARE @rows TABLE (…) 裡。
-        //
-        // 封閉片語收變數的那一格（SET ）同一份：清單在空前綴就開好，打 @ 只是篩選它。
-        if (context.Target == CompletionTarget.Variable || OffersPhraseVariables(context, tokens))
+        if (context.Target == CompletionTarget.Variable)
         {
-            return context.WithScriptSources(SqlScriptVariableSuggestions.Create(
-                tokens,
-                caretPosition,
-                SqlScriptTableCollector.Collect(tokens)));
+            return context.WithScriptSources(Variables(tokens, caretPosition));
         }
 
+        var resolved = WithSources(context, sql, tokens, caretPosition);
+
+        // 片語收變數的那一格（SET 、EXEC ）同一份，併進那一格本來的名稱（EXEC 的暫存程序）：
+        // 清單在空前綴就開好，打 @ 只是篩選它。
+        return OffersPhraseVariables(context, tokens)
+            ? resolved.WithScriptSources(resolved.ScriptSources.Concat(Variables(tokens, caretPosition)).ToArray())
+            : resolved;
+    }
+
+    private static IReadOnlyList<SqlSuggestion> Variables(IReadOnlyList<SqlToken> tokens, int caretPosition) =>
+        SqlScriptVariableSuggestions.Create(tokens, caretPosition, SqlScriptTableCollector.Collect(tokens));
+
+    /// <summary>指令碼裡的名稱與敘述看得到的欄位來源，依目標只掃需要的那一份。</summary>
+    private static SqlCompletionContext WithSources(
+        SqlCompletionContext context,
+        string sql,
+        IReadOnlyList<SqlToken> tokens,
+        int caretPosition)
+    {
         // 執行個體名單與游標只要「這份指令碼寫過哪些」（COLLATE 之後、DECLARE c CURSOR），
         // 敘述有哪些資料來源與欄位都無關，底下整趟範圍解析可以省下來。
         if (SqlInstanceList.For(context.Target) is { } instanceList)
@@ -468,14 +482,15 @@ public static class SqlCompletionContextAnalyzer
         return selected.Count == 0 ? qualifiers : qualifiers.Concat(selected).ToArray();
     }
 
-    /// <summary>封閉片語的清單要不要放變數：片語那一格收變數，而且打 <c>@</c> 的話會列變數。</summary>
+    /// <summary>空前綴就開的清單要不要放變數：片語那一格收變數，而且打 <c>@</c> 的話會列變數。</summary>
     /// <remarks>
     /// 剖析器只說得出那一格接不接 <c>@a</c>，說不出那是引用還是宣告：<c>CREATE PROCEDURE p </c> 之後的
-    /// <c>@a int</c> 是新取的參數。這裡與 <see cref="AnalyzeVariable"/> 問同一個問題，兩條路才列出同一份。
+    /// <c>@a int</c> 是新取的參數。這裡與 <see cref="AnalyzeVariable"/> 問同一個問題，兩條路才列出同一份：
+    /// 游標那一格（<c>OPEN </c>、<c>FETCH NEXT FROM </c>）打 <c>@</c> 列的是名冊裡的游標變數，不是每一個變數。
     /// </remarks>
     private static bool OffersPhraseVariables(SqlCompletionContext context, IReadOnlyList<SqlToken> tokens)
     {
-        if (context.ClausePhrase is not { OffersVariables: true })
+        if (!SqlCompletionPolicy.OffersPhraseVariables(context) || context.Target == CompletionTarget.Cursor)
         {
             return false;
         }

@@ -178,7 +178,8 @@ public sealed class SqlScriptObjectTests
     [InlineData("DROP PROCEDURE #Lib_Names;\nCREATE TABLE #Loan (a int);\nEXEC |", "#Lib_Names")]
     public void EXEC之後列出暫存程序(string sqlWithCaret, string expected)
     {
-        Assert.Equal(new[] { expected }, ScriptSources(sqlWithCaret));
+        // 變數另有一份（EXEC @proc、EXEC @rc = p），見 SqlScriptVariableTests。
+        Assert.Equal(new[] { expected }, ScriptSources(sqlWithCaret).Where(name => !name.StartsWith('@')));
     }
 
     [Theory]

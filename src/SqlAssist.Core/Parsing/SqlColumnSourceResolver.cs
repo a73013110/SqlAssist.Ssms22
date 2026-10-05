@@ -763,13 +763,26 @@ public sealed class SqlColumnSourceResolver
             index++;
         }
 
-        if (index >= end || !_tokens[index].IsKeyword("SELECT"))
+        if (index >= end)
         {
             return false;
         }
 
         var selectIndex = index;
-        index = SkipSelectListPrelude(index + 1, end);
+
+        if (_tokens[index].IsKeyword("SELECT"))
+        {
+            index = SkipSelectListPrelude(index + 1, end);
+        }
+        else if (SqlTokenNavigator.IsComposableDml(_tokens[index]) && FindOutputList(index, end) is var output && output > 0)
+        {
+            // FROM (MERGE … OUTPUT $action AS Act, deleted.CopyNo) AS d：可組合 DML 的資料列是 OUTPUT 清單，讀法與選取清單相同。
+            index = output;
+        }
+        else
+        {
+            return false;
+        }
 
         var names = new List<string>();
         IReadOnlyList<SqlTableReference>? innerSources = null;
@@ -819,6 +832,30 @@ public sealed class SqlColumnSourceResolver
 
         Flush(names, qualifier, sources);
         return true;
+    }
+
+    /// <summary>DML 這一層（不進括號）的 OUTPUT 之後第一個詞元；沒有 OUTPUT 時是 -1。</summary>
+    private int FindOutputList(int start, int end)
+    {
+        var depth = 0;
+
+        for (var i = start; i < end; i++)
+        {
+            if (_tokens[i].IsPunctuation("("))
+            {
+                depth++;
+            }
+            else if (_tokens[i].IsPunctuation(")"))
+            {
+                depth--;
+            }
+            else if (depth == 0 && _tokens[i].IsKeyword("OUTPUT"))
+            {
+                return i + 1;
+            }
+        }
+
+        return -1;
     }
 
     private bool TryResolveInnerWildcard(

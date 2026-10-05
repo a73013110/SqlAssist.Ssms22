@@ -11,6 +11,7 @@
 |---|---|
 | `IN (SELECT … FROM Child c)` | 是，子查詢自己帶 FROM 子句 |
 | `FROM (SELECT …) d` | 是 |
+| `FROM (MERGE … OUTPUT …) AS d` | 是，可組合 DML；只認 `FROM (` 之後，資料庫稽核規格的 `ADD (INSERT ON …` 是權限清單 |
 | `COUNT(a.…)`、`ISNULL(a.…, 0)` | 否，只是函式引數 |
 | `WHERE (a.… = 1)` | 否，只是運算優先權 |
 | `IN (1, 2, 3)` | 否，只是清單 |

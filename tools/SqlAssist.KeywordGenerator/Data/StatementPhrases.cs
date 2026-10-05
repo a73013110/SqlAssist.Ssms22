@@ -113,6 +113,7 @@ internal static class StatementPhrases
         // 不展開：RECEIVE 之後是選取清單，展開會立成只列幾個字的封閉片語。GET CONVERSATION GROUP 那一段是證據。
         new("WAITFOR ("),
         new("WAITFOR ( " + ServiceBrokerPhrases.GetConversationGroup),
+        new("WAITFOR ( " + ServiceBrokerPhrases.GetConversationGroup + " {name} FROM"),
         new("WAITFOR () ,") { Group = "(RECEIVE * FROM q)" },
 
         // KILL 之後是工作階段、工作單位或這兩種寫法：QUERY、STATS 剖析器要看到整段才收，整段是證據。
