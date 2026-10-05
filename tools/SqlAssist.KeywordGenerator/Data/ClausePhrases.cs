@@ -12,6 +12,7 @@ internal static class ClausePhrases
         .. DdlPhrases.Objects,
         .. DatabasePhrases.Files,
         .. DatabasePhrases.SetOptions,
+        .. DatabasePhrases.AvailabilityGroups,
         .. DatabasePhrases.Server,
         .. StatementPhrases.BackupHeaders,
         .. IndexPhrases.Options,

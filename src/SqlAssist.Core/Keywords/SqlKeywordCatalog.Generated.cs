@@ -867,7 +867,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE DATABASE {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ", true, false, false, true, new string[]
         {
-            "AS", "COLLATE", "CONTAINMENT", "FOR", "KEY", "LOG", "ON",
+            "AS", "COLLATE", "CONTAINMENT", "FOR", "KEY", "LOG", "ON", "WITH",
         }),
         ("CREATE DEFAULT", SqlKeywordPosition.StatementStart, "CREATE DEFAULT ", false, false, true, false, new string[]
         {
@@ -3189,7 +3189,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE DATABASE {name} ON ,* ()", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') ", true, false, false, true, new string[]
         {
-            "AS", "COLLATE", "FOR", "LOG ON",
+            "AS", "COLLATE", "FOR", "LOG ON", "WITH",
         }),
         ("CREATE DATABASE {name} ON ,* () AS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') AS ", false, false, true, false, new string[]
         {
@@ -3204,6 +3204,13 @@ internal static class SqlKeywordCatalogData
         ("CREATE DATABASE {name} ON ,* () LOG", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') LOG ", true, false, false, false, new string[]
         {
             "ON",
+        }),
+        ("CREATE DATABASE {name} ON ,* () WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') WITH ", true, false, false, false, new string[]
+        {
+            "CATALOG_COLLATION", "DATA_RETENTION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
+            "DEFAULT_LANGUAGE", "ENABLE_BROKER", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM",
+            "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
+            "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
         }),
         ("CREATE DATABASE {name} ON ,* FILEGROUP {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t ", true, false, false, false, new string[]
         {
@@ -3302,7 +3309,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* ()", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x') ", true, false, false, true, new string[]
         {
-            "AS", "COLLATE", "FOR", "LOG ON",
+            "AS", "COLLATE", "FOR", "LOG ON", "WITH",
         }),
         ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* () AS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x') AS ", false, false, true, false, new string[]
         {
@@ -3317,6 +3324,13 @@ internal static class SqlKeywordCatalogData
         ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* () LOG", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x') LOG ", true, false, false, false, new string[]
         {
             "ON",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* () WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x') WITH ", true, false, false, false, new string[]
+        {
+            "CATALOG_COLLATION", "DATA_RETENTION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
+            "DEFAULT_LANGUAGE", "ENABLE_BROKER", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM",
+            "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
+            "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
         }),
         ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t ", true, false, false, false, new string[]
         {
@@ -3336,6 +3350,58 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} DEFAULT", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t DEFAULT ", true, false, false, false, new string[]
         {
+        }),
+        ("CREATE DATABASE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH ", true, false, false, false, new string[]
+        {
+            "CATALOG_COLLATION", "DATA_RETENTION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
+            "DEFAULT_LANGUAGE", "ENABLE_BROKER", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM",
+            "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
+            "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
+        }),
+        ("CREATE DATABASE {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH CATALOG_COLLATION = DATABASE_DEFAULT, ", true, false, false, false, new string[]
+        {
+            "CATALOG_COLLATION", "DATA_RETENTION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
+            "DEFAULT_LANGUAGE", "ENABLE_BROKER", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM",
+            "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
+            "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
+        }),
+        ("CREATE DATABASE {name} WITH ,* CATALOG_COLLATION =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH CATALOG_COLLATION = ", true, false, false, false, new string[]
+        {
+            "DATABASE_DEFAULT", "SQL_LATIN1_GENERAL_CP1_CI_AS",
+        }),
+        ("CREATE DATABASE {name} WITH ,* LEDGER =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH LEDGER = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE DATABASE {name} WITH ,* NESTED_TRIGGERS =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH NESTED_TRIGGERS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE DATABASE {name} WITH ,* TRANSFORM_NOISE_WORDS =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH TRANSFORM_NOISE_WORDS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE DATABASE {name} WITH ,* FILESTREAM (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH FILESTREAM (", true, false, true, false, new string[]
+        {
+            "DIRECTORY_NAME", "NON_TRANSACTED_ACCESS",
+        }),
+        ("CREATE DATABASE ... WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH ", true, false, false, false, new string[]
+        {
+            "CATALOG_COLLATION", "DATA_RETENTION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
+            "DEFAULT_LANGUAGE", "ENABLE_BROKER", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM",
+            "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
+            "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
+        }),
+        ("CREATE DATABASE ... WITH ,*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH CATALOG_COLLATION = DATABASE_DEFAULT, ", true, false, false, false, new string[]
+        {
+            "CATALOG_COLLATION", "DATA_RETENTION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
+            "DEFAULT_LANGUAGE", "ENABLE_BROKER", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM",
+            "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
+            "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
+        }),
+        ("CREATE DATABASE ... WITH ,* FILESTREAM (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH FILESTREAM (", true, false, true, false, new string[]
+        {
+            "DIRECTORY_NAME", "NON_TRANSACTED_ACCESS",
         }),
         ("ALTER DATABASE {name} ADD FILE ,* (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILE (", true, false, false, false, new string[]
         {
@@ -3522,6 +3588,22 @@ internal static class SqlKeywordCatalogData
         {
             "GB", "KB", "MB", "TB",
         }),
+        ("ALTER DATABASE {name} ADD FILEGROUP {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILEGROUP t ", true, false, false, true, new string[]
+        {
+            "CONTAINS",
+        }),
+        ("ALTER DATABASE {name} ADD FILEGROUP {name} CONTAINS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD FILEGROUP t CONTAINS ", true, false, false, false, new string[]
+        {
+            "FILESTREAM", "MEMORY_OPTIMIZED_DATA",
+        }),
+        ("ALTER DATABASE {name} MODIFY FILEGROUP {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILEGROUP t ", true, false, false, false, new string[]
+        {
+            "AUTOGROW_ALL_FILES", "AUTOGROW_SINGLE_FILE", "DEFAULT", "NAME", "READ_ONLY",
+            "READ_WRITE", "READONLY", "READWRITE",
+        }),
+        ("ALTER DATABASE {name} MODIFY FILEGROUP {name} NAME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY FILEGROUP t NAME ", true, false, false, false, new string[]
+        {
+        }),
         ("CREATE DATABASE {name} (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (", true, false, false, false, new string[]
         {
             "EDITION", "MAXSIZE", "SERVICE_OBJECTIVE",
@@ -3601,6 +3683,27 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} MODIFY (* SERVICE_OBJECTIVE = ELASTIC_POOL (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY (SERVICE_OBJECTIVE = ELASTIC_POOL (", true, false, true, false, new string[]
         {
             "NAME",
+        }),
+        ("ALTER DATABASE {name} SET ,* ,", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, ", true, false, false, false, new string[]
+        {
+            "ACCELERATED_DATABASE_RECOVERY", "ALLOW_SNAPSHOT_ISOLATION", "ANSI_NULL_DEFAULT",
+            "ANSI_NULLS", "ANSI_PADDING", "ANSI_WARNINGS", "ARITHABORT", "AUTO_CLOSE",
+            "AUTO_CREATE_STATISTICS", "AUTO_SHRINK", "AUTO_UPDATE_STATISTICS",
+            "AUTO_UPDATE_STATISTICS_ASYNC", "AUTOMATIC_TUNING", "CHANGE_TRACKING",
+            "COMPATIBILITY_LEVEL", "CONCAT_NULL_YIELDS_NULL", "CONTAINMENT",
+            "CURSOR_CLOSE_ON_COMMIT", "CURSOR_DEFAULT", "DATA_RETENTION",
+            "DATE_CORRELATION_OPTIMIZATION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
+            "DEFAULT_LANGUAGE", "DELAYED_DURABILITY", "DISABLE_BROKER", "EMERGENCY",
+            "ENABLE_BROKER", "ENCRYPTION", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM", "HADR",
+            "HONOR_BROKER_PRIORITY", "MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT",
+            "MIXED_PAGE_ALLOCATION", "MULTI_USER", "NESTED_TRIGGERS", "NEW_BROKER",
+            "NUMERIC_ROUNDABORT", "OFFLINE", "ONLINE", "OPTIMIZED_LOCKING", "PAGE_VERIFY",
+            "PARAMETERIZATION", "PARTNER", "QUERY_STORE", "QUOTED_IDENTIFIER",
+            "READ_COMMITTED_SNAPSHOT", "READ_ONLY", "READ_WRITE", "RECOVERY",
+            "RECURSIVE_TRIGGERS", "REMOTE_DATA_ARCHIVE", "RESTRICTED_USER", "SINGLE_USER",
+            "SUPPLEMENTAL_LOGGING", "TARGET_RECOVERY_TIME", "TEMPORAL_HISTORY_RETENTION",
+            "TORN_PAGE_DETECTION", "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY",
+            "TWO_DIGIT_YEAR_CUTOFF", "VARDECIMAL_STORAGE_FORMAT", "WITNESS",
         }),
         ("ALTER DATABASE {name} SET ,* TARGET_RECOVERY_TIME = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TARGET_RECOVERY_TIME = 1 ", true, false, false, false, new string[]
         {
@@ -3765,6 +3868,125 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* CLEANUP_POLICY = (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ON (CLEANUP_POLICY = (", true, false, false, false, new string[]
         {
             "STALE_QUERY_THRESHOLD_DAYS",
+        }),
+        ("ALTER DATABASE {name} SET ,* AUTOMATIC_TUNING (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTOMATIC_TUNING (", true, false, false, false, new string[]
+        {
+            "CREATE_INDEX", "DROP_INDEX", "FORCE_LAST_GOOD_PLAN", "MAINTAIN_INDEX",
+        }),
+        ("ALTER DATABASE {name} SET ,* ONLINE WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ONLINE WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* OFFLINE WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET OFFLINE WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* EMERGENCY WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET EMERGENCY WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* SINGLE_USER WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET SINGLE_USER WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* RESTRICTED_USER WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET RESTRICTED_USER WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* MULTI_USER WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET MULTI_USER WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* READ_ONLY WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET READ_ONLY WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* READ_WRITE WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET READ_WRITE WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* DELAYED_DURABILITY = {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DELAYED_DURABILITY = ALLOWED WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* TARGET_RECOVERY_TIME = {value} {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TARGET_RECOVERY_TIME = 1 MINUTES WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* READ_COMMITTED_SNAPSHOT {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET READ_COMMITTED_SNAPSHOT OFF WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT = {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT = OFF WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* DATE_CORRELATION_OPTIMIZATION {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DATE_CORRELATION_OPTIMIZATION OFF WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* PARAMETERIZATION {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET PARAMETERIZATION FORCED WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING = {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = OFF WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* ACCELERATED_DATABASE_RECOVERY = {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = OFF WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("ALTER DATABASE {name} SET ,* OPTIMIZED_LOCKING = {name} WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET OPTIMIZED_LOCKING = OFF WITH ", true, false, false, false, new string[]
+        {
+            "NO_WAIT", "ROLLBACK",
+        }),
+        ("WITH ROLLBACK", SqlKeywordPosition.Any, "ALTER DATABASE t SET SINGLE_USER WITH ROLLBACK ", true, false, false, false, new string[]
+        {
+            "AFTER", "IMMEDIATE",
+        }),
+        ("WITH ROLLBACK AFTER {value}", SqlKeywordPosition.Any, "ALTER DATABASE t SET SINGLE_USER WITH ROLLBACK AFTER 1 ", true, false, false, true, new string[]
+        {
+            "SECONDS",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ON 'x' WITH (", true, false, false, false, new string[]
+        {
+            "APPLY_DELAY", "AVAILABILITY_MODE", "ENDPOINT_URL", "FAILOVER_MODE", "PRIMARY_ROLE",
+            "SECONDARY_ROLE", "SESSION_TIMEOUT",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (* SECONDARY_ROLE (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ON 'x' WITH (SECONDARY_ROLE (", true, false, true, false, new string[]
+        {
+            "ALLOW_CONNECTIONS",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (* PRIMARY_ROLE (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ON 'x' WITH (PRIMARY_ROLE (", true, false, true, false, new string[]
+        {
+            "ALLOW_CONNECTIONS",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (", true, false, false, false, new string[]
+        {
+            "APPLY_DELAY", "AVAILABILITY_MODE", "ENDPOINT_URL", "FAILOVER_MODE", "PRIMARY_ROLE",
+            "SECONDARY_ROLE", "SESSION_TIMEOUT",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* SECONDARY_ROLE (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (SECONDARY_ROLE (", true, false, true, false, new string[]
+        {
+            "ALLOW_CONNECTIONS",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* PRIMARY_ROLE (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (PRIMARY_ROLE (", true, false, true, false, new string[]
+        {
+            "ALLOW_CONNECTIONS",
+        }),
+        ("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (*", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ON 'x' WITH (", true, false, false, false, new string[]
+        {
+            "APPLY_DELAY", "AVAILABILITY_MODE", "ENDPOINT_URL", "FAILOVER_MODE", "PRIMARY_ROLE",
+            "SECONDARY_ROLE", "SESSION_TIMEOUT",
+        }),
+        ("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (* SECONDARY_ROLE (*", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ON 'x' WITH (SECONDARY_ROLE (", true, false, true, false, new string[]
+        {
+            "ALLOW_CONNECTIONS",
+        }),
+        ("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (* PRIMARY_ROLE (*", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ON 'x' WITH (PRIMARY_ROLE (", true, false, true, false, new string[]
+        {
+            "ALLOW_CONNECTIONS",
         }),
         ("ALTER SERVER CONFIGURATION SET", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET ", true, false, false, false, new string[]
         {
@@ -13911,9 +14133,89 @@ internal static class SqlKeywordCatalogData
         {
             "AES",
         }),
+        ("CREATE DATABASE {name} WITH ,* FILESTREAM (* DIRECTORY_NAME =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH FILESTREAM (DIRECTORY_NAME = ", false, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("CREATE DATABASE {name} WITH ,* FILESTREAM (* NON_TRANSACTED_ACCESS =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH FILESTREAM (NON_TRANSACTED_ACCESS = ", true, false, false, false, new string[]
+        {
+            "FULL", "OFF", "READ_ONLY",
+        }),
+        ("CREATE DATABASE ... WITH ,* FILESTREAM (* DIRECTORY_NAME =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH FILESTREAM (DIRECTORY_NAME = ", false, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("CREATE DATABASE ... WITH ,* FILESTREAM (* NON_TRANSACTED_ACCESS =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH FILESTREAM (NON_TRANSACTED_ACCESS = ", true, false, false, false, new string[]
+        {
+            "FULL", "OFF", "READ_ONLY",
+        }),
         ("ALTER DATABASE {name} SET ,* AUTO_CREATE_STATISTICS ON (* INCREMENTAL =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTO_CREATE_STATISTICS ON (INCREMENTAL = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* AUTOMATIC_TUNING (* CREATE_INDEX =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTOMATIC_TUNING (CREATE_INDEX = ", true, false, false, false, new string[]
+        {
+            "DEFAULT", "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* AUTOMATIC_TUNING (* DROP_INDEX =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTOMATIC_TUNING (DROP_INDEX = ", true, false, false, false, new string[]
+        {
+            "DEFAULT", "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* AUTOMATIC_TUNING (* FORCE_LAST_GOOD_PLAN =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTOMATIC_TUNING (FORCE_LAST_GOOD_PLAN = ", true, false, false, false, new string[]
+        {
+            "DEFAULT", "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* AUTOMATIC_TUNING (* MAINTAIN_INDEX =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTOMATIC_TUNING (MAINTAIN_INDEX = ", true, false, false, false, new string[]
+        {
+            "DEFAULT", "OFF", "ON",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (* AVAILABILITY_MODE =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ON 'x' WITH (AVAILABILITY_MODE = ", true, false, false, false, new string[]
+        {
+            "ASYNCHRONOUS_COMMIT", "SYNCHRONOUS_COMMIT",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (* FAILOVER_MODE =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ON 'x' WITH (FAILOVER_MODE = ", true, false, false, false, new string[]
+        {
+            "AUTOMATIC", "MANUAL",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (* SECONDARY_ROLE (* ALLOW_CONNECTIONS =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ON 'x' WITH (SECONDARY_ROLE (ALLOW_CONNECTIONS = ", true, false, false, false, new string[]
+        {
+            "ALL", "NO", "READ_ONLY",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (* PRIMARY_ROLE (* ALLOW_CONNECTIONS =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ON 'x' WITH (PRIMARY_ROLE (ALLOW_CONNECTIONS = ", true, false, false, false, new string[]
+        {
+            "ALL", "NO", "READ_WRITE",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* AVAILABILITY_MODE =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (AVAILABILITY_MODE = ", true, false, false, false, new string[]
+        {
+            "ASYNCHRONOUS_COMMIT", "SYNCHRONOUS_COMMIT",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* FAILOVER_MODE =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (FAILOVER_MODE = ", true, false, false, false, new string[]
+        {
+            "AUTOMATIC", "MANUAL",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* SECONDARY_ROLE (* ALLOW_CONNECTIONS =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (SECONDARY_ROLE (ALLOW_CONNECTIONS = ", true, false, false, false, new string[]
+        {
+            "ALL", "NO", "READ_ONLY",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* PRIMARY_ROLE (* ALLOW_CONNECTIONS =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (PRIMARY_ROLE (ALLOW_CONNECTIONS = ", true, false, false, false, new string[]
+        {
+            "ALL", "NO", "READ_WRITE",
+        }),
+        ("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (* AVAILABILITY_MODE =", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ON 'x' WITH (AVAILABILITY_MODE = ", true, false, false, false, new string[]
+        {
+            "ASYNCHRONOUS_COMMIT", "SYNCHRONOUS_COMMIT",
+        }),
+        ("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (* FAILOVER_MODE =", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ON 'x' WITH (FAILOVER_MODE = ", true, false, false, false, new string[]
+        {
+            "AUTOMATIC", "MANUAL",
+        }),
+        ("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (* SECONDARY_ROLE (* ALLOW_CONNECTIONS =", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ON 'x' WITH (SECONDARY_ROLE (ALLOW_CONNECTIONS = ", true, false, false, false, new string[]
+        {
+            "ALL", "NO", "READ_ONLY",
+        }),
+        ("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (* PRIMARY_ROLE (* ALLOW_CONNECTIONS =", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ON 'x' WITH (PRIMARY_ROLE (ALLOW_CONNECTIONS = ", true, false, false, false, new string[]
+        {
+            "ALL", "NO", "READ_WRITE",
         }),
         ("ALLOW_PAGE_LOCKS =", SqlKeywordPosition.IndexOption, "CREATE INDEX i ON t (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
         {
@@ -15223,6 +15525,106 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} SET ,* QUERY_STORE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* ONLINE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ONLINE ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* OFFLINE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET OFFLINE ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* EMERGENCY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET EMERGENCY ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* SINGLE_USER", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET SINGLE_USER ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* RESTRICTED_USER", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET RESTRICTED_USER ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* MULTI_USER", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET MULTI_USER ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* READ_ONLY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET READ_ONLY ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* READ_WRITE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET READ_WRITE ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* DELAYED_DURABILITY = {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DELAYED_DURABILITY = ALLOWED ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* TARGET_RECOVERY_TIME = {value} {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TARGET_RECOVERY_TIME = 1 MINUTES ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* READ_COMMITTED_SNAPSHOT {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET READ_COMMITTED_SNAPSHOT OFF ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT = {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT = OFF ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* DATE_CORRELATION_OPTIMIZATION {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DATE_CORRELATION_OPTIMIZATION OFF ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* PARAMETERIZATION {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET PARAMETERIZATION FORCED ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* CHANGE_TRACKING = {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING = OFF ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* ACCELERATED_DATABASE_RECOVERY = {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = OFF ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER DATABASE {name} SET ,* OPTIMIZED_LOCKING = {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET OPTIMIZED_LOCKING = OFF ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} ADD", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD ", true, false, true, false, new string[]
+        {
+            "DATABASE", "REPLICA ON",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} ADD REPLICA", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ", true, false, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value}", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ON 'x' ", true, false, false, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} MODIFY", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY ", true, false, true, false, new string[]
+        {
+            "REPLICA ON",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ", true, false, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value}", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' ", true, false, false, false, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE AVAILABILITY GROUP ... REPLICA", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ", true, false, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value}", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ON 'x' ", true, false, false, false, new string[]
+        {
+            "WITH",
         }),
         ("ALTER SERVER CONFIGURATION", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION ", true, false, false, false, new string[]
         {

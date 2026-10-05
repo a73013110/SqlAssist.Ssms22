@@ -156,6 +156,16 @@ public sealed partial class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>
+    /// <paramref name="value"/> 接在 WITH 清單片語一項的第一個字之後：那一項的值（<c>WITH TRUSTWORTHY ON</c>、<c>, DB_CHAINING ON</c>）。
+    /// </summary>
+    /// <remarks>只認 WITH 開的清單：GRANT 的權限清單也是清單片語，<c>GRANT CONNECT ON</c> 的 ON 之後是類別與目標。</remarks>
+    private bool EndsWithOptionItem(int value) =>
+        value >= 2 &&
+        tokens[value - 1].Kind == SqlTokenKind.Identifier &&
+        FindPhraseListAnchor(value - 2) is var anchor and >= 0 &&
+        tokens[anchor].IsKeyword("WITH");
+
+    /// <summary>
     /// <paramref name="last"/> 之後是某一種敘述自己的格子時，那個位置；不是就回 null。
     /// </summary>
     /// <remarks>

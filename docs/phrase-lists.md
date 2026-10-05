@@ -25,7 +25,11 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 對上了才找動詞，探測代入 `Gap`。宣告的 `Endings` 標頭也用：`RESTORE … WITH MOVE` 要寫完 `'a' TO 'b'` 才是一項。
 標頭裡可省的一段（全文檢索索引的資料行清單、`KEY INDEX k` 之後的 `ON` 目錄）不寫成 `...`：那會失去展開與項的等號之後那一格，
 每一種寫法各宣告一份整段標頭（`FullTextKeyIndexes`），同一組選項由同一個函式宣告（CREATE 的 `WITH`、`WITH (` 與 ALTER 的 `SET`）。
+`...` 寫得出幾種標頭時，最常寫的那一種另以固定標頭宣告，項的等號之後才列得出值（`CREATE DATABASE {name} WITH ,*` 與
+`CREATE DATABASE ... WITH ,*` 並存）；兩者的探測文字要不同，否則比對回同一個片語。
 只接在某一項之後的項（`CHANGE_TRACKING OFF, NO POPULATION`）寫成中段的 `,* NO POPULATION`，`Gap` 墊前一項；括號清單同理以 `Items` 墊。
+中段 `,*` 往回走過的項裡，緊接一整組括號的 `WITH` 是那一項自己的選項（可用性複本 `'a' WITH (…), 'b' WITH (`），
+不是下一句的開頭；游標所在那一組還沒關上的 `WITH (` 照舊是界線。
 
 備份對象（`FILE = 'a', FILEGROUP = 'b'`）緊接資料庫名稱，寫成 `BACKUP DATABASE {name} ,*`：標頭以名稱結尾的清單，執行期以名稱當錨點另外比對。
 一項寫到這裡就開了另一份清單的字（`TO`）不是這份清單的項，否則逗號之後列出裝置。裝置清單寫成 `BACKUP DATABASE ... TO ,*`，

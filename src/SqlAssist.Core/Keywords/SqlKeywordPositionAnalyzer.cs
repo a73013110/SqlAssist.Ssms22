@@ -1927,7 +1927,9 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
             // 等號之後的 ON 也是選項值（ONLINE = ON、ACCENT_SENSITIVITY = ON），不是 JOIN 的 ON：值寫完判不出位置，
             // 換下一句由語句界線認。當成 JOIN 的 ON 的話之後是述詞，同一行接著寫的下一句認不出開頭。
-            if (token.IsKeyword("ON") && last >= 1 && tokens[last - 1].Kind == SqlTokenKind.Operator && tokens[last - 1].Value == "=")
+            // WITH 清單一項的第一個字之後不寫等號的 ON 同理（CREATE DATABASE d WITH TRUSTWORTHY ON）。
+            if (token.IsKeyword("ON") && last >= 1 &&
+                ((tokens[last - 1].Kind == SqlTokenKind.Operator && tokens[last - 1].Value == "=") || EndsWithOptionItem(last)))
             {
                 return SqlKeywordPosition.Any;
             }

@@ -20,7 +20,7 @@
   `OUTPUT` 與 `RECEIVE` 的清單是選取清單，一項寫完接 `AS`、`INTO`。
 - **其餘的 `SET` 帶出選項**（含 `ALTER DATABASE x SET`）：名稱寫完（`SET NOCOUNT `）只列 `ON`、`OFF`
   這類值，停在關鍵字上是沒寫完（`SET IDENTITY_INSERT ` 要資料表）。**值寫完這一句就結束**，否則
-  `SET ANSI_NULLS ON⏎G` 的 `ON` 被當成 JOIN 的，`GO` 變成 `GROUPING`。等號後的 `ON`（`ONLINE = ON`）也是值，
+  `SET ANSI_NULLS ON⏎G` 的 `ON` 被當成 JOIN 的，`GO` 變成 `GROUPING`。等號後的 `ON`（`ONLINE = ON`）與 WITH 清單一項第一個字之後的 `ON`（`WITH TRUSTWORTHY ON`）也是值，
   之後判不出位置；識別字的值（`SET DATEFORMAT dmy`）與名稱分不開，換行才補語句開頭。
 - **`NOT` 也是聯集**：`WHERE NOT ` 開一個述詞，`a NOT ` 之後接 `IN`、`LIKE`。
 - **`IF`、`WHILE` 是錨點**：條件寫完是主體的開頭，也接 `AND`、`OR`；括號沒關上時只算條件。
