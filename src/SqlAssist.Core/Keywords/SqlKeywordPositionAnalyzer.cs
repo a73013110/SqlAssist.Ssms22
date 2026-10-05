@@ -1937,6 +1937,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 return position;
             }
 
+            if (OpensReceiveList(last))
+            {
+                return SqlKeywordPosition.SelectList;
+            }
+
             if (IsOrderOrGroupBy(last))
             {
                 return SqlKeywordPosition.OrderByColumn;
@@ -2527,6 +2532,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 return insideGroup ? output & ~SqlKeywordPosition.StatementStart : output;
             }
 
+            if (OpensReceiveList(index))
+            {
+                return anchors == ClauseAnchors ? SqlKeywordPosition.SelectListTail : SqlKeywordPosition.SelectList;
+            }
+
             if (anchors.TryGetValue(token.Value, out var position) &&
                 ((position & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None || IsStatementHead(index)))
             {
@@ -2623,6 +2633,19 @@ public sealed partial class SqlKeywordPositionAnalyzer
             token.IsKeyword("DELETE") ||
             token.IsKeyword("MERGE") ||
             (token.IsKeyword("SET") && !IntroducesOptions(verb));
+    }
+
+    /// <summary>
+    /// <paramref name="index"/> 是 Service Broker 的 <c>RECEIVE</c>：一句的開頭或 <c>WAITFOR (</c> 之後。
+    /// </summary>
+    /// <remarks>
+    /// 它的資料行清單與 DML 的 OUTPUT 一樣是一份選取清單。RECEIVE 不是保留字，不認的話逗號之後走到語句開頭、
+    /// 判不出位置，每一個附加片語的字（GET、MOVE）都進場。
+    /// </remarks>
+    private bool OpensReceiveList(int index)
+    {
+        return tokens[index].IsKeyword("RECEIVE") &&
+            (IsStatementHead(index) || index >= 2 && tokens[index - 1].IsPunctuation("(") && tokens[index - 2].IsKeyword("WAITFOR"));
     }
 
     /// <summary>

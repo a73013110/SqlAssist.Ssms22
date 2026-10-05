@@ -26,7 +26,8 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 備份裝置本身也是 `,*` 清單（`BACKUP DATABASE {name} TO ,*`），寫完一個裝置寫成中段的 `,* {value}`（接 `MIRROR TO`、`WITH`）：
 `DISK` 是關鍵字、不是運算元，`TO DISK ` 之後不會比對成寫完；寫 `{name}` 的話剖析器把它當邏輯裝置名稱。
 
-清單裡一項自己的寫法（`ENCRYPTION (`、`SAMPLE n`、`RESULT SETS`）寫成 `After = ["OptionItem"]`，`Template` 指那份清單的樣板。
+清單裡一項自己的寫法（`ENCRYPTION (`、`SAMPLE n`、`ACTIVATION (`）寫成 `After = ["OptionItem"]`，`Template` 指那份清單的樣板。
+樣板的名稱寫得與清單片語的探測文字相同（`CREATE QUEUE t WITH `），否則認不出標頭已列那個字，另立成附加片語。
 `OptionItem` 不放寫一個選項就完整的敘述（`UPDATE STATISTICS t WITH ALL`）：否則 `ALL`、`INDEX` 被判成寫完一項的字，
 `REBUILD PARTITION = ALL` 的 `ALL` 就成了值。那種敘述的項以 `Lead` 認（`RESAMPLE ON`）。
 

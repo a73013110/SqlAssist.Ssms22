@@ -102,7 +102,7 @@ internal static class StatementPhrases
         // 括號裡是一句敘述，逗號屬於 RECEIVE 的選取清單：寫成單獨的 (。
         // 不展開：RECEIVE 之後是選取清單，展開會立成只列幾個字的封閉片語。GET CONVERSATION GROUP 那一段是證據。
         new("WAITFOR ("),
-        new("WAITFOR ( GET CONVERSATION GROUP {name} FROM"),
+        new("WAITFOR ( " + ServiceBrokerPhrases.GetConversationGroup),
         new("WAITFOR () ,") { Group = "(RECEIVE * FROM q)" },
     ];
 

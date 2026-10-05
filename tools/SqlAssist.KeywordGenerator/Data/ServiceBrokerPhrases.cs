@@ -5,6 +5,9 @@ namespace SqlAssist.KeywordGenerator.Data;
 /// <summary>Service Broker：對話、服務與訊息類型的標頭、端點的傳輸選項。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
 internal static class ServiceBrokerPhrases
 {
+    // 語句開頭與 WAITFOR ( 之後都是這一句。
+    internal const string GetConversationGroup = "GET CONVERSATION GROUP {name} FROM";
+
     // 宣告在用到它的片語之前：靜態欄位照書寫順序初始化。
     private static readonly string[] EndpointPayloads = ["SERVICE_BROKER", "DATABASE_MIRRORING"];
 
@@ -36,6 +39,30 @@ internal static class ServiceBrokerPhrases
         new("SEND ON CONVERSATION"),
         new("RECEIVE") { Closed = false },
         new("RECEIVE ... FROM") { Gap = "*" },
+
+        // 對話代碼之後：SEND 一次可以送給一組括號裡的幾個代碼。MOVE 與 GET 也不是保留字，同樣從語句開頭宣告；
+        // GET CONVERSATION GROUP 與 WAITFOR ( 裡的那一句共用同一條尾巴。
+        new("SEND ON CONVERSATION {value}") { Expand = 3 },
+        new("SEND ON CONVERSATION ()") { Expand = 3 },
+        new("MOVE CONVERSATION {value}"),
+        new("MOVE CONVERSATION {value} TO"),
+        new(GetConversationGroup),
+
+        // 優先順序名稱之後 FOR CONVERSATION SET (…)：種類展開只列一層（FOR），括號裡是選項清單。
+        .. from verb in new[] { "CREATE", "ALTER" }
+           from tail in new[] { " FOR", " FOR CONVERSATION SET (*" }
+           select new PhraseDeclaration($"{verb} BROKER PRIORITY {{name}}{tail}") { Expand = 2 },
+
+        // 佇列名稱之後的 WITH：寫完名稱已是完整的一句，WITH 同時是 CTE 的開頭被扣掉，由清單片語補回。
+        // ACTIVATION、POISON_MESSAGE_HANDLING 是清單裡自帶括號清單的項，探測用 OptionItem 的佇列樣板。
+        new("CREATE QUEUE {name} WITH ,*"),
+        new("ALTER QUEUE {name} WITH ,*"),
+        .. from item in new[] { "ACTIVATION (*", "POISON_MESSAGE_HANDLING (*" }
+           select new PhraseDeclaration(item) { After = ["OptionItem"], Template = 16, Expand = 2 },
+
+        // 合約的訊息類型清單：每一項都是「訊息類型 SENT BY 哪一端」。
+        new("CREATE CONTRACT {name} (* {name}") { Expand = 3 },
+        new("CREATE CONTRACT {name} AUTHORIZATION {name} (* {name}") { Expand = 3 },
 
         // 服務、訊息類型與遠端服務繫結的名稱之後：種類展開只列一層（ON、VALIDATION、TO），再往下的由這幾條展開。
         new("CREATE SERVICE {name} ON") { Expand = 3 },

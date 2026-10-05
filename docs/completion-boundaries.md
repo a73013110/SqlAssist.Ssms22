@@ -17,7 +17,7 @@
 - **TOP 子句不是選取清單的一項**：`SELECT TOP 10 ` 仍是起點，另接 `PERCENT`、`WITH TIES`。
 - **`ON` 的述詞寫完是兩個位置的聯集**：述詞尾端（`AND`、`OR`）與資料來源尾端（`WHERE`、`JOIN`）。
 - **`SET` 子句寫完也是**：`UPDATE t SET a = 1 ` 另接 `WHERE`、`FROM`、`OUTPUT`。
-  DML 的 `OUTPUT` 一項寫完接 `AS`、`INTO`。
+  `OUTPUT` 與 `RECEIVE` 的清單是選取清單，一項寫完接 `AS`、`INTO`。
 - **其餘的 `SET` 帶出選項**（含 `ALTER DATABASE x SET`）：名稱寫完（`SET NOCOUNT `）只列 `ON`、`OFF`
   這類值，停在關鍵字上是沒寫完（`SET IDENTITY_INSERT ` 要資料表）。**值寫完這一句就結束**，否則
   `SET ANSI_NULLS ON⏎G` 的 `ON` 被當成 JOIN 的，`GO` 變成 `GROUPING`。等號後的 `ON`（`ONLINE = ON`）也是值，

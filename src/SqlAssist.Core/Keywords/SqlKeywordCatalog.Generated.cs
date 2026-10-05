@@ -303,6 +303,8 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.OptionItem, "CREATE TRIGGER tr ON DATABASE FOR CREATE_TABLE, "),
         new(SqlKeywordPosition.OptionItem, "CREATE STATISTICS s ON t (a) WITH "),
         new(SqlKeywordPosition.OptionItem, "CREATE STATISTICS s ON t (a) WITH FULLSCAN, "),
+        new(SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH "),
+        new(SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH STATUS = ON, "),
         new(SqlKeywordPosition.GroupByTail, "SELECT * FROM t GROUP BY a "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t ORDER BY "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t GROUP BY "),
@@ -782,7 +784,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE BROKER PRIORITY {name}", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t ", true, false, false, false, new string[]
         {
-            "FOR",
+            "FOR CONVERSATION",
         }),
         ("CREATE CERTIFICATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE ", false, false, true, false, new string[]
         {
@@ -1146,7 +1148,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE QUEUE {name}", SqlKeywordPosition.StatementStart, "CREATE QUEUE t ", true, false, false, true, new string[]
         {
-            "ON",
+            "ON", "WITH",
         }),
         ("CREATE REMOTE", SqlKeywordPosition.StatementStart, "CREATE REMOTE ", false, false, true, false, new string[]
         {
@@ -1574,7 +1576,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER BROKER PRIORITY {name}", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t ", true, false, false, false, new string[]
         {
-            "FOR",
+            "FOR CONVERSATION",
         }),
         ("ALTER CERTIFICATE", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE ", false, false, true, false, new string[]
         {
@@ -12623,6 +12625,253 @@ internal static class SqlKeywordCatalogData
         ("RECEIVE ... FROM", SqlKeywordPosition.StatementStart, "RECEIVE * FROM ", false, false, true, false, new string[]
         {
         }),
+        ("SEND ON CONVERSATION {value}", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE", "MESSAGE TYPE",
+        }),
+        ("SEND ON CONVERSATION {value} COLLATE", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION 1 COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("SEND ON CONVERSATION {value} COLLATE {name}", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION 1 COLLATE t ", true, false, false, true, new string[]
+        {
+            "MESSAGE TYPE",
+        }),
+        ("SEND ON CONVERSATION {value} COLLATE {name} MESSAGE", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION 1 COLLATE t MESSAGE ", true, false, false, false, new string[]
+        {
+            "TYPE",
+        }),
+        ("SEND ON CONVERSATION {value} COLLATE {name} MESSAGE TYPE", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION 1 COLLATE t MESSAGE TYPE ", false, true, true, false, new string[]
+        {
+        }),
+        ("SEND ON CONVERSATION {value} MESSAGE", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION 1 MESSAGE ", true, false, false, false, new string[]
+        {
+            "TYPE",
+        }),
+        ("SEND ON CONVERSATION {value} MESSAGE TYPE", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION 1 MESSAGE TYPE ", false, true, true, false, new string[]
+        {
+        }),
+        ("SEND ON CONVERSATION ()", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION (a) ", true, false, false, true, new string[]
+        {
+            "MESSAGE TYPE",
+        }),
+        ("SEND ON CONVERSATION () MESSAGE", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION (a) MESSAGE ", true, false, false, false, new string[]
+        {
+            "TYPE",
+        }),
+        ("SEND ON CONVERSATION () MESSAGE TYPE", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION (a) MESSAGE TYPE ", false, true, true, false, new string[]
+        {
+        }),
+        ("MOVE CONVERSATION {value}", SqlKeywordPosition.StatementStart, "MOVE CONVERSATION 1 ", true, false, false, false, new string[]
+        {
+            "COLLATE", "TO",
+        }),
+        ("MOVE CONVERSATION {value} TO", SqlKeywordPosition.StatementStart, "MOVE CONVERSATION 1 TO ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("GET CONVERSATION GROUP {name} FROM", SqlKeywordPosition.StatementStart, "GET CONVERSATION GROUP @ReaderId FROM ", false, false, true, false, new string[]
+        {
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR ", true, false, false, false, new string[]
+        {
+            "CONVERSATION",
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR CONVERSATION SET (*", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR CONVERSATION SET (", true, false, false, false, new string[]
+        {
+            "CONTRACT_NAME", "LOCAL_SERVICE_NAME", "PRIORITY_LEVEL", "REMOTE_SERVICE_NAME",
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR CONVERSATION SET (* CONTRACT_NAME", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR CONVERSATION SET (CONTRACT_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR CONVERSATION SET (* CONTRACT_NAME =", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR CONVERSATION SET (CONTRACT_NAME = ", false, false, true, false, new string[]
+        {
+            "ANY",
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR CONVERSATION SET (* LOCAL_SERVICE_NAME", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR CONVERSATION SET (LOCAL_SERVICE_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR CONVERSATION SET (* LOCAL_SERVICE_NAME =", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR CONVERSATION SET (LOCAL_SERVICE_NAME = ", false, false, true, false, new string[]
+        {
+            "ANY",
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR CONVERSATION SET (* PRIORITY_LEVEL", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR CONVERSATION SET (PRIORITY_LEVEL ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR CONVERSATION SET (* PRIORITY_LEVEL =", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR CONVERSATION SET (PRIORITY_LEVEL = ", true, false, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR CONVERSATION SET (* REMOTE_SERVICE_NAME", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR CONVERSATION SET (REMOTE_SERVICE_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR CONVERSATION SET (* REMOTE_SERVICE_NAME =", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR CONVERSATION SET (REMOTE_SERVICE_NAME = ", true, false, false, false, new string[]
+        {
+            "ANY",
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR ", true, false, false, false, new string[]
+        {
+            "CONVERSATION",
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR CONVERSATION SET (*", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR CONVERSATION SET (", true, false, false, false, new string[]
+        {
+            "CONTRACT_NAME", "LOCAL_SERVICE_NAME", "PRIORITY_LEVEL", "REMOTE_SERVICE_NAME",
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR CONVERSATION SET (* CONTRACT_NAME", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR CONVERSATION SET (CONTRACT_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR CONVERSATION SET (* CONTRACT_NAME =", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR CONVERSATION SET (CONTRACT_NAME = ", false, false, true, false, new string[]
+        {
+            "ANY",
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR CONVERSATION SET (* LOCAL_SERVICE_NAME", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR CONVERSATION SET (LOCAL_SERVICE_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR CONVERSATION SET (* LOCAL_SERVICE_NAME =", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR CONVERSATION SET (LOCAL_SERVICE_NAME = ", false, false, true, false, new string[]
+        {
+            "ANY",
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR CONVERSATION SET (* PRIORITY_LEVEL", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR CONVERSATION SET (PRIORITY_LEVEL ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR CONVERSATION SET (* PRIORITY_LEVEL =", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR CONVERSATION SET (PRIORITY_LEVEL = ", true, false, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR CONVERSATION SET (* REMOTE_SERVICE_NAME", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR CONVERSATION SET (REMOTE_SERVICE_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR CONVERSATION SET (* REMOTE_SERVICE_NAME =", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR CONVERSATION SET (REMOTE_SERVICE_NAME = ", true, false, false, false, new string[]
+        {
+            "ANY",
+        }),
+        ("CREATE QUEUE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE QUEUE t WITH ", true, false, false, false, new string[]
+        {
+            "ACTIVATION", "POISON_MESSAGE_HANDLING", "RETENTION", "STATUS",
+        }),
+        ("CREATE QUEUE {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE QUEUE t WITH RETENTION = ON, ", true, false, false, false, new string[]
+        {
+            "ACTIVATION", "POISON_MESSAGE_HANDLING", "RETENTION", "STATUS",
+        }),
+        ("CREATE QUEUE {name} WITH ,* RETENTION =", SqlKeywordPosition.StatementStart, "CREATE QUEUE t WITH RETENTION = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE QUEUE {name} WITH ,* RETENTION = {name}", SqlKeywordPosition.StatementStart, "CREATE QUEUE t WITH RETENTION = OFF ", true, false, false, true, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE QUEUE {name} WITH ,* STATUS =", SqlKeywordPosition.StatementStart, "CREATE QUEUE t WITH STATUS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE QUEUE {name} WITH ,* STATUS = {name}", SqlKeywordPosition.StatementStart, "CREATE QUEUE t WITH STATUS = OFF ", true, false, false, true, new string[]
+        {
+            "ON",
+        }),
+        ("ALTER QUEUE {name} WITH", SqlKeywordPosition.StatementStart, "ALTER QUEUE t WITH ", true, false, false, false, new string[]
+        {
+            "ACTIVATION", "POISON_MESSAGE_HANDLING", "RETENTION", "STATUS",
+        }),
+        ("ALTER QUEUE {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER QUEUE t WITH RETENTION = ON, ", true, false, false, false, new string[]
+        {
+            "ACTIVATION", "POISON_MESSAGE_HANDLING", "RETENTION", "STATUS",
+        }),
+        ("ALTER QUEUE {name} WITH ,* RETENTION =", SqlKeywordPosition.StatementStart, "ALTER QUEUE t WITH RETENTION = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER QUEUE {name} WITH ,* STATUS =", SqlKeywordPosition.StatementStart, "ALTER QUEUE t WITH STATUS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ACTIVATION (*", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (", true, false, true, false, new string[]
+        {
+            "EXEC AS", "EXECUTE AS", "MAX_QUEUE_READERS", "PROCEDURE_NAME", "STATUS",
+        }),
+        ("ACTIVATION (* EXEC", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (EXEC ", true, false, false, false, new string[]
+        {
+            "AS",
+        }),
+        ("ACTIVATION (* EXEC AS", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (EXEC AS ", true, false, false, false, new string[]
+        {
+            "OWNER", "SELF",
+        }),
+        ("ACTIVATION (* EXECUTE", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (EXECUTE ", true, false, false, false, new string[]
+        {
+            "AS",
+        }),
+        ("ACTIVATION (* EXECUTE AS", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (EXECUTE AS ", true, false, false, false, new string[]
+        {
+            "OWNER", "SELF",
+        }),
+        ("ACTIVATION (* MAX_QUEUE_READERS", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (MAX_QUEUE_READERS ", true, false, false, false, new string[]
+        {
+        }),
+        ("ACTIVATION (* PROCEDURE_NAME", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (PROCEDURE_NAME ", true, false, false, false, new string[]
+        {
+        }),
+        ("ACTIVATION (* STATUS", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (STATUS ", true, false, false, false, new string[]
+        {
+        }),
+        ("ACTIVATION (* STATUS =", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (STATUS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("POISON_MESSAGE_HANDLING (*", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH POISON_MESSAGE_HANDLING (", true, false, true, false, new string[]
+        {
+            "STATUS", "ACTIVATION", "POISON_MESSAGE_HANDLING", "RETENTION",
+        }),
+        ("POISON_MESSAGE_HANDLING (* STATUS", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH POISON_MESSAGE_HANDLING (STATUS ", true, false, false, false, new string[]
+        {
+        }),
+        ("POISON_MESSAGE_HANDLING (* STATUS =", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH POISON_MESSAGE_HANDLING (STATUS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE CONTRACT {name} (* {name}", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t (t ", true, false, true, false, new string[]
+        {
+            "SENT BY",
+        }),
+        ("CREATE CONTRACT {name} (* {name} SENT", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t (t SENT ", true, false, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("CREATE CONTRACT {name} (* {name} SENT BY", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t (t SENT BY ", true, false, false, false, new string[]
+        {
+            "ANY", "INITIATOR", "TARGET",
+        }),
+        ("CREATE CONTRACT {name} (* {name} SENT BY ANY", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t (t SENT BY ANY ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE CONTRACT {name} (* {name} SENT BY INITIATOR", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t (t SENT BY INITIATOR ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE CONTRACT {name} (* {name} SENT BY TARGET", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t (t SENT BY TARGET ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE CONTRACT {name} AUTHORIZATION {name} (* {name}", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t AUTHORIZATION t (t ", true, false, true, false, new string[]
+        {
+            "SENT BY",
+        }),
+        ("CREATE CONTRACT {name} AUTHORIZATION {name} (* {name} SENT", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t AUTHORIZATION t (t SENT ", true, false, false, false, new string[]
+        {
+            "BY",
+        }),
+        ("CREATE CONTRACT {name} AUTHORIZATION {name} (* {name} SENT BY", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t AUTHORIZATION t (t SENT BY ", true, false, false, false, new string[]
+        {
+            "ANY", "INITIATOR", "TARGET",
+        }),
+        ("CREATE CONTRACT {name} AUTHORIZATION {name} (* {name} SENT BY ANY", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t AUTHORIZATION t (t SENT BY ANY ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE CONTRACT {name} AUTHORIZATION {name} (* {name} SENT BY INITIATOR", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t AUTHORIZATION t (t SENT BY INITIATOR ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE CONTRACT {name} AUTHORIZATION {name} (* {name} SENT BY TARGET", SqlKeywordPosition.StatementStart, "CREATE CONTRACT t AUTHORIZATION t (t SENT BY TARGET ", true, false, false, false, new string[]
+        {
+        }),
         ("CREATE SERVICE {name} ON", SqlKeywordPosition.StatementStart, "CREATE SERVICE t ON ", true, false, false, false, new string[]
         {
             "QUEUE",
@@ -14355,6 +14604,30 @@ internal static class SqlKeywordCatalogData
         {
             "CONVERSATION",
         }),
+        ("MOVE", SqlKeywordPosition.StatementStart, "MOVE ", true, false, true, false, new string[]
+        {
+            "CONVERSATION",
+        }),
+        ("GET", SqlKeywordPosition.StatementStart, "GET ", true, false, true, false, new string[]
+        {
+            "CONVERSATION GROUP",
+        }),
+        ("GET CONVERSATION", SqlKeywordPosition.StatementStart, "GET CONVERSATION ", true, false, false, false, new string[]
+        {
+            "GROUP",
+        }),
+        ("GET CONVERSATION GROUP {name}", SqlKeywordPosition.StatementStart, "GET CONVERSATION GROUP @ReaderId ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
+        ("CREATE BROKER PRIORITY {name} FOR CONVERSATION", SqlKeywordPosition.StatementStart, "CREATE BROKER PRIORITY t FOR CONVERSATION ", true, false, false, true, new string[]
+        {
+            "SET",
+        }),
+        ("ALTER BROKER PRIORITY {name} FOR CONVERSATION", SqlKeywordPosition.StatementStart, "ALTER BROKER PRIORITY t FOR CONVERSATION ", true, false, false, true, new string[]
+        {
+            "SET",
+        }),
         ("CREATE MESSAGE TYPE {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t AUTHORIZATION t ", true, false, false, true, new string[]
         {
             "VALIDATION",
@@ -14580,7 +14853,7 @@ internal static class SqlKeywordCatalogData
     internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
         ("", SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC", "DIALOG" }),
-        ("", SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY", "SEND", "RECEIVE" }),
+        ("", SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY", "SEND", "RECEIVE", "MOVE", "GET" }),
         ("", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
         ("", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),
         ("", SqlKeywordPosition.OperandTail, "SELECT (a ", new string[] { "AT" }),

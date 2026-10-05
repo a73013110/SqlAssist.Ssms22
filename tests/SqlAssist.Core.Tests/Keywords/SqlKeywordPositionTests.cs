@@ -1205,6 +1205,20 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
+    /// Service Broker 的 RECEIVE 清單也是一份選取清單，在 <c>WAITFOR (</c> 裡也一樣。
+    /// </summary>
+    [Theory]
+    [InlineData("RECEIVE ", SqlKeywordPosition.SelectList)]
+    [InlineData("RECEIVE TOP (1) message_body, ", SqlKeywordPosition.SelectList)]
+    [InlineData("WAITFOR (RECEIVE message_body, ", SqlKeywordPosition.SelectList)]
+    [InlineData("WAITFOR (RECEIVE message_body ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT 1\nRECEIVE message_body ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    public void RECEIVE清單(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
     /// SET 選項的值寫完，這一句就結束了。
     /// </summary>
     /// <remarks>
