@@ -335,6 +335,16 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT JSON_OBJECT(NULL ", "ON NULL")]
     [InlineData("SELECT JSON_ARRAYAGG(CopyNo ORDER BY DueDate ", "NULL ON NULL", "RETURNING JSON")]
     [InlineData("SELECT JSON_OBJECTAGG(CopyNo: DueDate RETURNING ", "JSON")]
+    [InlineData("SELECT JSON_VALUE(@j, '$.CopyNo' ", "RETURNING")]
+    [InlineData("SELECT * FROM dbo.Loan WHERE JSON_VALUE(Note, '$.Due' ", "RETURNING")]
+    [InlineData("SELECT * FROM dbo.Loan WHERE DueDate AT TIME ZONE @Zone ", "AT")]
+    [InlineData("SELECT * FROM dbo.Loan WHERE @From < DueDate ", "AT")]
+    [InlineData("SELECT * FROM dbo.Loan ORDER BY DueDate ", "AT", "DESC")]
+    [InlineData("UPDATE dbo.Loan SET DueDate = @Due ", "AT", "WHERE")]
+    [InlineData("CREATE TABLE t (Due datetimeoffset NOT NULL DEFAULT @Due ", "AT", "CONSTRAINT")]
+    [InlineData("DECLARE @t TABLE (Due datetimeoffset DEFAULT @Due AT TIME ZONE @Zone ", "AT", "NOT")]
+    [InlineData("DECLARE @t TABLE (DueDate datetime2, Due AS DueDate ", "AT", "PERSISTED")]
+    [InlineData("SELECT NEXT VALUE FOR dbo.LoanSeq ", "OVER", "AT", "FROM")]
     [InlineData("SELECT LAG(Fee) ", "IGNORE", "RESPECT", "OVER")]
     [InlineData("SELECT LAG(Fee) IGNORE ", "NULLS")]
     [InlineData("SELECT FIRST_VALUE(Fee) RESPECT NULLS ", "OVER")]
@@ -473,6 +483,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE APPLICATION ROLE LibAppRole WITH PASSWORD = 'x', ", "SELECT")]
     [InlineData("SELECT STRING_AGG(Title, ', ') WITHIN ", "SELECT")]
     [InlineData("DELETE FROM dbo.Loan WHERE CURRENT ", "AND")]
+    [InlineData("SELECT JSON_VALUE(@j, '$.CopyNo' ", "FROM")]
+    [InlineData("CREATE TABLE t (Due datetimeoffset ", "AT")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
@@ -672,6 +684,23 @@ public sealed class SqlClausePhraseTests
         Assert.Contains("AT", match.Phrase.Words);
         Assert.Contains("WITHIN", match.Phrase.Words);
         Assert.Same(match.Phrase, SqlKeywordPositionAnalyzer.Analyze("SELECT MAX(Fee) ").Phrase!.Phrase);
+    }
+
+    /// <summary>
+    /// 只認位置的片語對上了，游標處還疊著運算元之後：那個位置的附加片語照樣加字，確定與封閉照位置片語。
+    /// </summary>
+    /// <remarks>只取位置片語的話，資料行預設值之後列不出 <c>AT</c>；當成可能的話，整份目錄跟著進場。</remarks>
+    [Fact]
+    public void 位置片語併上疊著的位置的附加片語()
+    {
+        var match = SqlKeywordPositionAnalyzer.Analyze("CREATE TABLE t (Due datetimeoffset DEFAULT @Due ").Phrase;
+
+        Assert.NotNull(match);
+        Assert.True(match!.IsCertain);
+        Assert.True(match.IsClosed);
+        Assert.Contains("AT", match.Phrase.Words);
+        Assert.Contains("CONSTRAINT", match.Phrase.Words);
+        Assert.Same(match.Phrase, SqlKeywordPositionAnalyzer.Analyze("CREATE TABLE t (Neg AS -Fee ").Phrase!.Phrase);
     }
 
     /// <summary>

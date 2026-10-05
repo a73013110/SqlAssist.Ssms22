@@ -128,6 +128,12 @@ public static class SqlDataTypePosition
             return TypeFollowsAs(tokens, last);
         }
 
+        // JSON_VALUE(j, '$.a' RETURNING |：簽章寫著 RETURNING type 的函式。
+        if (token.IsKeyword("RETURNING"))
+        {
+            return TypeFollowsInCall(tokens, last, "RETURNING");
+        }
+
         return NamesDefinedColumn(tokens, last, textBeforeToken);
     }
 
@@ -187,19 +193,29 @@ public static class SqlDataTypePosition
             return true;
         }
 
-        var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, asIndex - 1);
-
-        return open >= 1 &&
-            IsBareIdentifier(tokens[open - 1]) &&
-            SqlFunctionCatalog.TakesTypeAfterAs(tokens[open - 1].Value) &&
-            !HasAs(tokens, open + 1, asIndex);
+        return TypeFollowsInCall(tokens, asIndex, "AS");
     }
 
     /// <summary>
-    /// <paramref name="start"/> 到 <paramref name="end"/> 之間、不在內層括號裡的地方已經寫過 <c>AS</c>。
+    /// 寫在 <paramref name="index"/> 的 <paramref name="keyword"/> 是函式引數裡、之後接型別的那個字（<c>CAST(x AS</c>、
+    /// <c>JSON_VALUE(j, p RETURNING</c>），由簽章說；同一次呼叫裡已經寫過的不算。
+    /// </summary>
+    /// <remarks>只讀 <paramref name="index"/> 之前的詞元，所以那一格的字可以還沒寫。</remarks>
+    private static bool TypeFollowsInCall(IReadOnlyList<SqlToken> tokens, int index, string keyword)
+    {
+        var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, index - 1);
+
+        return open >= 1 &&
+            IsBareIdentifier(tokens[open - 1]) &&
+            SqlFunctionCatalog.TakesTypeAfter(tokens[open - 1].Value, keyword) &&
+            !HasKeyword(tokens, open + 1, index, keyword);
+    }
+
+    /// <summary>
+    /// <paramref name="start"/> 到 <paramref name="end"/> 之間、不在內層括號裡的地方已經寫過 <paramref name="keyword"/>。
     /// </summary>
     /// <remarks><c>CAST(x AS int |</c> 的型別已經寫了，不能再接一個 <c>AS</c>。</remarks>
-    private static bool HasAs(IReadOnlyList<SqlToken> tokens, int start, int end)
+    private static bool HasKeyword(IReadOnlyList<SqlToken> tokens, int start, int end, string keyword)
     {
         for (var index = start; index < end; index++)
         {
@@ -216,7 +232,7 @@ public static class SqlDataTypePosition
                 continue;
             }
 
-            if (tokens[index].IsKeyword("AS"))
+            if (tokens[index].IsKeyword(keyword))
             {
                 return true;
             }

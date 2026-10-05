@@ -78,7 +78,9 @@ FOR XML RAW,          → TYPE、ROOT、ELEMENTS（OptionItem）
 `SELECT a INTO t `、`OFFSET 10 `、`REFERENCES u (a) ` 這類子句尾端也各有位置，不借長得像的 `OrderByTail`。
 資料行的型別或計算運算式之後是 `ColumnDefinitionTail`，CREATE TABLE、`ALTER TABLE t ADD`／`ALTER COLUMN` 與 OPENJSON 的 `WITH (` 共用；
 之後每寫完一個運算元（`NULL`、右括號）仍是它，寫到一半的（`NOT`、`MASKED`）交給片語，停在 `DEFAULT` 上的照舊 `Any`。
-`FunctionCallTail` 是疊加位元：函式呼叫之後多接 `OVER`，`WITHIN GROUP (…)` 之後也是；限定名稱（`dbo.fn_Fee(a)`）是 UDF，不加。
+`OperandTail` 與 `FunctionCallTail` 是疊加位元。運算式裡的運算元寫完（WHERE、選取清單、ORDER BY、SET、CASE，與資料行的預設值、計算運算式）
+多接 `COLLATE`、`AT TIME ZONE`；資料來源與型別的名稱不是運算元，不加。函式呼叫與 `NEXT VALUE FOR` 的序列之後再多接 `OVER`，
+`WITHIN GROUP (…)` 之後也是；限定名稱（`dbo.fn_Fee(a)`）是 UDF，不加。
 
 `ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個含點號的名稱單位」，
 `ADD` 清單的逗號之後走回同一個 `ADD`（`SqlTokenNavigator.SkipQualifiedNameBackward`）。

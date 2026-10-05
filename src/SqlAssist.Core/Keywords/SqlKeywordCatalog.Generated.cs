@@ -47,7 +47,7 @@ internal static class SqlKeywordCatalogData
         new("CLOSE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("CLUSTERED", SqlKeywordPosition.DdlObject),
         new("COALESCE", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
-        new("COLLATE", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.TableSampleTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OffsetTail | SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.ResultSetColumnTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseArm | SqlKeywordPosition.CaseBody | SqlKeywordPosition.ColumnDefinitionTail),
+        new("COLLATE", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.TableSampleTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OffsetTail | SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.WindowSpecification | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail | SqlKeywordPosition.ResultSetColumnTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseArm | SqlKeywordPosition.CaseBody | SqlKeywordPosition.ColumnDefinitionTail),
         new("COLUMN", SqlKeywordPosition.DdlObject),
         new("COMMIT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("COMPUTE", SqlKeywordPosition.None),
@@ -275,6 +275,7 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.WindowClauseTail, "SELECT a FROM t WINDOW w AS (ORDER BY a) "),
         new(SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) "),
         new(SqlKeywordPosition.FunctionCallTail, "SELECT (LAG(a) "),
+        new(SqlKeywordPosition.OperandTail, "SELECT (a "),
         new(SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) "),
         new(SqlKeywordPosition.ModuleHeader, "CREATE VIEW v WITH SCHEMABINDING "),
         new(SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE "),
@@ -10450,7 +10451,7 @@ internal static class SqlKeywordCatalogData
         ("DEFAULT {value} FOR", SqlKeywordPosition.Any, "ALTER TABLE t ADD DEFAULT 1 FOR ", false, false, true, false, new string[]
         {
         }),
-        ("AT TIME", SqlKeywordPosition.Any | SqlKeywordPosition.SelectListTail, "SELECT a AT TIME ", true, false, false, false, new string[]
+        ("AT TIME", SqlKeywordPosition.Any | SqlKeywordPosition.OperandTail, "SELECT (a AT TIME ", true, false, false, false, new string[]
         {
             "ZONE",
         }),
@@ -11109,6 +11110,14 @@ internal static class SqlKeywordCatalogData
         ("JSON_ARRAYAGG (* {value} ORDER BY {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
+        }),
+        ("JSON_VALUE (* {value}", SqlKeywordPosition.Any, "SELECT JSON_VALUE ('x', 1 ", true, false, false, false, new string[]
+        {
+            "COLLATE", "RETURNING",
+        }),
+        ("JSON_VALUE (* {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_VALUE ('x', 1 RETURNING ", false, false, true, false, new string[]
+        {
+            "DOUBLE", "NATIONAL", "XML",
         }),
         ("", SqlKeywordPosition.WindowOrderTail, "SELECT SUM(a) OVER (ORDER BY a ", true, false, false, false, new string[]
         {
@@ -13978,10 +13987,9 @@ internal static class SqlKeywordCatalogData
             "AS", "COLLATE", "EXCEPT", "FOR", "FROM", "GROUP", "HAVING", "INTERSECT", "INTO",
             "OPTION", "ORDER", "UNION", "VALUE", "WHERE",
         }),
-        ("AT", SqlKeywordPosition.Any, "SELECT a AT ", false, false, false, true, new string[]
+        ("AT", SqlKeywordPosition.Any, "SELECT (a AT ", false, false, false, false, new string[]
         {
-            "EXCEPT", "FOR", "FROM", "GROUP", "HAVING", "INTERSECT", "INTO", "OPTION", "ORDER",
-            "TIME ZONE", "UNION", "WHERE", "WINDOW",
+            "TIME ZONE",
         }),
         ("WITHIN", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN ", true, false, false, false, new string[]
         {
@@ -14575,7 +14583,7 @@ internal static class SqlKeywordCatalogData
         ("", SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY", "SEND", "RECEIVE" }),
         ("", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
         ("", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),
-        ("", SqlKeywordPosition.SelectListTail, "SELECT a ", new string[] { "AT" }),
+        ("", SqlKeywordPosition.OperandTail, "SELECT (a ", new string[] { "AT" }),
         ("", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN", "IGNORE", "RESPECT" }),
         ("AS", SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE AS ", new string[] { "EXTERNAL NAME" }),
         ("GRANT ,* ADMINISTER", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER ", new string[] { "BULK", "DATABASE" }),

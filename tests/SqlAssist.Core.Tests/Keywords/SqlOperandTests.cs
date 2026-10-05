@@ -17,6 +17,8 @@ public sealed class SqlOperandTests
     [InlineData("SIZE = -1", "-1")]
     [InlineData("SIZE = 5", "5")]
     [InlineData("WHERE a = NULL", "NULL")]
+    [InlineData("DEFAULT @d AT TIME ZONE @z", "@d AT TIME ZONE @z")]
+    [InlineData("WHERE a + b AT TIME ZONE 'UTC' AT TIME ZONE 'Taipei Standard Time'", "a + b AT TIME ZONE 'UTC' AT TIME ZONE 'Taipei Standard Time'")]
     public void 往回走過一個運算式(string text, string expression)
     {
         var tokens = SqlTokenizer.Tokenize(text);

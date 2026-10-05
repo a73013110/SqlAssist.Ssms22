@@ -234,11 +234,21 @@ public enum SqlKeywordPosition : long
     /// </remarks>
     ReferencesTail = 1L << 44,
 
-    /// <summary>函式呼叫的括號之後——OVER、COLLATE；分析器把它加在選取清單與 ORDER BY 的尾端上。</summary>
+    /// <summary>函式呼叫的括號與 NEXT VALUE FOR 的序列之後——OVER；分析器把它加在選取清單與 ORDER BY 的尾端上。</summary>
     /// <remarks>
     /// 不併進 <see cref="SelectListTail"/>：<c>SELECT a |</c> 不接 OVER，<c>SELECT SUM(a) |</c> 才接。
     /// </remarks>
     FunctionCallTail = 1L << 45,
+
+    /// <summary>
+    /// 運算式裡一個運算元寫完之後——COLLATE、AT（TIME ZONE）這種接在任何運算式後面的後綴；
+    /// 分析器把它疊在寫得出運算式的子句尾端上，以及資料行的預設值與計算運算式之後。
+    /// </summary>
+    /// <remarks>
+    /// 不併進那些尾端：<c>FROM t |</c>、資料行定義的 <c>a int |</c> 也是寫完一個名稱，那裡不接 AT。
+    /// 疊加而不是另立：<c>WHERE a = 1 |</c> 的 AND、<c>a int DEFAULT 1 |</c> 的 NOT NULL 一個都不能少。
+    /// </remarks>
+    OperandTail = 1L << 61,
 
     /// <summary>視窗 <c>OVER (… ORDER BY a</c> 的排序項之後——ASC、DESC、ROWS、RANGE。</summary>
     /// <remarks>
@@ -360,7 +370,7 @@ public enum SqlKeywordPosition : long
         | PermissionList | PermissionTarget | PermissionOn | PermissionGrantee | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
         | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
-        | ReferencesTail | FunctionCallTail | WindowOrderTail | WindowSpecification | WindowName | WindowClauseTail
+        | ReferencesTail | FunctionCallTail | OperandTail | WindowOrderTail | WindowSpecification | WindowName | WindowClauseTail
         | OffsetTail | ModuleHeader | FunctionReturns
         | ResultSetList | ResultSetColumn | ResultSetColumnTail | OptionItem | TableSampleTail | PivotClause
         | AlterTableAction | AlterTableAdd | AlterTableColumn

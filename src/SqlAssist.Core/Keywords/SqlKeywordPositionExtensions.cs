@@ -33,7 +33,7 @@ public static class SqlKeywordPositionExtensions
     /// </summary>
     /// <remarks>
     /// <list type="bullet">
-    /// <item>子句尾端（<c>GROUP BY a |</c>、<c>WHERE a = 1 |</c>、<c>FROM t a |</c>）：
+    /// <item>子句尾端（<c>GROUP BY a |</c>、<c>WHERE a = 1 |</c>、<c>FROM t a |</c>）與疊在上面的運算元之後：
     /// 一項剛寫完，同一行只接得了運算子或關鍵字。唯一會接名字的是別名，那是使用者
     /// 新取的名字，不是既有物件。換行後補上的語句開頭也不例外，見下一項。</item>
     /// <item>語句開頭、<c>BEGIN |</c>、區塊的 <c>END |</c> 與 IF 主體寫完：接下一句的關鍵字或 ELSE。省略 EXEC 的程序呼叫只在
@@ -93,6 +93,7 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.IndexKeyTail |
         SqlKeywordPosition.ReferencesTail |
         SqlKeywordPosition.FunctionCallTail |
+        SqlKeywordPosition.OperandTail |
         SqlKeywordPosition.WindowOrderTail |
         SqlKeywordPosition.WindowSpecification |
         SqlKeywordPosition.WindowName |

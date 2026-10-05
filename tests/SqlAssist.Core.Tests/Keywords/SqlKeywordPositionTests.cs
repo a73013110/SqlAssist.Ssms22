@@ -61,7 +61,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("GO ", SqlKeywordPosition.StatementStart)]
     [InlineData("SELECT 1; ", SqlKeywordPosition.StatementStart)]
     [InlineData("SELECT ", SqlKeywordPosition.SelectList)]
-    [InlineData("SELECT a ", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT * FROM ", SqlKeywordPosition.DataSource)]
 
     // 樣板是 SELECT * FROM t {關鍵字}，但那一行的同一個位置也是別名的位置，
@@ -71,12 +71,12 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT * FROM t\r\n",
         SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.StatementStart)]
     [InlineData("SELECT * FROM t WHERE ", SqlKeywordPosition.Predicate)]
-    [InlineData("SELECT * FROM t WHERE a = 1 ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT * FROM t WHERE a = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT * FROM t ORDER ", SqlKeywordPosition.ByAnchor)]
-    [InlineData("SELECT * FROM t ORDER BY a ", SqlKeywordPosition.OrderByTail)]
-    [InlineData("SELECT * FROM t GROUP BY a ", SqlKeywordPosition.GroupByTail)]
-    [InlineData("SELECT * FROM t GROUP BY a, b ", SqlKeywordPosition.GroupByTail)]
-    [InlineData("SELECT * FROM t GROUP BY ROLLUP(a) ", SqlKeywordPosition.GroupByTail)]
+    [InlineData("SELECT * FROM t ORDER BY a ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t GROUP BY a ", SqlKeywordPosition.GroupByTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t GROUP BY a, b ", SqlKeywordPosition.GroupByTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t GROUP BY ROLLUP(a) ", SqlKeywordPosition.GroupByTail | SqlKeywordPosition.OperandTail)]
     [InlineData("CREATE ", SqlKeywordPosition.DdlObject)]
     [InlineData("BEGIN ", SqlKeywordPosition.BlockStart)]
     [InlineData("SET ", SqlKeywordPosition.SetTarget)]
@@ -170,7 +170,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT SUM(a) OVER (PARTITION BY ", SqlKeywordPosition.OrderByColumn, SqlCompletionSlot.Grammar)]
     [InlineData("SELECT SUM(a) OVER (PARTITION BY a, ", SqlKeywordPosition.OrderByColumn, SqlCompletionSlot.Grammar)]
     [InlineData("SELECT a FROM t WINDOW ByCopy AS (ByDate ", SqlKeywordPosition.WindowSpecification, SqlCompletionSlot.Grammar)]
-    [InlineData("SELECT a FROM t WINDOW ByCopy AS (ORDER BY a DESC ", SqlKeywordPosition.WindowOrderTail, SqlCompletionSlot.Grammar)]
+    [InlineData("SELECT a FROM t WINDOW ByCopy AS (ORDER BY a DESC ", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.OperandTail, SqlCompletionSlot.Grammar)]
     [InlineData("SELECT a FROM t WHERE a = 1 WINDOW ", SqlKeywordPosition.Any, SqlCompletionSlot.Name)]
     [InlineData("SELECT a FROM t WINDOW ByCopy AS (ORDER BY a), ", SqlKeywordPosition.Any, SqlCompletionSlot.Name)]
     [InlineData("SELECT a FROM t WINDOW ByCopy AS (ORDER BY a), [By Date] ", SqlKeywordPosition.WindowName, SqlCompletionSlot.Grammar)]
@@ -248,15 +248,15 @@ public sealed class SqlKeywordPositionTests
     [Theory]
     [InlineData("SELECT * FROM (SELECT 1 AS a FROM t WHERE x = 1) d ", SqlKeywordPosition.TableSourceTail)]
     [InlineData("SELECT * FROM (SELECT 1 AS a) d JOIN u ON d.a = u.a ",
-        SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail)]
-    [InlineData("SELECT * FROM t WHERE (a = 1) ", SqlKeywordPosition.ExpressionTail)]
-    [InlineData("SELECT * FROM t WHERE x IN (SELECT y FROM u) ", SqlKeywordPosition.ExpressionTail)]
-    [InlineData("SELECT COUNT(*) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail)]
-    [InlineData("SELECT * FROM t ORDER BY SUM(a) ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.FunctionCallTail)]
-    [InlineData("SELECT dbo.fn_Fee(a) ", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT STRING_AGG(a, ',') WITHIN GROUP (ORDER BY a) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail)]
-    [InlineData("SELECT b, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY a DESC) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail)]
-    [InlineData("SELECT * FROM t WHERE COALESCE(a, 1) ", SqlKeywordPosition.ExpressionTail)]
+        SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t WHERE (a = 1) ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t WHERE x IN (SELECT y FROM u) ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT COUNT(*) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t ORDER BY SUM(a) ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT dbo.fn_Fee(a) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT STRING_AGG(a, ',') WITHIN GROUP (ORDER BY a) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT b, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY a DESC) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t WHERE COALESCE(a, 1) ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT * FROM t WITH (NOLOCK) ", SqlKeywordPosition.TableSourceTail)]
     [InlineData("SELECT * FROM (t1 JOIN t2 ON t1.x = t2.x) ", SqlKeywordPosition.TableSourceTail)]
     [InlineData("INSERT INTO t (a, b) ", SqlKeywordPosition.TableSourceTail)]
@@ -444,7 +444,7 @@ public sealed class SqlKeywordPositionTests
         var caret = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken);
 
         Assert.Equal(SqlCompletionSlot.MaybeName, caret.Slot);
-        Assert.Equal(SqlKeywordPosition.SelectListTail, caret.Keywords);
+        Assert.Equal(SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, caret.Keywords);
     }
 
     /// <summary>
@@ -498,7 +498,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT TOP 10 PERCENT ", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail)]
     [InlineData("SELECT TOP 10 WITH TIES ", SqlKeywordPosition.SelectList)]
     [InlineData("SELECT DISTINCT TOP (@n) PERCENT WITH TIES ", SqlKeywordPosition.SelectList)]
-    [InlineData("SELECT TOP 10 a ", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT TOP 10 a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
     [InlineData("DELETE TOP (10) ", SqlKeywordPosition.Any)]
     public void TOP子句之後是選取清單起點(string textBeforeToken, SqlKeywordPosition expected)
     {
@@ -516,19 +516,19 @@ public sealed class SqlKeywordPositionTests
     /// 括號裡的另一個運算式不受外層 CASE 影響；述詞位置上的括號（<c>AND (</c>）不是另一個運算式。
     /// </remarks>
     [Theory]
-    [InlineData("SELECT CASE WHEN a ", SqlKeywordPosition.CaseArm)]
-    [InlineData("SELECT CASE WHEN a = 1 ", SqlKeywordPosition.CaseArm)]
-    [InlineData("SELECT CASE WHEN a = 1 AND b IN (1, 2) ", SqlKeywordPosition.CaseArm)]
-    [InlineData("SELECT CASE a WHEN 1 ", SqlKeywordPosition.CaseArm)]
-    [InlineData("SELECT CASE WHEN a = 1 THEN b ", SqlKeywordPosition.CaseBody)]
-    [InlineData("SELECT CASE WHEN a = 1 THEN b ELSE c ", SqlKeywordPosition.CaseBody)]
-    [InlineData("SELECT CASE a ", SqlKeywordPosition.CaseBody)]
-    [InlineData("SELECT CASE WHEN a = 1 THEN CASE WHEN b = 2 THEN 3 END ", SqlKeywordPosition.CaseBody)]
-    [InlineData("SELECT CASE WHEN a = 1 THEN 2 END ", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT * FROM t WHERE x = CASE WHEN a = 1 THEN 2 END ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT CASE WHEN a ", SqlKeywordPosition.CaseArm | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE WHEN a = 1 ", SqlKeywordPosition.CaseArm | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE WHEN a = 1 AND b IN (1, 2) ", SqlKeywordPosition.CaseArm | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE a WHEN 1 ", SqlKeywordPosition.CaseArm | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE WHEN a = 1 THEN b ", SqlKeywordPosition.CaseBody | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE WHEN a = 1 THEN b ELSE c ", SqlKeywordPosition.CaseBody | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE a ", SqlKeywordPosition.CaseBody | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE WHEN a = 1 THEN CASE WHEN b = 2 THEN 3 END ", SqlKeywordPosition.CaseBody | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE WHEN a = 1 THEN 2 END ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t WHERE x = CASE WHEN a = 1 THEN 2 END ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT CASE WHEN a IN (1, ", SqlKeywordPosition.Any)]
-    [InlineData("SELECT CASE WHEN a = 1 AND (b = 2 OR c ", SqlKeywordPosition.CaseArm)]
-    [InlineData("SELECT CASE WHEN COALESCE(a ", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT CASE WHEN a = 1 AND (b = 2 OR c ", SqlKeywordPosition.CaseArm | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE WHEN COALESCE(a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
     [InlineData("BEGIN SELECT 1 END ", SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart)]
     [InlineData("IF @a = 1 PRINT 'x' ELSE PRINT 'y' ", SqlKeywordPosition.Any)]
     public void CASE的位置(string textBeforeToken, SqlKeywordPosition expected)
@@ -666,7 +666,6 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE TABLE t (a int IDENTITY(1, 1) ")]
     [InlineData("CREATE TABLE t (a national char varying(10) ")]
     [InlineData("CREATE TABLE t (a double precision ")]
-    [InlineData("CREATE TABLE t (Neg AS -Fee ")]
     [InlineData("CREATE TABLE t (Neg AS (Fee * 2) PERSISTED ")]
     [InlineData("CREATE TABLE t ([Code] [char](10) ")]
     [InlineData("CREATE TABLE t (Kind int CONSTRAINT UqKind UNIQUE WITH FILLFACTOR = 80 ON Archive ")]
@@ -678,6 +677,44 @@ public sealed class SqlKeywordPositionTests
     public void 資料行型別之後是共用的尾巴(string textBeforeToken)
     {
         Assert.Equal(SqlKeywordPosition.ColumnDefinitionTail, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
+    /// 資料行的預設值與計算運算式寫完，同時是運算元之後：與 WHERE 裡的運算元一樣接 AT TIME ZONE。
+    /// </summary>
+    /// <remarks>型別、<c>NULL</c> 與 <c>CHECK (…)</c> 之後不是，見上一個測試。</remarks>
+    [Theory]
+    [InlineData("CREATE TABLE t (Neg AS -Fee ")]
+    [InlineData("CREATE TABLE t (a datetimeoffset DEFAULT @d ")]
+    [InlineData("CREATE TABLE t (a datetime DEFAULT (GETDATE()) ")]
+    [InlineData("DECLARE @t TABLE (a int, b datetimeoffset NOT NULL DEFAULT @d AT TIME ZONE @z ")]
+    [InlineData("DECLARE @t TABLE (a int, b AS a AT TIME ZONE @z ")]
+    public void 資料行的預設值與計算運算式之後是運算元之後(string textBeforeToken)
+    {
+        Assert.Equal(
+            SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.OperandTail,
+            SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
+    /// 運算式裡的運算元寫完，不論在哪個子句都疊上運算元之後；函式呼叫與 <c>NEXT VALUE FOR</c> 另疊函式呼叫之後。
+    /// </summary>
+    /// <remarks>資料來源、型別這些名稱不是運算元，不疊。</remarks>
+    [Theory]
+    [InlineData("SELECT * FROM t WHERE b < c ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t WHERE c AT TIME ZONE 'UTC' ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t WHERE c > DATEADD(day, 1, b ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT a FROM t ORDER BY c ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("UPDATE t SET c = b ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT NEXT VALUE FOR s ",
+        SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail | SqlKeywordPosition.FunctionCallTail)]
+    [InlineData("SELECT NEXT VALUE FOR dbo.s ",
+        SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail | SqlKeywordPosition.FunctionCallTail)]
+    [InlineData("SELECT * FROM t ", SqlKeywordPosition.TableSourceTail)]
+    [InlineData("CREATE TABLE t (a int CHECK (a > 1) ", SqlKeywordPosition.ColumnDefinitionTail)]
+    public void 運算元寫完疊上運算元之後(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
     }
 
     /// <summary>還沒寫完型別、停在要接運算式或名稱的字上，或不是資料行的一項：不是型別之後的尾巴。</summary>
@@ -749,8 +786,8 @@ public sealed class SqlKeywordPositionTests
     /// 見 <c>SqlScriptVariableTests</c>。
     /// </remarks>
     [Theory]
-    [InlineData("SELECT @x ", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT * FROM t WHERE a = @x ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT @x ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t WHERE a = @x ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
     public void 變數之後由子句決定位置(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
@@ -795,7 +832,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT * FROM t GROUP BY ", SqlKeywordPosition.OrderByColumn)]
 
     // 欄位之後仍然是 ASC／DESC，不是另一個欄位。
-    [InlineData("SELECT * FROM t ORDER BY a ", SqlKeywordPosition.OrderByTail)]
+    [InlineData("SELECT * FROM t ORDER BY a ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OperandTail)]
 
     [InlineData("ALTER TABLE t ", SqlKeywordPosition.AlterTableAction)]
     [InlineData("ALTER TABLE dbo.t ", SqlKeywordPosition.AlterTableAction)]
@@ -1135,13 +1172,13 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SET STATISTICS IO ", SqlKeywordPosition.SetOptionValue)]
     [InlineData("SET IDENTITY_INSERT ", SqlKeywordPosition.Any)]
     [InlineData("SET TRANSACTION ", SqlKeywordPosition.Any)]
-    [InlineData("UPDATE t SET a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
-    [InlineData("UPDATE TOP (5) t WITH (TABLOCK) SET a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
-    [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED THEN UPDATE SET a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause)]
+    [InlineData("UPDATE t SET a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("UPDATE TOP (5) t WITH (TABLOCK) SET a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED THEN UPDATE SET a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause | SqlKeywordPosition.OperandTail)]
     [InlineData("ALTER DATABASE CURRENT SET RECOVERY ", SqlKeywordPosition.SetOptionValue)]
-    [InlineData("UPDATE t SET a = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
+    [InlineData("UPDATE t SET a = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.OperandTail)]
     [InlineData("UPDATE t SET a = 1, ", SqlKeywordPosition.SetTarget)]
-    [InlineData("UPDATE t SET a = 1, b ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
+    [InlineData("UPDATE t SET a = 1, b ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SET NOCOUNT ON SELECT a FROM t ", SqlKeywordPosition.TableSourceTail)]
     public void SET之後的選項名稱(string textBeforeToken, SqlKeywordPosition expected)
     {
@@ -1156,10 +1193,10 @@ public sealed class SqlKeywordPositionTests
     /// 參數的 OUTPUT（<c>@a int OUTPUT</c>、<c>EXEC p @x = @y OUTPUT</c>）不是。
     /// </remarks>
     [Theory]
-    [InlineData("UPDATE t SET a = 1 OUTPUT inserted.a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
+    [InlineData("UPDATE t SET a = 1 OUTPUT inserted.a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.OperandTail)]
     [InlineData("UPDATE t SET a = 1 OUTPUT inserted.a, ", SqlKeywordPosition.SelectList)]
-    [InlineData("UPDATE t SET a = 1 OUTPUT inserted.a INTO @t ", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
-    [InlineData("INSERT INTO t (a) OUTPUT inserted.a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail)]
+    [InlineData("UPDATE t SET a = 1 OUTPUT inserted.a INTO @t ", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("INSERT INTO t (a) OUTPUT inserted.a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.OperandTail)]
     [InlineData("UPDATE t SET a = 1 OUTPUT inserted.a FROM s ", SqlKeywordPosition.TableSourceTail)]
     [InlineData("EXEC p @x = @y OUTPUT, ", SqlKeywordPosition.Any)]
     public void DML的OUTPUT清單(string textBeforeToken, SqlKeywordPosition expected)
@@ -1379,7 +1416,7 @@ public sealed class SqlKeywordPositionTests
     public void 選取清單跨行保留續寫位置並開放所有語句片段(string textBeforeToken)
     {
         var tokens = SqlTokenizer.Tokenize(textBeforeToken);
-        var expected = SqlKeywordPosition.SelectListTail | SqlKeywordPosition.StatementStart;
+        var expected = SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail | SqlKeywordPosition.StatementStart;
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken).Keywords);
 
@@ -1405,20 +1442,20 @@ public sealed class SqlKeywordPositionTests
     }
 
     [Theory]
-    [InlineData("SELECT dbo.fn_Fee('') ", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT dbo.fn_Fee('') /* 同一行 */ ", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT dbo.fn_Fee('\n') ", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT [Copy\nNo] ", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT dbo.fn_Fee('') ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT dbo.fn_Fee('') /* 同一行 */ ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT dbo.fn_Fee('\n') ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT [Copy\nNo] ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT\n", SqlKeywordPosition.SelectList)]
     [InlineData("SELECT 1,\n", SqlKeywordPosition.SelectList)]
-    [InlineData("SELECT dbo.fn_Fee(1\n", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT COALESCE(dbo.fn_Fee(''), 1\n", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT (SELECT 1\n", SqlKeywordPosition.SelectListTail)]
-    [InlineData(";WITH LoanFees AS (SELECT 1\n", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT * FROM (SELECT 1\n", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT * FROM dbo.Loan WHERE ReaderId IN (1\n", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT dbo.fn_Fee(1\n", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT COALESCE(dbo.fn_Fee(''), 1\n", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT (SELECT 1\n", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData(";WITH LoanFees AS (SELECT 1\n", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM (SELECT 1\n", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM dbo.Loan WHERE ReaderId IN (1\n", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT (SELECT CopyNo FROM dbo.Loan\n", SqlKeywordPosition.TableSourceTail)]
-    [InlineData("SELECT (SELECT CopyNo FROM dbo.Loan ORDER BY CopyNo\n", SqlKeywordPosition.OrderByTail)]
+    [InlineData("SELECT (SELECT CopyNo FROM dbo.Loan ORDER BY CopyNo\n", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OperandTail)]
     public void 同行或括號未關閉不因換行新增語句開頭(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
@@ -1472,7 +1509,7 @@ public sealed class SqlKeywordPositionTests
     // 空段不是限定字，照舊落在「判不出來」那一支。小數點根本走不到這裡：
     // 詞法分析把 1. 掃成一個數值詞元，位置仍然由子句錨點決定。
     [InlineData("SELECT * FROM LibArchive..", SqlKeywordPosition.Any)]
-    [InlineData("SELECT 1.", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT 1.", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
     public void 尾端點號由名稱之前的位置決定(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
@@ -1500,15 +1537,15 @@ public sealed class SqlKeywordPositionTests
     /// 整份目錄與片段全部進場，後面的 <c>FOR</c> 也只能當成「可能」的片語。
     /// </remarks>
     [Theory]
-    [InlineData("SELECT a FROM t ORDER BY a DESC ", SqlKeywordPosition.OrderByTail)]
-    [InlineData("SELECT a FROM t ORDER BY a ASC, b DESC ", SqlKeywordPosition.OrderByTail)]
-    [InlineData("SELECT a FROM t ORDER BY a OFFSET 10 ROWS ", SqlKeywordPosition.OrderByTail)]
-    [InlineData("SELECT a FROM t WHERE a IS NULL ", SqlKeywordPosition.ExpressionTail)]
-    [InlineData("SELECT a FROM t WHERE a IS NOT NULL ", SqlKeywordPosition.ExpressionTail)]
-    [InlineData("SELECT a FROM t WHERE x = CURRENT_USER ", SqlKeywordPosition.ExpressionTail)]
-    [InlineData("SELECT CASE WHEN a IS NULL ", SqlKeywordPosition.CaseArm)]
-    [InlineData("SELECT NULL ", SqlKeywordPosition.SelectListTail)]
-    [InlineData("SELECT CURRENT_TIMESTAMP ", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT a FROM t ORDER BY a DESC ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT a FROM t ORDER BY a ASC, b DESC ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT a FROM t ORDER BY a OFFSET 10 ROWS ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT a FROM t WHERE a IS NULL ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT a FROM t WHERE a IS NOT NULL ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT a FROM t WHERE x = CURRENT_USER ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CASE WHEN a IS NULL ", SqlKeywordPosition.CaseArm | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT NULL ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT CURRENT_TIMESTAMP ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT * FROM t HOLDLOCK ", SqlKeywordPosition.TableSourceTail)]
 
     // TRAN 寫完的是語句本身，不是子句裡的一項：往回找只會找到上一句的 WHERE。
@@ -1538,16 +1575,16 @@ public sealed class SqlKeywordPositionTests
     /// 而那一句沒有自己的子句關鍵字時判不出來，不拿 IF 的位置去猜。
     /// </remarks>
     [Theory]
-    [InlineData("IF @a = 1 ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
-    [InlineData("WHILE @i < 1 ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
-    [InlineData("IF @a IS NULL ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
-    [InlineData("IF EXISTS (SELECT 1 FROM t) ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("IF @a = 1 ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("WHILE @i < 1 ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("IF @a IS NULL ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("IF EXISTS (SELECT 1 FROM t) ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
     [InlineData("IF NOT EXISTS (SELECT 1 FROM t) AND @a = 1 ",
-        SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
+        SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT 1; WHILE @@FETCH_STATUS = 0 ",
-        SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
-    [InlineData("IF (@a = 1 ", SqlKeywordPosition.ExpressionTail)]
-    [InlineData("IF @a = 1 SELECT a FROM t WHERE b = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.IfBodyEnd)]
+        SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("IF (@a = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("IF @a = 1 SELECT a FROM t WHERE b = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.OperandTail)]
     [InlineData("IF @a = 1 PRINT 'x' ", SqlKeywordPosition.Any)]
     [InlineData("IF @a = 1 EXEC dbo.p ", SqlKeywordPosition.Any)]
     public void IF與WHILE的條件寫完是主體的開頭(string textBeforeToken, SqlKeywordPosition expected)
@@ -1574,7 +1611,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("BEGIN TRY SELECT 1 END ", SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart)]
     [InlineData("SELECT CASE WHEN a = 1 THEN 1 ELSE ", SqlKeywordPosition.Any)]
     [InlineData("IF @a = 1 SELECT CASE WHEN b = 1 THEN 1 ELSE ", SqlKeywordPosition.Any)]
-    [InlineData("SELECT CASE WHEN a = 1 THEN 1 END ", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT CASE WHEN a = 1 THEN 1 END ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
     public void 區塊邊界之後是下一句(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
@@ -1612,18 +1649,18 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE TRIGGER tr ON ALL SERVER FOR LOGON AS ", SqlKeywordPosition.StatementStart)]
     [InlineData("MERGE t USING s ON t.a = s.a WHEN ", SqlKeywordPosition.MergeWhen)]
     [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED THEN UPDATE SET a = 1\nWHEN ", SqlKeywordPosition.MergeWhen)]
-    [InlineData("MERGE t USING s ON t.a = s.a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause)]
-    [InlineData("MERGE dbo.Loan AS t USING (SELECT 1 AS a) AS s ON t.a = s.a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause)]
-    [InlineData("MERGE dbo.Loan AS t USING (SELECT @a, @b) AS s (a, b) ON (t.a = s.a) ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause)]
-    [InlineData("MERGE dbo.Loan t USING (VALUES (1, 2)) s(a, b) ON t.a = s.a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause)]
-    [InlineData("MERGE dbo.Loan t USING dbo.fn_Copies(1) ON t.a = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause)]
-    [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED AND t.b = 1 ", SqlKeywordPosition.CaseArm)]
+    [InlineData("MERGE t USING s ON t.a = s.a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause | SqlKeywordPosition.OperandTail)]
+    [InlineData("MERGE dbo.Loan AS t USING (SELECT 1 AS a) AS s ON t.a = s.a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause | SqlKeywordPosition.OperandTail)]
+    [InlineData("MERGE dbo.Loan AS t USING (SELECT @a, @b) AS s (a, b) ON (t.a = s.a) ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause | SqlKeywordPosition.OperandTail)]
+    [InlineData("MERGE dbo.Loan t USING (VALUES (1, 2)) s(a, b) ON t.a = s.a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause | SqlKeywordPosition.OperandTail)]
+    [InlineData("MERGE dbo.Loan t USING dbo.fn_Copies(1) ON t.a = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause | SqlKeywordPosition.OperandTail)]
+    [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED AND t.b = 1 ", SqlKeywordPosition.CaseArm | SqlKeywordPosition.OperandTail)]
     [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED THEN ", SqlKeywordPosition.MergeAction)]
     [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED THEN DELETE ", SqlKeywordPosition.MergeClause)]
     [InlineData("MERGE t USING s ON t.a = s.a WHEN NOT MATCHED THEN INSERT (a) VALUES (s.a) ", SqlKeywordPosition.MergeClause)]
     [InlineData("MERGE t USING s ON t.a = s.a WHEN NOT MATCHED THEN INSERT DEFAULT VALUES ", SqlKeywordPosition.MergeClause)]
-    [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED THEN UPDATE SET a = s.a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause)]
-    [InlineData("SELECT * FROM t JOIN u ON t.a = u.a ", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED THEN UPDATE SET a = s.a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT * FROM t JOIN u ON t.a = u.a ", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT CASE WHEN a = 1 THEN ", SqlKeywordPosition.Any)]
     [InlineData("GRANT SELECT, INSERT ", SqlKeywordPosition.PermissionList)]
     [InlineData("REVOKE SELECT (a, b) ", SqlKeywordPosition.PermissionList)]
@@ -1668,9 +1705,9 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT * FROM t ORDER BY a OFFSET 10 ", SqlKeywordPosition.OffsetTail)]
     [InlineData("SELECT * FROM t ORDER BY a OFFSET @n ", SqlKeywordPosition.OffsetTail)]
     [InlineData("SELECT * FROM t ORDER BY a OFFSET (@n + 1) ", SqlKeywordPosition.OffsetTail)]
-    [InlineData("SELECT SUM(a) OVER (ORDER BY a ", SqlKeywordPosition.WindowOrderTail)]
-    [InlineData("SELECT SUM(a) OVER (PARTITION BY b ORDER BY a DESC ", SqlKeywordPosition.WindowOrderTail)]
-    [InlineData("SELECT STRING_AGG(a, ',') WITHIN GROUP (ORDER BY a ", SqlKeywordPosition.OrderByTail)]
+    [InlineData("SELECT SUM(a) OVER (ORDER BY a ", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT SUM(a) OVER (PARTITION BY b ORDER BY a DESC ", SqlKeywordPosition.WindowOrderTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT STRING_AGG(a, ',') WITHIN GROUP (ORDER BY a ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OperandTail)]
     [InlineData("GRANT EXECUTE ON ", SqlKeywordPosition.PermissionOn)]
     [InlineData("REVOKE SELECT, INSERT ON ", SqlKeywordPosition.PermissionOn)]
     [InlineData("CREATE INDEX ix ON dbo.Loan (CopyNo) WITH (", SqlKeywordPosition.IndexOption)]
@@ -1742,7 +1779,7 @@ public sealed class SqlKeywordPositionTests
     /// </summary>
     [Theory]
     [InlineData("SELECT a FROM t WITH (NOLOCK) ", SqlKeywordPosition.TableSourceTail)]
-    [InlineData("UPDATE t\nSET a = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
+    [InlineData("UPDATE t\nSET a = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.OperandTail)]
     [InlineData("CREATE VIEW v\nWITH SCHEMABINDING\nAS ", SqlKeywordPosition.StatementStart)]
     [InlineData("CREATE PROCEDURE p WITH EXECUTE AS OWNER AS ", SqlKeywordPosition.StatementStart)]
     [InlineData("CREATE OR ALTER PROCEDURE p AS ", SqlKeywordPosition.StatementStart)]
@@ -1826,7 +1863,7 @@ public sealed class SqlKeywordPositionTests
     public void IF主體寫完只多出ELSE()
     {
         Assert.Equal(
-            SqlKeywordPosition.SelectListTail | SqlKeywordPosition.IfBodyEnd,
+            SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail | SqlKeywordPosition.IfBodyEnd,
             SqlKeywordPositionAnalyzer.Analyze("IF @a = 1 SELECT 1 ").Keywords);
         Assert.False(AllowedAt("IF @a = 1 SELECT 1 ", "TRY"));
 

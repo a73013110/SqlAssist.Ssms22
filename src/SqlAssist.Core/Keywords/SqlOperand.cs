@@ -39,7 +39,8 @@ public static class SqlOperand
     /// 從 <paramref name="last"/> 往回走過一個運算式，回傳它第一個詞元的索引；<paramref name="last"/> 寫不完運算元時回傳 -1。
     /// </summary>
     /// <remarks>
-    /// 運算元是常值、變數、名稱（含限定字）、函式呼叫或一整組括號，以算術運算子串起來，開頭可以帶正負號。
+    /// 運算元是常值、變數、名稱（含限定字）、函式呼叫或一整組括號，以算術運算子串起來，開頭可以帶正負號；
+    /// 運算元之後可以接 <c>AT TIME ZONE</c> 與時區（<c>DEFAULT @d AT TIME ZONE @z</c>）。
     /// 比較與邏輯運算子不算：<c>WHERE a = 1</c> 的值是 <c>1</c>，等號是選項的指派（<c>SIZE = 5</c>）時也一樣。
     /// <c>CASE … END</c> 不走：END 之前一直到 CASE 都可能有逗號以外的任何東西，認不出來就不比對，只是少列字。
     /// </remarks>
@@ -66,6 +67,12 @@ public static class SqlOperand
             if (before >= 1 && IsArithmetic(tokens[before]) && Ends(tokens, before - 1))
             {
                 index = before - 1;
+                continue;
+            }
+
+            if (EndsTimeZone(tokens, before) && Ends(tokens, before - 3))
+            {
+                index = before - 3;
                 continue;
             }
 
@@ -100,6 +107,10 @@ public static class SqlOperand
             ? SqlTokenNavigator.SkipQualifiedNameBackward(tokens, open - 1)
             : open;
     }
+
+    /// <summary><paramref name="index"/> 寫完運算式的後綴 <c>AT TIME ZONE</c>：時區之前是被轉換的那個運算式。</summary>
+    private static bool EndsTimeZone(IReadOnlyList<SqlToken> tokens, int index) =>
+        index >= 3 && tokens[index].IsKeyword("ZONE") && tokens[index - 1].IsKeyword("TIME") && tokens[index - 2].IsKeyword("AT");
 
     private static bool IsArithmetic(SqlToken token) =>
         token.Kind == SqlTokenKind.Operator && token.Value is "+" or "-" or "*" or "/" or "%" or "&" or "|" or "^";

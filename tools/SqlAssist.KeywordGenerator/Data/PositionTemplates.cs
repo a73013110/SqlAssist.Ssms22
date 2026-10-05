@@ -88,6 +88,9 @@ internal static class PositionTemplates
         // 第二個樣板給只有位移函式接得上的 IGNORE NULLS、RESPECT NULLS（SUM(a) IGNORE 剖析器不收）。
         new("FunctionCallTail", "SELECT (SUM(a) ", "SELECT (LAG(a) "),
 
+        // 運算元之後的 COLLATE、AT TIME ZONE。與函式呼叫同一個道理包在括號裡：只留得下接在任何運算式後面的字。
+        new("OperandTail", "SELECT (a "),
+
         // 外部索引鍵的參考寫完之後：ON（DELETE、UPDATE）、NOT（FOR REPLICATION）與其他資料行條件約束。
         new("ReferencesTail", "CREATE TABLE t (a int REFERENCES u (a) "),
 

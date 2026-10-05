@@ -481,7 +481,7 @@ internal sealed class PhraseExplorer
     }
 
     // None 的附加片語只在判不出位置時比對得上，那時每一個附加片語都算（只加字、取聯集）：
-    // 別的位置已經收了的字（SelectListTail 的 AT）在那裡一定已經列出。
+    // 別的位置已經收了的字（OperandTail 的 AT）在那裡一定已經列出。
     private void DropUnpositionedDuplicates()
     {
         if (!_additiveByPosition.TryGetValue("None", out var unpositioned))

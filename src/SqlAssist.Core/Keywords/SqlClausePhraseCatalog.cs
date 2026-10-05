@@ -39,6 +39,9 @@ public static class SqlClausePhraseCatalog
     /// <summary>帶尾巴的附加片語與游標處只認位置的附加片語合成的片語；理由同 <see cref="AdditiveUnions"/>。</summary>
     private static readonly ConcurrentDictionary<(SqlClausePhrase Tail, SqlClausePhrase Position), SqlClausePhrase> TailAdditiveUnions = new();
 
+    /// <summary>只認位置的片語與游標處疊著的其他位置的附加片語合成的片語；理由同 <see cref="AdditiveUnions"/>。</summary>
+    private static readonly ConcurrentDictionary<(SqlClausePhrase Position, SqlClausePhrase Stacked), SqlClausePhrase> StackedUnions = new();
+
     /// <summary>同一條尾巴在幾個位置同時確定成立時合成的片語，鍵是尾巴與那幾個位置；理由同 <see cref="AdditiveUnions"/>。</summary>
     private static readonly ConcurrentDictionary<(string Pattern, SqlKeywordPosition After), SqlClausePhrase> PositionUnions = new();
 
@@ -176,7 +179,36 @@ public static class SqlClausePhraseCatalog
 
         // 附加片語排在最後，只在什麼都沒比對到時才輪到：它只加字，不該擠掉一個可能的尾巴。
         // 帶尾巴的附加片語也只加字，兩種同時對上時取聯集（開模組本體的 AS 之後，EXTERNAL 與 ENABLE、COPY 都在）。
-        return FirstMatch(AtPosition, tokens, count, onNewLine, caret, analyzer, minimumLength: 0) ?? WithAdditive(best, caret);
+        return FirstMatch(AtPosition, tokens, count, onNewLine, caret, analyzer, minimumLength: 0) is { } position
+            ? WithStackedAdditive(position, caret)
+            : WithAdditive(best, caret);
+    }
+
+    /// <summary>
+    /// 只認位置的片語對上了，游標處還疊著它不管的位置時，那些位置的附加片語照樣加字；確定與封閉照位置片語。
+    /// </summary>
+    /// <remarks>
+    /// 位置片語只說它自己那一格：資料行的預設值寫完（<c>a int DEFAULT @d |</c>）是資料行定義的尾端，也是運算元之後。
+    /// 確定的位置片語讓整份目錄退場，只取它的話運算元之後的 AT 就不見了。
+    /// </remarks>
+    private static SqlClausePhraseMatch WithStackedAdditive(SqlClausePhraseMatch match, SqlKeywordPosition caret)
+    {
+        if (caret == SqlKeywordPosition.Any || MatchAdditive(caret & ~match.Phrase.After) is not { } stacked)
+        {
+            return match;
+        }
+
+        var phrase = StackedUnions.GetOrAdd((match.Phrase, stacked.Phrase), pair => new SqlClausePhrase(
+            pair.Position.Pattern,
+            pair.Position.After,
+            pair.Position.Probe,
+            pair.Position.IsClosed,
+            pair.Position.EndsStatement,
+            pair.Position.Words.Concat(pair.Stacked.Words).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            takesVariable: pair.Position.TakesVariable,
+            takesName: pair.Position.TakesName));
+
+        return match.IsCertain ? phrase.Certain : phrase.Tentative;
     }
 
     private static SqlClausePhraseMatch? WithAdditive(SqlClausePhraseMatch? best, SqlKeywordPosition caret)

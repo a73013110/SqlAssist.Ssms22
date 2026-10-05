@@ -25,24 +25,24 @@ public sealed class SqlCompletionPolicyTests
     [InlineData("SELECT P", true, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.SelectList, CompletionTarget.Any)]
 
     // 選取清單一項寫完、同一行、還沒有別名：可能是別名，也可能是打到一半的 FROM。
-    [InlineData("SELECT PublCode ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
-    [InlineData("SELECT PublCode a", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
-    [InlineData("SELECT a + b ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
-    [InlineData("SELECT COUNT(*) ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail, CompletionTarget.Any)]
-    [InlineData("SELECT 'x' ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
-    [InlineData("SELECT CASE WHEN a=1 THEN 2 END ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
-    [InlineData("SELECT TOP 10 a ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
-    [InlineData("SELECT a, b ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
+    [InlineData("SELECT PublCode ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
+    [InlineData("SELECT PublCode a", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
+    [InlineData("SELECT a + b ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
+    [InlineData("SELECT COUNT(*) ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
+    [InlineData("SELECT 'x' ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
+    [InlineData("SELECT CASE WHEN a=1 THEN 2 END ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
+    [InlineData("SELECT TOP 10 a ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
+    [InlineData("SELECT a, b ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
 
     // 別名已經寫了、根本不能有別名，或者換了行：照常硬選。
-    [InlineData("SELECT PublCode a ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
-    [InlineData("SELECT a AS b ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
+    [InlineData("SELECT PublCode a ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
+    [InlineData("SELECT a AS b ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
     [InlineData("SELECT * ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.Any)]
     [InlineData("SELECT DISTINCT ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.Any)]
     [InlineData("SELECT a, ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.SelectList, CompletionTarget.Any)]
     [InlineData("SELECT PublCode\nF", true, false, SqlCompletionSlot.Grammar,
-        SqlKeywordPosition.SelectListTail | SqlKeywordPosition.StatementStart, CompletionTarget.Any)]
-    [InlineData("SELECT COUNT(a ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
+        SqlKeywordPosition.SelectListTail | SqlKeywordPosition.StatementStart | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
+    [InlineData("SELECT COUNT(a ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
 
     // TOP 子句之後是選取清單的起點，不是尾端。
     [InlineData("SELECT TOP 10 ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail, CompletionTarget.Any)]
@@ -54,8 +54,8 @@ public sealed class SqlCompletionPolicyTests
 
     // CASE 還沒寫完時是 CASE 的裡面，不是選取清單這一層。
     [InlineData("SELECT CASE WHEN a = 1 ", false, false, SqlCompletionSlot.Grammar,
-        SqlKeywordPosition.CaseArm, CompletionTarget.Any)]
-    [InlineData("SELECT CASE WHEN a = 1 THEN b ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.CaseBody, CompletionTarget.Any)]
+        SqlKeywordPosition.CaseArm | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
+    [InlineData("SELECT CASE WHEN a = 1 THEN b ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.CaseBody | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
 
     // 資料來源同一行的別名位置。
     [InlineData("FROM dbo.T ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any)]
@@ -79,7 +79,7 @@ public sealed class SqlCompletionPolicyTests
     [InlineData("FROM (SELECT 1 x) A", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any)]
     [InlineData("MERGE Loan USING (SELECT 1 x) A", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any)]
     [InlineData("FROM t AS ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any)]
-    [InlineData("SELECT CASE WHEN a=1 THEN 2 END AS ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectListTail, CompletionTarget.Any)]
+    [InlineData("SELECT CASE WHEN a=1 THEN 2 END AS ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
     [InlineData("DECLARE @", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
     [InlineData("DECLARE @p", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
     [InlineData("SELECT @", true, true, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.Variable)]
@@ -139,7 +139,7 @@ public sealed class SqlCompletionPolicyTests
     [InlineData("WHERE a = ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.Any)]
 
     // 階段 C：LIKE 'x' 之後的 ESCAPE 由產生器補上位置。
-    [InlineData("WHERE a LIKE 'x' ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.ExpressionTail, CompletionTarget.Any)]
+    [InlineData("WHERE a LIKE 'x' ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail, CompletionTarget.Any)]
     [InlineData("'字串 ", false, false, SqlCompletionSlot.Inert, SqlKeywordPosition.Any, CompletionTarget.Any)]
     [InlineData("-- 註解 ", false, false, SqlCompletionSlot.Inert, SqlKeywordPosition.Any, CompletionTarget.Any)]
     public void 分類決定參與(

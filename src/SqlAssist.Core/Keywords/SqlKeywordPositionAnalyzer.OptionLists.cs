@@ -254,6 +254,25 @@ public sealed partial class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>
+    /// <paramref name="last"/> 寫完資料行定義裡的運算式：<c>DEFAULT</c> 之後的預設值，或計算資料行 <c>AS</c> 之後的運算式。
+    /// </summary>
+    /// <remarks>
+    /// 型別、<c>NULL</c> 與 <c>CHECK (…)</c> 也寫完一個運算元，前面卻不是 DEFAULT 或計算資料行的 AS，之後不接 AT。
+    /// </remarks>
+    private bool EndsColumnExpression(int last)
+    {
+        var start = SqlOperand.SkipBackward(tokens, last);
+
+        if (start < 1 || !IsBareKeyword(start - 1))
+        {
+            return false;
+        }
+
+        return tokens[start - 1].IsKeyword("DEFAULT") ||
+            (tokens[start - 1].IsKeyword("AS") && FindColumnDefinitionStart(last) == start - 2);
+    }
+
+    /// <summary>
     /// <paramref name="last"/> 所在那一項資料行定義的第一個詞元；不在資料行定義裡回 -1。
     /// </summary>
     /// <remarks>

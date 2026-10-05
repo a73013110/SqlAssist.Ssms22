@@ -65,12 +65,14 @@ internal static class QueryPhrases
         new("FOR JSON ,*") { After = QueryTails },
 
         // 運算式寫在哪裡都行，函式引數裡判不出位置；CONSTRAINT df 之後也判不出來。
-        // 選取清單裡判得出來，另立帶位置的一條：NEXT、AT 這種第一個字也要列得出下一個字。
+        // 判得出的另立帶位置的一條：NEXT、AT 這種第一個字也要列得出下一個字；墊的文字與那個位置的樣板相同，
+        // 兩條才是同一個片語。AT TIME ZONE 接在任何運算元之後，子句、預設值與計算運算式都一樣，
+        // 位置分析把運算元之後疊在那些尾端上；墊在括號裡，AT 才不會被讀成選取清單的別名。
         new("NEXT VALUE FOR") { Lead = "SELECT " },
         new("NEXT VALUE FOR") { After = ["SelectList"] },
         new("DEFAULT {value} FOR") { Lead = "ALTER TABLE t ADD " },
-        new("AT TIME") { Lead = "SELECT a " },
-        new("AT TIME") { After = ["SelectListTail"] },
+        new("AT TIME") { Lead = "SELECT (a " },
+        new("AT TIME") { After = ["OperandTail"] },
 
         // AI_GENERATE_EMBEDDINGS 的來源之後是 USE MODEL 與模型名稱，再來是選用的 PARAMETERS。來源是運算式（{value}
         // 也比對得到資料行）；函式引數裡判不出位置，從呼叫寫起。
@@ -124,7 +126,7 @@ internal static class QueryPhrases
         .. RowCounts(["NEXT {value}", "FIRST {value}", "NEXT {value} ROWS", "NEXT {value} ROW", "FIRST {value} ROWS", "FIRST {value} ROW"]),
     ];
 
-    // 靜態欄位依序初始化，要寫在用到它的 JsonConstructors 之前。子句寫到 RETURNING 為止，之後的 JSON 由探測列出：
+    // 靜態欄位依序初始化，要寫在用到它的 JsonFunctions 之前。子句寫到 RETURNING 為止，之後的 JSON 由探測列出（JSON_VALUE 的型別由型別清單給）：
     // 寫到 JSON 的話，每一條各多一個什麼字都不接的片語。
     private static readonly string[] JsonClauses = ["NULL ON NULL RETURNING", "ABSENT ON NULL RETURNING", "RETURNING"];
 
@@ -132,21 +134,23 @@ internal static class QueryPhrases
     // 從呼叫寫起；引數是 {value}（一個運算式）。每一格的字由整段證據補進它前面那段，只有引數剛寫完那一格以值結尾、
     // 補不出來（Lead 片語以值結尾的一段不立），另外宣告。沒有引數的 JSON_OBJECT(NULL ON NULL) 從左括號寫起，
     // 左括號本身也宣告：ABSENT 不是運算式的字。空呼叫照剖析器收的寫：JSON_ARRAYAGG 不收，只寫 RETURNING JSON 的也不收。
-    internal static readonly PhraseDeclaration[] JsonConstructors =
+    // JSON_VALUE 的路徑之後只有 RETURNING 與型別（SQL Server 2025），沒有 NULL 的處理；路徑是第二個引數，探測墊第一個。
+    internal static readonly PhraseDeclaration[] JsonFunctions =
     [
         .. Json("JSON_OBJECT", "{value} : {value}", empty: true),
         .. Json("JSON_ARRAY", "{value}", empty: true),
         .. Json("JSON_OBJECTAGG", "{value} : {value}", empty: true),
         .. Json("JSON_ARRAYAGG", "{value}", empty: false),
         .. Json("JSON_ARRAYAGG", "{value} ORDER BY {value}", empty: false),
+        .. Json("JSON_VALUE", "{value}", empty: false, onNull: false, items: "'x', "),
     ];
 
-    private static IEnumerable<PhraseDeclaration> Json(string function, string argument, bool empty) =>
+    private static IEnumerable<PhraseDeclaration> Json(string function, string argument, bool empty, bool onNull = true, string? items = null) =>
         (empty ? [$"{function} (*"] : Array.Empty<string>())
             .Append($"{function} (* {argument}")
-            .Concat(JsonClauses.Select(clause => $"{function} (* {argument} {clause}"))
+            .Concat(JsonClauses.Where(clause => onNull || !clause.Contains(" ON NULL")).Select(clause => $"{function} (* {argument} {clause}"))
             .Concat(empty ? JsonClauses.Where(clause => clause.Contains(" ON NULL")).Select(clause => $"{function} (* {clause}") : [])
-            .Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT " });
+            .Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT ", Items = items });
 
     private static IEnumerable<PhraseDeclaration> RowCounts(string[] patterns) =>
         patterns.Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT * FROM t ORDER BY a OFFSET 10 ROWS FETCH " });

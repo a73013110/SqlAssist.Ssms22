@@ -27,6 +27,7 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("SELECT CAST(f.Amount AS ")]
     [InlineData("SELECT TRY_CAST(f.Amount AS ")]
     [InlineData("SELECT PARSE(f.Amount AS ")]
+    [InlineData("SELECT JSON_VALUE(@doc, '$.Fee' RETURNING ")]
     [InlineData("SELECT CONVERT(")]
     [InlineData("SELECT TRY_CONVERT(")]
     [InlineData("SELECT IDENTITY(")]
@@ -112,6 +113,8 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("CREATE TABLE dbo.Loan (CopyNo INT, LoanId DECIMAL(10, 0) NOT NULL IDENTITY(")]
     [InlineData("ALTER TABLE dbo.Loan ADD LoanId INT IDENTITY(")]
     [InlineData("DECLARE @copies TABLE (RowNo INT IDENTITY(")]
+    [InlineData("SELECT JSON_OBJECT('Fee': f.Amount RETURNING ")]
+    [InlineData("SELECT JSON_VALUE(@doc, '$.Fee' RETURNING int, ")]
     public void 不是型別的位置(string textBeforeCaret)
     {
         Assert.NotEqual(

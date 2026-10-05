@@ -41,7 +41,7 @@ internal static class ClausePhrases
         .. SecurityPhrases.Principals,
         .. DdlPhrases.Constraint,
         .. QueryPhrases.OffsetFetch,
-        .. QueryPhrases.JsonConstructors,
+        .. QueryPhrases.JsonFunctions,
         .. WindowPhrases.Frames,
         .. ServiceBrokerPhrases.All,
     ];

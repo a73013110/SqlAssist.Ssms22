@@ -265,7 +265,7 @@ public static class SqlFunctionCatalog
         ("JSON_OBJECTAGG", "JSON_OBJECTAGG(key: value [NULL | ABSENT ON NULL] [RETURNING JSON])"),
         ("JSON_PATH_EXISTS", "JSON_PATH_EXISTS(json, path)"),
         ("JSON_QUERY", "JSON_QUERY(json [, path])"),
-        ("JSON_VALUE", "JSON_VALUE(json, path)"),
+        ("JSON_VALUE", "JSON_VALUE(json, path [RETURNING type])"),
         ("OPENJSON", "OPENJSON(json [, path])"),
 
         // AI
@@ -399,10 +399,20 @@ public static class SqlFunctionCatalog
             signature[end] is ',' or ' ' or ')';
     }
 
-    /// <summary>這個函式的 <c>AS</c> 之後是型別：簽章寫 <c>CAST(expression AS type)</c>。</summary>
-    public static bool TakesTypeAfterAs(string? name)
+    /// <summary>
+    /// 這個函式的引數裡 <paramref name="keyword"/> 之後是型別：簽章寫 <c>CAST(expression AS type)</c>、
+    /// <c>JSON_VALUE(json, path [RETURNING type])</c>。
+    /// </summary>
+    public static bool TakesTypeAfter(string? name, string keyword)
     {
-        return TryGetSignature(name, out var signature) && signature.Contains(" AS type");
+        if (!TryGetSignature(name, out var signature))
+        {
+            return false;
+        }
+
+        // 選用的子句寫在方括號裡：[RETURNING type]。
+        var index = signature.IndexOf($"{keyword} type", StringComparison.Ordinal);
+        return index > 0 && signature[index - 1] is ' ' or '[';
     }
 
     /// <summary>

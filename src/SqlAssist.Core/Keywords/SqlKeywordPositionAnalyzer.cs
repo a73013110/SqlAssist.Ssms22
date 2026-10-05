@@ -956,8 +956,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
         int last,
         SqlKeywordPosition keywords)
     {
-        // 函式呼叫之後的 OVER 是加在子句尾端上的，不改變這一項接不接別名。
-        keywords &= ~SqlKeywordPosition.FunctionCallTail;
+        // 運算元之後的 AT、函式呼叫之後的 OVER 是疊在子句尾端上的，不改變這一項接不接別名。
+        keywords &= ~(SqlKeywordPosition.OperandTail | SqlKeywordPosition.FunctionCallTail);
         var dataSource = keywords == SqlKeywordPosition.TableSourceTail;
 
         if (!dataSource && keywords != SqlKeywordPosition.SelectListTail)
@@ -1787,7 +1787,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         if (token.IsPunctuation(")"))
         {
-            return AfterGroup(last);
+            var group = AfterGroup(last);
+
+            return group.Slot == SqlCompletionSlot.Grammar
+                ? new SqlCaretPosition(AddOperandTail(group.Keywords, last))
+                : group;
         }
 
         // 尾端的點號是使用者正在打的那個名稱的一部分（dbo.、a.），不是一個算完的
@@ -1833,14 +1837,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
         // 兩者接得了的關鍵字不一樣，所以是兩個位置。結果集的資料行定義只寫得出名稱。
         var keywords = KeywordsAfter(last);
 
-        return new SqlCaretPosition(
-            keywords,
-            keywords switch
-            {
-                SqlKeywordPosition.AlterTableAdd or SqlKeywordPosition.ColumnDefinition => SqlCompletionSlot.MaybeName,
-                SqlKeywordPosition.ResultSetColumn => SqlCompletionSlot.Name,
-                _ => SqlCompletionSlot.Grammar
-            });
+        return keywords switch
+        {
+            SqlKeywordPosition.AlterTableAdd or SqlKeywordPosition.ColumnDefinition => new SqlCaretPosition(keywords, SqlCompletionSlot.MaybeName),
+            SqlKeywordPosition.ResultSetColumn => new SqlCaretPosition(keywords, SqlCompletionSlot.Name),
+            _ => new SqlCaretPosition(AddOperandTail(keywords, last))
+        };
     }
 
     /// <summary>
@@ -2259,23 +2261,95 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         // STRING_AGG(…) WITHIN GROUP (ORDER BY …) 與前面那次呼叫是一個單位，之後照那次呼叫：還接得了 OVER。
         // 不跳過的話 GROUP 會被當成 GROUP BY 的錨點。
-        if (open >= 3 && tokens[open - 1].IsKeyword("GROUP") && tokens[open - 2].IsKeyword("WITHIN") &&
-            tokens[open - 3].IsPunctuation(")"))
+        if (EndsWithinGroup(open))
         {
             return AfterGroup(open - 3);
         }
 
-        var position = FindClausePosition(open - 1);
+        return new SqlCaretPosition(FindClausePosition(open - 1));
+    }
 
-        // 函式呼叫寫完之後多接 OVER：只在選取清單與 ORDER BY 的尾端，視窗函式只寫得在那裡。
-        // 限定的名稱（dbo.fn_Fee）是使用者定義函式，接不了 OVER。
-        if (open >= 1 && IsPlainWord(open - 1) && !(open >= 2 && tokens[open - 2].IsPunctuation(".")) &&
-            (position & (SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OrderByTail)) != SqlKeywordPosition.None)
+    /// <summary><paramref name="open"/> 開的是 <c>STRING_AGG(…) WITHIN GROUP (</c> 的那一組括號。</summary>
+    private bool EndsWithinGroup(int open) =>
+        open >= 3 && tokens[open - 1].IsKeyword("GROUP") && tokens[open - 2].IsKeyword("WITHIN") &&
+        tokens[open - 3].IsPunctuation(")");
+
+    /// <summary>
+    /// 寫得出運算式的子句尾端：一個運算元寫完時疊上 <see cref="SqlKeywordPosition.OperandTail"/>。
+    /// </summary>
+    /// <remarks>
+    /// 資料來源、INTO 的新資料表、索引鍵這些尾端也是寫完一個名稱，那裡的名稱不是運算元，不接 AT。
+    /// </remarks>
+    private const SqlKeywordPosition ExpressionClauseTails =
+        SqlKeywordPosition.SelectListTail |
+        SqlKeywordPosition.ExpressionTail |
+        SqlKeywordPosition.OrderByTail |
+        SqlKeywordPosition.GroupByTail |
+        SqlKeywordPosition.UpdateSetTail |
+        SqlKeywordPosition.CaseArm |
+        SqlKeywordPosition.CaseBody |
+        SqlKeywordPosition.WindowOrderTail;
+
+    /// <summary>
+    /// <paramref name="last"/> 寫完運算式裡的一個運算元時，在 <paramref name="position"/> 上疊加運算元之後的位置：
+    /// 任何運算元之後都接 <c>COLLATE</c>、<c>AT TIME ZONE</c>，函式呼叫之後另接 <c>OVER</c>。
+    /// </summary>
+    /// <remarks>
+    /// 運算元在哪個子句裡都一樣：寫在 WHERE、選取清單、資料行的預設值還是計算運算式，後綴都是同一組。
+    /// 各子句各認一份的症狀是選取清單列得出 AT、WHERE 與 DEFAULT 之後列不出來。
+    /// 資料行定義的尾端只在預設值與計算運算式之後疊加：型別之後（<c>a int |</c>）不是運算元。
+    ///
+    /// OVER 只在選取清單與 ORDER BY 的尾端，視窗函式只寫得在那裡。
+    /// </remarks>
+    private SqlKeywordPosition AddOperandTail(SqlKeywordPosition position, int last)
+    {
+        if (position == SqlKeywordPosition.Any || !SqlOperand.Ends(tokens, last))
         {
-            position |= SqlKeywordPosition.FunctionCallTail;
+            return position;
         }
 
-        return new SqlCaretPosition(position);
+        if ((position & ExpressionClauseTails) != SqlKeywordPosition.None)
+        {
+            position |= SqlKeywordPosition.OperandTail;
+
+            return (position & (SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OrderByTail)) != SqlKeywordPosition.None &&
+                EndsFunctionCall(last)
+                    ? position | SqlKeywordPosition.FunctionCallTail
+                    : position;
+        }
+
+        return position == SqlKeywordPosition.ColumnDefinitionTail && EndsColumnExpression(last)
+            ? position | SqlKeywordPosition.OperandTail
+            : position;
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 寫完一次接得了 OVER 的呼叫：內建函式的括號，或 <c>NEXT VALUE FOR</c> 的序列名稱。
+    /// </summary>
+    /// <remarks>
+    /// 限定的名稱（<c>dbo.fn_Fee(a)</c>）是使用者定義函式，接不了 OVER。
+    /// <c>STRING_AGG(…) WITHIN GROUP (…)</c> 與前面那次呼叫是一個單位，照那次呼叫算。
+    /// </remarks>
+    private bool EndsFunctionCall(int last)
+    {
+        if (tokens[last].IsPunctuation(")"))
+        {
+            var open = SqlTokenNavigator.FindOpeningParenthesis(tokens, last);
+
+            if (open >= 0 && EndsWithinGroup(open))
+            {
+                return EndsFunctionCall(open - 3);
+            }
+
+            return open >= 1 && IsPlainWord(open - 1) && !(open >= 2 && tokens[open - 2].IsPunctuation("."));
+        }
+
+        var name = tokens[last].Kind == SqlTokenKind.Identifier ? SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last) : -1;
+
+        return name >= 3 &&
+            tokens[name - 1].IsKeyword("FOR") &&
+            tokens[name - 2].IsKeyword("VALUE") &&
+            tokens[name - 3].IsKeyword("NEXT");
     }
 
     /// <summary><paramref name="open"/> 開啟的那一組括號之後，文法強制要寫別名。</summary>
