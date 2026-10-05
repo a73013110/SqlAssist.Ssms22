@@ -55,10 +55,11 @@ internal static class ServiceBrokerPhrases
 
         // 佇列名稱之後的 WITH：寫完名稱已是完整的一句，WITH 同時是 CTE 的開頭被扣掉，由清單片語補回。
         // ACTIVATION、POISON_MESSAGE_HANDLING 是清單裡自帶括號清單的項，探測用 OptionItem 的佇列樣板。
+        // ACTIVATION 用 ALTER 的樣板：ALTER 的括號多收 DROP，其餘與 CREATE 相同。
         new("CREATE QUEUE {name} WITH ,*"),
         new("ALTER QUEUE {name} WITH ,*"),
-        .. from item in new[] { "ACTIVATION (*", "POISON_MESSAGE_HANDLING (*" }
-           select new PhraseDeclaration(item) { After = ["OptionItem"], Template = 16, Expand = 2 },
+        new("ACTIVATION (*") { After = ["OptionItem"], Template = 18, Expand = 2 },
+        new("POISON_MESSAGE_HANDLING (*") { After = ["OptionItem"], Template = 16, Expand = 2 },
 
         // 合約的訊息類型清單：每一項都是「訊息類型 SENT BY 哪一端」。
         new("CREATE CONTRACT {name} (* {name}") { Expand = 3 },
@@ -69,8 +70,31 @@ internal static class ServiceBrokerPhrases
         new("CREATE SERVICE {name} AUTHORIZATION {name}") { Expand = 4 },
         new("CREATE MESSAGE TYPE {name} VALIDATION =") { Expand = 2 },
         new("CREATE MESSAGE TYPE {name} AUTHORIZATION {name} VALIDATION =") { Expand = 2 },
-        new("CREATE REMOTE SERVICE BINDING {name} TO") { Expand = 3 },
-        new("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name}") { Expand = 4 },
+        new("CREATE REMOTE SERVICE BINDING {name} TO") { Expand = 2 },
+        new("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name}") { Expand = 3 },
+
+        // 路由與遠端服務繫結的 WITH 是逗號清單：展開只探得到第一項，逗號之後的由清單片語列。
+        new("CREATE ROUTE {name} WITH ,*"),
+        new("CREATE ROUTE {name} AUTHORIZATION {name} WITH ,*"),
+        new("ALTER ROUTE {name} WITH ,*"),
+        new("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH ,*"),
+        new("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH ,*"),
+        new("ALTER REMOTE SERVICE BINDING {name} WITH ,*"),
+
+        // ALTER SERVICE 的名稱之後是 ON QUEUE 或合約清單：剖析器要看到下一個字才收名稱，種類展開探不到，另外宣告。
+        // 清單每一項是 ADD CONTRACT 或 DROP CONTRACT；CONTRACT 剖析器當名稱讀（ADD x c 也剖析得過），手寫。
+        // 佇列與合約名稱那一格以名稱結尾、證據不立，另外宣告，目錄物件名冊才認得出要哪一種名稱。
+        new("ALTER SERVICE {name} ON QUEUE"),
+        .. from head in new[] { "ALTER SERVICE {name} (*", "ALTER SERVICE {name} ON QUEUE {name} (*" }
+           from declaration in new PhraseDeclaration[]
+           {
+               new(head),
+               new(head + " ADD") { Values = ["CONTRACT"], Closed = true },
+               new(head + " DROP") { Values = ["CONTRACT"], Closed = true },
+               new(head + " ADD CONTRACT"),
+               new(head + " DROP CONTRACT"),
+           }
+           select declaration,
 
         // 端點只做 TCP 的兩種承載：FOR 之後那組括號是選項清單。端點名稱與 FOR 之間夾著 STATE、AS TCP (…)，以 ... 跨過；
         // 等號之後的值逐條寫（... 不收 Expand）。ALGORITHM 之後剖析器要讀完演算法才驗，寫到演算法的整段是證據

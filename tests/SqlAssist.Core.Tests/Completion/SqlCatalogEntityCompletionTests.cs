@@ -50,6 +50,9 @@ public sealed class SqlCatalogEntityCompletionTests
     [InlineData("BEGIN DIALOG @Handle FROM SERVICE ", "SERVICE")]
     [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' ON CONTRACT ", "CONTRACT")]
     [InlineData("GRANT SEND ON SERVICE::", "SERVICE")]
+    [InlineData("ALTER SERVICE LoanService ON QUEUE ", "QUEUE")]
+    [InlineData("ALTER SERVICE LoanService ON QUEUE dbo.LoanQueue (ADD CONTRACT LoanContract, DROP CONTRACT ", "CONTRACT")]
+    [InlineData("ALTER REMOTE SERVICE BINDING LoanBinding WITH ANONYMOUS = OFF, USER = ", "USER")]
     [InlineData("SELECT 1\nALTER LOGIN ", "LOGIN")]
     // 清單片語的一項：DEFAULT_ 加種類、種類本身。
     [InlineData("ALTER LOGIN L1 WITH PASSWORD = 'x', DEFAULT_DATABASE = ", "DATABASE")]

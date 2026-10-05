@@ -4,7 +4,7 @@
 
 ## 尾巴的寫法
 
-`tools/SqlAssist.KeywordGenerator` 的第四階段。手寫的只有 `Data/*Phrases.cs` 的尾巴，探測前一次驗完：
+`tools/SqlAssist.KeywordGenerator` 的第四階段。手寫的只有 `Data/*Phrases.cs` 的尾巴：
 
 | 寫法 | 意思 |
 |---|---|
@@ -33,15 +33,15 @@
 這種片語帶 `EndsStatement`，游標換了行就只算可能，見[片語](completion-phrases.md#執行期)。
 
 - `Expand`：每個接得上的字接在後面成為新片語。語句標頭寫完了照樣往下（`CREATE MASTER KEY` 之後的 `ENCRYPTION`），
-  扣掉下一句的開頭沒有字就不立；子句裡的不往下，由位置分析說（立了會藏掉索引篩選 `IS NOT NULL` 之後的 `WITH`）。
+  扣掉下一句的開頭沒有字就不立；子句裡的不往下，由位置分析說（否則藏掉 `IS NOT NULL` 之後的 `WITH`）。
   普通名稱放在同一格也完整時，完整的可能只是名稱讀法（`OPEN SYMMETRIC` 也是資料指標）：另外扣掉名稱之後
   接得上的字（`FETCH NEXT ` 之後不列 `INTO`）。
   值、名稱與選項的等號各是一步、不算一層（`FETCH ABSOLUTE 1 FROM`）；接得了值的格子是運算式，
   不走名稱與等號。等號之後的值不逐一展開，以第一個字與數值各往下一次（`SIZE = 5 MB`）。同一格只有層數比上次多才再展開，已由位置片語說了的不立。
   宣告的 `Endings` 跟著往下：展開出來的每一格是同一條宣告（`MASKED` 要寫完 `WITH (FUNCTION = …)` 才驗）。
 - 探測代入：`{value}` 用剖析器收的數值或字串，都不收的照 `{name}`（`CONTAINSTABLE (` 的資料行）；`{name}` 用普通名稱，只收變數的用變數，其餘收不了的格子與等號之後用那一格列得出的
-  第一個字（手寫的也算）：`ALGORITHM =` 什麼名稱都先收，整句寫完才驗。剖析器要看到下一個字才收名稱的
-  （`ALTER SERVER AUDIT a WITH`）接上片語的下一項判，只收兩段的（擴充事件）代入 `t.t`。
+  第一個字：`ALGORITHM =` 什麼名稱都先收，整句寫完才驗。剖析器要看到下一個字才收名稱的
+  （`ALTER SERVER AUDIT a WITH`、`ALTER SERVICE s (`）接上片語的下一項判，只收兩段的（擴充事件）代入 `t.t`。
 - `Kinds`：`CREATE`、`ALTER`、`DROP` 之後是物件種類，展開到名稱為止，名稱之後只列一層（`CREATE TABLE t ` 之後的 `AS`）：
   否則 `CREATE PROCEDURE p AS` 之後是整份語句開頭。更深的標頭各自宣告，已是位置的（`CREATE SEQUENCE t `）由位置片語說。
   `CREATE` 寫到名稱的種類（`SYMMETRIC KEY`、`UNIQUE CLUSTERED INDEX`、`OR ALTER PROCEDURE`）輸出成 `CreatedKinds`，

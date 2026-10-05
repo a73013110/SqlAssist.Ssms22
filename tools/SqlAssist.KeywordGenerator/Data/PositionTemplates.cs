@@ -120,7 +120,8 @@ internal static class PositionTemplates
             "RESTORE DATABASE d FROM DISK = 'x' WITH ", "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, ",
             "CREATE TRIGGER tr ON DATABASE FOR ", "CREATE TRIGGER tr ON DATABASE FOR CREATE_TABLE, ",
             "CREATE STATISTICS s ON t (a) WITH ", "CREATE STATISTICS s ON t (a) WITH FULLSCAN, ",
-            "CREATE QUEUE t WITH ", "CREATE QUEUE t WITH STATUS = ON, "),
+            "CREATE QUEUE t WITH ", "CREATE QUEUE t WITH STATUS = ON, ",
+            "ALTER QUEUE t WITH ", "ALTER QUEUE t WITH STATUS = ON, "),
 
         // GROUP BY 的欄位之後：HAVING、ORDER 與 WITH ROLLUP，不接 ASC、DESC。
         new("GroupByTail", "SELECT * FROM t GROUP BY a "),

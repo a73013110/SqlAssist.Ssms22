@@ -305,6 +305,8 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.OptionItem, "CREATE STATISTICS s ON t (a) WITH FULLSCAN, "),
         new(SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH "),
         new(SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH STATUS = ON, "),
+        new(SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH "),
+        new(SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH STATUS = ON, "),
         new(SqlKeywordPosition.GroupByTail, "SELECT * FROM t GROUP BY a "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t ORDER BY "),
         new(SqlKeywordPosition.OrderByColumn, "SELECT * FROM t GROUP BY "),
@@ -13847,36 +13849,39 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
-        ("ACTIVATION (*", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (", true, false, true, false, new string[]
+        ("ACTIVATION (*", SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH ACTIVATION (", true, false, true, false, new string[]
         {
-            "EXEC AS", "EXECUTE AS", "MAX_QUEUE_READERS", "PROCEDURE_NAME", "STATUS",
+            "DROP", "EXEC AS", "EXECUTE AS", "MAX_QUEUE_READERS", "PROCEDURE_NAME", "STATUS",
         }),
-        ("ACTIVATION (* EXEC", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (EXEC ", true, false, false, false, new string[]
+        ("ACTIVATION (* DROP", SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH ACTIVATION (DROP ", true, false, false, false, new string[]
         {
-            "AS",
         }),
-        ("ACTIVATION (* EXEC AS", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (EXEC AS ", true, false, false, false, new string[]
-        {
-            "OWNER", "SELF",
-        }),
-        ("ACTIVATION (* EXECUTE", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (EXECUTE ", true, false, false, false, new string[]
+        ("ACTIVATION (* EXEC", SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH ACTIVATION (EXEC ", true, false, false, false, new string[]
         {
             "AS",
         }),
-        ("ACTIVATION (* EXECUTE AS", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (EXECUTE AS ", true, false, false, false, new string[]
+        ("ACTIVATION (* EXEC AS", SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH ACTIVATION (EXEC AS ", true, false, false, false, new string[]
         {
             "OWNER", "SELF",
         }),
-        ("ACTIVATION (* MAX_QUEUE_READERS", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (MAX_QUEUE_READERS ", true, false, false, false, new string[]
+        ("ACTIVATION (* EXECUTE", SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH ACTIVATION (EXECUTE ", true, false, false, false, new string[]
+        {
+            "AS",
+        }),
+        ("ACTIVATION (* EXECUTE AS", SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH ACTIVATION (EXECUTE AS ", true, false, false, false, new string[]
+        {
+            "OWNER", "SELF",
+        }),
+        ("ACTIVATION (* MAX_QUEUE_READERS", SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH ACTIVATION (MAX_QUEUE_READERS ", true, false, false, false, new string[]
         {
         }),
-        ("ACTIVATION (* PROCEDURE_NAME", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (PROCEDURE_NAME ", true, false, false, false, new string[]
+        ("ACTIVATION (* PROCEDURE_NAME", SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH ACTIVATION (PROCEDURE_NAME ", true, false, false, false, new string[]
         {
         }),
-        ("ACTIVATION (* STATUS", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (STATUS ", true, false, false, false, new string[]
+        ("ACTIVATION (* STATUS", SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH ACTIVATION (STATUS ", true, false, false, false, new string[]
         {
         }),
-        ("ACTIVATION (* STATUS =", SqlKeywordPosition.OptionItem, "CREATE QUEUE t WITH ACTIVATION (STATUS = ", true, false, false, false, new string[]
+        ("ACTIVATION (* STATUS =", SqlKeywordPosition.OptionItem, "ALTER QUEUE t WITH ACTIVATION (STATUS = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
@@ -13974,16 +13979,6 @@ internal static class SqlKeywordCatalogData
         {
             "ANONYMOUS", "USER",
         }),
-        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH ANONYMOUS", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ANONYMOUS ", true, false, false, false, new string[]
-        {
-        }),
-        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH ANONYMOUS =", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ANONYMOUS = ", true, false, false, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH USER", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH USER ", true, false, false, false, new string[]
-        {
-        }),
         ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t ", true, false, false, false, new string[]
         {
             "TO",
@@ -14003,14 +13998,95 @@ internal static class SqlKeywordCatalogData
         {
             "ANONYMOUS", "USER",
         }),
-        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH ANONYMOUS", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH ANONYMOUS ", true, false, false, false, new string[]
+        ("CREATE ROUTE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ROUTE t WITH ", true, false, false, false, new string[]
         {
+            "ADDRESS", "BROKER_INSTANCE", "LIFETIME", "MIRROR_ADDRESS", "SERVICE_NAME",
         }),
-        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH ANONYMOUS =", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH ANONYMOUS = ", true, false, false, false, new string[]
+        ("CREATE ROUTE {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE ROUTE t WITH ADDRESS = 'x', ", true, false, false, false, new string[]
+        {
+            "ADDRESS", "BROKER_INSTANCE", "LIFETIME", "MIRROR_ADDRESS", "SERVICE_NAME",
+        }),
+        ("CREATE ROUTE {name} AUTHORIZATION {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ROUTE t AUTHORIZATION t WITH ", true, false, false, false, new string[]
+        {
+            "ADDRESS", "BROKER_INSTANCE", "LIFETIME", "MIRROR_ADDRESS", "SERVICE_NAME",
+        }),
+        ("CREATE ROUTE {name} AUTHORIZATION {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE ROUTE t AUTHORIZATION t WITH ADDRESS = 'x', ", true, false, false, false, new string[]
+        {
+            "ADDRESS", "BROKER_INSTANCE", "LIFETIME", "MIRROR_ADDRESS", "SERVICE_NAME",
+        }),
+        ("ALTER ROUTE {name} WITH", SqlKeywordPosition.StatementStart, "ALTER ROUTE t WITH ", true, false, false, false, new string[]
+        {
+            "ADDRESS", "BROKER_INSTANCE", "LIFETIME", "MIRROR_ADDRESS", "SERVICE_NAME",
+        }),
+        ("ALTER ROUTE {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER ROUTE t WITH ADDRESS = 'x', ", true, false, false, false, new string[]
+        {
+            "ADDRESS", "BROKER_INSTANCE", "LIFETIME", "MIRROR_ADDRESS", "SERVICE_NAME",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ANONYMOUS = ON, ", true, false, false, false, new string[]
+        {
+            "USER", "ANONYMOUS",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH ,* ANONYMOUS =", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ANONYMOUS = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH USER", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH USER ", true, false, false, false, new string[]
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH ANONYMOUS = ON, ", true, false, false, false, new string[]
+        {
+            "USER", "ANONYMOUS",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH ,* ANONYMOUS =", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH ANONYMOUS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER REMOTE SERVICE BINDING {name} WITH", SqlKeywordPosition.StatementStart, "ALTER REMOTE SERVICE BINDING t WITH ", true, false, true, false, new string[]
+        {
+            "ANONYMOUS", "USER",
+        }),
+        ("ALTER REMOTE SERVICE BINDING {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER REMOTE SERVICE BINDING t WITH ANONYMOUS = ON, ", true, false, false, false, new string[]
+        {
+            "USER", "ANONYMOUS",
+        }),
+        ("ALTER REMOTE SERVICE BINDING {name} WITH ,* ANONYMOUS =", SqlKeywordPosition.StatementStart, "ALTER REMOTE SERVICE BINDING t WITH ANONYMOUS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER SERVICE {name} ON QUEUE", SqlKeywordPosition.StatementStart, "ALTER SERVICE t ON QUEUE ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER SERVICE {name} (*", SqlKeywordPosition.StatementStart, "ALTER SERVICE t (", true, false, false, false, new string[]
+        {
+            "ADD", "DROP",
+        }),
+        ("ALTER SERVICE {name} (* ADD", SqlKeywordPosition.StatementStart, "ALTER SERVICE t (ADD ", true, false, true, false, new string[]
+        {
+            "CONTRACT",
+        }),
+        ("ALTER SERVICE {name} (* DROP", SqlKeywordPosition.StatementStart, "ALTER SERVICE t (DROP ", true, false, true, false, new string[]
+        {
+            "CONTRACT",
+        }),
+        ("ALTER SERVICE {name} (* ADD CONTRACT", SqlKeywordPosition.StatementStart, "ALTER SERVICE t (ADD CONTRACT ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER SERVICE {name} (* DROP CONTRACT", SqlKeywordPosition.StatementStart, "ALTER SERVICE t (DROP CONTRACT ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER SERVICE {name} ON QUEUE {name} (*", SqlKeywordPosition.StatementStart, "ALTER SERVICE t ON QUEUE t (", true, false, false, false, new string[]
+        {
+            "ADD", "DROP",
+        }),
+        ("ALTER SERVICE {name} ON QUEUE {name} (* ADD", SqlKeywordPosition.StatementStart, "ALTER SERVICE t ON QUEUE t (ADD ", true, false, true, false, new string[]
+        {
+            "CONTRACT",
+        }),
+        ("ALTER SERVICE {name} ON QUEUE {name} (* DROP", SqlKeywordPosition.StatementStart, "ALTER SERVICE t ON QUEUE t (DROP ", true, false, true, false, new string[]
+        {
+            "CONTRACT",
+        }),
+        ("ALTER SERVICE {name} ON QUEUE {name} (* ADD CONTRACT", SqlKeywordPosition.StatementStart, "ALTER SERVICE t ON QUEUE t (ADD CONTRACT ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER SERVICE {name} ON QUEUE {name} (* DROP CONTRACT", SqlKeywordPosition.StatementStart, "ALTER SERVICE t ON QUEUE t (DROP CONTRACT ", false, false, true, false, new string[]
         {
         }),
         ("CREATE ENDPOINT ... FOR SERVICE_BROKER (*", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (", true, false, false, false, new string[]
@@ -17200,6 +17276,18 @@ internal static class SqlKeywordCatalogData
         ("CREATE MESSAGE TYPE {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t AUTHORIZATION t ", true, false, false, true, new string[]
         {
             "VALIDATION",
+        }),
+        ("CREATE ROUTE {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE ROUTE t AUTHORIZATION t ", true, false, false, false, new string[]
+        {
+            "WITH",
+        }),
+        ("ALTER SERVICE {name}", SqlKeywordPosition.StatementStart, "ALTER SERVICE t ", true, false, false, false, new string[]
+        {
+            "ON QUEUE",
+        }),
+        ("ALTER SERVICE {name} ON", SqlKeywordPosition.StatementStart, "ALTER SERVICE t ON ", true, false, false, false, new string[]
+        {
+            "QUEUE",
         }),
         ("CREATE ENDPOINT ... FOR", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR ", true, false, false, false, new string[]
         {

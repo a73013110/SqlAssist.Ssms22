@@ -1069,12 +1069,15 @@ internal sealed class PhraseExplorer
             return true;
         }
 
-        if (next == null || !StartsWord.IsMatch(next))
+        // 下一項是括號的，看名稱撐不撐得過左括號（ALTER SERVICE s (ADD CONTRACT c)）。
+        var literal = next is "()" or "(*" ? "(" : next;
+
+        if (literal == null || !StartsWord.IsMatch(literal) && literal != "(")
         {
             return false;
         }
 
-        return _prober.FirstEndingPast(probe + Continuations.PlainName + " " + next, _continuations, probe.Length) != null;
+        return _prober.FirstEndingPast(probe + Continuations.PlainName + " " + literal, _continuations, probe.Length) != null;
     }
 
     // 這一格只收變數：變數之後再接一個字，剖析器也不在變數本身報錯，普通名稱卻過不了。只看變數的話，剖析器在更前面報
