@@ -24,6 +24,7 @@ internal static class PolyBaseXePhrases
         new("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (*"),
         new("CREATE EXTERNAL MODEL {name} WITH (* MODEL_TYPE =") { Items = "LOCATION = 'x', API_FORMAT = 'x', " },
         new("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (* MODEL_TYPE =") { Items = "LOCATION = 'x', API_FORMAT = 'x', " },
+        new("ALTER EXTERNAL MODEL {name} SET (*"),
     ];
 
     // 宣告在用到它的片語之前：靜態欄位照書寫順序初始化。

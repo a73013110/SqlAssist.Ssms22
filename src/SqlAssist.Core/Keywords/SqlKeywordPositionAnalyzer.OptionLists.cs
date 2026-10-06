@@ -25,6 +25,22 @@ public sealed partial class SqlKeywordPositionAnalyzer
         skipsGroups: true);
 
     /// <summary>
+    /// <c>CREATE|ALTER TRIGGER tr ON t WITH ENCRYPTION, EXECUTE AS 'u'</c>：選項寫完之後是標頭的尾端。
+    /// </summary>
+    /// <remarks>
+    /// 片語比對也拿它跳過寫完的選項（<see cref="SkipTriggerOptions"/>），排在 <see cref="OptionLists"/> 之前的理由同上。
+    /// </remarks>
+    private static readonly OptionList TriggerOptions = new(
+        isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
+        isPart: (analyzer, index) => analyzer.IsPlainWord(index) ||
+            analyzer.tokens[index].Kind == SqlTokenKind.String ||
+            analyzer.IsExecuteAs(index),
+        endsItem: (analyzer, index) => analyzer.IsPlainWord(index) || analyzer.tokens[index].Kind == SqlTokenKind.String,
+        header: (analyzer, with) => analyzer.IsTriggerTarget(with - 1)
+            ? new OptionSlots(SqlKeywordPosition.TriggerOption, SqlKeywordPosition.TriggerHeader)
+            : null);
+
+    /// <summary>
     /// 敘述自己的選項清單；每一種一筆，形狀相同：往回走過清單、找到錨點、驗證錨點前的標頭。
     /// </summary>
     /// <remarks>
@@ -69,16 +85,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             endsItem: (_, _) => true,
             header: (analyzer, anchor) => analyzer.FindTriggerEventSlots(anchor)),
 
-        // CREATE|ALTER TRIGGER tr ON t WITH ENCRYPTION, EXECUTE AS 'u'：選項寫完之後是標頭的尾端。
-        new(
-            isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
-            isPart: (analyzer, index) => analyzer.IsPlainWord(index) ||
-                analyzer.tokens[index].Kind == SqlTokenKind.String ||
-                analyzer.IsExecuteAs(index),
-            endsItem: (analyzer, index) => analyzer.IsPlainWord(index) || analyzer.tokens[index].Kind == SqlTokenKind.String,
-            header: (analyzer, with) => analyzer.IsTriggerTarget(with - 1)
-                ? new OptionSlots(SqlKeywordPosition.TriggerOption, SqlKeywordPosition.TriggerHeader)
-                : null),
+        TriggerOptions,
 
         // GRANT|DENY|REVOKE SELECT, UPDATE (a, b), VIEW DEFINITION：權限寫完之後是 ON、TO、FROM。
         // 一項的開頭（GRANT 、REVOKE GRANT OPTION FOR 與逗號之後）是清單片語的格子，權限名稱由片語給；
@@ -153,6 +160,21 @@ public sealed partial class SqlKeywordPositionAnalyzer
     internal int FindPhraseListAnchor(int last)
     {
         return PhraseList.FindAnchor(this, last, out _);
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 寫完觸發程序目標之後的 WITH 選項時，目標的最後一個詞元；不是就原樣回傳。
+    /// </summary>
+    /// <remarks>
+    /// 選項只改觸發程序怎麼執行，不改標頭之後接什麼：<c>ON DATABASE WITH ENCRYPTION, EXECUTE AS SELF AFTER</c> 的事件
+    /// 與 <c>ON DATABASE AFTER</c> 相同。片語比對拿它跨過選項，片語不必為每一種選項組合各寫一份；
+    /// 選項裡的 <c>EXECUTE</c> 也能開始一句，<c>...</c> 從動詞寫起的比對跨不過去。
+    /// </remarks>
+    internal int SkipTriggerOptions(int last)
+    {
+        var with = TriggerOptions.FindAnchor(this, last, out var atStart);
+
+        return with >= 1 && !atStart && IsTriggerTarget(with - 1) ? with - 1 : last;
     }
 
     /// <summary>

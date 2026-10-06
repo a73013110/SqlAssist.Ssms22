@@ -101,6 +101,12 @@ internal static class StatementPhrases
     [
         new("EXECUTE AS"),
         new("EXEC AS"),
+        // 切換內容之後的 WITH NO REVERT、WITH COOKIE INTO @變數：語句到主體已經完整，WITH 是 CTE 的開頭被扣掉；
+        // NO、COOKIE 剖析器要讀完整段才收，兩段都是證據。COOKIE INTO 之後只收變數。
+        .. from verb in new[] { "EXECUTE", "EXEC" }
+           from principal in new[] { "USER", "LOGIN" }
+           from tail in new[] { "WITH NO REVERT", "WITH COOKIE INTO" }
+           select new PhraseDeclaration($"{verb} AS {principal} = {{value}} {tail}"),
         new("ENABLE TRIGGER") { Closed = false },
         new("DISABLE TRIGGER") { Closed = false },
     ];

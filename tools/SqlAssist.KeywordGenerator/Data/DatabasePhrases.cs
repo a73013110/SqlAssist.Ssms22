@@ -17,6 +17,8 @@ internal static class DatabasePhrases
         new("CREATE DATABASE {name} CONTAINMENT ="),
         .. CreateDatabase("CREATE DATABASE {name} ON"),
         .. CreateDatabase("CREATE DATABASE {name} CONTAINMENT = {name} ON"),
+        // 資料庫快照集：檔案規格之後是 AS SNAPSHOT OF 來源資料庫。SNAPSHOT 剖析器要讀到 OF 才收，寫到 SNAPSHOT 的整段是證據。
+        new("CREATE DATABASE {name} ON ,* () AS SNAPSHOT") { Group = FileSpec },
 
         // WITH 之後的資料庫選項（LEDGER = ON、TRUSTWORTHY ON、FILESTREAM (…)）是逗號清單。WITH 寫在名稱、COLLATE、檔案規格
         // 或 FOR ATTACH 之後，前面那段由 ... 走過（拿 COLLATE 探：檔案規格之後的 WITH 那一格已由上面的 ,* () 立起）。
@@ -100,6 +102,9 @@ internal static class DatabasePhrases
 
     internal static readonly PhraseDeclaration[] AvailabilityGroups =
     [
+        // 資料庫加入可用性群組：SET HADR 之後的 AVAILABILITY GROUP = 剖析器要看到整段才收，整段是證據。
+        new("ALTER DATABASE {name} SET HADR AVAILABILITY GROUP ="),
+
         // 可用性複本：ON 之後是一或多個 '伺服器' WITH (…)，中段的 ,* 走過前面幾個複本。括號裡的選項等號之後是值
         // （FAILOVER_MODE = MANUAL），角色選項再開一組括號。SEEDING_MODE、AUTOMATED_BACKUP_PREFERENCE 這幾個剖析器還不認得。
         // CREATE 的複本寫在 FOR DATABASE 清單之後，前面那段由 ... 走過。

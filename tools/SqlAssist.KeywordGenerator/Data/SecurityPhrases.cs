@@ -285,6 +285,8 @@ internal static class SecurityPhrases
         new("") { After = ["PermissionOn"], Closed = false, Classes = true },
         new("ALTER AUTHORIZATION ON") { Closed = false, Classes = true },
         new("TO SCHEMA OWNER") { Lead = "ALTER AUTHORIZATION ON OBJECT::t " },
+        // 把物件移到另一個結構描述：TRANSFER 之後是類別（OBJECT::、TYPE::、XML SCHEMA COLLECTION::）或直接寫物件名稱。
+        new("ALTER SCHEMA {name} TRANSFER") { Closed = false, Classes = true },
 
         // 權限清單：GRANT、DENY、REVOKE 之後以逗號分隔，REVOKE 還可以先寫 GRANT OPTION FOR。權限名稱由 Evidence 一個字一個字列
         // （VIEW 之後是 DEFINITION、CHANGE、ANY…），寫完一個權限之後的 ON、TO 由位置分析（PermissionList）給。

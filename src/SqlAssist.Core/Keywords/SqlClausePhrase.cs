@@ -210,12 +210,20 @@ public sealed class SqlClausePhrase
                 return MatchItems(tokens, index, element, analyzer);
             }
 
-            index = _elements[element].MatchBackward(tokens, index);
+            var before = _elements[element].MatchBackward(tokens, index);
 
-            if (index == Element.Mismatch)
+            // 前後兩項之間可以夾著寫完的觸發程序選項（ON DATABASE WITH ENCRYPTION AFTER）：片語不寫選項，跨過再比一次。
+            if (before == Element.Mismatch && element < end - 1 && analyzer.SkipTriggerOptions(index) is var target && target != index)
+            {
+                before = _elements[element].MatchBackward(tokens, target);
+            }
+
+            if (before == Element.Mismatch)
             {
                 return -1;
             }
+
+            index = before;
         }
 
         return index + 1;

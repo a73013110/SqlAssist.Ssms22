@@ -72,6 +72,11 @@ internal static class ServiceBrokerPhrases
         new("CREATE SERVICE {name} AUTHORIZATION {name}") { Expand = 4 },
         new("CREATE MESSAGE TYPE {name} VALIDATION =") { Expand = 2 },
         new("CREATE MESSAGE TYPE {name} AUTHORIZATION {name} VALIDATION =") { Expand = 2 },
+        new("ALTER MESSAGE TYPE {name} VALIDATION =") { Expand = 2 },
+        // VALID_XML 之後的 WITH SCHEMA COLLECTION：語句到值已經完整，WITH 被當成 CTE 的開頭扣掉，整段是證據。
+        new("CREATE MESSAGE TYPE {name} VALIDATION = VALID_XML WITH SCHEMA COLLECTION"),
+        new("CREATE MESSAGE TYPE {name} AUTHORIZATION {name} VALIDATION = VALID_XML WITH SCHEMA COLLECTION"),
+        new("ALTER MESSAGE TYPE {name} VALIDATION = VALID_XML WITH SCHEMA COLLECTION"),
         new("CREATE REMOTE SERVICE BINDING {name} TO") { Expand = 2 },
         new("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name}") { Expand = 3 },
 

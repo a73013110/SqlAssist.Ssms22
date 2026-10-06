@@ -5,6 +5,8 @@
 
 標頭開的逗號選項清單寫成 `ALTER USER {name} WITH ,*`，共用位置 `OptionItem`（各佔位元不夠）；
 DDL 觸發程序的事件（`ON DATABASE FOR`）也是，事件依標頭而不同，寫完一項仍回報 `TriggerEventEnd`。
+目標與 `FOR` 之間的 `WITH` 選項不改事件，片語比對跨過寫完的選項（`SkipTriggerOptions`），否則每種選項組合都要一份片語；
+`...` 跨不過去，選項裡的 `EXECUTE` 也能開始一句。
 分析器走訪清單交出錨點，比對錨點前的標頭。
 GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限清單的走訪回報 `OptionItem`，寫完一個權限照舊是 `PermissionList`。
 中段 `,*` 之後是字面字或名稱時，它開始一項、前面緊接標頭或逗號，否則 `GRANT SELECT ON EXTERNAL` 的類別會比對成權限，

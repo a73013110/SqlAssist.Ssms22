@@ -166,6 +166,7 @@ public sealed class SqlScriptVariableTests
     [InlineData("DECLARE @readerId UNIQUEIDENTIFIER;\r\nBEGIN DIALOG CONVERSATION |")]
     [InlineData("DECLARE @readerId UNIQUEIDENTIFIER;\r\nGET CONVERSATION GROUP |")]
     [InlineData("DECLARE @readerId UNIQUEIDENTIFIER;\r\nWAITFOR (GET CONVERSATION GROUP |")]
+    [InlineData("DECLARE @readerId VARBINARY(8000);\r\nEXECUTE AS USER = 'LibUser' WITH COOKIE INTO |")]
     public void 收變數的封閉片語連變數一起列(string sqlWithCaret)
     {
         var input = SqlWithCaret.Parse(sqlWithCaret);

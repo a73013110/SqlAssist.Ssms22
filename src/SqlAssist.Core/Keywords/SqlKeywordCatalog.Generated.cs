@@ -2982,7 +2982,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER DATABASE {name} SET HADR", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET HADR ", true, false, false, false, new string[]
         {
-            "OFF", "RESUME", "SUSPEND",
+            "OFF", "RESUME", "SUSPEND", "AVAILABILITY GROUP",
         }),
         ("ALTER DATABASE {name} SET HONOR_BROKER_PRIORITY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET HONOR_BROKER_PRIORITY ", true, false, false, false, new string[]
         {
@@ -3229,8 +3229,9 @@ internal static class SqlKeywordCatalogData
         {
             "AS", "COLLATE", "FOR", "LOG ON", "WITH",
         }),
-        ("CREATE DATABASE {name} ON ,* () AS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') AS ", false, false, true, false, new string[]
+        ("CREATE DATABASE {name} ON ,* () AS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') AS ", true, false, true, false, new string[]
         {
+            "SNAPSHOT OF",
         }),
         ("CREATE DATABASE {name} ON ,* () COLLATE", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') COLLATE ", false, false, true, false, new string[]
         {
@@ -3388,6 +3389,10 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} DEFAULT", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t DEFAULT ", true, false, false, false, new string[]
         {
+        }),
+        ("CREATE DATABASE {name} ON ,* () AS SNAPSHOT", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') AS SNAPSHOT ", true, false, false, false, new string[]
+        {
+            "OF",
         }),
         ("CREATE DATABASE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH ", true, false, false, false, new string[]
         {
@@ -3986,6 +3991,9 @@ internal static class SqlKeywordCatalogData
         ("WITH ROLLBACK AFTER {value}", SqlKeywordPosition.Any, "ALTER DATABASE t SET SINGLE_USER WITH ROLLBACK AFTER 1 ", true, false, false, true, new string[]
         {
             "SECONDS",
+        }),
+        ("ALTER DATABASE {name} SET HADR AVAILABILITY GROUP =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET HADR AVAILABILITY GROUP = ", false, false, true, false, new string[]
+        {
         }),
         ("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ON 'x' WITH (", true, false, false, false, new string[]
         {
@@ -8294,6 +8302,30 @@ internal static class SqlKeywordCatalogData
         {
             "CALLER", "LOGIN", "USER",
         }),
+        ("EXECUTE AS USER = {value} WITH NO REVERT", SqlKeywordPosition.StatementStart, "EXECUTE AS USER = 1 WITH NO REVERT ", true, false, false, true, new string[]
+        {
+        }),
+        ("EXECUTE AS USER = {value} WITH COOKIE INTO", SqlKeywordPosition.StatementStart, "EXECUTE AS USER = 1 WITH COOKIE INTO ", true, true, false, false, new string[]
+        {
+        }),
+        ("EXECUTE AS LOGIN = {value} WITH NO REVERT", SqlKeywordPosition.StatementStart, "EXECUTE AS LOGIN = 1 WITH NO REVERT ", true, false, false, true, new string[]
+        {
+        }),
+        ("EXECUTE AS LOGIN = {value} WITH COOKIE INTO", SqlKeywordPosition.StatementStart, "EXECUTE AS LOGIN = 1 WITH COOKIE INTO ", true, true, false, false, new string[]
+        {
+        }),
+        ("EXEC AS USER = {value} WITH NO REVERT", SqlKeywordPosition.StatementStart, "EXEC AS USER = 1 WITH NO REVERT ", true, false, false, true, new string[]
+        {
+        }),
+        ("EXEC AS USER = {value} WITH COOKIE INTO", SqlKeywordPosition.StatementStart, "EXEC AS USER = 1 WITH COOKIE INTO ", true, true, false, false, new string[]
+        {
+        }),
+        ("EXEC AS LOGIN = {value} WITH NO REVERT", SqlKeywordPosition.StatementStart, "EXEC AS LOGIN = 1 WITH NO REVERT ", true, false, false, true, new string[]
+        {
+        }),
+        ("EXEC AS LOGIN = {value} WITH COOKIE INTO", SqlKeywordPosition.StatementStart, "EXEC AS LOGIN = 1 WITH COOKIE INTO ", true, true, false, false, new string[]
+        {
+        }),
         ("ON DELETE", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE ", true, false, false, false, new string[]
         {
             "CASCADE", "NO ACTION", "SET",
@@ -9546,6 +9578,11 @@ internal static class SqlKeywordCatalogData
         ("CREATE EXTERNAL MODEL {name} AUTHORIZATION {name} WITH (* MODEL_TYPE =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL MODEL t AUTHORIZATION t WITH (MODEL_TYPE = ", true, false, false, false, new string[]
         {
             "EMBEDDINGS",
+        }),
+        ("ALTER EXTERNAL MODEL {name} SET (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL MODEL t SET (", true, false, false, false, new string[]
+        {
+            "API_FORMAT", "CREDENTIAL", "LOCAL_RUNTIME_PATH", "LOCATION", "MODEL", "MODEL_TYPE",
+            "PARAMETERS",
         }),
         ("CREATE EXTERNAL LIBRARY {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t FROM (", true, false, true, false, new string[]
         {
@@ -12146,6 +12183,10 @@ internal static class SqlKeywordCatalogData
         ("TO SCHEMA OWNER", SqlKeywordPosition.Any, "ALTER AUTHORIZATION ON OBJECT::t TO SCHEMA OWNER ", true, false, false, true, new string[]
         {
         }),
+        ("ALTER SCHEMA {name} TRANSFER", SqlKeywordPosition.StatementStart, "ALTER SCHEMA t TRANSFER ", false, false, true, false, new string[]
+        {
+            "OBJECT", "TYPE", "XML",
+        }),
         ("GRANT", SqlKeywordPosition.StatementStart, "GRANT ", true, false, true, false, new string[]
         {
             "ADMINISTER", "ALTER", "AUTHENTICATE", "BACKUP", "CHECKPOINT", "CONNECT", "CONTROL",
@@ -14426,11 +14467,24 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE MESSAGE TYPE {name} VALIDATION =", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t VALIDATION = ", true, false, false, false, new string[]
         {
-            "EMPTY", "NONE", "VALID_XML", "WELL_FORMED_XML",
+            "EMPTY", "NONE", "VALID_XML WITH SCHEMA COLLECTION", "WELL_FORMED_XML",
         }),
         ("CREATE MESSAGE TYPE {name} AUTHORIZATION {name} VALIDATION =", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t AUTHORIZATION t VALIDATION = ", true, false, false, false, new string[]
         {
-            "EMPTY", "NONE", "VALID_XML", "WELL_FORMED_XML",
+            "EMPTY", "NONE", "VALID_XML WITH SCHEMA COLLECTION", "WELL_FORMED_XML",
+        }),
+        ("ALTER MESSAGE TYPE {name} VALIDATION =", SqlKeywordPosition.StatementStart, "ALTER MESSAGE TYPE t VALIDATION = ", true, false, false, false, new string[]
+        {
+            "EMPTY", "NONE", "VALID_XML WITH SCHEMA COLLECTION", "WELL_FORMED_XML",
+        }),
+        ("CREATE MESSAGE TYPE {name} VALIDATION = VALID_XML WITH SCHEMA COLLECTION", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t VALIDATION = VALID_XML WITH SCHEMA COLLECTION ", false, false, true, false, new string[]
+        {
+        }),
+        ("CREATE MESSAGE TYPE {name} AUTHORIZATION {name} VALIDATION = VALID_XML WITH SCHEMA COLLECTION", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t AUTHORIZATION t VALIDATION = VALID_XML WITH SCHEMA COLLECTION ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER MESSAGE TYPE {name} VALIDATION = VALID_XML WITH SCHEMA COLLECTION", SqlKeywordPosition.StatementStart, "ALTER MESSAGE TYPE t VALIDATION = VALID_XML WITH SCHEMA COLLECTION ", false, false, true, false, new string[]
+        {
         }),
         ("CREATE REMOTE SERVICE BINDING {name} TO", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO ", true, false, true, false, new string[]
         {
@@ -15949,6 +16003,10 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
+        ("ALTER EXTERNAL MODEL {name} SET (* MODEL_TYPE =", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL MODEL t SET (MODEL_TYPE = ", true, false, false, false, new string[]
+        {
+            "EMBEDDINGS",
+        }),
         ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* MESSAGE_FORWARDING =", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (MESSAGE_FORWARDING = ", true, false, false, false, new string[]
         {
             "DISABLED", "ENABLED",
@@ -16145,6 +16203,10 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} SET ,* OPTIMIZED_LOCKING = {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET OPTIMIZED_LOCKING = OFF ", true, false, false, true, new string[]
         {
             "WITH",
+        }),
+        ("ALTER DATABASE {name} SET HADR AVAILABILITY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET HADR AVAILABILITY ", true, false, false, false, new string[]
+        {
+            "GROUP",
         }),
         ("ALTER AVAILABILITY GROUP {name} ADD", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD ", true, false, true, false, new string[]
         {
@@ -16713,6 +16775,70 @@ internal static class SqlKeywordCatalogData
         ("EXEC", SqlKeywordPosition.StatementStart, "EXEC ", false, true, true, false, new string[]
         {
             "AS", "OPENDATASOURCE",
+        }),
+        ("EXECUTE AS USER = {value}", SqlKeywordPosition.StatementStart, "EXECUTE AS USER = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE", "WITH",
+        }),
+        ("EXECUTE AS USER = {value} WITH", SqlKeywordPosition.StatementStart, "EXECUTE AS USER = 1 WITH ", true, false, false, false, new string[]
+        {
+            "NO", "COOKIE INTO",
+        }),
+        ("EXECUTE AS USER = {value} WITH NO", SqlKeywordPosition.StatementStart, "EXECUTE AS USER = 1 WITH NO ", true, false, false, false, new string[]
+        {
+            "INTO", "REVERT",
+        }),
+        ("EXECUTE AS USER = {value} WITH COOKIE", SqlKeywordPosition.StatementStart, "EXECUTE AS USER = 1 WITH COOKIE ", true, false, false, false, new string[]
+        {
+            "INTO",
+        }),
+        ("EXECUTE AS LOGIN = {value}", SqlKeywordPosition.StatementStart, "EXECUTE AS LOGIN = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE", "WITH",
+        }),
+        ("EXECUTE AS LOGIN = {value} WITH", SqlKeywordPosition.StatementStart, "EXECUTE AS LOGIN = 1 WITH ", true, false, false, false, new string[]
+        {
+            "NO", "COOKIE INTO",
+        }),
+        ("EXECUTE AS LOGIN = {value} WITH NO", SqlKeywordPosition.StatementStart, "EXECUTE AS LOGIN = 1 WITH NO ", true, false, false, false, new string[]
+        {
+            "INTO", "REVERT",
+        }),
+        ("EXECUTE AS LOGIN = {value} WITH COOKIE", SqlKeywordPosition.StatementStart, "EXECUTE AS LOGIN = 1 WITH COOKIE ", true, false, false, false, new string[]
+        {
+            "INTO",
+        }),
+        ("EXEC AS USER = {value}", SqlKeywordPosition.StatementStart, "EXEC AS USER = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE", "WITH",
+        }),
+        ("EXEC AS USER = {value} WITH", SqlKeywordPosition.StatementStart, "EXEC AS USER = 1 WITH ", true, false, false, false, new string[]
+        {
+            "NO", "COOKIE INTO",
+        }),
+        ("EXEC AS USER = {value} WITH NO", SqlKeywordPosition.StatementStart, "EXEC AS USER = 1 WITH NO ", true, false, false, false, new string[]
+        {
+            "INTO", "REVERT",
+        }),
+        ("EXEC AS USER = {value} WITH COOKIE", SqlKeywordPosition.StatementStart, "EXEC AS USER = 1 WITH COOKIE ", true, false, false, false, new string[]
+        {
+            "INTO",
+        }),
+        ("EXEC AS LOGIN = {value}", SqlKeywordPosition.StatementStart, "EXEC AS LOGIN = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE", "WITH",
+        }),
+        ("EXEC AS LOGIN = {value} WITH", SqlKeywordPosition.StatementStart, "EXEC AS LOGIN = 1 WITH ", true, false, false, false, new string[]
+        {
+            "NO", "COOKIE INTO",
+        }),
+        ("EXEC AS LOGIN = {value} WITH NO", SqlKeywordPosition.StatementStart, "EXEC AS LOGIN = 1 WITH NO ", true, false, false, false, new string[]
+        {
+            "INTO", "REVERT",
+        }),
+        ("EXEC AS LOGIN = {value} WITH COOKIE", SqlKeywordPosition.StatementStart, "EXEC AS LOGIN = 1 WITH COOKIE ", true, false, false, false, new string[]
+        {
+            "INTO",
         }),
         ("ENABLE", SqlKeywordPosition.StatementStart, "ENABLE ", true, false, false, false, new string[]
         {
@@ -17847,6 +17973,42 @@ internal static class SqlKeywordCatalogData
         {
             "VALIDATION",
         }),
+        ("CREATE MESSAGE TYPE {name} VALIDATION = VALID_XML", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t VALIDATION = VALID_XML ", true, false, false, false, new string[]
+        {
+            "WITH SCHEMA COLLECTION",
+        }),
+        ("CREATE MESSAGE TYPE {name} VALIDATION = VALID_XML WITH", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t VALIDATION = VALID_XML WITH ", true, false, false, false, new string[]
+        {
+            "SCHEMA COLLECTION",
+        }),
+        ("CREATE MESSAGE TYPE {name} VALIDATION = VALID_XML WITH SCHEMA", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t VALIDATION = VALID_XML WITH SCHEMA ", true, false, false, false, new string[]
+        {
+            "COLLECTION",
+        }),
+        ("CREATE MESSAGE TYPE {name} AUTHORIZATION {name} VALIDATION = VALID_XML", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t AUTHORIZATION t VALIDATION = VALID_XML ", true, false, false, false, new string[]
+        {
+            "WITH SCHEMA COLLECTION",
+        }),
+        ("CREATE MESSAGE TYPE {name} AUTHORIZATION {name} VALIDATION = VALID_XML WITH", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t AUTHORIZATION t VALIDATION = VALID_XML WITH ", true, false, false, false, new string[]
+        {
+            "SCHEMA COLLECTION",
+        }),
+        ("CREATE MESSAGE TYPE {name} AUTHORIZATION {name} VALIDATION = VALID_XML WITH SCHEMA", SqlKeywordPosition.StatementStart, "CREATE MESSAGE TYPE t AUTHORIZATION t VALIDATION = VALID_XML WITH SCHEMA ", true, false, false, false, new string[]
+        {
+            "COLLECTION",
+        }),
+        ("ALTER MESSAGE TYPE {name} VALIDATION = VALID_XML", SqlKeywordPosition.StatementStart, "ALTER MESSAGE TYPE t VALIDATION = VALID_XML ", true, false, false, false, new string[]
+        {
+            "WITH SCHEMA COLLECTION",
+        }),
+        ("ALTER MESSAGE TYPE {name} VALIDATION = VALID_XML WITH", SqlKeywordPosition.StatementStart, "ALTER MESSAGE TYPE t VALIDATION = VALID_XML WITH ", true, false, false, false, new string[]
+        {
+            "SCHEMA COLLECTION",
+        }),
+        ("ALTER MESSAGE TYPE {name} VALIDATION = VALID_XML WITH SCHEMA", SqlKeywordPosition.StatementStart, "ALTER MESSAGE TYPE t VALIDATION = VALID_XML WITH SCHEMA ", true, false, false, false, new string[]
+        {
+            "COLLECTION",
+        }),
         ("CREATE ROUTE {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE ROUTE t AUTHORIZATION t ", true, false, false, false, new string[]
         {
             "WITH",
@@ -18038,6 +18200,14 @@ internal static class SqlKeywordCatalogData
         ("ALTER AUTHORIZATION ON AVAILABILITY", SqlKeywordPosition.StatementStart, "ALTER AUTHORIZATION ON AVAILABILITY ", true, false, false, false, new string[]
         {
             "GROUP", "TO",
+        }),
+        ("ALTER SCHEMA {name} TRANSFER XML", SqlKeywordPosition.StatementStart, "ALTER SCHEMA t TRANSFER XML ", true, false, false, true, new string[]
+        {
+            "SCHEMA",
+        }),
+        ("ALTER SCHEMA {name} TRANSFER XML SCHEMA", SqlKeywordPosition.StatementStart, "ALTER SCHEMA t TRANSFER XML SCHEMA ", true, false, true, false, new string[]
+        {
+            "COLLECTION",
         }),
         ("DBCC CHECKDB (*", SqlKeywordPosition.StatementStart, "DBCC CHECKDB (", false, true, true, false, new string[]
         {
