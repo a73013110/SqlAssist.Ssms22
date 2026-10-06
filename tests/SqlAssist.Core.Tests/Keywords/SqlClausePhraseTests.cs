@@ -600,6 +600,14 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE SYMMETRIC KEY LibKey WITH ALGORITHM = AES_256 ENCRYPTION BY CERTIFICATE LibCert, PASSWORD = 'x', ", "SYMMETRIC KEY", "ASYMMETRIC KEY")]
     [InlineData("CREATE LOGIN LibLogin FROM EXTERNAL PROVIDER WITH ", "DEFAULT_DATABASE", "DEFAULT_LANGUAGE")]
     [InlineData("CREATE LOGIN LibLogin FROM EXTERNAL PROVIDER WITH DEFAULT_DATABASE = LibArchive, ", "DEFAULT_LANGUAGE")]
+    [InlineData("BEGIN ", "CONVERSATION", "DIALOG")]
+    [InlineData("BEGIN CONVERSATION TIMER (@Handle) ", "TIMEOUT")]
+    [InlineData("END CONVERSATION @Handle ", "WITH")]
+    [InlineData("END CONVERSATION @Handle WITH ", "ERROR", "CLEANUP")]
+    [InlineData("END CONVERSATION @Handle WITH ERROR = @Code ", "DESCRIPTION")]
+    [InlineData("REVERT WITH ", "COOKIE")]
+    [InlineData("EXEC ('SELECT 1') AS ", "LOGIN", "USER")]
+    [InlineData("EXECUTE (@Sql) AS USER = 'LibUser' ", "AT")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -821,6 +829,22 @@ public sealed class SqlClausePhraseTests
         Assert.False(context.ClausePhrase!.IsCertain);
         Assert.Contains(phraseWord, offered);
         Assert.Contains(nextStatementWord, offered);
+    }
+
+    /// <summary>
+    /// END 之後的 CONVERSATION 只加字：同一個 END 也可能收掉 BEGIN 區塊，區塊之後的字與下一句的開頭照列。
+    /// </summary>
+    [Theory]
+    [InlineData("END ")]
+    [InlineData("IF 1 = 1\nBEGIN\n  SELECT 1;\nEND ")]
+    [InlineData("IF 1 = 1\nBEGIN\n  SELECT 1;\nEND\nEND ")]
+    public void END之後的CONVERSATION只加字(string textBeforeCaret)
+    {
+        var offered = Offered(textBeforeCaret);
+
+        Assert.Contains("CONVERSATION", offered);
+        Assert.Contains("SELECT", offered);
+        Assert.Contains("ELSE", offered);
     }
 
     /// <summary>

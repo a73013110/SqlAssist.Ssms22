@@ -8345,6 +8345,76 @@ internal static class SqlKeywordCatalogData
         ("EXEC AS LOGIN = {value} WITH COOKIE INTO", SqlKeywordPosition.StatementStart, "EXEC AS LOGIN = 1 WITH COOKIE INTO ", true, true, false, false, new string[]
         {
         }),
+        ("REVERT WITH COOKIE =", SqlKeywordPosition.StatementStart, "REVERT WITH COOKIE = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("EXECUTE () AS", SqlKeywordPosition.StatementStart, "EXECUTE ('SELECT 1') AS ", true, false, false, false, new string[]
+        {
+            "LOGIN", "USER",
+        }),
+        ("EXECUTE () AS LOGIN", SqlKeywordPosition.StatementStart, "EXECUTE ('SELECT 1') AS LOGIN ", true, false, false, true, new string[]
+        {
+            "AT",
+        }),
+        ("EXECUTE () AS LOGIN AT", SqlKeywordPosition.StatementStart, "EXECUTE ('SELECT 1') AS LOGIN AT ", false, false, true, false, new string[]
+        {
+        }),
+        ("EXECUTE () AS LOGIN = {value}", SqlKeywordPosition.StatementStart, "EXECUTE ('SELECT 1') AS LOGIN = 'x' ", true, false, false, true, new string[]
+        {
+            "AT",
+        }),
+        ("EXECUTE () AS LOGIN = {value} AT", SqlKeywordPosition.StatementStart, "EXECUTE ('SELECT 1') AS LOGIN = 'x' AT ", false, false, true, false, new string[]
+        {
+        }),
+        ("EXECUTE () AS USER", SqlKeywordPosition.StatementStart, "EXECUTE ('SELECT 1') AS USER ", true, false, false, true, new string[]
+        {
+            "AT",
+        }),
+        ("EXECUTE () AS USER AT", SqlKeywordPosition.StatementStart, "EXECUTE ('SELECT 1') AS USER AT ", false, false, true, false, new string[]
+        {
+        }),
+        ("EXECUTE () AS USER = {value}", SqlKeywordPosition.StatementStart, "EXECUTE ('SELECT 1') AS USER = 'x' ", true, false, false, true, new string[]
+        {
+            "AT",
+        }),
+        ("EXECUTE () AS USER = {value} AT", SqlKeywordPosition.StatementStart, "EXECUTE ('SELECT 1') AS USER = 'x' AT ", false, false, true, false, new string[]
+        {
+        }),
+        ("EXEC () AS", SqlKeywordPosition.StatementStart, "EXEC ('SELECT 1') AS ", true, false, false, false, new string[]
+        {
+            "LOGIN", "USER",
+        }),
+        ("EXEC () AS LOGIN", SqlKeywordPosition.StatementStart, "EXEC ('SELECT 1') AS LOGIN ", true, false, false, true, new string[]
+        {
+            "AT",
+        }),
+        ("EXEC () AS LOGIN AT", SqlKeywordPosition.StatementStart, "EXEC ('SELECT 1') AS LOGIN AT ", false, false, true, false, new string[]
+        {
+        }),
+        ("EXEC () AS LOGIN = {value}", SqlKeywordPosition.StatementStart, "EXEC ('SELECT 1') AS LOGIN = 'x' ", true, false, false, true, new string[]
+        {
+            "AT",
+        }),
+        ("EXEC () AS LOGIN = {value} AT", SqlKeywordPosition.StatementStart, "EXEC ('SELECT 1') AS LOGIN = 'x' AT ", false, false, true, false, new string[]
+        {
+        }),
+        ("EXEC () AS USER", SqlKeywordPosition.StatementStart, "EXEC ('SELECT 1') AS USER ", true, false, false, true, new string[]
+        {
+            "AT",
+        }),
+        ("EXEC () AS USER AT", SqlKeywordPosition.StatementStart, "EXEC ('SELECT 1') AS USER AT ", false, false, true, false, new string[]
+        {
+        }),
+        ("EXEC () AS USER = {value}", SqlKeywordPosition.StatementStart, "EXEC ('SELECT 1') AS USER = 'x' ", true, false, false, true, new string[]
+        {
+            "AT",
+        }),
+        ("EXEC () AS USER = {value} AT", SqlKeywordPosition.StatementStart, "EXEC ('SELECT 1') AS USER = 'x' AT ", false, false, true, false, new string[]
+        {
+        }),
         ("ON DELETE", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE ", true, false, false, false, new string[]
         {
             "CASCADE", "NO ACTION", "SET",
@@ -14252,6 +14322,22 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION ", true, true, false, false, new string[]
         {
         }),
+        ("CONVERSATION TIMER () TIMEOUT =", SqlKeywordPosition.BlockStart, "BEGIN CONVERSATION TIMER (@h) TIMEOUT = ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
+            "TRY_CONVERT", "USER",
+        }),
+        ("CONVERSATION TIMER ()", SqlKeywordPosition.BlockStart, "BEGIN CONVERSATION TIMER (@h) ", true, false, true, false, new string[]
+        {
+            "TIMEOUT",
+        }),
+        ("END CONVERSATION {value} WITH ERROR = {value} DESCRIPTION =", SqlKeywordPosition.StatementStart, "END CONVERSATION 1 WITH ERROR = 1 DESCRIPTION = ", true, true, false, false, new string[]
+        {
+        }),
+        ("END CONVERSATION {value} WITH CLEANUP", SqlKeywordPosition.StatementStart, "END CONVERSATION 1 WITH CLEANUP ", true, false, false, true, new string[]
+        {
+        }),
         ("SEND ON CONVERSATION", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
@@ -16917,6 +17003,14 @@ internal static class SqlKeywordCatalogData
         {
             "INTO",
         }),
+        ("REVERT", SqlKeywordPosition.StatementStart, "REVERT ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("REVERT WITH", SqlKeywordPosition.StatementStart, "REVERT WITH ", true, false, true, false, new string[]
+        {
+            "COOKIE",
+        }),
         ("ENABLE", SqlKeywordPosition.StatementStart, "ENABLE ", true, false, false, false, new string[]
         {
             "TRIGGER",
@@ -18034,6 +18128,22 @@ internal static class SqlKeywordCatalogData
         {
             "SERVICE",
         }),
+        ("CONVERSATION", SqlKeywordPosition.BlockStart, "BEGIN CONVERSATION ", true, false, false, false, new string[]
+        {
+            "TIMER",
+        }),
+        ("END CONVERSATION {value}", SqlKeywordPosition.StatementStart, "END CONVERSATION 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE", "WITH",
+        }),
+        ("END CONVERSATION {value} WITH", SqlKeywordPosition.StatementStart, "END CONVERSATION 1 WITH ", true, false, false, false, new string[]
+        {
+            "CLEANUP", "ERROR",
+        }),
+        ("END CONVERSATION {value} WITH ERROR = {value}", SqlKeywordPosition.StatementStart, "END CONVERSATION 1 WITH ERROR = 1 ", true, false, true, false, new string[]
+        {
+            "DESCRIPTION",
+        }),
         ("SEND", SqlKeywordPosition.StatementStart, "SEND ", true, false, false, false, new string[]
         {
             "ON CONVERSATION",
@@ -18347,7 +18457,7 @@ internal static class SqlKeywordCatalogData
     internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
         ("", SqlKeywordPosition.None, "CREATE PROCEDURE p @p t ", new string[] { "READONLY" }),
-        ("", SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC", "DIALOG" }),
+        ("", SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC", "DIALOG", "CONVERSATION" }),
         ("", SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY", "SEND", "RECEIVE", "MOVE", "GET" }),
         ("", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
         ("", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),
@@ -18355,6 +18465,7 @@ internal static class SqlKeywordCatalogData
         ("", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN", "IGNORE", "RESPECT" }),
         ("AS", SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE AS ", new string[] { "EXTERNAL NAME" }),
         ("READONLY AS", SqlKeywordPosition.Any, "CREATE PROCEDURE p @p t READONLY AS ", new string[] { "EXTERNAL" }),
+        ("END", SqlKeywordPosition.StatementStart, "END ", new string[] { "CONVERSATION", "TRY", "CATCH" }),
         ("GRANT ,* ADMINISTER", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER ", new string[] { "BULK", "DATABASE" }),
         ("GRANT ,* ADMINISTER BULK", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER BULK ", new string[] { "OPERATIONS" }),
         ("GRANT ,* ADMINISTER DATABASE", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER DATABASE ", new string[] { "BULK" }),

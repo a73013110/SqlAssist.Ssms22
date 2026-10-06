@@ -107,6 +107,11 @@ internal static class StatementPhrases
            from principal in new[] { "USER", "LOGIN" }
            from tail in new[] { "WITH NO REVERT", "WITH COOKIE INTO" }
            select new PhraseDeclaration($"{verb} AS {principal} = {{value}} {tail}"),
+        // REVERT WITH COOKIE = @變數：理由同上，REVERT 寫完已是完整的一句，整段是證據。
+        new("REVERT WITH COOKIE ="),
+        // 動態 SQL 的 EXEC ('…') AS LOGIN|USER = '名稱'：以括號結尾的一段證據不立，從 AS 宣告、往下展開。
+        .. from verb in new[] { "EXECUTE", "EXEC" }
+           select new PhraseDeclaration($"{verb} () AS") { Group = "('SELECT 1')", Expand = 3 },
         new("ENABLE TRIGGER") { Closed = false },
         new("DISABLE TRIGGER") { Closed = false },
     ];

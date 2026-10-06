@@ -33,6 +33,17 @@ internal static class ServiceBrokerPhrases
         // 對話代碼那一格只收變數：以名稱結尾的格子證據不立，另外宣告；否則 CONVERSATION 被讀成 DIALOG {name} 的名稱，只列 FROM。
         new("DIALOG CONVERSATION") { After = ["BlockStart"] },
 
+        // BEGIN CONVERSATION TIMER (@h) TIMEOUT = 秒數：同樣從 BEGIN 之後的區塊開頭寫起。以括號結尾的一段證據不立，另外宣告。
+        new("CONVERSATION TIMER () TIMEOUT =") { After = ["BlockStart"], Group = "(@h)" },
+        new("CONVERSATION TIMER ()") { After = ["BlockStart"], Group = "(@h)" },
+
+        // END CONVERSATION @h [WITH ERROR = n DESCRIPTION = 'x' | WITH CLEANUP]：寫完對話代碼已是完整的一句，WITH 是 CTE 的開頭
+        // 被扣掉；ERROR、CLEANUP 剖析器要讀完整段才收，兩段都是證據。END 之後只加字：同一個 END 也可能收掉 BEGIN 區塊，
+        // 確定的比對會藏掉 ELSE、TRY 與下一句的開頭。
+        new("END") { Additive = true },
+        new("END CONVERSATION {value} WITH ERROR = {value} DESCRIPTION ="),
+        new("END CONVERSATION {value} WITH CLEANUP"),
+
         // 對話的 SEND 與 RECEIVE 不是保留字：從語句開頭宣告，兩個字才成為語句開頭（StartsStatementAsPhrase），
         // 前一句寫完換行之後列得出、範圍分析也切得開。RECEIVE 之後是選取清單，不展開；單寫 RECEIVE 是批次開頭省略 EXEC
         // 的程序呼叫（名稱讀法），寫到 FROM 才是它的證據。
