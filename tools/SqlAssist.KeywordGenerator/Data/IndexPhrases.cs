@@ -168,7 +168,16 @@ internal static class IndexPhrases
         // REBUILD 已是完整的語句，WITH 被當成下一句扣掉了，另外宣告。
         new("ALTER FULLTEXT CATALOG {name}") { Expand = 1 },
         new("ALTER FULLTEXT CATALOG {name} REBUILD WITH") { Expand = 1 },
-        // 停用字詞表的語句非以分號結尾不可。
+        // 目錄名稱之後依序可接 ON FILEGROUP、IN PATH、WITH ACCENT_SENSITIVITY、AS DEFAULT、AUTHORIZATION。名稱寫完就是完整的語句，
+        // WITH 同時是 CTE 的開頭，被當成下一句扣掉了，手寫補回來；前面夾了別的選項的 IN、WITH 以 ... 認。
+        new("CREATE FULLTEXT CATALOG {name}") { Expand = 2, Values = ["WITH"] },
+        new("CREATE FULLTEXT CATALOG ... IN") { Gap = "t ON FILEGROUP g" },
+        new("CREATE FULLTEXT CATALOG ... WITH") { Gap = "t IN PATH 'x'" },
+        // 停用字詞表的語句非以分號結尾不可：少了分號，名稱之後接得上整份語句開頭，不能從名稱或值往下展開。
+        // FROM SYSTEM STOPLIST 與 DROP ALL 剖析器把 SYSTEM、ALL 之前那一格當名稱或值讀，整段是證據；FROM 之後也收既有的停用字詞表，不封閉。
+        new("CREATE FULLTEXT STOPLIST {name} FROM") { Closed = false },
+        new("CREATE FULLTEXT STOPLIST {name} FROM SYSTEM STOPLIST"),
+        new("ALTER FULLTEXT STOPLIST {name} DROP ALL") { Endings = [" 1;"] },
         new("ALTER FULLTEXT STOPLIST {name} ADD {value}") { Endings = [" 1;"] },
         new("ALTER FULLTEXT STOPLIST {name} DROP {value}") { Endings = [" 1;"] },
     ];

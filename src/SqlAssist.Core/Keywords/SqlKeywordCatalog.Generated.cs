@@ -999,7 +999,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE FULLTEXT CATALOG {name}", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t ", true, false, false, true, new string[]
         {
-            "AS", "AUTHORIZATION", "IN", "ON",
+            "AS DEFAULT", "AUTHORIZATION", "IN", "ON FILEGROUP", "WITH",
         }),
         ("CREATE FULLTEXT CATALOG {name} AUTHORIZATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t AUTHORIZATION ", false, false, true, false, new string[]
         {
@@ -7097,6 +7097,71 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
+        ("CREATE FULLTEXT CATALOG {name} AS", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t AS ", true, false, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("CREATE FULLTEXT CATALOG {name} AS DEFAULT", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t AS DEFAULT ", true, false, false, true, new string[]
+        {
+            "AUTHORIZATION",
+        }),
+        ("CREATE FULLTEXT CATALOG {name} IN", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t IN ", true, false, true, false, new string[]
+        {
+            "PATH",
+        }),
+        ("CREATE FULLTEXT CATALOG {name} IN PATH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t IN PATH ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT CATALOG {name} ON", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t ON ", true, false, false, false, new string[]
+        {
+            "FILEGROUP",
+        }),
+        ("CREATE FULLTEXT CATALOG {name} ON FILEGROUP", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t ON FILEGROUP ", false, false, true, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT CATALOG {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t WITH ", true, false, true, false, new string[]
+        {
+            "ACCENT_SENSITIVITY",
+        }),
+        ("CREATE FULLTEXT CATALOG {name} WITH ACCENT_SENSITIVITY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t WITH ACCENT_SENSITIVITY ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE FULLTEXT CATALOG {name} WITH ACCENT_SENSITIVITY =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t WITH ACCENT_SENSITIVITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE FULLTEXT CATALOG ... IN", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t ON FILEGROUP g IN ", true, false, true, false, new string[]
+        {
+            "PATH",
+        }),
+        ("CREATE FULLTEXT CATALOG ... WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT CATALOG t IN PATH 'x' WITH ", true, false, true, false, new string[]
+        {
+            "ACCENT_SENSITIVITY",
+        }),
+        ("CREATE FULLTEXT STOPLIST {name} FROM", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT STOPLIST t FROM ", false, false, true, false, new string[]
+        {
+            "SYSTEM",
+        }),
+        ("CREATE FULLTEXT STOPLIST {name} FROM SYSTEM STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT STOPLIST t FROM SYSTEM STOPLIST ", true, false, true, false, new string[]
+        {
+            "ADD", "ALTER", "AUTHORIZATION", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT",
+            "CLOSE", "COMMIT", "CONTINUE", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE",
+            "DENY", "DROP", "ELSE", "END", "EXEC", "EXECUTE", "FETCH", "GOTO", "GRANT", "IF",
+            "INSERT", "KILL", "LINENO", "MERGE", "OPEN", "PRINT", "RAISERROR", "READTEXT",
+            "RECONFIGURE", "RESTORE", "RETURN", "REVERT", "REVOKE", "ROLLBACK", "SAVE",
+            "SELECT", "SET", "SETUSER", "SHUTDOWN", "TRUNCATE", "UPDATE", "UPDATETEXT", "USE",
+            "WAITFOR", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("ALTER FULLTEXT STOPLIST {name} DROP ALL", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT STOPLIST t DROP ALL ", true, false, false, false, new string[]
+        {
+            "ADD", "ALTER", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT", "CLOSE", "COMMIT",
+            "CONTINUE", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE", "DENY", "DROP",
+            "ELSE", "END", "EXEC", "EXECUTE", "FETCH", "GOTO", "GRANT", "IF", "INSERT", "KILL",
+            "LANGUAGE", "LINENO", "MERGE", "OPEN", "PRINT", "RAISERROR", "READTEXT",
+            "RECONFIGURE", "RESTORE", "RETURN", "REVERT", "REVOKE", "ROLLBACK", "SAVE",
+            "SELECT", "SET", "SETUSER", "SHUTDOWN", "TRUNCATE", "UPDATE", "UPDATETEXT", "USE",
+            "WAITFOR", "WHILE", "WITH", "WRITETEXT",
+        }),
         ("ALTER FULLTEXT STOPLIST {name} ADD {value}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT STOPLIST t ADD 'x' ", true, false, false, false, new string[]
         {
             "LANGUAGE",
@@ -8768,6 +8833,10 @@ internal static class SqlKeywordCatalogData
         ("FREETEXTTABLE (* {value} , {value} , {value} ,", SqlKeywordPosition.DataSource, "SELECT * FROM FREETEXTTABLE (t , t , 'x' , ", true, true, false, false, new string[]
         {
             "LANGUAGE",
+        }),
+        ("CONTAINS (", SqlKeywordPosition.Predicate, "SELECT * FROM t WHERE CONTAINS (", false, false, true, false, new string[]
+        {
+            "PROPERTY",
         }),
         ("CONTAINS (* {value} , {value} ,", SqlKeywordPosition.Predicate, "SELECT * FROM t WHERE CONTAINS (t , 'x' , ", true, false, false, false, new string[]
         {
@@ -16462,6 +16531,20 @@ internal static class SqlKeywordCatalogData
         ("ALTER FULLTEXT CATALOG {name} REBUILD", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT CATALOG t REBUILD ", true, false, false, true, new string[]
         {
             "WITH",
+        }),
+        ("CREATE FULLTEXT STOPLIST {name} FROM SYSTEM", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT STOPLIST t FROM SYSTEM ", true, false, true, false, new string[]
+        {
+            "ADD", "ALTER", "AUTHORIZATION", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT",
+            "CLOSE", "COMMIT", "CONTINUE", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE",
+            "DENY", "DROP", "ELSE", "END", "EXEC", "EXECUTE", "FETCH", "GOTO", "GRANT", "IF",
+            "INSERT", "KILL", "LINENO", "MERGE", "OPEN", "PRINT", "RAISERROR", "READTEXT",
+            "RECONFIGURE", "RESTORE", "RETURN", "REVERT", "REVOKE", "ROLLBACK", "SAVE",
+            "SELECT", "SET", "SETUSER", "SHUTDOWN", "STOPLIST", "TRUNCATE", "UPDATE",
+            "UPDATETEXT", "USE", "WAITFOR", "WHILE", "WITH", "WRITETEXT",
+        }),
+        ("ALTER FULLTEXT STOPLIST {name} DROP", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT STOPLIST t DROP ", true, false, false, false, new string[]
+        {
+            "ALL",
         }),
         ("RESAMPLE", SqlKeywordPosition.Any, "UPDATE STATISTICS t WITH RESAMPLE ", false, false, false, true, new string[]
         {

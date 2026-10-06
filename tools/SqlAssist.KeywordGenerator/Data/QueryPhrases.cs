@@ -44,6 +44,8 @@ internal static class QueryPhrases
         // 前面幾個引數寫法不一（資料行可以是清單、*、PROPERTY(…)），都是運算式。
         new("CONTAINSTABLE (* {value} , {value} , {value} ,") { After = ["DataSource"] },
         new("FREETEXTTABLE (* {value} , {value} , {value} ,") { After = ["DataSource"] },
+        // CONTAINS 的第一個引數另可寫 PROPERTY (資料行, '屬性')：名稱接不上那組括號，續尾手寫；資料行照常列，不封閉。
+        new("CONTAINS (") { After = ["Predicate"], Endings = ["(a, 'p'), 'x')"], Closed = false },
         new("CONTAINS (* {value} , {value} ,") { After = ["Predicate"] },
         new("FREETEXT (* {value} , {value} ,") { After = ["Predicate"] },
         new("PREDICT (*") { After = ["DataSource"] },

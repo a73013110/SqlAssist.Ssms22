@@ -34,15 +34,15 @@
 
 - `Expand`：每個接得上的字接在後面成為新片語。語句標頭寫完了照樣往下（`CREATE MASTER KEY` 之後的 `ENCRYPTION`），
   扣掉下一句的開頭沒有字就不立；子句裡的不往下，由位置分析說（否則藏掉 `IS NOT NULL` 之後的 `WITH`）。
-  普通名稱放在同一格也完整時，完整的可能只是名稱讀法（`OPEN SYMMETRIC` 也是資料指標）：另外扣掉名稱之後
-  接得上的字（`FETCH NEXT ` 之後不列 `INTO`）。
+  普通名稱放在同一格也完整時，可能只是名稱讀法（`OPEN SYMMETRIC` 也是資料指標）：另外扣掉名稱之後接得上的字。
+  非以分號結尾不可的語句（停用字詞表）扣不掉下一句的開頭：不從名稱或值展開（語句開頭會各展一層），寫整段證據。
   值、名稱與選項的等號各是一步、不算一層（`FETCH ABSOLUTE 1 FROM`）；接得了值的格子是運算式，
-  不走名稱與等號。等號之後的值不逐一展開，以第一個字與數值各往下一次（`SIZE = 5 MB`）。同一格只有層數比上次多才再展開，已由位置片語說了的不立。
-  宣告的 `Endings` 跟著往下：展開出來的每一格是同一條宣告（`MASKED` 要寫完 `WITH (FUNCTION = …)` 才驗）。
-- 探測代入：`{value}` 用剖析器收的數值或字串，都不收的照 `{name}`（`CONTAINSTABLE (` 的資料行）；`{name}` 用普通名稱，只收變數的用變數，其餘收不了的格子與等號之後用那一格列得出的
+  不走名稱與等號。等號之後的值不逐一展開，以第一個字與數值各往下一次（`SIZE = 5 MB`）。同一格層數比上次多才再展開，位置片語說了的不立。
+  宣告的 `Endings` 跟著往下（`MASKED` 要寫完 `WITH (FUNCTION = …)` 才驗）。
+- 探測代入：`{value}` 用剖析器收的數值或字串，都不收的照 `{name}`（`CONTAINSTABLE (` 的資料行）；`{name}` 用普通名稱，只收變數的用變數，其餘格子與等號之後用那一格列得出的
   第一個字：`ALGORITHM =` 什麼名稱都先收，整句寫完才驗。剖析器要看到下一個字才收名稱的
   （`ALTER SERVER AUDIT a WITH`、`ALTER SERVICE s (`）接上片語的下一項判，只收兩段的（擴充事件）代入 `t.t`。
-- `Kinds`：`CREATE`、`ALTER`、`DROP` 之後是物件種類，展開到名稱為止，名稱之後只列一層（`CREATE TABLE t ` 之後的 `AS`）：
+- `Kinds`：`CREATE`、`ALTER`、`DROP` 之後是物件種類，展開到名稱為止，名稱之後只列一層（`CREATE TABLE t ` 的 `AS`）：
   否則 `CREATE PROCEDURE p AS` 之後是整份語句開頭。更深的標頭各自宣告，已是位置的（`CREATE SEQUENCE t `）由位置片語說。
   `CREATE` 寫到名稱的種類（`SYMMETRIC KEY`、`UNIQUE CLUSTERED INDEX`、`OR ALTER PROCEDURE`）輸出成 `CreatedKinds`，
   位置分析拿它判新名字，不手寫名單；名稱寫得成兩段式（`CREATE INDEX s.i` 不行）另記 `SchemaQualified`。
