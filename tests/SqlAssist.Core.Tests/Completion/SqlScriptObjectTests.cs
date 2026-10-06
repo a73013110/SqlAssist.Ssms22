@@ -87,13 +87,14 @@ public sealed class SqlScriptObjectTests
     [InlineData(
         "CREATE FUNCTION f () RETURNS @out TABLE (a int) AS BEGIN\r\nSELECT * FROM |",
         "@out")]
+    [InlineData("CREATE PROCEDURE p @rows dbo.LoanList READONLY AS\r\nSELECT * FROM |", "@rows")]
     public void FROM之後列出資料表變數(string sqlWithCaret, string expected)
     {
         Assert.Equal(new[] { expected }, ScriptSources(sqlWithCaret));
     }
 
     /// <summary>
-    /// 讀不出資料行清單的小老鼠不算資料來源。
+    /// 看不出是資料表的小老鼠不算資料來源；資料表值參數有 <c>READONLY</c> 當憑據，算。
     /// </summary>
     /// <remarks>
     /// 井號開頭看形狀就分得完，小老鼠不行：<c>@readerId</c> 與 <c>@rows</c> 是同一種
@@ -102,7 +103,7 @@ public sealed class SqlScriptObjectTests
     /// </remarks>
     [Theory]
     [InlineData("DECLARE @readerId INT;\r\nSELECT * FROM |")]
-    [InlineData("DECLARE @rows dbo.LoanList READONLY;\r\nSELECT * FROM |")]
+    [InlineData("DECLARE @rows dbo.LoanList;\r\nSELECT * FROM |")]
     public void 不是資料表的變數不列出(string sqlWithCaret)
     {
         Assert.Empty(ScriptSources(sqlWithCaret));

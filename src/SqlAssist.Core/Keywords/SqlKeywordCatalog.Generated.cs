@@ -12040,6 +12040,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "EXCEPT", "FOR", "HAVING", "INTERSECT", "OPTION", "ORDER", "SETS",
             "UNION",
         }),
+        ("WITH", SqlKeywordPosition.GroupByTail, "SELECT * FROM t GROUP BY a WITH ", true, false, false, false, new string[]
+        {
+            "CUBE", "ROLLUP",
+        }),
         ("INNER", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t INNER ", true, false, false, false, new string[]
         {
             "HASH JOIN", "JOIN", "LOCAL", "LOOP JOIN", "MERGE JOIN", "REMOTE JOIN",
@@ -12303,6 +12307,10 @@ internal static class SqlKeywordCatalogData
         ("NOT", SqlKeywordPosition.ResultSetColumnTail, "EXEC p WITH RESULT SETS ((a int NOT ", true, false, false, false, new string[]
         {
             "NULL",
+        }),
+        ("TABLESAMPLE", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t TABLESAMPLE ", true, false, false, false, new string[]
+        {
+            "SYSTEM",
         }),
         ("", SqlKeywordPosition.TableSampleTail, "SELECT * FROM t TABLESAMPLE (10 ", true, false, false, false, new string[]
         {

@@ -64,6 +64,9 @@ DECLARE @rows TABLE (Id INT, CopyNo NVARCHAR(20));
 所以這一種只認名冊裡讀得出資料行的。少了這一條的症狀是 `FROM ` 之後列出每一個
 純量變數，而它們一個都插不進那個位置；整份不收則要使用者先打一個小老鼠，
 換到[變數](completion-variables.md)那份清單去找。
+資料表值參數（`@rows dbo.LoanRows READONLY`）也在名冊裡：`READONLY` 只寫在資料表型別的參數上，憑它就分得出來。
+資料行在型別定義裡，同一份指令碼寫了 `CREATE TYPE … AS TABLE (…)` 才讀得到，否則只有名稱；
+沒有 `READONLY` 的 `DECLARE @t dbo.LoanRows` 分不出型別是資料表還是別名型別，不收。
 
 三種在清單裡共用同一個圖示（`Ssms22/UI/SqlIcons`），與資料庫資料表分得開：它們
 回答的是同一件事——一張只活在這份文字裡的表，連線一斷就沒了。資料表變數曾經

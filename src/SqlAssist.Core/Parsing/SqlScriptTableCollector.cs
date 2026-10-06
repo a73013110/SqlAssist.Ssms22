@@ -8,9 +8,10 @@ namespace SqlAssist.Core.Parsing;
 /// 從指令碼裡讀出暫存資料表與資料表變數的資料行清單。
 /// </summary>
 /// <remarks>
-/// 只認<b>帶著資料行定義</b>的兩種寫法：<c>CREATE TABLE #tmp (…)</c> 與
+/// 認<b>帶著資料行定義</b>的兩種寫法：<c>CREATE TABLE #tmp (…)</c> 與
 /// <c>DECLARE @tmp [AS] TABLE (…)</c>（函式的 <c>RETURNS @tmp TABLE (…)</c> 是同一個
-/// 形狀，因此免費一起認得）。<c>SELECT … INTO #tmp</c> 不在這一份裡：它的資料行
+/// 形狀，因此免費一起認得）；資料表值參數（<c>@rows dbo.LoanRows READONLY</c>）的資料行在型別定義裡，
+/// 指令碼自己寫了 <c>CREATE TYPE … AS TABLE (…)</c> 才讀得出來。<c>SELECT … INTO #tmp</c> 不在這一份裡：它的資料行
 /// 要把整段選取清單遞迴攤平，而這裡是一趟走完的線性掃描，收得起來的只有形狀就看
 /// 得出來的東西。那一種由 <see cref="SqlColumnSourceResolver.FindScriptTable"/>
 /// 延後投影，兩者在那裡合成同一個型別。
@@ -89,7 +90,92 @@ public static class SqlScriptTableCollector
             index = listEnd;
         }
 
+        for (var index = 0; index < tokens.Count; index++)
+        {
+            if (ReadTableParameter(tokens, index, out var typeName, out var readOnly) is not { } name)
+            {
+                continue;
+            }
+
+            result ??= new Dictionary<string, SqlScriptTable>(StringComparer.OrdinalIgnoreCase);
+
+            if (!result.ContainsKey(name))
+            {
+                result.Add(
+                    name,
+                    new SqlScriptTable(name, () => ReadTypeColumns(tokens, typeName), tokens[index].Start, tokens[readOnly].End));
+            }
+
+            index = readOnly;
+        }
+
         return result ?? NoTables;
+    }
+
+    /// <summary>
+    /// <paramref name="index"/> 是資料表值參數（<c>@rows dbo.LoanRows READONLY</c>）時傳回參數名稱。
+    /// </summary>
+    /// <remarks>
+    /// <c>READONLY</c> 只寫在資料表型別的參數上，憑它就分得出不是純量；<c>DECLARE @t dbo.LoanRows</c> 沒有它，
+    /// 只看文字分不出型別是資料表還是別名型別，不收。少了這一條的症狀是程序裡 <c>FROM </c> 之後列不出自己的參數。
+    /// </remarks>
+    /// <param name="typeName">型別名稱的最後一段。</param>
+    /// <param name="readOnly"><c>READONLY</c> 的位置。</param>
+    private static string? ReadTableParameter(IReadOnlyList<SqlToken> tokens, int index, out string typeName, out int readOnly)
+    {
+        typeName = string.Empty;
+        readOnly = -1;
+
+        if (tokens[index].Kind != SqlTokenKind.Variable)
+        {
+            return null;
+        }
+
+        var type = index + 1 < tokens.Count && tokens[index + 1].IsKeyword("AS") ? index + 2 : index + 1;
+        var last = type;
+
+        while (last + 2 < tokens.Count && tokens[last + 1].IsPunctuation(".") && tokens[last + 2].Kind == SqlTokenKind.Identifier)
+        {
+            last += 2;
+        }
+
+        if (last + 1 >= tokens.Count ||
+            tokens[type].Kind != SqlTokenKind.Identifier ||
+            !tokens[last + 1].IsKeyword("READONLY"))
+        {
+            return null;
+        }
+
+        typeName = tokens[last].Value;
+        readOnly = last + 1;
+        return tokens[index].Value;
+    }
+
+    /// <summary>
+    /// 指令碼自己寫的 <c>CREATE TYPE … AS TABLE (…)</c> 裡 <paramref name="typeName"/> 的資料行；沒有這份定義時是空的。
+    /// </summary>
+    /// <remarks>型別在資料庫裡的那一份要問中繼資料，這裡讀不到，只留名稱。</remarks>
+    private static IReadOnlyList<SqlScriptColumn> ReadTypeColumns(IReadOnlyList<SqlToken> tokens, string typeName)
+    {
+        for (var open = 0; open < tokens.Count; open++)
+        {
+            if (FindDefinitionName(tokens, open) is not { } name ||
+                name.Start < 1 ||
+                !tokens[name.Start - 1].IsKeyword("TYPE") ||
+                !string.Equals(tokens[name.End - 1].Value, typeName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var close = SqlTokenNavigator.FindClosingParenthesis(tokens, open, tokens.Count);
+
+            if (close >= 0)
+            {
+                return ReadColumns(tokens, open + 1, close);
+            }
+        }
+
+        return Array.Empty<SqlScriptColumn>();
     }
 
     /// <summary>
@@ -227,8 +313,8 @@ public static class SqlScriptTableCollector
         }
 
         // DECLARE @tmp [AS] TABLE ( … ) 與 RETURNS @tmp TABLE ( … )。認的是
-        // 「變數 [AS] TABLE (」這個形狀本身：前面那個字不改變它宣告了什麼，
-        // 而 DECLARE @t dbo.MyType READONLY 這種資料表型別參數沒有這個形狀。
+        // 「變數 [AS] TABLE (」這個形狀本身：前面那個字不改變它宣告了什麼。
+        // 資料表型別的參數（@t dbo.MyType READONLY）沒有這個形狀，見 ReadTableParameter。
         // AS 與純量變數的 DECLARE @n AS INT 一樣可有可無，少認它的症狀是那張表的別名一個欄位都沒有。
         var table = index + 1 < tokens.Count && tokens[index + 1].IsKeyword("AS") ? index + 2 : index + 1;
 

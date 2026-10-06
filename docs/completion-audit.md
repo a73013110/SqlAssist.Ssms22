@@ -34,6 +34,7 @@
   沒寫限定字時那張表要是這個欄位可能屬於的表之一，點號之後限定字要指它；CTE 自己的查詢裡同名的詞是別張表的欄位。
 - 選取清單的別名只在查詢自己的 ORDER BY 引用得到，視窗與 `WITHIN GROUP` 的 ORDER BY 裡同名的詞是來源的欄位；
   具名視窗在它那個查詢裡引用得到，寫在 WINDOW 子句之前的 `OVER w` 歸截斷的盲點。
+- 資料來源的一段名稱只指 CTE 與暫存資料表，不指外層別名（DML 的目標除外）。
 - `inserted`／`deleted` 在 DML 觸發程序那一句（指父資料表）與 OUTPUT 子句（指 DML 的目標）裡算指令碼的名稱，
   形狀寫字面大寫、不遮，自成一群；範圍外的同名詞照一般名稱判斷。
 - 只在漏的位置問 SSMS 的 `Resolver.FindCompletions` 當第二意見：沒有繫結時一項都不回，繫結後只列名稱、
@@ -67,7 +68,7 @@ DML 的目標是 FROM 才取的別名（`UPDATE l SET … FROM Loan l`），SET 
 
 連線設定與名稱代號金鑰在 `%LOCALAPPDATA%\SqlAssist.Ssms22\CompletionAudit\`。密碼以 DPAPI（目前使用者）
 加密，只交給 `SqlCredential`；登入名稱輸入 `-` 是 Windows 驗證，建議用只有 CONNECT 與 VIEW DEFINITION
-的唯讀登入。沒設定時 `modules` 略過。執行前先建置執行器（稽核的就是目前這份程式）；有漏不算失敗，只有
+的唯讀登入。沒設定時 `modules` 略過。腳本先建置執行器（稽核的就是目前的程式）；有漏不算失敗，只有
 工具錯誤才非零結束碼。
 
 | `artifacts/completion-audit/` | 內容 |
@@ -79,7 +80,7 @@ DML 的目標是 FROM 才取的別名（`UPDATE l SET … FROM Loan l`），SET 
 
 群的識別是位置簽章（前兩個詞元的形狀、答案、漏的樣子）的雜湊，只看文字，產品改版不換號。名稱預設換成
 本機金鑰算的穩定代號（`T_` 物件、`C_` 欄位、`A_` 指令碼取的名稱、`N_` 不明），註解與常值遮掉。
-做完的段隨時進快取：時間到或 Ctrl+C 之後，下一次接著跑。
+做完的段隨時進快取，中斷後接著跑。
 
 ## 審查
 
@@ -96,9 +97,8 @@ DML 的目標是 FROM 才取的別名（`UPDATE l SET … FROM Loan l`），SET 
    sql-docs 沒有記載而只在 ScriptDom 測試腳本出現的語法。
 
 3. 稽核自己的誤判改 `tools/SqlAssist.CompletionAudit` 的判定，不標 `ignore`。判定新認得的名稱會讓召回語料
-   轉紅時，與補上它的產品修正放同一批：認得 `inserted`／`deleted` 讓語料的 `OUTPUT inserted.CopyNo`
-   轉紅，同一個 commit 裡產品在 OUTPUT 子句與觸發程序列出它們。
+   轉紅時，與補上它的產品修正放同一批（認得 `inserted`／`deleted` 時，產品同一個 commit 列出它們）。
 4. 修好之後 `-Cluster <識別>` 重驗，仍漏 0 才改成 `fixed`。在 worktree 裡修時，
    `artifacts/` 不進版控：先把主工作區的 `artifacts\completion-audit` 以 junction 連到同一個位置，
-   `-Cluster` 才找得到原始紀錄，`state.json` 也才改到同一份。
+   `-Cluster` 與 `state.json` 才是同一份。
 5. 標 `fixed` 的群再出現就是退化，排在報告最前面。

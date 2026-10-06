@@ -202,4 +202,27 @@ public sealed class SqlScriptTableCollectorTests
     {
         Assert.Equal(new[] { "CopyNo" }, Collect(sql, name).ColumnNames);
     }
+
+    /// <summary>資料表值參數：READONLY 是資料表型別的憑據，資料行讀自指令碼自己的型別定義。</summary>
+    [Fact]
+    public void 資料表值參數讀型別定義的資料行()
+    {
+        const string sql =
+            "CREATE TYPE dbo.LoanRows AS TABLE (CopyNo NVARCHAR(20), ReaderId INT)\n" +
+            "GO\n" +
+            "CREATE PROCEDURE dbo.usp_Renew (@rows dbo.LoanRows READONLY, @days INT)\n" +
+            "AS SELECT * FROM @rows";
+
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, Collect(sql, "@rows").ColumnNames);
+        Assert.False(SqlScriptTableCollector.Collect(SqlTokenizer.Tokenize(sql)).ContainsKey("@days"));
+    }
+
+    /// <summary>型別在資料庫裡時只有名稱；沒有 READONLY 的分不出是資料表型別，不收。</summary>
+    [Fact]
+    public void 資料表值參數沒有型別定義時只有名稱()
+    {
+        Assert.Empty(Collect("CREATE PROCEDURE p @rows AS LoanRows READONLY AS SELECT 1", "@rows").ColumnNames);
+        Assert.Empty(Collect("@t TABLE (a int) CREATE PROCEDURE p @rows LoanRows READONLY AS SELECT 1", "@rows").ColumnNames);
+        Assert.Empty(SqlScriptTableCollector.Collect(SqlTokenizer.Tokenize("DECLARE @rows dbo.LoanRows")));
+    }
 }

@@ -6,7 +6,8 @@
 ## 往回找子句關鍵字時要認得的結構
 
 - **括號群組是一個運算元**，往回整組跳過：撈到 `FROM (SELECT … ON a = b) d ` 內層的 `ON` 就沒有 `WHERE`。
-  配對不起來就放行成 `Any`。
+  配對不起來就放行成 `Any`。緊接括號的 `UPDATE` 是函式、一起跳過：`IF (UPDATE(a) ` 接 `OR`，不是 DML 的資料來源尾端；
+  其餘錨點（`WHERE (`、`FROM (`）接括號仍是錨點。
 - **寫完的 `CASE … END` 也是運算元**。沒寫完的 CASE 是游標那一層：`CASE WHEN a = 1 THEN b `
   接 `WHEN`、`ELSE`、`END`；述詞的括號（`WHEN a = 1 AND (b = 2 OR c `）仍是同一個條件，接 `IS`、`THEN`，
   函式引數或 `IN` 的括號不是。

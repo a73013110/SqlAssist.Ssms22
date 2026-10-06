@@ -608,6 +608,10 @@ public sealed class SqlClausePhraseTests
     [InlineData("REVERT WITH ", "COOKIE")]
     [InlineData("EXEC ('SELECT 1') AS ", "LOGIN", "USER")]
     [InlineData("EXECUTE (@Sql) AS USER = 'LibUser' ", "AT")]
+    [InlineData("SELECT * FROM Loan GROUP BY CopyNo, Branch WITH ", "ROLLUP", "CUBE")]
+    [InlineData("SELECT * FROM Loan TABLESAMPLE ", "SYSTEM")]
+    [InlineData("CREATE TRIGGER tr ON Loan AFTER UPDATE AS IF ( UPDATE (CopyNo) ", "OR", "AND")]
+    [InlineData("CREATE TRIGGER tr ON Loan AFTER UPDATE AS IF UPDATE (CopyNo) ", "OR", "AND")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);

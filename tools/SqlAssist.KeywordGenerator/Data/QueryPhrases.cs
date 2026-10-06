@@ -117,6 +117,8 @@ internal static class QueryPhrases
         new("GROUP BY") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"], Values = GroupingItems },
         new("GROUP BY ,* ,") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"], Values = GroupingItems },
         new("GROUP BY ,* GROUPING") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"] },
+        // 舊寫法 GROUP BY a, b WITH ROLLUP／CUBE：分組項寫完之後的 WITH。
+        new("WITH") { After = ["GroupByTail"] },
 
         // 聯結類型之後是 JOIN 或聯結提示（LOOP、HASH、MERGE、REMOTE），提示之後只有 JOIN。
         // JOIN 之後的資料表還要寫 ON 才完整，續尾寫不完，宣告不封閉。
@@ -136,8 +138,10 @@ internal static class QueryPhrases
         new("") { After = ["FunctionReturns"] },
     ];
 
+    // 資料表之後的 TABLESAMPLE 接選用的 SYSTEM 或直接接括號。
     internal static readonly PhraseDeclaration[] TableSample =
     [
+        new("TABLESAMPLE") { After = ["TableSourceTail"] },
         new("") { After = ["TableSampleTail"] },
     ];
 

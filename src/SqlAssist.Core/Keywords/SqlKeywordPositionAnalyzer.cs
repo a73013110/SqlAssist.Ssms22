@@ -2313,8 +2313,16 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return AfterGroup(open - 3);
         }
 
-        return new SqlCaretPosition(FindClausePosition(open - 1));
+        return new SqlCaretPosition(FindClausePosition(CallsUpdateFunction(open) ? open - 2 : open - 1));
     }
+
+    /// <summary><paramref name="open"/> 是 <c>UPDATE(a)</c> 這個函式的括號。</summary>
+    /// <remarks>
+    /// 與 <see cref="FindVerb"/> 同一條：緊接括號的 UPDATE 是觸發程序的函式，與括號同一個運算元；當成 DML 的錨點的話
+    /// <c>IF (UPDATE(a) </c> 之後是資料來源尾端，列不出 OR。其餘錨點（<c>WHERE (</c>、<c>FROM (</c>）接括號仍是錨點，所以只認 UPDATE。
+    /// </remarks>
+    private bool CallsUpdateFunction(int open) =>
+        open >= 1 && IsBareKeyword(open - 1) && tokens[open - 1].IsKeyword("UPDATE");
 
     /// <summary><paramref name="open"/> 開的是 <c>STRING_AGG(…) WITHIN GROUP (</c> 的那一組括號。</summary>
     private bool EndsWithinGroup(int open) =>
@@ -2481,7 +2489,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                     return SqlKeywordPosition.Any;
                 }
 
-                index = open;
+                index = CallsUpdateFunction(open) ? open - 1 : open;
                 continue;
             }
 

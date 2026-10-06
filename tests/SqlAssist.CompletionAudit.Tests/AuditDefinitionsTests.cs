@@ -248,6 +248,26 @@ public sealed class AuditDefinitionsTests
         Assert.False(definitions.IsDefinedLater("a", At(sql, "a.CopyNo", 1)));
     }
 
+    /// <summary>
+    /// 資料來源的一段名稱只指 CTE 與暫存資料表：外層別名不是表，子查詢的 <c>FROM l</c> 是資料庫裡叫 l 的表。
+    /// DML 的目標例外，<c>UPDATE l … FROM Loan l</c> 的 l 是別名。
+    /// </summary>
+    [Fact]
+    public void 資料來源的名稱不指別名_只指CTE與暫存資料表()
+    {
+        const string sql =
+            "SELECT * INTO #t FROM Copy; " +
+            "WITH c AS (SELECT 1 AS a) " +
+            "SELECT * FROM Loan l, (SELECT * FROM l) d, (SELECT * FROM c) e, (SELECT * FROM #t) f; " +
+            "UPDATE l SET CopyNo = 1 FROM Loan l";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.False(definitions.IsDefinedBefore("l", At(sql, "FROM l)", 1) + 5));
+        Assert.True(definitions.IsDefinedBefore("c", At(sql, "FROM c)", 1) + 5));
+        Assert.True(definitions.IsDefinedBefore("#t", At(sql, "FROM #t)", 1) + 5));
+        Assert.True(definitions.IsDefinedLater("l", At(sql, "UPDATE l", 1) + 7));
+    }
+
     [Fact]
     public void 資料行定義不讓同名的欄位引用變成指令碼名稱()
     {

@@ -59,6 +59,9 @@ public sealed class AuditDefinitions
     private readonly List<Identifier> _columnReferences = new();
     private readonly List<(int Start, int End, SchemaObjectName Name, IList<ColumnDefinition> Columns)> _createdTables = new();
     private readonly HashSet<int> _tableNames = new();
+    private readonly HashSet<int> _dataSourceNames = new();
+    private readonly HashSet<int> _sourceReferences = new();
+    private readonly HashSet<int> _dataModificationTargets = new();
     private readonly List<(int Start, int End, SchemaObjectName? Owner)> _changeTables = new();
     private int _batchEnd;
 
@@ -358,11 +361,17 @@ public sealed class AuditDefinitions
     }
 
     /// <summary>
-    /// 範圍內的取名在 <paramref name="start"/> 引用得到：點號之後只有資料行清單算，而且限定字要指那張表
+    /// 範圍內的取名在 <paramref name="start"/> 引用得到：資料來源的一段名稱只指 CTE 與暫存資料表（外層別名
+    /// 不是表，<c>FROM a JOIN (SELECT * FROM a)</c> 裡面那個 <c>a</c> 是資料庫的表）；點號之後只有資料行清單算，而且限定字要指那張表
     /// （CTE 名稱、衍生資料表的別名，或別名指的 CTE）；沒寫限定字的資料行清單名稱，要那張表是這個欄位可能屬於的表之一。
     /// </summary>
     private bool Reaches(Visibility definition, int start, string? qualifier)
     {
+        if (_sourceReferences.Contains(start) && !_dataSourceNames.Contains(definition.DefinedAt))
+        {
+            return false;
+        }
+
         if (definition.Table is not { } table)
         {
             return qualifier is null;
@@ -480,6 +489,11 @@ public sealed class AuditDefinitions
         }
 
         _starts.Add(name.StartOffset);
+
+        if (name is Identifier { Value: { } value } && value.StartsWith("#", StringComparison.Ordinal))
+        {
+            _dataSourceNames.Add(name.StartOffset);
+        }
 
         if (scope != Scope.None)
         {
@@ -869,6 +883,19 @@ public sealed class AuditDefinitions
             _owner.AddSource(node.Alias, node);
         }
 
+        /// <summary>
+        /// 資料來源的一段名稱：DML 的目標除外（<c>UPDATE l … FROM Loan l</c> 的 <c>l</c> 是別名）。
+        /// 父節點先走，<see cref="Visit(DataModificationSpecification)"/> 已經記下目標。
+        /// </summary>
+        public override void Visit(NamedTableReference node)
+        {
+            if (node.SchemaObject is { Count: 1, BaseIdentifier: { StartOffset: >= 0 } name } &&
+                !_owner._dataModificationTargets.Contains(name.StartOffset))
+            {
+                _owner._sourceReferences.Add(name.StartOffset);
+            }
+        }
+
         public override void Visit(TableReferenceWithAliasAndColumns node) => _owner.Add(node.Columns, Scope.Query, node.Alias?.Value);
 
         /// <summary>MERGE 目標的別名不在 TableReferenceWithAlias 上，引用得到整句（ON、動作子句、OUTPUT）。</summary>
@@ -1040,6 +1067,11 @@ public sealed class AuditDefinitions
         {
             var target = (node.Target as NamedTableReference)?.SchemaObject;
 
+            if (target?.BaseIdentifier is { StartOffset: >= 0 } targetName)
+            {
+                _owner._dataModificationTargets.Add(targetName.StartOffset);
+            }
+
             foreach (var clause in new TSqlFragment?[] { node.OutputClause, node.OutputIntoClause })
             {
                 if (clause is { StartOffset: >= 0 })
@@ -1058,6 +1090,7 @@ public sealed class AuditDefinitions
             if (node.ExpressionName is { StartOffset: >= 0 } name)
             {
                 _owner._tableNames.Add(name.StartOffset);
+                _owner._dataSourceNames.Add(name.StartOffset);
             }
 
             _owner.Add(node.Columns, Scope.Statement, node.ExpressionName?.Value);
