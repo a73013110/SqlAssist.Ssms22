@@ -226,8 +226,12 @@ internal static class DdlPhrases
     [
         // 序列的選項不以逗號分隔、順序不限，會重複的格子寫成位置；NO 之後的 CYCLE 往下一層。
         // START 後面非接 WITH 值不可，逐字探測接不上續尾，整段是證據。
+        // ALTER 多了 RESTART [WITH]，拿 ALTER 的樣板探：RESTART 自己就寫完一項，之後是其餘選項；
+        // WITH 是 CTE 的開頭、被當成下一句扣掉，整段是證據。RESTART 也由證據補進那一格。
         new("") { After = ["SequenceOption"], Expand = 1 },
         new("START WITH {value}") { After = ["SequenceOption"] },
+        new("RESTART") { After = ["SequenceOption"], Template = 2 },
+        new("RESTART WITH {value}") { After = ["SequenceOption"], Template = 2 },
     ];
 
     internal static readonly PhraseDeclaration[] Constraint =

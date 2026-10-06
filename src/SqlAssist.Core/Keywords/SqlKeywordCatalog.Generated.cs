@@ -346,6 +346,7 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.CursorOption, "DECLARE c CURSOR LOCAL FAST_FORWARD "),
         new(SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t "),
         new(SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t START WITH 1 "),
+        new(SqlKeywordPosition.SequenceOption, "ALTER SEQUENCE t "),
         new(SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t "),
         new(SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t WITH ENCRYPTION "),
         new(SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN "),
@@ -4015,6 +4016,10 @@ internal static class SqlKeywordCatalogData
         ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* PRIMARY_ROLE (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (PRIMARY_ROLE (", true, false, true, false, new string[]
         {
             "ALLOW_CONNECTIONS",
+        }),
+        ("CREATE AVAILABILITY GROUP ... DATABASE ,* {name}", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE t ", true, false, true, false, new string[]
+        {
+            "REPLICA",
         }),
         ("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (*", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ON 'x' WITH (", true, false, false, false, new string[]
         {
@@ -8426,6 +8431,22 @@ internal static class SqlKeywordCatalogData
         ("EXEC () AS USER = {value} AT", SqlKeywordPosition.StatementStart, "EXEC ('SELECT 1') AS USER = 'x' AT ", false, false, true, false, new string[]
         {
         }),
+        ("ENABLE TRIGGER ,* {name} ON", SqlKeywordPosition.StatementStart, "ENABLE TRIGGER t ON ", false, false, true, false, new string[]
+        {
+            "ALL SERVER", "DATABASE",
+        }),
+        ("ENABLE TRIGGER ,* {name} ON ALL", SqlKeywordPosition.StatementStart, "ENABLE TRIGGER t ON ALL ", true, false, false, false, new string[]
+        {
+            "SERVER",
+        }),
+        ("DISABLE TRIGGER ,* {name} ON", SqlKeywordPosition.StatementStart, "DISABLE TRIGGER t ON ", false, false, true, false, new string[]
+        {
+            "ALL SERVER", "DATABASE",
+        }),
+        ("DISABLE TRIGGER ,* {name} ON ALL", SqlKeywordPosition.StatementStart, "DISABLE TRIGGER t ON ALL ", true, false, false, false, new string[]
+        {
+            "SERVER",
+        }),
         ("ON DELETE", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE ", true, false, false, false, new string[]
         {
             "CASCADE", "NO ACTION", "SET",
@@ -10764,6 +10785,7 @@ internal static class SqlKeywordCatalogData
         ("", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t ", true, false, false, true, new string[]
         {
             "AS", "CACHE", "CYCLE", "INCREMENT BY", "MAXVALUE", "MINVALUE", "NO", "START WITH",
+            "RESTART",
         }),
         ("AS", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t AS ", false, false, true, false, new string[]
         {
@@ -10786,6 +10808,17 @@ internal static class SqlKeywordCatalogData
         ("START WITH {value}", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t START WITH 1 ", true, false, false, true, new string[]
         {
             "AS", "CACHE", "CYCLE", "INCREMENT BY", "MAXVALUE", "MINVALUE", "NO", "START WITH",
+            "RESTART",
+        }),
+        ("RESTART", SqlKeywordPosition.SequenceOption, "ALTER SEQUENCE t RESTART ", true, false, false, true, new string[]
+        {
+            "AS", "CACHE", "CYCLE", "INCREMENT BY", "MAXVALUE", "MINVALUE", "NO", "START WITH",
+            "RESTART", "WITH",
+        }),
+        ("RESTART WITH {value}", SqlKeywordPosition.SequenceOption, "ALTER SEQUENCE t RESTART WITH 1 ", true, false, false, true, new string[]
+        {
+            "AS", "CACHE", "CYCLE", "INCREMENT BY", "MAXVALUE", "MINVALUE", "NO", "START WITH",
+            "RESTART",
         }),
         ("WAITFOR", SqlKeywordPosition.StatementStart, "WAITFOR ", true, false, true, false, new string[]
         {
@@ -17220,6 +17253,14 @@ internal static class SqlKeywordCatalogData
         ("DISABLE", SqlKeywordPosition.StatementStart, "DISABLE ", true, false, false, false, new string[]
         {
             "TRIGGER",
+        }),
+        ("ENABLE TRIGGER ,* {name}", SqlKeywordPosition.StatementStart, "ENABLE TRIGGER t ", true, false, false, false, new string[]
+        {
+            "ON",
+        }),
+        ("DISABLE TRIGGER ,* {name}", SqlKeywordPosition.StatementStart, "DISABLE TRIGGER t ", true, false, false, false, new string[]
+        {
+            "ON",
         }),
         ("ON", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON ", true, false, false, false, new string[]
         {

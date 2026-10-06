@@ -173,7 +173,8 @@ internal static class PositionTemplates
         new("CursorOption", "DECLARE c CURSOR ", "DECLARE c CURSOR LOCAL FAST_FORWARD "),
 
         // 序列的選項（START WITH、INCREMENT BY、NO CYCLE）同樣不是關鍵字，也不以逗號分隔；這裡撈得到 AS、NO。
-        new("SequenceOption", "CREATE SEQUENCE t ", "CREATE SEQUENCE t START WITH 1 "),
+        // ALTER 的選項格是同一個位置，多了 RESTART [WITH]，由片語宣告第三個樣板探。
+        new("SequenceOption", "CREATE SEQUENCE t ", "CREATE SEQUENCE t START WITH 1 ", "ALTER SEQUENCE t "),
 
         // 下面兩個同一個道理：AFTER、INSTEAD、MATCHED 都不是關鍵字，由子句片語給。
         new("TriggerHeader", "CREATE TRIGGER tr ON t ", "CREATE TRIGGER tr ON t WITH ENCRYPTION "),

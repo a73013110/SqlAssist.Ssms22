@@ -113,6 +113,12 @@ internal static class DatabasePhrases
         new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (*"),
         new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* SECONDARY_ROLE (*"),
         new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* PRIMARY_ROLE (*"),
+        // FOR DATABASE 的資料庫清單寫完接 REPLICA；中段的 ,* 走過前面幾個資料庫。REPLICA 要寫完一個複本才驗，續尾補上。
+        new("CREATE AVAILABILITY GROUP ... DATABASE ,* {name}")
+        {
+            Gap = "t FOR",
+            Endings = [" ON 'x' WITH (ENDPOINT_URL = 'TCP://x:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC)"],
+        },
         new("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (*") { Gap = "t FOR DATABASE d" },
         new("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (* SECONDARY_ROLE (*") { Gap = "t FOR DATABASE d" },
         new("CREATE AVAILABILITY GROUP ... REPLICA ON ,* {value} WITH (* PRIMARY_ROLE (*") { Gap = "t FOR DATABASE d" },

@@ -114,6 +114,9 @@ internal static class StatementPhrases
            select new PhraseDeclaration($"{verb} () AS") { Group = "('SELECT 1')", Expand = 3 },
         new("ENABLE TRIGGER") { Closed = false },
         new("DISABLE TRIGGER") { Closed = false },
+        // 一次啟用幾個觸發程序：名稱清單寫完是 ON 資料表、DATABASE 或 ALL SERVER；中段的 ,* 走過前面幾個名稱。
+        new("ENABLE TRIGGER ,* {name} ON") { Closed = false, Expand = 1 },
+        new("DISABLE TRIGGER ,* {name} ON") { Closed = false, Expand = 1 },
     ];
 
     internal static readonly PhraseDeclaration[] Waitfor =

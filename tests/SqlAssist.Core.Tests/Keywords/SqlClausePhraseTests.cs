@@ -620,6 +620,13 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT * FROM Loan TABLESAMPLE ", "SYSTEM")]
     [InlineData("CREATE TRIGGER tr ON Loan AFTER UPDATE AS IF ( UPDATE (CopyNo) ", "OR", "AND")]
     [InlineData("CREATE TRIGGER tr ON Loan AFTER UPDATE AS IF UPDATE (CopyNo) ", "OR", "AND")]
+    [InlineData("ALTER SEQUENCE dbo.LoanNo ", "RESTART", "INCREMENT")]
+    [InlineData("ALTER SEQUENCE dbo.LoanNo RESTART ", "WITH", "INCREMENT BY")]
+    [InlineData("ALTER SEQUENCE dbo.LoanNo RESTART WITH 1 ", "INCREMENT BY", "CACHE")]
+    [InlineData("CREATE AVAILABILITY GROUP LibAg FOR DATABASE LibArchive ", "REPLICA")]
+    [InlineData("CREATE AVAILABILITY GROUP LibAg WITH (DTC_SUPPORT = PER_DB)\nFOR DATABASE LibArchive, LibStage\n", "REPLICA")]
+    [InlineData("ENABLE TRIGGER LoanAudit, CopyAudit ON ", "DATABASE", "ALL SERVER")]
+    [InlineData("DISABLE TRIGGER LoanAudit, CopyAudit, ReaderAudit ON ALL ", "SERVER")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -833,6 +840,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo)\n", "INCLUDE", "SELECT")]
     [InlineData("ALTER TABLE dbo.Loan ADD Note varchar(100)\n", "SPARSE", "SELECT")]
     [InlineData("ALTER TABLE dbo.Loan ALTER COLUMN Note varchar(100) NOT NULL\n", "WITH", "SELECT")]
+    [InlineData("ALTER SEQUENCE dbo.LoanNo\n", "RESTART", "SELECT")]
     public void 語句寫完又換行時片語只加字(string textBeforeCaret, string phraseWord, string nextStatementWord)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -1038,6 +1046,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("USE Lib\nALTER TABLE dbo.Loan REBUILD WITH (", "ONLINE")]
     [InlineData("EXEC sp_who\nALTER SERVER AUDIT LibAudit WITH (", "STATE")]
     [InlineData("CREATE CREDENTIAL LibCredential WITH IDENTITY = 'x'\nCREATE CREDENTIAL LibCredential WITH IDENTITY = 'x', ", "SECRET")]
+    [InlineData("ALTER LOGIN LibLogin WITH CHECK_POLICY = ON\nCREATE ", "LOGIN")]
+    [InlineData("CREATE DATABASE LibArchive WITH TRUSTWORTHY ON\nCREATE ", "LOGIN")]
     public void 判不出前一格又換行的語句開頭比對確定(string textBeforeCaret, string word)
     {
         var match = SqlKeywordPositionAnalyzer.Analyze(textBeforeCaret).Phrase;

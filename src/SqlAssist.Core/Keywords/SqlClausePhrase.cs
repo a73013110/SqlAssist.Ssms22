@@ -210,7 +210,11 @@ public sealed class SqlClausePhrase
                 return MatchItems(tokens, index, element, analyzer);
             }
 
-            var before = _elements[element].MatchBackward(tokens, index);
+            // 名稱格收保留字，但不收開始一句的字：WITH CHECK_POLICY = ON⏎CREATE 的 CREATE 是下一句，
+            // 當成 ON {name} 的名稱的話，那一格列的是資料行定義的字，CREATE 之後的 LOGIN 就不見了。
+            var before = _elements[element].Kind == ElementKind.Name && analyzer.IsStatementHead(index)
+                ? Element.Mismatch
+                : _elements[element].MatchBackward(tokens, index);
 
             // 前後兩項之間可以夾著寫完的觸發程序選項（ON DATABASE WITH ENCRYPTION AFTER）：片語不寫選項，跨過再比一次。
             if (before == Element.Mismatch && element < end - 1 && analyzer.SkipTriggerOptions(index) is var target && target != index)
