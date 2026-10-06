@@ -52,6 +52,7 @@ internal sealed class PhraseExplorer
 
     // 固定標頭的逗號清單（CREATE LOGIN t WITH ,*）的標頭探測文字：展開走到這裡就停，見展開那一段。
     private HashSet<string> _ownedListHeadProbes = new(IgnoreCase);
+    private string[] _declaredProbes = [];
 
     // 括號清單與只認位置的清單一項的等號那一格，等全部宣告探完才立，見 AddItemValues。
     private readonly List<Action> _pendingItemValues = [];
@@ -200,6 +201,13 @@ internal sealed class PhraseExplorer
                     ProbeText(anchor.Lead, declaration.ListHead, declaration.Group, items: declaration.Items))),
             IgnoreCase);
 
+        // 墊了前一項的（,* NO POPULATION 的 Gap）說的是之後那一項，不算寫出了前一項。
+        _declaredProbes = declarations
+            .Where(declaration => !declaration.IsList && !declaration.IsTailList && (declaration.Gap == null || declaration.Pattern.Contains("...")))
+            .SelectMany(declaration => Anchors(declaration).Select(anchor =>
+                ProbeText(anchor.Lead, declaration.Pattern, declaration.Group, declaration.Gap, items: declaration.Items)))
+            .ToArray();
+
         foreach (var declaration in declarations)
         {
             // 墊幾種文字的 Lead 片語鍵相同，每墊一種就覆蓋一次：先記下來，最後取聯集。
@@ -212,7 +220,8 @@ internal sealed class PhraseExplorer
                 if (declaration.IsList || declaration.IsTailList)
                 {
                     var head = ProbeText(lead, declaration.ListHead, declaration.Group, declaration.Gap, items: declaration.Items);
-                    AddList(declaration.Pattern, declaration.ListHead, head, position, declaration.Endings, declaration.Lagging, declaration.Values);
+                    AddList(declaration.Pattern, declaration.ListHead, head, position, declaration.Endings, declaration.Lagging, declaration.Values,
+                        itemWords: declaration.Evidence == null);
                     continue;
                 }
 
@@ -393,6 +402,15 @@ internal sealed class PhraseExplorer
                     if (!phrase.Words.Contains(word, IgnoreCase))
                     {
                         phrase.Words.Add(word);
+                    }
+
+                    // 中段清單探零項的證據（沒墊 Gap，或 Gap 給了 ...）寫在第一項剖析得過，字也是標頭那一格的
+                    // （WITH ,* SEARCH PROPERTY LIST）；墊了項的只接在那一項之後（,* NO POPULATION）。
+                    if ((declaration.Gap == null || declaration.Pattern.Contains("...")) && prefix.EndsWith(" ,*", StringComparison.Ordinal) &&
+                        Phrases.TryGet(ProbedPhrase.Key(position, prefix.Substring(0, prefix.Length - 3)), out var listHead) &&
+                        !listHead.Words.Contains(word, IgnoreCase))
+                    {
+                        listHead.Words.Add(word);
                     }
                 }
             }
@@ -773,9 +791,15 @@ internal sealed class PhraseExplorer
                 Add(pattern + " {name}", probe + words[0] + " ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
             }
 
-            if (sample != null && !Explored(after, pattern + " {value}", expand - 1))
+            // 等號之後收得下一串以逗號分隔的值（PROCESS AFFINITY CPU = 0, 2 TO 3）：寫完的那幾個是中段的 ,*，
+            // 否則逗號之後那個值之後的 TO 沒有片語說。
+            var valuePattern = sample != null && _prober.AcceptsName(probe + sample + ", ", sample, _continuations)
+                ? pattern + " ,* {value}"
+                : pattern + " {value}";
+
+            if (sample != null && !Explored(after, valuePattern, expand - 1))
             {
-                Add(pattern + " {value}", probe + sample + " ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
+                Add(valuePattern, probe + sample + " ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
             }
 
             return;
@@ -846,7 +870,7 @@ internal sealed class PhraseExplorer
     // 清單片語（,*）與以尾巴比對的清單（,* ,）：第一項由標頭的片語給，這一條只說逗號之後。
     // 剖析器落後的選項（lagging）在探完之後補進兩格，見 PhraseDeclaration 的 Lagging；探測照舊只看剖析器收的字。
     private void AddList(
-        string pattern, string headPattern, string head, string after, string[]? endings, string[]? lagging, string[]? values)
+        string pattern, string headPattern, string head, string after, string[]? endings, string[]? lagging, string[]? values, bool itemWords)
     {
         var headKey = ProbedPhrase.Key(after, headPattern);
 
@@ -874,10 +898,16 @@ internal sealed class PhraseExplorer
             TakesVariable = items.TakesVariable,
         });
 
-        // 標頭中段可變（...）的清單不立：中段的 ,* 要從固定的標頭往回比對，見 PhraseDeclaration 的 ... 那一段。
-        if (pattern.EndsWith(" ,*", StringComparison.Ordinal) && !headPattern.Contains("..."))
+        if (pattern.EndsWith(" ,*", StringComparison.Ordinal))
         {
-            AddItemValues(headPattern + " ,*", after, [(head, firsts), (items.Probe!, items.Words)], endings);
+            (string, IReadOnlyList<string>)[] slots = [(head, firsts), (items.Probe!, items.Words)];
+
+            if (itemWords)
+            {
+                AddItemWords(headPattern + " ,*", after, slots, items.Probe!.Substring(0, items.Probe.Length - 2) + " ", endings);
+            }
+
+            AddItemValues(headPattern + " ,*", after, slots, endings);
         }
 
         foreach (var word in lagging ?? [])
@@ -888,6 +918,51 @@ internal sealed class PhraseExplorer
                 {
                     phrase.Words.Add(word);
                 }
+            }
+        }
+    }
+
+    // 逗號清單的一項寫了第一個字還沒寫完（CHANGE_TRACKING 之後是 MANUAL、AUTO、OFF）也是一格，立成中段清單的片語（標頭 ,* 項）。
+    // 括號清單不必：宣告的展開立的 (* 項在左括號與逗號之後都比對得上。逗號清單的標頭只給第一項，展開又停在固定標頭的清單
+    // （見展開那一段），否則逗號之後那一項的下一個字沒有片語說。接得上逗號的字已寫完一項，不立。寫完一項之後接得上的字
+    // （finished 那一格：觸發程序事件之後的 AS）不算這一項的，扣掉；扣完列不出字的（DEFAULT_DATABASE 之後只有等號、
+    // FOR LOGON 之後只有 AS）由 step 不立。宣告已寫出這一項的（RESULT SETS）由那一條說。第一項的那一格已有片語時
+    // （標頭宣告了展開），從逗號之後那一格探，立在展開的那一條之後。
+    // 手寫證據的清單（GRANT）剖析器什麼都收，探到的字不算數，不走這裡。
+    private void AddItemWords(
+        string listPattern, string after, (string Prefix, IReadOnlyList<string> Words)[] slots, string finished, string[]? endings)
+    {
+        var done = new HashSet<string>(IgnoreCase);
+        var afterItem = Words(finished, endings);
+
+        foreach (var (prefix, words) in slots)
+        {
+            foreach (var word in words.Where(word => StartsWord.IsMatch(word) && !word.Contains(' ')))
+            {
+                var written = prefix + word;
+                var slot = written + " ";
+                var itemPattern = listPattern + " " + word;
+
+                if (done.Contains(word) || _prober.FirstRejection(written + ",") > written.Length || Explored(after, itemPattern, 0))
+                {
+                    continue;
+                }
+
+                // 宣告寫出了這一項（RESULT SETS 從 OptionItem 寫起）：第幾項都由那一條說。
+                if (_declaredProbes.Any(probe => probe.StartsWith(slot, StringComparison.OrdinalIgnoreCase)))
+                {
+                    done.Add(word);
+                    continue;
+                }
+
+                // 第一項那一格已由標頭的展開立了（ENCRYPTION BY ASYMMETRIC），改從逗號之後那一格探：同一個探測文字不立兩個片語。
+                if (Phrases.WithProbe(slot).Any())
+                {
+                    continue;
+                }
+
+                done.Add(word);
+                Add(itemPattern, slot, after, borrowed: afterItem, child: true, step: true, extraEndings: endings);
             }
         }
     }

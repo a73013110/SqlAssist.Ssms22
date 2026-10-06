@@ -22,11 +22,10 @@ internal static class DatabasePhrases
 
         // WITH 之後的資料庫選項（LEDGER = ON、TRUSTWORTHY ON、FILESTREAM (…)）是逗號清單。WITH 寫在名稱、COLLATE、檔案規格
         // 或 FOR ATTACH 之後，前面那段由 ... 走過（拿 COLLATE 探：檔案規格之後的 WITH 那一格已由上面的 ,* () 立起）。
-        // 標頭中段可變的清單不立「項 =」那一格，最常寫的名稱之後另以固定標頭宣告，整段證據也把 WITH 補進名稱那一格。
+        // 名稱寫完整句已經完整，WITH 也是 CTE 的開頭被扣掉了，手寫補回，續尾寫一個選項驗它。
         // FILESTREAM 之後的括號與 NON_TRANSACTED_ACCESS 的值共用續尾寫不完，由 Endings 補。
         // PERSISTENT_LOG_BUFFER = ON (DIRECTORY_NAME = …) 剖析器還不認得。
-        new("CREATE DATABASE {name} WITH ,*") { Endings = [FileStreamOptions] },
-        new("CREATE DATABASE {name} WITH ,* FILESTREAM (*") { Endings = [" = OFF)"] },
+        new("CREATE DATABASE {name}") { Values = ["WITH"], Endings = [" TRUSTWORTHY ON"] },
         new("CREATE DATABASE ... WITH ,*") { Gap = "t COLLATE Latin1_General_CI_AS", Endings = [FileStreamOptions] },
         new("CREATE DATABASE ... WITH ,* FILESTREAM (*") { Gap = "t COLLATE Latin1_General_CI_AS", Endings = [" = OFF)"] },
 

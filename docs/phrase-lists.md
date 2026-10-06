@@ -17,7 +17,12 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 剖析器當名稱讀的項（`GROUP BY ,* ,` 的 `ROLLUP`）以 `Values` 補進逗號之後那一格，接在探到的那一項之後驗。
 項的等號之後立成中段清單片語（`… WITH ,* CHECK_POLICY =`）再往下一層：`ON`／`OFF`、`PASSWORD = 'x' HASHED`
 在第幾項都一樣；括號清單（`WITH (* QUEUE_DELAY =`）與 CREATE INDEX 的 `WITH (` 同樣立。沒有字、探測文字已有片語、這一項在這份清單
-不合法、標頭含 `...` 的不立；等號之後收運算式的不封閉，否則 `SOURCE =` 之後列不出資料行。
+不合法的不立；等號之後收運算式的不封閉，否則 `SOURCE =` 之後列不出資料行。
+逗號清單的一項寫了第一個字還沒完（接不了逗號）也立一格（`WITH ,* CHANGE_TRACKING` 之後是 `MANUAL`、`AUTO`、`OFF`），扣掉寫完一項之後
+接得上的字（`FOR LOGON` 之後的 `AS`）；括號清單由宣告的展開說。第一項那一格已有展開立的片語時從逗號之後那一格探，
+宣告寫出了這一項的（`RESULT SETS`）不立，否則較長的 `,*` 片語在第一項搶走比對。
+等號之後收得下一串值的寫成 `= ,* {value}`（`PROCESS AFFINITY CPU = 0, 2 TO 3`）。中段 `,*` 探零項的證據（沒墊 `Gap`），
+字也補進標頭那一格：`WITH ,* SEARCH PROPERTY LIST` 在第一項同樣寫得出來。
 `Expand` 走到固定標頭清單的標頭（`CREATE SYMMETRIC KEY t WITH`）就停，第一項與項的等號之後由清單立：
 否則展開先佔了 `WITH ALGORITHM = ` 的探測文字，`,* ALGORITHM =` 不立，逗號之後那一項列不出值。
 官方有、ScriptDom 還不收的選項（`ALLOW_ENCRYPTED_VALUE_MODIFICATIONS`，TSql170 在值就報錯）寫在 `Lagging`：
@@ -30,9 +35,7 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 標頭夾著長度不定的一段（EXEC 的參數、BACKUP 的裝置清單、統計資料的資料行清單與篩選）寫成 `EXEC ... WITH ,*`：尾巴的 `WITH`
 對上了才找動詞，探測代入 `Gap`。宣告的 `Endings` 標頭也用：`RESTORE … WITH MOVE` 要寫完 `'a' TO 'b'` 才是一項。
 標頭裡可省的一段（全文檢索索引的資料行清單、`KEY INDEX k` 之後的 `ON` 目錄）不寫成 `...`：那會失去展開與項的等號之後那一格，
-每一種寫法各宣告一份整段標頭（`FullTextKeyIndexes`），同一組選項由同一個函式宣告（CREATE 的 `WITH`、`WITH (` 與 ALTER 的 `SET`）。
-`...` 寫得出幾種標頭時，最常寫的那一種另以固定標頭宣告，項的等號之後才列得出值（`CREATE DATABASE {name} WITH ,*` 與
-`CREATE DATABASE ... WITH ,*` 並存）；兩者的探測文字要不同，否則比對回同一個片語。
+每一種寫法各宣告一份整段標頭（`FullTextKeyIndexes`），同一組選項由同一個函式宣告（CREATE 的 `WITH ,*`、`WITH (` 與 ALTER 的 `SET`）。
 只接在某一項之後的項（`CHANGE_TRACKING OFF, NO POPULATION`）寫成中段的 `,* NO POPULATION`，`Gap` 墊前一項；括號清單同理以 `Items` 墊。
 中段 `,*` 往回走過的項裡，緊接一整組括號的 `WITH` 是那一項自己的選項（可用性複本 `'a' WITH (…), 'b' WITH (`），
 不是下一句的開頭；游標所在那一組還沒關上的 `WITH (` 照舊是界線。查詢的下一個子句（ORDER BY、`WINDOW`、`FOR`）也是界線，

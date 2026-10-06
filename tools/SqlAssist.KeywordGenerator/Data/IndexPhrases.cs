@@ -142,19 +142,19 @@ internal static class IndexPhrases
         // 全文檢索索引：資料行清單可以省略，KEY INDEX 之後可以夾 ON 目錄（或括號裡的目錄與檔案群組），再來是 WITH 選項，
         // WITH 可以帶括號也可以不帶。標頭逐一寫成整段：清單片語要從語句開頭比對標頭。
         // 選項與 ALTER 的 SET 是同一組（FullTextSettings）；NO POPULATION 只接在 CHANGE_TRACKING OFF 之後，探測墊這一項。
-        // 不帶括號的清單逗號之後寫到一半的 SEARCH PROPERTY LIST 由尾巴認。
+        // 不帶括號的是逗號清單，第一項與逗號之後的項都由清單立（中段的 ,* 探零項），不從 WITH 展開。
         new("CREATE FULLTEXT INDEX ON {name} ()") { Expand = 2 },
-        // 設定寫在清單片語之前：清單項的等號那一格（WITH ,* STOPLIST =）與已立的片語探測文字相同就不另立。
+        // 設定寫在清單片語之前：清單項的那一格（WITH ,* STOPLIST）與已立的片語探測文字相同就不另立。
         .. FullTextKeyIndexes.SelectMany(head => new[] { new PhraseDeclaration(head) { Expand = 1 } }
-            .Concat(FullTextSettings($"{head} WITH"))
-            .Concat(FullTextSettings($"{head} WITH (*"))
+            .Concat(FullTextSettings($"{head} WITH ,*"))
+            .Concat([new($"{head} WITH (*") { Expand = 2 }, .. FullTextSettings($"{head} WITH (*")])
             .Concat(
             [
                 new($"{head} WITH ,*"),
                 new($"{head} WITH ,* {NoPopulation}") { Gap = ChangeTrackingOff + "," },
                 new($"{head} WITH (* {NoPopulation}") { Items = ChangeTrackingOff + ", " },
             ])),
-        new(", SEARCH PROPERTY LIST =") { Lead = "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF" },
+        new("ALTER FULLTEXT INDEX ON {name} SET") { Expand = 2 },
         .. FullTextSettings("ALTER FULLTEXT INDEX ON {name} SET"),
 
         // 資料行清單的每一項：資料行之後依序是 TYPE COLUMN 型別資料行、LANGUAGE、STATISTICAL_SEMANTICS，CREATE 與 ALTER … ADD 相同。
@@ -192,10 +192,10 @@ internal static class IndexPhrases
     ];
 
     // 全文檢索的設定：CREATE 的 WITH 選項與 ALTER 的 SET 收同一組（CHANGE_TRACKING、STOPLIST、SEARCH PROPERTY LIST）。
-    // SEARCH PROPERTY LIST 剖析器要看到整段才收，整段是證據；停用字詞表的值剖析器當名稱讀，系統的那份（SYSTEM）手寫，其餘是既有的停用字詞表。
+    // 其餘的字由 head 的展開或清單探；這裡只寫探不出來的：SEARCH PROPERTY LIST 剖析器要看到整段才收，整段是證據；
+    // 停用字詞表的值剖析器當名稱讀，系統的那份（SYSTEM）手寫，其餘是既有的停用字詞表。
     private static PhraseDeclaration[] FullTextSettings(string head) =>
     [
-        new(head) { Expand = 2 },
         new($"{head} SEARCH PROPERTY LIST"),
         new($"{head} SEARCH PROPERTY LIST ="),
         new($"{head} STOPLIST") { Values = ["SYSTEM"] },

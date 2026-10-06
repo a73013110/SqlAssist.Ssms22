@@ -36,7 +36,7 @@ internal static class KeywordSupplements
     // 保留字的補充清單，跟 NonReserved 是同一個問題的另一面：
     // IDENTITYCOL 與 ROWGUIDCOL 不在 TSqlTokenType 裡（詞法器把它們掃成識別字），
     // 但剖析器不接受它們當名字，不加括號插進去就壞掉。它們不進關鍵字清單——
-    // 建議清單與自動大寫不該因為這個修正而多出兩個字——只影響括號判定。
+    // 自動大寫不該因為這個修正而多出兩個字——只影響括號判定，以及當子句片語的候選字（資料行型別之後的 ROWGUIDCOL）。
     //
     // 第二階段會回驗這份清單：真的不需要括號就會警告，不會變成死條目。
     internal static readonly string[] Reserved = ["IDENTITYCOL", "ROWGUIDCOL"];

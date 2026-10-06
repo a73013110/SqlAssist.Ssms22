@@ -152,14 +152,12 @@ internal static class SecurityPhrases
         new(head + " TO URL () WITH (*") { Group = "(PATH = 'x')" },
     ];
 
-    // 對稱金鑰的加密方式以逗號一次寫幾種（PASSWORD = 'x', CERTIFICATE c），第幾種都一樣。ASYMMETRIC、SYMMETRIC 之後只接 KEY：
-    // 第一種由展開立片語，逗號之後那一格也立（Gap 墊前一種），清單才併得成 SYMMETRIC KEY 一項。
+    // 對稱金鑰的加密方式以逗號一次寫幾種（PASSWORD = 'x', CERTIFICATE c），第幾種都一樣。第一種由展開立片語，
+    // 展開寫在清單之前：逗號之後還沒寫完的那一項（ASYMMETRIC 之後只接 KEY）由清單從逗號之後那一格立。
     private static PhraseDeclaration[] EncryptingMechanisms(string head) =>
     [
-        new(head + " ,*"),
         new(head) { Expand = 2 },
-        new(head + " ,* ASYMMETRIC") { Gap = "PASSWORD = 'x'," },
-        new(head + " ,* SYMMETRIC") { Gap = "PASSWORD = 'x'," },
+        new(head + " ,*"),
     ];
 
     internal static readonly PhraseDeclaration[] Keys =

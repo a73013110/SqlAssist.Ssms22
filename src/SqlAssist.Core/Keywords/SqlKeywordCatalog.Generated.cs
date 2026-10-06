@@ -2545,6 +2545,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("DROP SENSITIVITY CLASSIFICATION FROM", SqlKeywordPosition.StatementStart, "DROP SENSITIVITY CLASSIFICATION FROM ", false, false, true, false, new string[]
         {
+            "IDENTITYCOL", "ROWGUIDCOL",
         }),
         ("DROP SENSITIVITY CLASSIFICATION FROM {name}", SqlKeywordPosition.StatementStart, "DROP SENSITIVITY CLASSIFICATION FROM t ", true, false, false, false, new string[]
         {
@@ -2619,15 +2620,15 @@ internal static class SqlKeywordCatalogData
             "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
             "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
             "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
-            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
-            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
-            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
-            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
-            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
-            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IDENTITYCOL", "IF", "IN", "INDEX",
+            "INNER", "INSERT", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE",
+            "LINENO", "MERGE", "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF",
+            "OF", "OFF", "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+            "OPENXML", "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN",
+            "PRIMARY", "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
             "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
-            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
-            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "ROWGUIDCOL", "RULE", "SAVE",
+            "SCHEMA", "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
             "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
             "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
             "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
@@ -2826,8 +2827,8 @@ internal static class SqlKeywordCatalogData
         ("CREATE XML SCHEMA COLLECTION {name} AS", SqlKeywordPosition.StatementStart, "CREATE XML SCHEMA COLLECTION t AS ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("ALTER XML SCHEMA COLLECTION {name}", SqlKeywordPosition.StatementStart, "ALTER XML SCHEMA COLLECTION t ", true, false, false, false, new string[]
         {
@@ -3200,15 +3201,15 @@ internal static class SqlKeywordCatalogData
             "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
             "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
             "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
-            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
-            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
-            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
-            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
-            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
-            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IDENTITYCOL", "IF", "IN", "INDEX",
+            "INNER", "INSERT", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE",
+            "LINENO", "MERGE", "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF",
+            "OF", "OFF", "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+            "OPENXML", "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN",
+            "PRIMARY", "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
             "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
-            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
-            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "ROWGUIDCOL", "RULE", "SAVE",
+            "SCHEMA", "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
             "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
             "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
             "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
@@ -3321,15 +3322,15 @@ internal static class SqlKeywordCatalogData
             "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
             "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
             "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
-            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
-            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
-            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
-            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
-            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
-            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IDENTITYCOL", "IF", "IN", "INDEX",
+            "INNER", "INSERT", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE",
+            "LINENO", "MERGE", "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF",
+            "OF", "OFF", "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+            "OPENXML", "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN",
+            "PRIMARY", "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
             "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
-            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
-            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "ROWGUIDCOL", "RULE", "SAVE",
+            "SCHEMA", "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
             "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
             "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
             "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
@@ -3394,40 +3395,6 @@ internal static class SqlKeywordCatalogData
         {
             "OF",
         }),
-        ("CREATE DATABASE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH ", true, false, false, false, new string[]
-        {
-            "CATALOG_COLLATION", "DATA_RETENTION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
-            "DEFAULT_LANGUAGE", "ENABLE_BROKER", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM",
-            "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
-            "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
-        }),
-        ("CREATE DATABASE {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH CATALOG_COLLATION = DATABASE_DEFAULT, ", true, false, false, false, new string[]
-        {
-            "CATALOG_COLLATION", "DATA_RETENTION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
-            "DEFAULT_LANGUAGE", "ENABLE_BROKER", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM",
-            "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
-            "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
-        }),
-        ("CREATE DATABASE {name} WITH ,* CATALOG_COLLATION =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH CATALOG_COLLATION = ", true, false, false, false, new string[]
-        {
-            "DATABASE_DEFAULT", "SQL_LATIN1_GENERAL_CP1_CI_AS",
-        }),
-        ("CREATE DATABASE {name} WITH ,* LEDGER =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH LEDGER = ", true, false, false, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("CREATE DATABASE {name} WITH ,* NESTED_TRIGGERS =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH NESTED_TRIGGERS = ", true, false, false, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("CREATE DATABASE {name} WITH ,* TRANSFORM_NOISE_WORDS =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH TRANSFORM_NOISE_WORDS = ", true, false, false, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("CREATE DATABASE {name} WITH ,* FILESTREAM (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH FILESTREAM (", true, false, true, false, new string[]
-        {
-            "DIRECTORY_NAME", "NON_TRANSACTED_ACCESS",
-        }),
         ("CREATE DATABASE ... WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH ", true, false, false, false, new string[]
         {
             "CATALOG_COLLATION", "DATA_RETENTION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
@@ -3441,6 +3408,34 @@ internal static class SqlKeywordCatalogData
             "DEFAULT_LANGUAGE", "ENABLE_BROKER", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM",
             "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
             "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
+        }),
+        ("CREATE DATABASE ... WITH ,* DATA_RETENTION", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH DATA_RETENTION ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE DATABASE ... WITH ,* DB_CHAINING", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH DB_CHAINING ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE DATABASE ... WITH ,* TRUSTWORTHY", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH TRUSTWORTHY ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE DATABASE ... WITH ,* CATALOG_COLLATION =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH CATALOG_COLLATION = ", true, false, false, false, new string[]
+        {
+            "DATABASE_DEFAULT", "SQL_LATIN1_GENERAL_CP1_CI_AS",
+        }),
+        ("CREATE DATABASE ... WITH ,* LEDGER =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH LEDGER = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE DATABASE ... WITH ,* NESTED_TRIGGERS =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH NESTED_TRIGGERS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE DATABASE ... WITH ,* TRANSFORM_NOISE_WORDS =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH TRANSFORM_NOISE_WORDS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
         }),
         ("CREATE DATABASE ... WITH ,* FILESTREAM (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH FILESTREAM (", true, false, true, false, new string[]
         {
@@ -3489,15 +3484,15 @@ internal static class SqlKeywordCatalogData
             "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
             "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
             "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
-            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
-            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
-            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
-            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
-            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
-            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IDENTITYCOL", "IF", "IN", "INDEX",
+            "INNER", "INSERT", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE",
+            "LINENO", "MERGE", "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF",
+            "OF", "OFF", "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+            "OPENXML", "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN",
+            "PRIMARY", "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
             "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
-            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
-            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "ROWGUIDCOL", "RULE", "SAVE",
+            "SCHEMA", "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
             "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
             "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
             "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
@@ -3565,15 +3560,15 @@ internal static class SqlKeywordCatalogData
             "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
             "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
             "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
-            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
-            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
-            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
-            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
-            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
-            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IDENTITYCOL", "IF", "IN", "INDEX",
+            "INNER", "INSERT", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE",
+            "LINENO", "MERGE", "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF",
+            "OF", "OFF", "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+            "OPENXML", "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN",
+            "PRIMARY", "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
             "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
-            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
-            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "ROWGUIDCOL", "RULE", "SAVE",
+            "SCHEMA", "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
             "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
             "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
             "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
@@ -4183,14 +4178,14 @@ internal static class SqlKeywordCatalogData
         {
             "AUTO",
         }),
-        ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = 1 ", true, false, false, true, new string[]
+        ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = ,* {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = 1 ", true, false, false, true, new string[]
         {
             "TO",
         }),
         ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE ", true, false, false, false, new string[]
         {
         }),
-        ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = 1 ", true, false, false, true, new string[]
+        ("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = ,* {value}", SqlKeywordPosition.StatementStart, "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = 1 ", true, false, false, true, new string[]
         {
             "TO",
         }),
@@ -5060,7 +5055,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER TABLE {name} ALTER COLUMN {name} ADD", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD ", true, false, false, false, new string[]
         {
-            "HIDDEN", "NOT FOR REPLICATION", "PERSISTED", "SPARSE", "ROWGUIDCOL",
+            "HIDDEN", "NOT FOR REPLICATION", "PERSISTED", "ROWGUIDCOL", "SPARSE",
         }),
         ("ALTER TABLE {name} ALTER COLUMN {name} ADD NOT", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD NOT ", true, false, false, false, new string[]
         {
@@ -5068,7 +5063,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER TABLE {name} ALTER COLUMN {name} DROP", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP ", true, false, false, false, new string[]
         {
-            "HIDDEN", "MASKED", "NOT FOR REPLICATION", "PERSISTED", "SPARSE", "ROWGUIDCOL",
+            "HIDDEN", "MASKED", "NOT FOR REPLICATION", "PERSISTED", "ROWGUIDCOL", "SPARSE",
         }),
         ("ALTER TABLE {name} ALTER COLUMN {name} DROP NOT", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP NOT ", true, false, false, false, new string[]
         {
@@ -5819,15 +5814,15 @@ internal static class SqlKeywordCatalogData
             "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
             "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
             "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
-            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
-            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
-            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
-            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
-            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
-            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IDENTITYCOL", "IF", "IN", "INDEX",
+            "INNER", "INSERT", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE",
+            "LINENO", "MERGE", "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF",
+            "OF", "OFF", "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+            "OPENXML", "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN",
+            "PRIMARY", "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
             "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
-            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
-            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "ROWGUIDCOL", "RULE", "SAVE",
+            "SCHEMA", "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
             "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
             "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
             "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
@@ -5846,15 +5841,15 @@ internal static class SqlKeywordCatalogData
             "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
             "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
             "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
-            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
-            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
-            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
-            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
-            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
-            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IDENTITYCOL", "IF", "IN", "INDEX",
+            "INNER", "INSERT", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE",
+            "LINENO", "MERGE", "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF",
+            "OF", "OFF", "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+            "OPENXML", "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN",
+            "PRIMARY", "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
             "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
-            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
-            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "ROWGUIDCOL", "RULE", "SAVE",
+            "SCHEMA", "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
             "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
             "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
             "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
@@ -5873,15 +5868,15 @@ internal static class SqlKeywordCatalogData
             "END", "ERRLVL", "ESCAPE", "EXCEPT", "EXEC", "EXECUTE", "EXISTS", "EXIT",
             "EXTERNAL", "FETCH", "FILE", "FILLFACTOR", "FOR", "FOREIGN", "FREETEXT",
             "FREETEXTTABLE", "FROM", "FULL", "FUNCTION", "GOTO", "GRANT", "GROUP", "HAVING",
-            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IF", "IN", "INDEX", "INNER", "INSERT",
-            "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE", "LINENO", "MERGE",
-            "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF", "OF", "OFF",
-            "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OPENXML",
-            "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN", "PRIMARY",
-            "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
+            "HOLDLOCK", "IDENTITY", "IDENTITY_INSERT", "IDENTITYCOL", "IF", "IN", "INDEX",
+            "INNER", "INSERT", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "KILL", "LEFT", "LIKE",
+            "LINENO", "MERGE", "NATIONAL", "NOCHECK", "NONCLUSTERED", "NOT", "NULL", "NULLIF",
+            "OF", "OFF", "OFFSETS", "ON", "OPEN", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+            "OPENXML", "OPTION", "OR", "ORDER", "OUTER", "OVER", "PERCENT", "PIVOT", "PLAN",
+            "PRIMARY", "PRINT", "PROC", "PROCEDURE", "PUBLIC", "RAISERROR", "READ", "READTEXT",
             "RECONFIGURE", "REFERENCES", "REPLICATION", "RESTORE", "RESTRICT", "RETURN",
-            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "RULE", "SAVE", "SCHEMA",
-            "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
+            "REVERT", "REVOKE", "RIGHT", "ROLLBACK", "ROWCOUNT", "ROWGUIDCOL", "RULE", "SAVE",
+            "SCHEMA", "SELECT", "SEMANTICKEYPHRASETABLE", "SEMANTICSIMILARITYDETAILSTABLE",
             "SEMANTICSIMILARITYTABLE", "SESSION_USER", "SET", "SETUSER", "SHUTDOWN", "SOME",
             "STATISTICS", "STOPLIST", "SYSTEM_USER", "TABLE", "TABLESAMPLE", "TEXTSIZE", "THEN",
             "TO", "TOP", "TRAN", "TRANSACTION", "TRIGGER", "TRUNCATE", "TRY_CONVERT", "TSEQUAL",
@@ -6377,41 +6372,21 @@ internal static class SqlKeywordCatalogData
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON ", false, false, true, false, new string[]
         {
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH ", true, false, true, false, new string[]
-        {
-            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH STOPLIST ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH STOPLIST = ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
         {
             "OFF",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
         {
             "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (", true, false, true, false, new string[]
         {
@@ -6461,9 +6436,25 @@ internal static class SqlKeywordCatalogData
         {
             "OFF",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH", "STOPLIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
         {
-            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
         {
@@ -6475,41 +6466,21 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH ", true, false, true, false, new string[]
-        {
-            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH STOPLIST ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH STOPLIST = ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
         {
             "OFF",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
         {
             "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (", true, false, true, false, new string[]
         {
@@ -6559,9 +6530,25 @@ internal static class SqlKeywordCatalogData
         {
             "OFF",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH", "STOPLIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
         {
-            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
         {
@@ -6573,41 +6560,21 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH ", true, false, true, false, new string[]
-        {
-            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH STOPLIST ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH STOPLIST = ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
         {
             "OFF",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
         {
             "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (", true, false, true, false, new string[]
         {
@@ -6657,9 +6624,25 @@ internal static class SqlKeywordCatalogData
         {
             "OFF",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH", "STOPLIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
         {
-            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
         {
@@ -6674,41 +6657,21 @@ internal static class SqlKeywordCatalogData
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON ", false, false, true, false, new string[]
         {
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH ", true, false, true, false, new string[]
-        {
-            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
         {
             "OFF",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
         {
             "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (", true, false, true, false, new string[]
         {
@@ -6758,9 +6721,25 @@ internal static class SqlKeywordCatalogData
         {
             "OFF",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH", "STOPLIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
         {
-            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
         {
@@ -6772,41 +6751,21 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH ", true, false, true, false, new string[]
-        {
-            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH STOPLIST ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH STOPLIST = ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
         {
             "OFF",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
         {
             "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (", true, false, true, false, new string[]
         {
@@ -6856,9 +6815,25 @@ internal static class SqlKeywordCatalogData
         {
             "OFF",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH", "STOPLIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
         {
-            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
         {
@@ -6870,41 +6845,21 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH ", true, false, true, false, new string[]
-        {
-            "CHANGE_TRACKING", "SEARCH PROPERTY LIST", "STOPLIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
-        {
-            "AUTO", "MANUAL", "OFF",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH STOPLIST ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH STOPLIST = ", false, false, true, false, new string[]
-        {
-            "OFF", "SYSTEM",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY LIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST ", false, false, true, false, new string[]
         {
             "OFF",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY LIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
         {
             "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* STOPLIST", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH STOPLIST ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* STOPLIST =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH STOPLIST = ", false, false, true, false, new string[]
+        {
+            "OFF", "SYSTEM",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (", true, false, true, false, new string[]
         {
@@ -6954,19 +6909,31 @@ internal static class SqlKeywordCatalogData
         {
             "OFF",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH ", true, false, true, false, new string[]
+        {
+            "CHANGE_TRACKING", "SEARCH", "STOPLIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, ", true, false, false, false, new string[]
         {
-            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH",
+            "NO POPULATION", "STOPLIST", "CHANGE_TRACKING", "SEARCH PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* CHANGE_TRACKING =", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "MANUAL", "OFF",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, true, new string[]
         {
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, false, new string[]
         {
-        }),
-        (", SEARCH PROPERTY LIST =", SqlKeywordPosition.Any, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF, SEARCH PROPERTY LIST = ", false, false, true, false, new string[]
-        {
-            "OFF",
         }),
         ("ALTER FULLTEXT INDEX ON {name} SET", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET ", true, false, false, false, new string[]
         {
@@ -7299,6 +7266,14 @@ internal static class SqlKeywordCatalogData
             "SNAPSHOTRESTOREPHASE", "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK",
             "STOPBEFOREMARK", "UNLOAD", "VERBOSE",
         }),
+        ("RESTORE DATABASE ... WITH ,* STOPATMARK = {value}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE d FROM DISK = 'x' WITH STOPATMARK = 'x' ", true, false, true, true, new string[]
+        {
+            "AFTER",
+        }),
+        ("RESTORE DATABASE ... WITH ,* STOPBEFOREMARK = {value}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE d FROM DISK = 'x' WITH STOPBEFOREMARK = 'x' ", true, false, true, true, new string[]
+        {
+            "AFTER",
+        }),
         ("RESTORE LOG ... WITH", SqlKeywordPosition.StatementStart, "RESTORE LOG d FROM DISK = 'x' WITH ", true, false, false, false, new string[]
         {
             "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMMIT_DIFFERENTIAL_BASE",
@@ -7322,6 +7297,14 @@ internal static class SqlKeywordCatalogData
             "RESTART", "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT",
             "SNAPSHOTRESTOREPHASE", "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK",
             "STOPBEFOREMARK", "UNLOAD", "VERBOSE",
+        }),
+        ("RESTORE LOG ... WITH ,* STOPATMARK = {value}", SqlKeywordPosition.StatementStart, "RESTORE LOG d FROM DISK = 'x' WITH STOPATMARK = 'x' ", true, false, true, true, new string[]
+        {
+            "AFTER",
+        }),
+        ("RESTORE LOG ... WITH ,* STOPBEFOREMARK = {value}", SqlKeywordPosition.StatementStart, "RESTORE LOG d FROM DISK = 'x' WITH STOPBEFOREMARK = 'x' ", true, false, true, true, new string[]
+        {
+            "AFTER",
         }),
         ("ENCRYPTION (*", SqlKeywordPosition.OptionItem, "BACKUP DATABASE d TO DISK = 'x' WITH ENCRYPTION (", true, false, true, false, new string[]
         {
@@ -7353,6 +7336,18 @@ internal static class SqlKeywordCatalogData
             "AUTO_DROP", "FULLSCAN", "INCREMENTAL", "NORECOMPUTE", "PERSIST_SAMPLE_PERCENT",
             "SAMPLE", "STATS_STREAM",
         }),
+        ("CREATE STATISTICS ... WITH ,* AUTO_DROP =", SqlKeywordPosition.StatementStart, "CREATE STATISTICS s ON t (a) WITH AUTO_DROP = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE STATISTICS ... WITH ,* INCREMENTAL =", SqlKeywordPosition.StatementStart, "CREATE STATISTICS s ON t (a) WITH INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("CREATE STATISTICS ... WITH ,* PERSIST_SAMPLE_PERCENT =", SqlKeywordPosition.StatementStart, "CREATE STATISTICS s ON t (a) WITH PERSIST_SAMPLE_PERCENT = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
         ("UPDATE STATISTICS ... WITH", SqlKeywordPosition.StatementStart, "UPDATE STATISTICS t WITH ", true, false, false, false, new string[]
         {
             "ALL", "AUTO_DROP", "COLUMNS", "FULLSCAN", "INCREMENTAL", "INDEX", "NORECOMPUTE",
@@ -7364,6 +7359,18 @@ internal static class SqlKeywordCatalogData
             "ALL", "AUTO_DROP", "COLUMNS", "FULLSCAN", "INCREMENTAL", "INDEX", "NORECOMPUTE",
             "PAGECOUNT", "PERSIST_SAMPLE_PERCENT", "RESAMPLE", "ROWCOUNT", "SAMPLE",
             "STATS_STREAM",
+        }),
+        ("UPDATE STATISTICS ... WITH ,* AUTO_DROP =", SqlKeywordPosition.StatementStart, "UPDATE STATISTICS t WITH AUTO_DROP = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UPDATE STATISTICS ... WITH ,* INCREMENTAL =", SqlKeywordPosition.StatementStart, "UPDATE STATISTICS t WITH INCREMENTAL = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("UPDATE STATISTICS ... WITH ,* PERSIST_SAMPLE_PERCENT =", SqlKeywordPosition.StatementStart, "UPDATE STATISTICS t WITH PERSIST_SAMPLE_PERCENT = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
         }),
         ("SAMPLE {value}", SqlKeywordPosition.OptionItem, "CREATE STATISTICS s ON t (a) WITH SAMPLE 1 ", true, false, false, false, new string[]
         {
@@ -7980,8 +7987,8 @@ internal static class SqlKeywordCatalogData
             "GRANT_SERVER", "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER", "UNBIND_DEFAULT",
             "UNBIND_RULE", "UPDATE_STATISTICS", "DELETE", "INSERT", "UPDATE", "CASE",
             "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "IDENTITY", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER",
-            "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "IDENTITY", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("TRIGGER {name} ON ALL SERVER AFTER", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ALL SERVER AFTER ", true, false, false, false, new string[]
         {
@@ -8169,8 +8176,8 @@ internal static class SqlKeywordCatalogData
             "GRANT_SERVER", "RENAME", "REVOKE_DATABASE", "REVOKE_SERVER", "UNBIND_DEFAULT",
             "UNBIND_RULE", "UPDATE_STATISTICS", "DELETE", "INSERT", "UPDATE", "CASE",
             "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "IDENTITY", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER",
-            "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "IDENTITY", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("", SqlKeywordPosition.ProcedureOption, "CREATE PROCEDURE p WITH ", true, false, false, false, new string[]
         {
@@ -8233,7 +8240,11 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER ASSEMBLY {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t WITH PERMISSION_SET = EXTERNAL_ACCESS, ", true, false, false, false, new string[]
         {
-            "PERMISSION_SET", "UNCHECKED", "VISIBILITY",
+            "PERMISSION_SET", "UNCHECKED DATA", "VISIBILITY",
+        }),
+        ("ALTER ASSEMBLY {name} WITH ,* UNCHECKED", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t WITH UNCHECKED ", true, false, false, false, new string[]
+        {
+            "DATA",
         }),
         ("ALTER ASSEMBLY {name} WITH ,* PERMISSION_SET =", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t WITH PERMISSION_SET = ", true, false, false, false, new string[]
         {
@@ -8348,8 +8359,8 @@ internal static class SqlKeywordCatalogData
         ("REVERT WITH COOKIE =", SqlKeywordPosition.StatementStart, "REVERT WITH COOKIE = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("EXECUTE () AS", SqlKeywordPosition.StatementStart, "EXECUTE ('SELECT 1') AS ", true, false, false, false, new string[]
         {
@@ -8422,7 +8433,7 @@ internal static class SqlKeywordCatalogData
         ("ON DELETE CASCADE", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE CASCADE ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
-            "ON", "PRIMARY", "REFERENCES", "UNIQUE",
+            "ON", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE",
         }),
         ("ON DELETE NO", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE NO ", true, false, false, false, new string[]
         {
@@ -8439,7 +8450,7 @@ internal static class SqlKeywordCatalogData
         ("ON UPDATE CASCADE", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE CASCADE ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
-            "ON", "PRIMARY", "REFERENCES", "UNIQUE",
+            "ON", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE",
         }),
         ("ON UPDATE NO", SqlKeywordPosition.ReferencesTail, "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE NO ", true, false, false, false, new string[]
         {
@@ -8457,8 +8468,8 @@ internal static class SqlKeywordCatalogData
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("CHECK", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int CHECK ", true, false, false, false, new string[]
         {
@@ -8477,8 +8488,8 @@ internal static class SqlKeywordCatalogData
         ("DEFAULT", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int DEFAULT ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("ENCRYPTED", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int ENCRYPTED ", true, false, false, false, new string[]
         {
@@ -8496,15 +8507,15 @@ internal static class SqlKeywordCatalogData
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("IDENTITY", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int IDENTITY ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("INDEX", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX ", false, false, true, false, new string[]
         {
@@ -8521,8 +8532,8 @@ internal static class SqlKeywordCatalogData
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("PRIMARY", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int PRIMARY ", true, false, false, false, new string[]
         {
@@ -8531,48 +8542,55 @@ internal static class SqlKeywordCatalogData
         ("REFERENCES", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int REFERENCES ", false, false, true, false, new string[]
         {
         }),
+        ("ROWGUIDCOL", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+        }),
         ("SPARSE", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int SPARSE ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("UNIQUE", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int UNIQUE ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
             "CLUSTERED", "FILESTREAM_ON", "NONCLUSTERED",
         }),
         ("PERSISTED", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a AS b PERSISTED ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("FILESTREAM", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a varbinary(max) FILESTREAM ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("NOT FOR REPLICATION", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int IDENTITY(1, 1) NOT FOR REPLICATION ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("AS JSON", SqlKeywordPosition.ColumnDefinitionTail, "SELECT * FROM OPENJSON(@j) WITH (a int AS JSON ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("WITH (*", SqlKeywordPosition.ColumnDefinitionTail, "ALTER TABLE t ALTER COLUMN a int WITH (", true, false, false, false, new string[]
         {
@@ -8587,23 +8605,23 @@ internal static class SqlKeywordCatalogData
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
             "FILESTREAM_ON",
         }),
         ("COLUMN_SET FOR ALL_SPARSE_COLUMNS", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a xml COLUMN_SET FOR ALL_SPARSE_COLUMNS ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("VARYING", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a nchar VARYING ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("XML (*", SqlKeywordPosition.Any, "DECLARE @x XML (", false, false, false, false, new string[]
         {
@@ -8613,8 +8631,8 @@ internal static class SqlKeywordCatalogData
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
             "CLUSTERED", "FILESTREAM_ON", "HASH", "NONCLUSTERED", "WHERE",
         }),
         ("MASKED WITH (*", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int MASKED WITH (", true, false, false, false, new string[]
@@ -8624,36 +8642,36 @@ internal static class SqlKeywordCatalogData
         ("GENERATED ALWAYS AS ROW START HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS ROW START HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
-            "PRIMARY", "REFERENCES", "UNIQUE",
+            "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE",
         }),
         ("GENERATED ALWAYS AS ROW END HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS ROW END HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
-            "PRIMARY", "REFERENCES", "UNIQUE",
+            "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE",
         }),
         ("GENERATED ALWAYS AS SUSER_SID START HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SID START HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
-            "PRIMARY", "REFERENCES", "UNIQUE",
+            "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE",
         }),
         ("GENERATED ALWAYS AS SUSER_SNAME END HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME END HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
-            "PRIMARY", "REFERENCES", "UNIQUE",
+            "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE",
         }),
         ("GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("PERIOD FOR SYSTEM_TIME ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (PERIOD FOR SYSTEM_TIME (a, b) ", true, false, false, false, new string[]
         {
@@ -8997,7 +9015,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("CONTAINS (", SqlKeywordPosition.Predicate, "SELECT * FROM t WHERE CONTAINS (", false, false, true, false, new string[]
         {
-            "PROPERTY",
+            "IDENTITYCOL", "PROPERTY", "ROWGUIDCOL",
         }),
         ("CONTAINS (* {value} , {value} ,", SqlKeywordPosition.Predicate, "SELECT * FROM t WHERE CONTAINS (t , 'x' , ", true, false, false, false, new string[]
         {
@@ -10924,10 +10942,6 @@ internal static class SqlKeywordCatalogData
         {
             "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
         }),
-        ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
-        {
-            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
-        }),
         ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY ASYMMETRIC ", true, false, false, false, new string[]
         {
             "KEY",
@@ -10948,19 +10962,19 @@ internal static class SqlKeywordCatalogData
         ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY SYMMETRIC KEY ", false, false, true, false, new string[]
         {
         }),
-        ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY PASSWORD = 'x', ASYMMETRIC ", true, false, false, false, new string[]
+        ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY ASYMMETRIC KEY x, ASYMMETRIC ", true, false, false, false, new string[]
         {
             "KEY",
         }),
-        ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY PASSWORD = 'x', SYMMETRIC ", true, false, false, false, new string[]
+        ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY ASYMMETRIC KEY x, SYMMETRIC ", true, false, false, false, new string[]
         {
             "KEY",
         }),
         ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY ", true, false, false, false, new string[]
-        {
-            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
-        }),
-        ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
         {
             "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
         }),
@@ -10984,11 +10998,15 @@ internal static class SqlKeywordCatalogData
         ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY SYMMETRIC KEY ", false, false, true, false, new string[]
         {
         }),
-        ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY PASSWORD = 'x', ASYMMETRIC ", true, false, false, false, new string[]
+        ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY ASYMMETRIC KEY x, ASYMMETRIC ", true, false, false, false, new string[]
         {
             "KEY",
         }),
-        ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY PASSWORD = 'x', SYMMETRIC ", true, false, false, false, new string[]
+        ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY ASYMMETRIC KEY x, SYMMETRIC ", true, false, false, false, new string[]
         {
             "KEY",
         }),
@@ -11130,7 +11148,15 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE SYMMETRIC KEY ... ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x' ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
         {
-            "ASYMMETRIC", "CERTIFICATE", "PASSWORD", "SYMMETRIC",
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("CREATE SYMMETRIC KEY ... ENCRYPTION BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x' ENCRYPTION BY ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE SYMMETRIC KEY ... ENCRYPTION BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x' ENCRYPTION BY SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
         }),
         ("CREATE SYMMETRIC KEY ... IDENTITY_VALUE = {value}", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x' ", true, false, true, false, new string[]
         {
@@ -11313,10 +11339,6 @@ internal static class SqlKeywordCatalogData
         {
             "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
         }),
-        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
-        {
-            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
-        }),
         ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ASYMMETRIC ", true, false, false, false, new string[]
         {
             "KEY",
@@ -11337,11 +11359,15 @@ internal static class SqlKeywordCatalogData
         ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY SYMMETRIC KEY ", false, false, true, false, new string[]
         {
         }),
-        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY PASSWORD = 'x', ASYMMETRIC ", true, false, false, false, new string[]
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ASYMMETRIC KEY x, ASYMMETRIC ", true, false, false, false, new string[]
         {
             "KEY",
         }),
-        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY PASSWORD = 'x', SYMMETRIC ", true, false, false, false, new string[]
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ASYMMETRIC KEY x, SYMMETRIC ", true, false, false, false, new string[]
         {
             "KEY",
         }),
@@ -11889,7 +11915,11 @@ internal static class SqlKeywordCatalogData
         }),
         ("FOR XML ,*", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR XML AUTO, ", true, false, false, false, new string[]
         {
-            "BINARY", "ELEMENTS", "ROOT", "TYPE", "XMLDATA", "XMLSCHEMA",
+            "BINARY BASE64", "ELEMENTS", "ROOT", "TYPE", "XMLDATA", "XMLSCHEMA",
+        }),
+        ("FOR XML ,* BINARY", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR XML AUTO, BINARY ", true, false, false, false, new string[]
+        {
+            "BASE64",
         }),
         ("FOR JSON", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR JSON ", true, false, false, false, new string[]
         {
@@ -11967,8 +11997,8 @@ internal static class SqlKeywordCatalogData
         ("IS DISTINCT FROM", SqlKeywordPosition.ExpressionTail, "SELECT * FROM t WHERE a IS DISTINCT FROM ", false, true, false, false, new string[]
         {
             "ALL", "ANY", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SOME",
-            "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "CURRENT_USER", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
+            "ROWGUIDCOL", "SESSION_USER", "SOME", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("IS NOT", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm, "SELECT * FROM t WHERE a IS NOT ", true, false, false, false, new string[]
         {
@@ -11981,8 +12011,8 @@ internal static class SqlKeywordCatalogData
         ("IS DISTINCT FROM", SqlKeywordPosition.CaseArm, "SELECT CASE WHEN a IS DISTINCT FROM ", true, false, false, false, new string[]
         {
             "ALL", "ANY", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SOME",
-            "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "CURRENT_USER", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
+            "ROWGUIDCOL", "SESSION_USER", "SOME", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("IS NOT NULL", SqlKeywordPosition.CaseArm, "SELECT CASE WHEN a IS NOT NULL ", true, false, false, false, new string[]
         {
@@ -11995,45 +12025,48 @@ internal static class SqlKeywordCatalogData
         ("IS NULL AND", SqlKeywordPosition.CaseArm, "SELECT CASE WHEN a IS NULL AND ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("IS NULL OR", SqlKeywordPosition.CaseArm, "SELECT CASE WHEN a IS NULL OR ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("IS NULL THEN", SqlKeywordPosition.CaseArm, "SELECT CASE WHEN a IS NULL THEN ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("IS NOT DISTINCT FROM", SqlKeywordPosition.ExpressionTail, "SELECT * FROM t WHERE a IS NOT DISTINCT FROM ", false, true, false, false, new string[]
         {
             "ALL", "ANY", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SOME",
-            "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "CURRENT_USER", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
+            "ROWGUIDCOL", "SESSION_USER", "SOME", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("IS NOT DISTINCT FROM", SqlKeywordPosition.CaseArm, "SELECT CASE WHEN a IS NOT DISTINCT FROM ", true, false, false, false, new string[]
         {
             "ALL", "ANY", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SOME",
-            "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "CURRENT_USER", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
+            "ROWGUIDCOL", "SESSION_USER", "SOME", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("GROUP BY", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP BY ", false, true, false, false, new string[]
         {
             "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "GROUPING", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
-            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ROLLUP", "CUBE",
-            "GROUPING SETS",
+            "CURRENT_USER", "GROUPING", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF",
+            "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "ROLLUP", "CUBE", "GROUPING SETS",
         }),
         ("GROUP BY ,* ,", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP BY ALL x, ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "GROUPING", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER",
-            "SYSTEM_USER", "TRY_CONVERT", "USER", "ROLLUP", "CUBE", "GROUPING SETS",
+            "GROUPING", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ROLLUP", "CUBE",
+            "GROUPING SETS",
         }),
         ("GROUP BY ,* GROUPING", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP BY GROUPING ", true, false, true, true, new string[]
         {
@@ -12284,7 +12317,11 @@ internal static class SqlKeywordCatalogData
         }),
         ("EXECUTE ... WITH ,*", SqlKeywordPosition.StatementStart, "EXECUTE p WITH RECOMPILE, ", true, false, false, false, new string[]
         {
-            "RECOMPILE", "RESULT",
+            "RECOMPILE", "RESULT SETS",
+        }),
+        ("EXECUTE ... WITH ,* RESULT", SqlKeywordPosition.StatementStart, "EXECUTE p WITH RESULT ", true, false, false, false, new string[]
+        {
+            "SETS",
         }),
         ("RESULT SETS", SqlKeywordPosition.OptionItem, "EXEC p WITH RESULT SETS ", true, false, false, false, new string[]
         {
@@ -12547,7 +12584,11 @@ internal static class SqlKeywordCatalogData
         ("ALTER LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER LOGIN t WITH CHECK_EXPIRATION = ON, ", true, false, false, false, new string[]
         {
             "CHECK_EXPIRATION", "CHECK_POLICY", "CREDENTIAL", "DEFAULT_DATABASE",
-            "DEFAULT_LANGUAGE", "NAME", "NO", "PASSWORD",
+            "DEFAULT_LANGUAGE", "NAME", "NO CREDENTIAL", "PASSWORD",
+        }),
+        ("ALTER LOGIN {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "ALTER LOGIN t WITH NO ", true, false, false, false, new string[]
+        {
+            "CREDENTIAL",
         }),
         ("ALTER LOGIN {name} WITH ,* CHECK_EXPIRATION =", SqlKeywordPosition.StatementStart, "ALTER LOGIN t WITH CHECK_EXPIRATION = ", true, false, false, false, new string[]
         {
@@ -12714,8 +12755,8 @@ internal static class SqlKeywordCatalogData
         ("JSON_OBJECT (*", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (", false, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "ABSENT",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ABSENT",
         }),
         ("JSON_OBJECT (* {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECT (t : 1 ", true, false, true, false, new string[]
         {
@@ -12744,8 +12785,8 @@ internal static class SqlKeywordCatalogData
         ("JSON_ARRAY (*", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (", false, true, true, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "ABSENT",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ABSENT",
         }),
         ("JSON_ARRAY (* {value}", SqlKeywordPosition.Any, "SELECT JSON_ARRAY (t ", true, false, true, false, new string[]
         {
@@ -12774,8 +12815,9 @@ internal static class SqlKeywordCatalogData
         ("JSON_OBJECTAGG (*", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (", false, false, true, false, new string[]
         {
             "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "DISTINCT", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
-            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ABSENT",
+            "CURRENT_USER", "DISTINCT", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF",
+            "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "ABSENT",
         }),
         ("JSON_OBJECTAGG (* {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ", true, false, true, false, new string[]
         {
@@ -12981,14 +13023,14 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13005,6 +13047,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13025,6 +13071,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13043,8 +13093,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME ", true, false, false, false, new string[]
         {
@@ -13052,20 +13103,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13082,6 +13133,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13102,6 +13157,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13120,8 +13179,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = 1 ", true, false, false, true, new string[]
         {
@@ -13136,20 +13196,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13166,6 +13226,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13186,6 +13250,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13204,8 +13272,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = 1 ", true, false, false, true, new string[]
         {
@@ -13220,20 +13289,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13250,6 +13319,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13270,6 +13343,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13288,8 +13365,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = 1 ", true, false, false, true, new string[]
         {
@@ -13323,14 +13401,14 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13347,6 +13425,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13367,6 +13449,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13385,8 +13471,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME ", true, false, false, false, new string[]
         {
@@ -13394,20 +13481,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13424,6 +13511,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13444,6 +13535,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13462,8 +13557,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = 1 ", true, false, false, true, new string[]
         {
@@ -13478,20 +13574,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13508,6 +13604,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13528,6 +13628,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13546,8 +13650,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = 1 ", true, false, false, true, new string[]
         {
@@ -13562,20 +13667,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13592,6 +13697,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13612,6 +13721,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13630,8 +13743,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = 1 ", true, false, false, true, new string[]
         {
@@ -13668,14 +13782,14 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13692,6 +13806,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13712,6 +13830,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13730,8 +13852,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH ENCRYPTION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH ENCRYPTION = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME ", true, false, false, false, new string[]
         {
@@ -13739,20 +13862,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13769,6 +13892,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13789,6 +13916,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13807,8 +13938,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH LIFETIME = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH LIFETIME = 1 ", true, false, false, true, new string[]
         {
@@ -13823,20 +13955,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13853,6 +13985,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13873,6 +14009,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13891,8 +14031,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION = 1 ", true, false, false, true, new string[]
         {
@@ -13907,20 +14048,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -13937,6 +14078,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -13957,6 +14102,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -13975,8 +14124,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} WITH RELATED_CONVERSATION_GROUP = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' WITH RELATED_CONVERSATION_GROUP = 1 ", true, false, false, true, new string[]
         {
@@ -14010,14 +14160,14 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -14034,6 +14184,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -14054,6 +14208,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -14072,8 +14230,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH ENCRYPTION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH ENCRYPTION = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME ", true, false, false, false, new string[]
         {
@@ -14081,20 +14240,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -14111,6 +14270,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -14131,6 +14294,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -14149,8 +14316,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH LIFETIME = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH LIFETIME = 1 ", true, false, false, true, new string[]
         {
@@ -14165,20 +14333,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -14195,6 +14363,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -14215,6 +14387,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -14233,8 +14409,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION = 1 ", true, false, false, true, new string[]
         {
@@ -14249,20 +14426,20 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP =", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CASE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CASE ", true, false, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER", "WHEN",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} COALESCE", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE COALESCE ", true, false, false, false, new string[]
         {
@@ -14279,6 +14456,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WHEN",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} CURRENT_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE CURRENT_USER ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} IDENTITYCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE IDENTITYCOL ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
         }),
@@ -14299,6 +14480,10 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} RIGHT", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE RIGHT ", true, false, false, false, new string[]
         {
         }),
+        ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} ROWGUIDCOL", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE ROWGUIDCOL ", true, false, false, false, new string[]
+        {
+            "COLLATE", "WHEN",
+        }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} SESSION_USER", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE SESSION_USER ", true, false, false, false, new string[]
         {
             "COLLATE", "WHEN",
@@ -14317,8 +14502,9 @@ internal static class SqlKeywordCatalogData
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {name} WHEN", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = CASE WHEN ", true, false, true, false, new string[]
         {
             "CASE", "COALESCE", "CONTAINS", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "EXISTS", "FREETEXT", "LEFT", "NEXT", "NOT", "NULL", "NULLIF",
-            "RIGHT", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "TSEQUAL", "UPDATE", "USER",
+            "CURRENT_USER", "EXISTS", "FREETEXT", "IDENTITYCOL", "LEFT", "NEXT", "NOT", "NULL",
+            "NULLIF", "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT",
+            "TSEQUAL", "UPDATE", "USER",
         }),
         ("DIALOG CONVERSATION {name} FROM SERVICE {name} TO SERVICE {value} , {value} WITH RELATED_CONVERSATION_GROUP = {value}", SqlKeywordPosition.BlockStart, "BEGIN DIALOG CONVERSATION @ReaderId FROM SERVICE t TO SERVICE 'x' , 'x' WITH RELATED_CONVERSATION_GROUP = 1 ", true, false, false, true, new string[]
         {
@@ -14333,8 +14519,8 @@ internal static class SqlKeywordCatalogData
         ("CONVERSATION TIMER () TIMEOUT =", SqlKeywordPosition.BlockStart, "BEGIN CONVERSATION TIMER (@h) TIMEOUT = ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("CONVERSATION TIMER ()", SqlKeywordPosition.BlockStart, "BEGIN CONVERSATION TIMER (@h) ", true, false, true, false, new string[]
         {
@@ -14349,14 +14535,14 @@ internal static class SqlKeywordCatalogData
         ("SEND ON CONVERSATION", SqlKeywordPosition.StatementStart, "SEND ON CONVERSATION ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("RECEIVE", SqlKeywordPosition.StatementStart, "RECEIVE ", false, true, true, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER", "TOP",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TOP", "TRY_CONVERT", "USER",
         }),
         ("RECEIVE ... FROM", SqlKeywordPosition.StatementStart, "RECEIVE * FROM ", false, false, true, false, new string[]
         {
@@ -14404,8 +14590,8 @@ internal static class SqlKeywordCatalogData
         ("MOVE CONVERSATION {value} TO", SqlKeywordPosition.StatementStart, "MOVE CONVERSATION 1 TO ", false, true, false, false, new string[]
         {
             "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
-            "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER", "SYSTEM_USER",
-            "TRY_CONVERT", "USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("GET CONVERSATION GROUP", SqlKeywordPosition.StatementStart, "GET CONVERSATION GROUP ", true, true, false, false, new string[]
         {
@@ -14897,14 +15083,6 @@ internal static class SqlKeywordCatalogData
         ("ALTER ENDPOINT ... FOR DATABASE_MIRRORING (* ENCRYPTION = REQUIRED ALGORITHM RC4", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING (ENCRYPTION = REQUIRED ALGORITHM RC4 ", true, false, false, false, new string[]
         {
             "AES",
-        }),
-        ("CREATE DATABASE {name} WITH ,* FILESTREAM (* DIRECTORY_NAME =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH FILESTREAM (DIRECTORY_NAME = ", false, false, false, false, new string[]
-        {
-            "NULL",
-        }),
-        ("CREATE DATABASE {name} WITH ,* FILESTREAM (* NON_TRANSACTED_ACCESS =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t WITH FILESTREAM (NON_TRANSACTED_ACCESS = ", true, false, false, false, new string[]
-        {
-            "FULL", "OFF", "READ_ONLY",
         }),
         ("CREATE DATABASE ... WITH ,* FILESTREAM (* DIRECTORY_NAME =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH FILESTREAM (DIRECTORY_NAME = ", false, false, false, false, new string[]
         {
@@ -16478,12 +16656,12 @@ internal static class SqlKeywordCatalogData
         ("KEY NONCLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int PRIMARY KEY NONCLUSTERED ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "HASH", "IDENTITY", "INDEX", "NOT",
-            "NULL", "ON", "PRIMARY", "REFERENCES", "UNIQUE", "WITH",
+            "NULL", "ON", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE", "WITH",
         }),
         ("UNIQUE NONCLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int UNIQUE NONCLUSTERED ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "HASH", "IDENTITY", "INDEX", "NOT",
-            "NULL", "ON", "PRIMARY", "REFERENCES", "UNIQUE", "WITH",
+            "NULL", "ON", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE", "WITH",
         }),
         ("DROP INDEX ... WITH (* MOVE", SqlKeywordPosition.StatementStart, "DROP INDEX i ON t WITH (MOVE ", true, false, false, false, new string[]
         {
@@ -16552,8 +16730,8 @@ internal static class SqlKeywordCatalogData
         ("ALTER TABLE {name} REBUILD PARTITION =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ", false, true, false, false, new string[]
         {
             "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER",
-            "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "CURRENT_USER", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
+            "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("ALTER TABLE {name} REBUILD PARTITION = ALL", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL ", true, false, false, true, new string[]
         {
@@ -16562,8 +16740,8 @@ internal static class SqlKeywordCatalogData
         ("ALTER INDEX {name} ON {name} REBUILD PARTITION =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ", false, true, false, false, new string[]
         {
             "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
-            "CURRENT_USER", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "SESSION_USER",
-            "SYSTEM_USER", "TRY_CONVERT", "USER",
+            "CURRENT_USER", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
+            "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = ALL ", true, false, false, true, new string[]
         {
@@ -16657,61 +16835,77 @@ internal static class SqlKeywordCatalogData
         {
             "INDEX",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH ", true, false, false, false, new string[]
         {
-            "POPULATION",
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH ", true, false, false, false, new string[]
         {
-            "POPULATION",
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
         {
-            "POPULATION",
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH ", true, false, false, false, new string[]
         {
-            "POPULATION",
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH ", true, false, false, false, new string[]
         {
-            "POPULATION",
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
         {
-            "POPULATION",
+            "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
-        }),
-        (", SEARCH", SqlKeywordPosition.Any, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF, SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
-        }),
-        (", SEARCH PROPERTY", SqlKeywordPosition.Any, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH STOPLIST = OFF, SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
         }),
         ("ALTER FULLTEXT INDEX ON {name} ADD () WITH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ADD (a) WITH ", true, false, false, false, new string[]
         {
@@ -17054,12 +17248,12 @@ internal static class SqlKeywordCatalogData
         ("GENERATED ALWAYS AS ROW START", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS ROW START ", true, false, false, false, new string[]
         {
             "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
-            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "SPARSE", "UNIQUE",
         }),
         ("GENERATED ALWAYS AS ROW END", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS ROW END ", true, false, false, false, new string[]
         {
             "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
-            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "SPARSE", "UNIQUE",
         }),
         ("GENERATED ALWAYS AS SUSER_SID", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SID ", true, false, false, false, new string[]
         {
@@ -17068,7 +17262,7 @@ internal static class SqlKeywordCatalogData
         ("GENERATED ALWAYS AS SUSER_SID START", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SID START ", true, false, false, false, new string[]
         {
             "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
-            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "SPARSE", "UNIQUE",
         }),
         ("GENERATED ALWAYS AS SUSER_SNAME", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME ", true, false, false, false, new string[]
         {
@@ -17077,7 +17271,7 @@ internal static class SqlKeywordCatalogData
         ("GENERATED ALWAYS AS SUSER_SNAME END", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME END ", true, false, false, false, new string[]
         {
             "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
-            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "SPARSE", "UNIQUE",
+            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "SPARSE", "UNIQUE",
         }),
         ("GENERATED ALWAYS AS TRANSACTION_ID", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS TRANSACTION_ID ", true, false, false, false, new string[]
         {
@@ -17087,8 +17281,8 @@ internal static class SqlKeywordCatalogData
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("GENERATED ALWAYS AS SEQUENCE_NUMBER", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER ", true, false, false, false, new string[]
         {
@@ -17098,8 +17292,8 @@ internal static class SqlKeywordCatalogData
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
-            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
-            "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
         ("PERIOD", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (PERIOD ", false, false, true, false, new string[]
         {

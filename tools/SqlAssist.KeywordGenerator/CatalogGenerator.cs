@@ -199,7 +199,8 @@ public static class CatalogGenerator
 
         // 候選字：關鍵字清單，加上 ScriptDom 產生程式碼時用的全部字串常數。後者正是剖析器
         // 用字串比對認的那些非保留字（QUOTED_IDENTIFIER、REBUILD、MATCHED…），但也混著大量
-        // 與文法無關的字——不必事先挑，接不接得上由探測決定。
+        // 與文法無關的字——不必事先挑，接不接得上由探測決定。詞法器掃成識別字、剖析器以文字比對的保留字
+        // （ROWGUIDCOL）兩邊都沒有，由補充清單加進來，否則資料行型別之後列不出它。
         var supporter = assembly.GetType("Microsoft.SqlServer.TransactSql.ScriptDom.CodeGenerationSupporter")
             ?? throw new InvalidOperationException("ScriptDom 裡找不到 CodeGenerationSupporter；子句片語的候選字只能從那裡取。");
         var supporterWords = supporter.GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
@@ -208,7 +209,7 @@ public static class CatalogGenerator
             .OfType<string>()
             .Where(word => Regex.IsMatch(word, "^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.IgnoreCase))
             .Select(word => word.ToUpperInvariant());
-        var pool = SortUnique(keywords.Concat(supporterWords)).ToArray();
+        var pool = SortUnique(keywords.Concat(supporterWords).Concat(KeywordSupplements.Reserved)).ToArray();
         log.Info($"子句片語候選字：{pool.Length} 個");
 
         var explorer = new PhraseExplorer(prober, pool, reservedArray, keywords, positions, templates, Continuations.Phrases, log.Progress)

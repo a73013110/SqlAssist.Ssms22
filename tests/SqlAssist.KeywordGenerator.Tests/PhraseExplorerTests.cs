@@ -162,6 +162,42 @@ public sealed class PhraseExplorerTests : IDisposable
         Assert.Equal(["HASHED", "MUST_CHANGE", "OLD_PASSWORD", "UNLOCK"], password.Words.OrderBy(word => word, StringComparer.Ordinal));
     }
 
+    /// <summary>逗號清單一項的第一個字還沒寫完也是一格：CHANGE_TRACKING 之後是 MANUAL、AUTO、OFF，寫在第幾項都一樣。</summary>
+    [Fact]
+    public void 逗號清單項的第一個字之後另立中段清單的片語()
+    {
+        var explorer = Create(pool: ["AUTO", "CHANGE_TRACKING", "MANUAL", "OFF", "STOPLIST"]);
+
+        explorer.Explore([new("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,*")]);
+
+        var tracking = explorer.Phrases[ProbedPhrase.Key("StatementStart", "CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* CHANGE_TRACKING")];
+        Assert.Equal(["AUTO", "MANUAL", "OFF"], tracking.Words.OrderBy(word => word, StringComparer.Ordinal));
+        Assert.False(explorer.Phrases.Contains(ProbedPhrase.Key("StatementStart", "CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* OFF")));
+    }
+
+    /// <summary>標頭夾著 ... 的清單，項的等號之後照樣立：RESTORE … WITH STOPATMARK = 'm' 之後是 AFTER。</summary>
+    [Fact]
+    public void 標頭夾著其餘標頭的清單也立項的等號之後()
+    {
+        var explorer = Create(pool: ["AFTER", "RECOVERY", "STOPATMARK"]);
+
+        explorer.Explore([new("RESTORE DATABASE ... WITH ,*") { Gap = "d FROM DISK = 'x'" }]);
+
+        Assert.Contains("AFTER", explorer.Phrases[ProbedPhrase.Key("StatementStart", "RESTORE DATABASE ... WITH ,* STOPATMARK = {value}")].Words);
+    }
+
+    /// <summary>等號之後收得下一串以逗號分隔的值時，寫完的那幾個是中段的 ,*：CPU = 0, 1 之後同樣是 TO。</summary>
+    [Fact]
+    public void 等號之後的值清單立成中段清單()
+    {
+        var explorer = Create(pool: ["AUTO", "TO"]);
+
+        explorer.Explore([new("ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU =") { Expand = 1 }]);
+
+        Assert.Contains("TO", explorer.Phrases[ProbedPhrase.Key("StatementStart", "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = ,* {value}")].Words);
+        Assert.False(explorer.Phrases.Contains(ProbedPhrase.Key("StatementStart", "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = {value}")));
+    }
+
     /// <summary>括號清單一項的等號之後同樣是一格：MEMORY_PARTITION_MODE = 之後是 PER_CPU，寫在第幾項都一樣。</summary>
     [Fact]
     public void 括號清單項的等號之後另立一格()
