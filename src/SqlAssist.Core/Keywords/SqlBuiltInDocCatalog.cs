@@ -324,15 +324,23 @@ public static class SqlBuiltInDocCatalog
     /// 只看限定字；語句不看左括號，只看名稱落不落在一句開頭那串字裡。
     /// 兩者都要在函式／型別的左括號早退判斷之前先問，否則 <c>EXEC sp_x</c> 這種沒有
     /// 左括號的關鍵字會被「沒有左括號的關鍵字一律不認」擋下。
+    ///
+    /// 多字的名稱（語句、提示）停在其中任何一個字上都認得，<paramref name="span"/> 蓋住整串字：
+    /// 停留提示、浮動預覽與 Ctrl＋點擊的底線都照它畫，<c>ALTER TABLE</c> 因此是一個連結，
+    /// 不是兩個各自加底線、點下去卻開同一份說明的字。
     /// </remarks>
-    public static bool TryGetAt(string? text, SqlIdentifierReference? reference, out SqlBuiltInDoc doc)
+    /// <param name="span">說明對到的那段原文，含限定字與多字名稱的每一個字。</param>
+    public static bool TryGetAt(string? text, SqlIdentifierReference? reference, out SqlBuiltInDoc doc, out SqlTextSpan span)
     {
         doc = null!;
+        span = default;
 
         if (text is null || reference is null)
         {
             return false;
         }
+
+        span = reference.Span;
 
         // 系統程序要在「限定字早退」之前先問：sys.sp_executesql、master.sys.sp_help、
         // master..sp_help 都有限定字，晚一步問就先被下面那條擋掉了。
@@ -354,18 +362,19 @@ public static class SqlBuiltInDocCatalog
         }
 
         // 提示與日期部分反過來，離開那幾個括號一律不算：NOLOCK 與 YEAR 在別處是欄位名。
-        if (TryGetArgumentKind(text, reference, out var kind) &&
-            TryGetArgument(text, reference, kind, out doc))
+        if (TryGetArgumentAt(text, reference, out doc, out span))
         {
             return true;
         }
 
         // 語句（EXEC、MERGE、BULK INSERT…）要在左括號早退之前問：這些關鍵字絕大多數
         // 後面沒有左括號，晚一步問就被下面「沒有左括號的關鍵字一律不認」擋掉了。
-        if (Statements.Contains(reference.Name) && TryGetStatementAt(text, reference.End, out doc))
+        if (Statements.Contains(reference.Name) && TryGetStatementAt(text, reference.End, out doc, out span))
         {
             return true;
         }
+
+        span = reference.Span;
 
         var next = SqlTrivia.Skip(text, reference.End, text.Length);
         var call = next < text.Length && text[next] == '(';
@@ -455,9 +464,10 @@ public static class SqlBuiltInDocCatalog
     /// 開頭後面直接接 <c>AS</c> 的不是語句：<c>EXECUTE AS USER = '…'</c>、<c>WITH EXECUTE AS OWNER</c>
     /// 是切換執行身分的敘述，不是呼叫程序的 EXEC，分辨的線索只有這一個。
     /// </remarks>
-    private static bool TryGetStatementAt(string text, int wordEnd, out SqlBuiltInDoc doc)
+    private static bool TryGetStatementAt(string text, int wordEnd, out SqlBuiltInDoc doc, out SqlTextSpan span)
     {
         doc = null!;
+        span = default;
 
         var vocabulary = Statements;
         var tokens = SqlTokenizer.Tokenize(text, 0, wordEnd);
@@ -481,21 +491,12 @@ public static class SqlBuiltInDocCatalog
 
         var names = CollectMultiWordNames(text, tokens[head].Value, tokens[head].End, vocabulary.MaxWords);
 
-        if (names.Count > 1 && names[1].EndsWith(" AS", StringComparison.OrdinalIgnoreCase))
+        if (names.Count > 1 && names[1].Name.EndsWith(" AS", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        for (var index = names.Count - 1; index >= word - head; index--)
-        {
-            if (TryGet(names[index], SqlBuiltInKind.Statement, out doc))
-            {
-                return true;
-            }
-        }
-
-        doc = null!;
-        return false;
+        return TryGetLongest(names, word - head, SqlBuiltInKind.Statement, tokens[head].Start, out doc, out span);
     }
 
     /// <summary>
@@ -522,7 +523,7 @@ public static class SqlBuiltInDocCatalog
         }
 
         var probe = text.Substring(0, position) + candidate;
-        return TryGetStatementAt(probe, probe.Length, out doc);
+        return TryGetStatementAt(probe, probe.Length, out doc, out _);
     }
 
     /// <summary>
@@ -564,34 +565,62 @@ public static class SqlBuiltInDocCatalog
     }
 
     /// <summary>
-    /// 停留的位置是不是那幾個括號裡的封閉清單。
+    /// 停留的位置是不是那幾個括號裡的封閉清單，是的話查出那個提示或日期部分，含
+    /// <c>FORCE ORDER</c> 這種多字寫法。
     /// </summary>
     /// <remarks>
     /// 位置問的是 <see cref="SqlArgumentPosition"/>，與建議清單在同一個位置換掉整份
     /// 清單的是同一支：兩邊對「這裡只有這幾個字合法」的認定不該有兩套。
     ///
-    /// 先用一次線性比對擋掉不在清單裡的名稱，再花詞法分析。這條路掛在滑鼠移動的
+    /// 先用一次字表比對擋掉不在清單裡的名稱，再花詞法分析。這條路掛在滑鼠移動的
     /// 軌跡上，而停上去的名稱絕大多數是欄位與資料表。
+    ///
+    /// 與語句同一條規則：停在後面幾個字上一樣認得。提示一定寫在左括號或逗號之後，
+    /// 所以開頭只會是往回跨過前面幾個字之後的那一個——位置判斷只在那裡成立，
+    /// 不必每個字各試一次。由長到短試，否則 <c>OPTIMIZE FOR UNKNOWN</c> 會先被
+    /// <c>OPTIMIZE FOR</c> 接走，而那兩個提示說的是相反的事。
     /// </remarks>
-    private static bool TryGetArgumentKind(
+    private static bool TryGetArgumentAt(
         string text,
         SqlIdentifierReference reference,
-        out SqlBuiltInKind kind)
+        out SqlBuiltInDoc doc,
+        out SqlTextSpan span)
     {
-        kind = SqlBuiltInKind.Function;
+        doc = null!;
+        span = default;
 
-        if (!SqlArgumentCatalog.Contains(reference.Name))
+        if (!SqlArgumentCatalog.ContainsWord(reference.Name))
         {
             return false;
         }
 
-        if (!SqlArgumentPosition.TryResolve(
-                SqlTokenizer.Tokenize(text, 0, reference.Start),
-                out var target))
+        var tokens = SqlTokenizer.Tokenize(text, 0, reference.Start);
+        var head = tokens.Count;
+
+        while (tokens.Count - head < MaximumHintWords - 1 && head > 0 && IsBareWord(tokens[head - 1]))
+        {
+            head--;
+        }
+
+        var hovered = head == tokens.Count;
+        var before = hovered ? tokens : SqlTokenizer.Tokenize(text, 0, tokens[head].Start);
+
+        if (!SqlArgumentPosition.TryResolve(before, out var target) || !TryGetArgumentKind(target, out var kind))
         {
             return false;
         }
 
+        var names = hovered
+            ? CollectMultiWordNames(text, reference.Name, reference.End, MaximumHintWords)
+            : CollectMultiWordNames(text, tokens[head].Value, tokens[head].End, MaximumHintWords);
+        var start = hovered ? reference.Start : tokens[head].Start;
+        return TryGetLongest(names, tokens.Count - head, kind, start, out doc, out span);
+    }
+
+    private static bool IsBareWord(SqlToken token) => token.Kind == SqlTokenKind.Identifier && !token.IsQuoted;
+
+    private static bool TryGetArgumentKind(CompletionTarget target, out SqlBuiltInKind kind)
+    {
         switch (target)
         {
             case CompletionTarget.DatePart:
@@ -604,34 +633,34 @@ public static class SqlBuiltInDocCatalog
                 kind = SqlBuiltInKind.QueryHint;
                 return true;
             default:
+                kind = SqlBuiltInKind.Function;
                 return false;
         }
     }
 
     /// <summary>
-    /// 查出這個位置上的提示或日期部分，含 <c>FORCE ORDER</c> 這種多字寫法。
+    /// 由長到短找出第一筆有說明、而且蓋得到第 <paramref name="word"/> 個字（從 0 起算）的名稱。
     /// </summary>
-    /// <remarks>
-    /// 由長到短試，否則 <c>OPTIMIZE FOR UNKNOWN</c> 會先被 <c>OPTIMIZE FOR</c> 接走，
-    /// 而那兩個提示說的是相反的事；併詞的規則見 <see cref="CollectMultiWordNames"/>。
-    /// </remarks>
-    private static bool TryGetArgument(
-        string text,
-        SqlIdentifierReference reference,
+    /// <param name="start">名稱第一個字在原文裡的起點。</param>
+    private static bool TryGetLongest(
+        List<(string Name, int End)> names,
+        int word,
         SqlBuiltInKind kind,
-        out SqlBuiltInDoc doc)
+        int start,
+        out SqlBuiltInDoc doc,
+        out SqlTextSpan span)
     {
-        var names = CollectMultiWordNames(text, reference, MaximumHintWords);
-
-        for (var index = names.Count - 1; index >= 0; index--)
+        for (var index = names.Count - 1; index >= word; index--)
         {
-            if (TryGet(names[index], kind, out doc))
+            if (TryGet(names[index].Name, kind, out doc))
             {
+                span = SqlTextSpan.FromBounds(start, names[index].End);
                 return true;
             }
         }
 
         doc = null!;
+        span = default;
         return false;
     }
 
@@ -639,17 +668,10 @@ public static class SqlBuiltInDocCatalog
     /// 由 <paramref name="first"/> 往後併詞，最多 <paramref name="maxWords"/> 個，供多字寫法
     /// （<c>OPTIMIZE FOR UNKNOWN</c>、<c>CREATE UNIQUE INDEX</c>）由長到短試。
     /// </summary>
-    /// <remarks>
-    /// 提示只從停留的那個詞往後併：提示停在第二個詞上認不出來，為了半個名稱把位置分析
-    /// 整個搬過來不划算。語句不同，一句的開頭本來就要問位置分析，所以從開頭那個詞併起
-    /// （見 <see cref="TryGetStatementAt"/>）。
-    /// </remarks>
-    private static List<string> CollectMultiWordNames(string text, SqlIdentifierReference reference, int maxWords) =>
-        CollectMultiWordNames(text, reference.Name, reference.End, maxWords);
-
-    private static List<string> CollectMultiWordNames(string text, string first, int firstEnd, int maxWords)
+    /// <returns>每一種長度的名稱，連同最後一個字在原文裡的結尾。</returns>
+    private static List<(string Name, int End)> CollectMultiWordNames(string text, string first, int firstEnd, int maxWords)
     {
-        var names = new List<string>(maxWords) { first };
+        var names = new List<(string Name, int End)>(maxWords) { (first, firstEnd) };
         var end = firstEnd;
 
         while (names.Count < maxWords)
@@ -663,7 +685,7 @@ public static class SqlBuiltInDocCatalog
                 break;
             }
 
-            names.Add(names[names.Count - 1] + " " + following.Name);
+            names.Add((names[names.Count - 1].Name + " " + following.Name, following.End));
             end = following.End;
         }
 

@@ -16,8 +16,8 @@ namespace SqlAssist.Ssms22.Editor;
 /// <see cref="SqlClickLinkTagger"/> 依 <see cref="Link"/> 畫；三者共用這一份狀態，
 /// 才不會出現「底線還在、點下去卻沒反應」這種兩邊各算一次的分岔。
 ///
-/// 滑鼠移動路徑上只做純文字判斷（<see cref="SqlClickTarget"/>，只看那一行），不查中繼資料；
-/// 沒按修飾鍵時連那一行都不讀。
+/// 滑鼠移動路徑上只做純文字判斷（<see cref="SqlClickTarget"/>），不查中繼資料：通常只看那一行，
+/// 停在一串名稱的第一段上才取整份文字分辨別名與結構描述；沒按修飾鍵時連那一行都不讀。
 ///
 /// <b>按下就接手、放開才執行</b>：按下時不吞掉的話，編輯器會先把單字選起來、把游標搬過去；
 /// 放開才執行則讓「按下後拖開」能反悔。點在既有的選取範圍裡不接手——那是 Ctrl＋拖曳複製。
@@ -199,13 +199,15 @@ internal sealed class SqlClickNavigator
     private static SnapshotSpan? FindLink(SnapshotPoint point, SqlClickAction action)
     {
         var line = point.GetContainingLine();
-        var reference = SqlClickTarget.FindAt(
+        var span = SqlClickTarget.FindAt(
             line.GetText(),
             point.Position - line.Start.Position,
-            SqlClickGestures.AcceptsBuiltIns(action));
-        return reference is null
-            ? null
-            : new SnapshotSpan(line.Start + reference.Start, reference.Length);
+            SqlClickGestures.AcceptsBuiltIns(action),
+            () => point.Snapshot.GetText(),
+            line.Start.Position);
+        return span is { } link
+            ? new SnapshotSpan(line.Start + link.Start, link.Length)
+            : null;
     }
 
     private bool IsInsideSelection(SnapshotPoint point)

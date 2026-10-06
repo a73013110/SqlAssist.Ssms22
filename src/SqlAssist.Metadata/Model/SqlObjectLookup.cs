@@ -54,9 +54,9 @@ public sealed class SqlObjectLookup
             throw new ArgumentNullException(nameof(text));
         }
 
-        var reference = SqlIdentifierScanner.FindAt(text, position);
-
-        if (reference is null)
+        // 先用一次只看附近文字的掃描擋掉不在識別字上的位置：停在空白與關鍵字之間的次數，
+        // 遠多於停在名稱上的次數，那些不必付一次整份文字的詞法分析。
+        if (SqlIdentifierScanner.FindAt(text, position) is null)
         {
             return null;
         }
@@ -64,7 +64,14 @@ public sealed class SqlObjectLookup
         // 詞法串流讓範圍分析與指令碼名冊共用同一次掃描；各自來一次等於在滑鼠移動的
         // 軌跡上把整份文字多掃一遍。
         var tokens = SqlTokenizer.Tokenize(text);
-        return new SqlObjectLookup(text, tokens, reference, SqlScopeAnalyzer.Analyze(text, tokens, position));
+        var scope = SqlScopeAnalyzer.Analyze(text, tokens, position);
+
+        // 停在結構描述那一段上指的是整個物件，與 Ctrl＋點擊的底線同一條規則（FindNameAt）。
+        var reference = SqlIdentifierScanner.FindNameAt(
+            text,
+            position,
+            first => scope.TryResolve(first.Name, first.Start, out _))!;
+        return new SqlObjectLookup(text, tokens, reference, scope);
     }
 
     public sealed class Candidate
@@ -192,7 +199,7 @@ public sealed class SqlObjectLookup
         if (Reference.Qualifier is not null)
         {
             if (Reference.Path is not { IsLocal: true } ||
-                !_scope.TryResolve(Reference.Qualifier, out var owner) ||
+                !_scope.TryResolve(Reference.Qualifier, Reference.Start, out var owner) ||
                 !owner.IsLocal || owner.SchemaName is not null)
             {
                 return null;
@@ -205,7 +212,7 @@ public sealed class SqlObjectLookup
 
         // 別名優先於同名的宣告，與資料庫物件同一條規則：<c>FROM dbo.Loan c</c> 之後的
         // c 是 Loan，即使這份指令碼別的地方剛好有一個叫 c 的 CTE。
-        if (_scope.TryResolve(Reference.Name, out var aliased))
+        if (_scope.TryResolve(Reference.Name, Reference.Start, out var aliased))
         {
             return aliased.IsLocal && aliased.SchemaName is null && Declarations.Find(aliased.ObjectName) is { } aliasedDetail
                 ? new Candidate(aliasedDetail.Object, needsColumn: false, aliasedDetail)
@@ -268,7 +275,7 @@ public sealed class SqlObjectLookup
         }
 
         // 沒有欄位證據時仍可提示明確的別名；但已找到的欄位及歧義不能被別名搶走。
-        if (found is null && _scope.TryResolve(Reference.Name, out var aliased) &&
+        if (found is null && _scope.TryResolve(Reference.Name, Reference.Start, out var aliased) &&
             !string.IsNullOrEmpty(aliased.Alias))
         {
             unresolved = false;
@@ -478,7 +485,7 @@ public sealed class SqlObjectLookup
         // 剛好取名叫 dbo 的別名會讓 F12 跳到它指的那張表。
         if (Reference.Qualifier is null ||
             Reference.Path is not { IsLocal: true } ||
-            !_scope.TryResolve(Reference.Qualifier, out var table))
+            !_scope.TryResolve(Reference.Qualifier, Reference.Start, out var table))
         {
             return false;
         }
@@ -530,7 +537,7 @@ public sealed class SqlObjectLookup
         SqlIdentifierReference reference)
     {
         if (reference.Qualifier is null &&
-            scope.TryResolve(reference.Name, out var aliased) &&
+            scope.TryResolve(reference.Name, reference.Start, out var aliased) &&
             !aliased.IsDerived)
         {
             // 別名可能指向另一個資料庫的表，那時這一份快照回答不了它。

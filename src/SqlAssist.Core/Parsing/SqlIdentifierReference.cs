@@ -44,6 +44,8 @@ public sealed class SqlIdentifierReference
 
     public int End => Start + Length;
 
+    public SqlTextSpan Span => new(Start, Length);
+
     public override string ToString()
     {
         return Path?.ToString() ?? Name;

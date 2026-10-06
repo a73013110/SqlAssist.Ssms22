@@ -88,7 +88,7 @@ https 位址；改過 `docsUrl` 後跑 `tools/Check-DocLinks.ps1`（要網路，
   不成立。`CAST(x AS char(10))` 的 `char` 仍會被說成函式，那是位置分析的工作。
   `[CONVERT]`、`dbo.CONVERT` 都不是內建名稱。
 
-多字提示只認第一個詞、由長到短試：`OPTIMIZE FOR` 與 `OPTIMIZE FOR UNKNOWN` 說的是相反的事。
+多字提示停在任一詞上都認、由長到短試：`OPTIMIZE FOR` 與 `OPTIMIZE FOR UNKNOWN` 意思相反。
 語句的字數上限由資料算出（最長的名稱或別名），不寫常數。
 
 ## 說明與物件誰先

@@ -87,7 +87,17 @@ public sealed class SqlStatementScope
     /// 由內往外找，內層先找到就停：這正是 T-SQL 解析相關名稱的順序，
     /// 子查詢裡與外層同名的別名遮住外層那一個。
     /// </remarks>
-    public bool TryResolve(string qualifier, out SqlTableReference reference)
+    public bool TryResolve(string qualifier, out SqlTableReference reference) =>
+        TryResolve(qualifier, qualifierStart: -1, out reference);
+
+    /// <summary>把寫在 <paramref name="qualifierStart"/> 的限定字解析成資料來源。</summary>
+    /// <param name="qualifierStart">
+    /// 限定字在原文裡的起點。某個資料來源自己的名稱正好從那裡開始時，那一段是在寫它的名稱，
+    /// 不是在用它的公開名稱：<c>FROM attachments.Attachments</c> 的 <c>attachments</c> 是
+    /// 結構描述，只是大小寫不分地剛好與表名相同。不跳過的話，停在 <c>Attachments</c> 上
+    /// 會被當成「那張表的 Attachments 欄位」，而那張表沒有這個欄位。
+    /// </param>
+    public bool TryResolve(string qualifier, int qualifierStart, out SqlTableReference reference)
     {
         reference = null!;
 
@@ -99,7 +109,8 @@ public sealed class SqlStatementScope
         // OUTPUT 子句裡的 inserted 一定是那句 DML 的，同一句 FROM 寫的 inserted 遮不住它。
         foreach (var candidate in ChangeTables)
         {
-            if (string.Equals(candidate.Alias, qualifier, StringComparison.OrdinalIgnoreCase))
+            if (candidate.Start != qualifierStart &&
+                string.Equals(candidate.Alias, qualifier, StringComparison.OrdinalIgnoreCase))
             {
                 reference = candidate;
                 return true;
@@ -108,7 +119,7 @@ public sealed class SqlStatementScope
 
         for (var scope = this; scope is not null; scope = scope.Outer)
         {
-            if (scope.TryResolveHere(qualifier, out reference))
+            if (scope.TryResolveHere(qualifier, qualifierStart, out reference))
             {
                 return true;
             }
@@ -117,11 +128,12 @@ public sealed class SqlStatementScope
         return false;
     }
 
-    private bool TryResolveHere(string qualifier, out SqlTableReference reference)
+    private bool TryResolveHere(string qualifier, int qualifierStart, out SqlTableReference reference)
     {
         foreach (var candidate in Tables)
         {
-            if (!string.IsNullOrEmpty(candidate.Alias) &&
+            if (candidate.Start != qualifierStart &&
+                !string.IsNullOrEmpty(candidate.Alias) &&
                 string.Equals(candidate.Alias, qualifier, StringComparison.OrdinalIgnoreCase))
             {
                 reference = candidate;
@@ -131,7 +143,8 @@ public sealed class SqlStatementScope
 
         foreach (var candidate in Tables)
         {
-            if (string.IsNullOrEmpty(candidate.Alias) &&
+            if (candidate.Start != qualifierStart &&
+                string.IsNullOrEmpty(candidate.Alias) &&
                 string.Equals(candidate.ObjectName, qualifier, StringComparison.OrdinalIgnoreCase))
             {
                 reference = candidate;

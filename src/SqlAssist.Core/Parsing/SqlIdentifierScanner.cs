@@ -66,6 +66,129 @@ public static class SqlIdentifierScanner
         return new SqlIdentifierReference(name, path, referenceStart, end - referenceStart);
     }
 
+    /// <summary>
+    /// 取得 <paramref name="position"/> 指著的那個名稱：限定字那一段若是別名，只到那一段為止；
+    /// 否則是整串多段式名稱。
+    /// </summary>
+    /// <param name="namesColumnOwner">
+    /// 名稱第一段（只有一段的參考）是不是指著某個資料來源、後面接的是它的欄位：
+    /// <c>l.CopyNo</c> 的 <c>l</c> 是，<c>dbo.Loan</c> 的 <c>dbo</c> 不是。只有停在一串名稱的
+    /// 第一段、而且後面還有別段時才會問——那是唯一要看範圍才分得出來的情形。
+    /// </param>
+    /// <remarks>
+    /// <see cref="FindAt(string, int)"/> 只往左讀限定字，停在 <c>dbo</c> 上得到的是 <c>dbo</c>
+    /// 這一段。那不是使用者指的東西：結構描述、資料庫與連結伺服器那幾段都只是在說後面
+    /// 那個物件在哪裡，停在哪一段指的都是同一個物件。例外只有別名——<c>l.CopyNo</c> 停在
+    /// <c>l</c> 上問的是那張表，停在 <c>CopyNo</c> 上問的是那個欄位，兩段各是一個答案。
+    /// 中間那幾段（前面已經有限定字）不可能是別名：別名只有一段。
+    /// </remarks>
+    public static SqlIdentifierReference? FindNameAt(
+        string text,
+        int position,
+        Func<SqlIdentifierReference, bool> namesColumnOwner)
+    {
+        if (namesColumnOwner is null)
+        {
+            throw new ArgumentNullException(nameof(namesColumnOwner));
+        }
+
+        var reference = FindAt(text, position);
+
+        if (reference is null || FindLastSegmentStart(text, reference.End) is not { } last)
+        {
+            return reference;
+        }
+
+        if (reference.Path is { QualifierSlotCount: 0 } && namesColumnOwner(reference))
+        {
+            return reference;
+        }
+
+        return FindAt(text, last) ?? reference;
+    }
+
+    /// <summary>
+    /// 從 <paramref name="end"/> 往右跨過 <c>.段</c>，回傳最後一段的起點；後面沒有別段時為 null。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="TryReadQualifierBefore"/> 同一種寫法的反方向：點號兩側可以有空白，
+    /// <c>LibArchive..Loan</c> 少寫的那一段直接跨過，括住的段不跨行。
+    /// </remarks>
+    private static int? FindLastSegmentStart(string text, int end)
+    {
+        int? last = null;
+        var index = end;
+
+        while (true)
+        {
+            index = SkipHorizontalWhitespace(text, index);
+
+            if (index >= text.Length || text[index] != '.')
+            {
+                return last;
+            }
+
+            do
+            {
+                index = SkipHorizontalWhitespace(text, index + 1);
+            }
+            while (index < text.Length && text[index] == '.');
+
+            if (index >= text.Length)
+            {
+                return last;
+            }
+
+            var segmentStart = index;
+
+            if (text[index] == '[' || text[index] == '"')
+            {
+                var close = FindClosing(text, index + 1, LineEnd(text, index), text[index] == '[' ? ']' : '"');
+
+                if (close < 0)
+                {
+                    return last;
+                }
+
+                index = close + 1;
+            }
+            else if (SqlIdentifier.IsIdentifierCharacter(text[index]))
+            {
+                while (index < text.Length && SqlIdentifier.IsIdentifierCharacter(text[index]))
+                {
+                    index++;
+                }
+            }
+            else
+            {
+                return last;
+            }
+
+            last = segmentStart;
+        }
+    }
+
+    /// <summary>識別字不跨行：括住的識別字只在這一行裡找結尾。</summary>
+    private static int LineEnd(string text, int index)
+    {
+        while (index < text.Length && text[index] != '\n' && text[index] != '\r')
+        {
+            index++;
+        }
+
+        return index;
+    }
+
+    private static int SkipHorizontalWhitespace(string text, int index)
+    {
+        while (index < text.Length && IsHorizontalWhitespace(text[index]))
+        {
+            index++;
+        }
+
+        return index;
+    }
+
     /// <summary>讀出位置所在的識別字，支援方括號與雙引號括住的形式。</summary>
     private static bool TryReadIdentifierAt(
         string text,
@@ -148,13 +271,7 @@ public static class SqlIdentifierScanner
             lineStart--;
         }
 
-        var lineEnd = position;
-
-        while (lineEnd < text.Length && text[lineEnd] != '\n' && text[lineEnd] != '\r')
-        {
-            lineEnd++;
-        }
-
+        var lineEnd = LineEnd(text, position);
         var index = lineStart;
 
         while (index < lineEnd)

@@ -13,7 +13,7 @@ public sealed class BlockMatcher
         ("BEGIN", "END", null, BlockKind.Block), ("CASE", "END", null, BlockKind.Case)
     };
     private static readonly HashSet<string> ClosingKeywords = new(Array.ConvertAll(Rules, rule => rule.Close), StringComparer.OrdinalIgnoreCase);
-    private readonly (BlockSpan Span, BlockPair Pair)[] _endpoints;
+    private readonly (SqlTextSpan Span, BlockPair Pair)[] _endpoints;
     private readonly (int Position, BlockPair? Pair)[] _regions;
     private readonly Dictionary<BlockPair, BlockPair?> _parents = new();
     public IReadOnlyList<BlockPair> Pairs { get; }
@@ -23,7 +23,7 @@ public sealed class BlockMatcher
         if (sql is null) throw new ArgumentNullException(nameof(sql));
         var tokens = SqlTokenizer.TokenizeBlocks(sql, cancellationToken);
         var pairs = new List<BlockPair>();
-        var stack = new Stack<(int Rule, BlockSpan[] Opening)>();
+        var stack = new Stack<(int Rule, SqlTextSpan[] Opening)>();
         foreach (var pair in SqlTokenNavigator.FindParenthesisPairs(tokens, 0, tokens.Count, t => t.IsKeyword("GO")))
             pairs.Add(new BlockPair(BlockKind.Parenthesis, Spans(tokens[pair.Key]), Spans(tokens[pair.Value])));
 
@@ -39,13 +39,13 @@ public sealed class BlockMatcher
                 var quote = token.Text.Length > 0 && token.Text[0] == '\'' ? 0 : 1;
                 if (token.Text.Length >= quote + 2 && token.Text[quote] == '\'' && token.Text[token.Text.Length - 1] == '\'')
                     pairs.Add(new BlockPair(BlockKind.String,
-                        new[] { new BlockSpan(token.Start + quote, 1) }, new[] { new BlockSpan(token.End - 1, 1) }));
+                        new[] { new SqlTextSpan(token.Start + quote, 1) }, new[] { new SqlTextSpan(token.End - 1, 1) }));
                 continue;
             }
             if (token.IsQuoted && token.Text.Length >= 2 && token.Text[0] == '[' && token.Text[token.Text.Length - 1] == ']')
             {
                 pairs.Add(new BlockPair(BlockKind.Bracket,
-                    new[] { new BlockSpan(token.Start, 1) }, new[] { new BlockSpan(token.End - 1, 1) }));
+                    new[] { new SqlTextSpan(token.Start, 1) }, new[] { new SqlTextSpan(token.End - 1, 1) }));
                 continue;
             }
 
@@ -83,7 +83,7 @@ public sealed class BlockMatcher
         pairs.Sort((a, b) => a.Span.Start.CompareTo(b.Span.Start));
         var accepted = new List<BlockPair>(pairs.Count);
         var parents = new Stack<BlockPair>();
-        var endpoints = new List<(BlockSpan Span, BlockPair Pair)>();
+        var endpoints = new List<(SqlTextSpan Span, BlockPair Pair)>();
         var events = new List<(int Position, bool Open, BlockPair Pair)>();
         foreach (var pair in pairs)
         {
@@ -167,6 +167,6 @@ public sealed class BlockMatcher
         return low;
     }
 
-    private static BlockSpan[] Spans(params SqlToken[] tokens) =>
-        Array.ConvertAll(tokens, token => new BlockSpan(token.Start, token.Length));
+    private static SqlTextSpan[] Spans(params SqlToken[] tokens) =>
+        Array.ConvertAll(tokens, token => new SqlTextSpan(token.Start, token.Length));
 }

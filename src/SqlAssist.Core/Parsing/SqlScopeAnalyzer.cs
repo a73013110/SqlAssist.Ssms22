@@ -82,6 +82,17 @@ public static class SqlScopeAnalyzer
     }
 
     /// <summary>
+    /// 寫在 <paramref name="start"/> 的 <paramref name="name"/> 是不是某個資料來源的別名或公開名稱——
+    /// 是的話，它後面接的那一段是欄位，不是同一個物件名稱的下一段。
+    /// </summary>
+    /// <remarks>
+    /// 給 <see cref="SqlIdentifierScanner.FindNameAt"/> 回答它唯一要看範圍的那個問題；
+    /// 資料來源自己的名稱不算（見 <see cref="SqlStatementScope.TryResolve(string, int, out SqlTableReference)"/>）。
+    /// </remarks>
+    public static bool NamesColumnOwner(string sql, int start, string name) =>
+        Analyze(sql, start).TryResolve(name, start, out _);
+
+    /// <summary>
     /// 以既有的詞法串流分析範圍。
     /// </summary>
     /// <remarks>

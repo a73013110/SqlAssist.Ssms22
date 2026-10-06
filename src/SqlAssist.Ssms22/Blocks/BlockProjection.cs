@@ -14,7 +14,7 @@ namespace SqlAssist.Ssms22.Blocks;
 internal static class BlockProjection
 {
     /// <summary>EdgeExclusive：端點緊鄰處的輸入不撐大高亮，只有區塊內部的輸入才算進範圍。</summary>
-    public static SnapshotSpan Project(ITextSnapshot source, BlockSpan span, ITextSnapshot target) =>
+    public static SnapshotSpan Project(ITextSnapshot source, SqlTextSpan span, ITextSnapshot target) =>
         new SnapshotSpan(source, span.Start, span.Length).TranslateTo(target, SpanTrackingMode.EdgeExclusive);
 
     public static SnapshotSpan Project(SnapshotSpan span, ITextSnapshot target) =>

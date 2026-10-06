@@ -70,8 +70,11 @@ internal static class SqlObjectNavigation
 
             var text = point.Snapshot.GetText();
             var metadataService = SqlCompletionServices.GetMetadataService(view, serviceProvider);
-            var reference = SqlIdentifierScanner.FindAt(text, point.Position);
-            var hasBuiltIn = SqlBuiltInDocCatalog.TryGetAt(text, reference, out var builtIn);
+            var reference = SqlIdentifierScanner.FindNameAt(
+                text,
+                point.Position,
+                first => SqlScopeAnalyzer.NamesColumnOwner(text, first.Start, first.Name));
+            var hasBuiltIn = SqlBuiltInDocCatalog.TryGetAt(text, reference, out var builtIn, out var builtInSpan);
 
             // 只有裝得滿一個視窗的說明才能搶答（Ctrl+F12 開的是同一個視窗，見
             // SqlBuiltInDoc.DeservesWindow）；查得到條目但只有一行摘要時不算——那種名稱
@@ -119,12 +122,12 @@ internal static class SqlObjectNavigation
             // CONVERT、DATEADD、系統程序與語句都不是資料庫物件，但停在它們上面時要問的事
             // 一模一樣：這個名稱可以怎麼用。同一個視窗答得出來，只有真的裝得滿一個視窗才開
             // （SqlBuiltInDoc.DeservesWindow，與建議清單那條入口同一條規則）。
-            if (resolution.BuiltIn is { } doc && doc.DeservesWindow && reference is not null &&
+            if (resolution.BuiltIn is { } doc && doc.DeservesWindow &&
                 SqlStructurePreview.GetOrCreate(view, serviceProvider) is { } builtInPreview)
             {
                 builtInPreview.Open(
                     PreviewTrigger.Command,
-                    point.Snapshot.CreateTrackingSpan(new Span(reference.Start, reference.Length), SpanTrackingMode.EdgeInclusive),
+                    point.Snapshot.CreateTrackingSpan(new Span(builtInSpan.Start, builtInSpan.Length), SpanTrackingMode.EdgeInclusive),
                     SqlPreviewSubject.ForBuiltIn(doc),
                     metadataService: null);
                 return;

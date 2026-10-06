@@ -486,6 +486,45 @@ public sealed class SqlObjectLookupTests
         Assert.Null(candidate.ScriptDetail);
     }
 
+    /// <summary>
+    /// 結構描述與表名大小寫不分地相同時，停在哪一段都是那張表。
+    /// </summary>
+    /// <remarks>
+    /// 以前 <c>loan.</c> 被當成那張表自己的公開名稱，停在 <c>Loan</c> 上就變成「那張表的
+    /// Loan 欄位」，而那張表沒有這個欄位——Ctrl+F12 回報不是可辨識的資料庫物件；停在
+    /// 結構描述上則是剛好被同一個誤認救回來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM loan.Loan", "Loan")]
+    [InlineData("SELECT * FROM loan.Loan", "loan.")]
+    [InlineData("SELECT * FROM [loan].[Loan] WHERE 1 = 1", "[loan]")]
+    public void 與表名同名的結構描述停在哪一段都是那張表(string sql, string hover)
+    {
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf(hover, StringComparison.Ordinal) + 1)!;
+        var table = new SqlObjectInfo(1, "loan", "Loan", SqlObjectKind.Table, "Library");
+        var snapshot = new SqlDatabaseSnapshot("Library", new[] { table }, new[] { "dbo", "loan" },
+            Array.Empty<string>(), DateTimeOffset.UtcNow);
+
+        var candidate = lookup.FindCandidate(snapshot, _ => new SqlObjectDetail(table))!;
+
+        Assert.Same(table, candidate.Object);
+        Assert.False(candidate.NeedsColumn);
+        Assert.Equal(sql.IndexOf("FROM", StringComparison.Ordinal) + 5, lookup.Reference.Start);
+        Assert.Equal("Loan", lookup.Reference.Name);
+    }
+
+    /// <summary>別名那一段仍是別名：停在 <c>l</c> 上問的是那張表，不是整串 <c>l.CopyNo</c>。</summary>
+    [Fact]
+    public void 別名那一段不併進欄位()
+    {
+        const string sql = "SELECT l.CopyNo FROM dbo.Lib_Reader l";
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("l.", StringComparison.Ordinal))!;
+        var table = Table(1, "Library");
+
+        Assert.Equal("l", lookup.Reference.Name);
+        Assert.Same(table, lookup.FindCandidate(Snapshot(table))!.Object);
+    }
+
     private static SqlObjectInfo Table(int id, string database) =>
         new(id, "dbo", "Lib_Reader", SqlObjectKind.Table, database);
 

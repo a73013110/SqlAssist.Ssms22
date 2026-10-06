@@ -127,8 +127,8 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
 
         if (resolution.Location is not { } location)
         {
-            return resolution.BuiltIn is { } doc && resolution.Reference is { } reference
-                ? BuildBuiltInItem(textView, snapshot, reference, doc)
+            return resolution.BuiltIn is { } doc
+                ? BuildBuiltInItem(textView, snapshot, resolution.BuiltInSpan, doc)
                 : null;
         }
 
@@ -215,11 +215,11 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
     private QuickInfoItem BuildBuiltInItem(
         ITextView textView,
         ITextSnapshot snapshot,
-        SqlIdentifierReference reference,
+        SqlTextSpan builtInSpan,
         SqlBuiltInDoc doc)
     {
         var span = snapshot.CreateTrackingSpan(
-            new Span(reference.Start, reference.Length),
+            new Span(builtInSpan.Start, builtInSpan.Length),
             SpanTrackingMode.EdgeInclusive);
 
         SqlAssistDiagnostics.Write($"已顯示內建說明：{doc.Name}");
@@ -286,23 +286,22 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
 
     /// <summary>
     /// 解析結果：物件解析贏了就帶 <see cref="Location"/>，內建說明贏了就帶
-    /// <see cref="BuiltIn"/>，兩者互斥；<see cref="Reference"/> 即使不是資料庫物件
-    /// 也要帶回來，內建說明才有範圍可以畫底線。
+    /// <see cref="BuiltIn"/> 與它佔的那段原文（多字語句是整串字），兩者互斥。
     /// </summary>
     private readonly struct Resolution
     {
-        public Resolution(SqlIdentifierReference? reference, SqlObjectLocation? location, SqlBuiltInDoc? builtIn)
+        public Resolution(SqlObjectLocation? location, SqlBuiltInDoc? builtIn, SqlTextSpan builtInSpan)
         {
-            Reference = reference;
             Location = location;
             BuiltIn = builtIn;
+            BuiltInSpan = builtInSpan;
         }
-
-        public SqlIdentifierReference? Reference { get; }
 
         public SqlObjectLocation? Location { get; }
 
         public SqlBuiltInDoc? BuiltIn { get; }
+
+        public SqlTextSpan BuiltInSpan { get; }
     }
 
     /// <summary>
@@ -324,14 +323,18 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
             ? parsed.Text
             : snapshot.GetText();
 
-        var reference = SqlIdentifierScanner.FindAt(text, position);
+        var reference = SqlIdentifierScanner.FindNameAt(
+            text,
+            position,
+            first => SqlScopeAnalyzer.NamesColumnOwner(text, first.Start, first.Name));
 
         if (reference is null)
         {
             return default;
         }
 
-        var builtIn = builtInHelpEnabled && SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc)
+        var builtInSpan = default(SqlTextSpan);
+        var builtIn = builtInHelpEnabled && SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out builtInSpan)
             ? doc
             : null;
 
@@ -339,7 +342,7 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
             builtIn,
             () => LocateObject(metadataService, snapshot, text, position, reference, parsed));
 
-        return new Resolution(reference, resolved.Location, resolved.BuiltIn);
+        return new Resolution(resolved.Location, resolved.BuiltIn, builtInSpan);
     }
 
     /// <summary>Hover 只查快取，不等查詢；沒命中也把這一次的語法分析留著供下一次重用。</summary>

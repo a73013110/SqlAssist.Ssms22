@@ -141,6 +141,9 @@ public static class SqlArgumentCatalog
         ("TRUNCATE", () => ArgumentText.OdbcTruncate, true)
     };
 
+    /// <summary>三份封閉清單裡的名稱拆成的字；多字寫法的每一個字都在內。</summary>
+    private static readonly HashSet<string> Words = CollectWords();
+
     private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> DatePartCache =
         new(_ => BuildDateParts());
 
@@ -182,46 +185,40 @@ public static class SqlArgumentCatalog
         switch (kind)
         {
             case SqlBuiltInKind.DatePart:
-                return TryFind(DatePartDefinitions, name, leading: false, out description);
+                return TryFind(DatePartDefinitions, name, out description);
             case SqlBuiltInKind.TableHint:
-                return TryFind(TableHintDefinitions, name, leading: false, out description);
+                return TryFind(TableHintDefinitions, name, out description);
             case SqlBuiltInKind.QueryHint:
-                return TryFind(QueryHintDefinitions, name, leading: false, out description);
+                return TryFind(QueryHintDefinitions, name, out description);
             default:
                 description = string.Empty;
                 return false;
         }
     }
 
-    /// <summary>這個名稱是不是三份封閉清單裡的字，或多字寫法的第一個詞。</summary>
+    /// <summary>這個字是不是三份封閉清單裡某個名稱的一個字。</summary>
     /// <remarks>
     /// 給滑鼠停留提示先擋一道用：那條路要判斷位置就得先做一次詞法分析，
     /// 而停在字上的絕大多數名稱根本不在這三份清單裡。
     ///
-    /// 第一個詞也算，否則 <c>FORCE ORDER</c> 停在 <c>FORCE</c> 上會在這裡就被擋掉，
-    /// 呼叫端沒有機會把後面那個詞接上去再查一次。
+    /// 多字寫法的每一個字都算，否則 <c>FORCE ORDER</c> 停在 <c>FORCE</c> 或 <c>ORDER</c> 上
+    /// 會在這裡就被擋掉，呼叫端沒有機會把前後的字併起來再查一次。
     /// </remarks>
-    public static bool Contains(string? name)
-    {
-        return TryFind(DatePartDefinitions, name, leading: true, out _) ||
-            TryFind(TableHintDefinitions, name, leading: true, out _) ||
-            TryFind(QueryHintDefinitions, name, leading: true, out _);
-    }
+    public static bool ContainsWord(string? word) => !string.IsNullOrEmpty(word) && Words.Contains(word!);
 
     /// <summary>這個名稱是不是一個資料表提示（<c>NOLOCK</c>、<c>INDEX</c>）。</summary>
-    public static bool IsTableHint(string? name) => TryFind(TableHintDefinitions, name, leading: false, out _);
+    public static bool IsTableHint(string? name) => TryFind(TableHintDefinitions, name, out _);
 
     private static bool TryFind(
         (string Name, Func<string> Description)[] definitions,
         string? name,
-        bool leading,
         out string description)
     {
         if (!string.IsNullOrEmpty(name))
         {
             foreach (var (candidate, value) in definitions)
             {
-                if (Matches(candidate, name!, leading))
+                if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
                 {
                     description = value();
                     return true;
@@ -236,14 +233,13 @@ public static class SqlArgumentCatalog
     private static bool TryFind(
         (string Name, Func<string> Description, bool TakesArguments)[] definitions,
         string? name,
-        bool leading,
         out string description)
     {
         if (!string.IsNullOrEmpty(name))
         {
             foreach (var (candidate, value, _) in definitions)
             {
-                if (Matches(candidate, name!, leading))
+                if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
                 {
                     description = value();
                     return true;
@@ -255,20 +251,26 @@ public static class SqlArgumentCatalog
         return false;
     }
 
-    /// <param name="leading">
-    /// 多字寫法的第一個詞算不算命中（<c>FORCE</c> 之於 <c>FORCE ORDER</c>）。
-    /// </param>
-    private static bool Matches(string candidate, string name, bool leading)
+    private static HashSet<string> CollectWords()
     {
-        if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
+        var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, _) in DatePartDefinitions)
         {
-            return true;
+            words.UnionWith(name.Split(' '));
         }
 
-        return leading &&
-            candidate.Length > name.Length &&
-            candidate[name.Length] == ' ' &&
-            string.Compare(candidate, 0, name, 0, name.Length, StringComparison.OrdinalIgnoreCase) == 0;
+        foreach (var (name, _, _) in TableHintDefinitions)
+        {
+            words.UnionWith(name.Split(' '));
+        }
+
+        foreach (var (name, _, _) in QueryHintDefinitions)
+        {
+            words.UnionWith(name.Split(' '));
+        }
+
+        return words;
     }
 
     private static IReadOnlyList<SqlSuggestion> BuildDateParts()

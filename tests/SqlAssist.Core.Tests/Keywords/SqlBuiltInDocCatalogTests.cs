@@ -157,7 +157,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, position);
 
         Assert.NotNull(reference);
-        Assert.Equal(found, SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.Equal(found, SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out _));
 
         if (found)
         {
@@ -321,7 +321,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, position);
 
         Assert.NotNull(reference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out _));
         Assert.Equal(name, doc.Name);
         Assert.Equal(kind, doc.Kind);
     }
@@ -337,7 +337,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, position);
 
         Assert.NotNull(reference);
-        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _));
+        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _, out _));
     }
 
     /// <summary>
@@ -398,25 +398,40 @@ public sealed class SqlBuiltInDocCatalogTests
     }
 
     /// <summary>
-    /// 多字寫法由長到短試，否則 OPTIMIZE FOR UNKNOWN 會被 OPTIMIZE FOR 接走。
+    /// 多字提示停在哪一個字上都認得，範圍蓋住整串字；由長到短試，否則 OPTIMIZE FOR UNKNOWN
+    /// 會被 OPTIMIZE FOR 接走。
     /// </summary>
     /// <remarks>
     /// 那兩個提示說的是相反的事：一個指定假設的參數值，另一個正是不看實際參數。
     /// </remarks>
     [Theory]
-    [InlineData("SELECT 1 OPTION (OPTIMIZE FOR UNKNOWN)", "OPTIMIZE FOR UNKNOWN")]
-    [InlineData("SELECT 1 OPTION (OPTIMIZE FOR (@p = 1))", "OPTIMIZE FOR")]
-    [InlineData("SELECT 1 OPTION (FORCE ORDER)", "FORCE ORDER")]
-    [InlineData("SELECT 1 OPTION (MERGE JOIN)", "MERGE JOIN")]
-    public void 多字提示停在第一個詞上認得出來(string text, string name)
+    [InlineData("SELECT 1 OPTION (OPTIMIZE FOR UNKNOWN)", "OPTIMIZE", "OPTIMIZE FOR UNKNOWN")]
+    [InlineData("SELECT 1 OPTION (OPTIMIZE FOR UNKNOWN)", "FOR", "OPTIMIZE FOR UNKNOWN")]
+    [InlineData("SELECT 1 OPTION (OPTIMIZE FOR UNKNOWN)", "UNKNOWN", "OPTIMIZE FOR UNKNOWN")]
+    [InlineData("SELECT 1 OPTION (OPTIMIZE FOR (@p = 1))", "FOR", "OPTIMIZE FOR")]
+    [InlineData("SELECT 1 OPTION (FORCE ORDER)", "ORDER", "FORCE ORDER")]
+    [InlineData("SELECT 1 OPTION (MAXDOP 1, MERGE JOIN)", "JOIN", "MERGE JOIN")]
+    public void 多字提示停在任何一個詞上都認得出來(string text, string word, string name)
     {
-        var position = text.IndexOf('(') + 1;
-        var reference = SqlIdentifierScanner.FindAt(text, position);
+        var reference = SqlIdentifierScanner.FindAt(text, text.IndexOf(word, text.IndexOf('('), StringComparison.Ordinal));
 
         Assert.NotNull(reference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out var span));
         Assert.Equal(name, doc.Name);
         Assert.Equal(SqlBuiltInKind.QueryHint, doc.Kind);
+        Assert.Equal(name, text.Substring(span.Start, span.Length));
+    }
+
+    /// <summary>提示的字離開提示清單就只是欄位名或子句：ORDER BY 的 ORDER 不是 FORCE ORDER。</summary>
+    [Theory]
+    [InlineData("SELECT CopyNo FROM Loan ORDER BY CopyNo", "ORDER")]
+    [InlineData("SELECT CopyNo FROM Loan l INNER MERGE JOIN Copy c ON c.CopyNo = l.CopyNo", "JOIN")]
+    public void 提示清單以外的提示字不認(string text, string word)
+    {
+        var reference = SqlIdentifierScanner.FindAt(text, text.IndexOf(word, StringComparison.Ordinal));
+
+        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out _) &&
+            doc.Kind == SqlBuiltInKind.QueryHint);
     }
 
     /// <summary>我們自己寫的文案不該被自己的截斷邏輯砍掉。</summary>
@@ -668,7 +683,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, position);
 
         Assert.NotNull(reference);
-        Assert.Equal(found, SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.Equal(found, SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out _));
 
         if (found)
         {
@@ -693,7 +708,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, position);
 
         Assert.NotNull(reference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out _));
         Assert.Equal(SqlBuiltInKind.SystemProcedure, doc.Kind);
     }
 
@@ -709,7 +724,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, 0);
 
         Assert.NotNull(reference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out _));
         Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
     }
 
@@ -736,7 +751,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, 0);
 
         Assert.NotNull(reference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out _));
         Assert.Equal("BULK INSERT", doc.Name);
         Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
     }
@@ -761,9 +776,10 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, text.IndexOf(word, StringComparison.Ordinal));
 
         Assert.NotNull(reference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out var span));
         Assert.Equal(expected, doc.Name);
         Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
+        Assert.Equal(expected, text.Substring(span.Start, span.Length));
     }
 
     /// <summary>那串字在名稱處斷掉；對上的名稱沒蓋到的字也不算。</summary>
@@ -778,7 +794,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, text.IndexOf(word, StringComparison.Ordinal));
 
         Assert.NotNull(reference);
-        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _));
+        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _, out _));
     }
 
     /// <summary>
@@ -835,7 +851,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, position);
 
         Assert.NotNull(reference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out _));
         Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
     }
 
@@ -851,7 +867,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, position);
 
         Assert.NotNull(reference);
-        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _));
+        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _, out _));
     }
 
     /// <summary>語句中間、不是語句開頭的位置不認：<c>AND EXEC</c> 的 EXEC 只是接在述詞後面。</summary>
@@ -865,7 +881,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, position);
 
         Assert.NotNull(reference);
-        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _));
+        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _, out _));
     }
 
     /// <summary>
@@ -914,7 +930,7 @@ public sealed class SqlBuiltInDocCatalogTests
         var reference = SqlIdentifierScanner.FindAt(text, text.IndexOf(word, StringComparison.Ordinal));
 
         Assert.NotNull(reference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out _));
         Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
         Assert.Equal(expected, doc.Name);
     }
@@ -945,7 +961,7 @@ public sealed class SqlBuiltInDocCatalogTests
 
         Assert.NotNull(reference);
         Assert.False(
-            SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc) && doc.Kind == SqlBuiltInKind.Statement,
+            SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out _) && doc.Kind == SqlBuiltInKind.Statement,
             word);
     }
 
@@ -993,14 +1009,14 @@ public sealed class SqlBuiltInDocCatalogTests
         var functionPosition = functionText.IndexOf("CONVERT", StringComparison.Ordinal);
         var functionReference = SqlIdentifierScanner.FindAt(functionText, functionPosition);
         Assert.NotNull(functionReference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetAt(functionText, functionReference, out var functionDoc));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(functionText, functionReference, out var functionDoc, out _));
         Assert.False(functionDoc.Kind.PrecedesObjectResolution());
 
         const string procedureText = "EXEC sys.sp_executesql N'SELECT 1'";
         var procedurePosition = procedureText.IndexOf("sp_executesql", StringComparison.Ordinal);
         var procedureReference = SqlIdentifierScanner.FindAt(procedureText, procedurePosition);
         Assert.NotNull(procedureReference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetAt(procedureText, procedureReference, out var procedureDoc));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(procedureText, procedureReference, out var procedureDoc, out _));
         Assert.Equal(SqlBuiltInKind.SystemProcedure, procedureDoc.Kind);
         Assert.True(procedureDoc.Kind.PrecedesObjectResolution());
     }
