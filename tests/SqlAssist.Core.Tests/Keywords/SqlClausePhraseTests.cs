@@ -522,6 +522,19 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT * FROM OPENROWSET (BULK 'x', FORMATFILE = 'f', ORDER (CopyNo ASC, BranchId ", "ASC", "DESC")]
     [InlineData("WITH ", "XMLNAMESPACES", "CHANGE_TRACKING_CONTEXT")]
     [InlineData("SELECT 1;\nWITH ", "XMLNAMESPACES")]
+    [InlineData("CREATE WORKLOAD GROUP LibGroup USING ", "EXTERNAL")]
+    [InlineData("CREATE WORKLOAD GROUP LibGroup WITH (IMPORTANCE = HIGH) USING LibPool, ", "EXTERNAL")]
+    [InlineData("ALTER WORKLOAD GROUP LibGroup WITH (IMPORTANCE = LOW) USING ", "EXTERNAL")]
+    [InlineData("DROP SYMMETRIC KEY LibKey ", "REMOVE")]
+    [InlineData("DROP ASYMMETRIC KEY LibKey REMOVE ", "PROVIDER KEY")]
+    [InlineData("DENY SELECT ON EXTERNAL MODEL::LibModel TO LibUser, LibReader\n", "CASCADE")]
+    [InlineData("REVOKE SELECT ON dbo.Copy FROM LibUser, LibReader ", "CASCADE")]
+    [InlineData("GRANT SELECT ON dbo.Copy TO LibUser, LibReader ", "WITH GRANT OPTION")]
+    [InlineData("ALTER INDEX IX_Copy ON dbo.Copy REORGANIZE PARTITION = 1 WITH (", "COMPRESS_ALL_ROW_GROUPS", "LOB_COMPACTION")]
+    [InlineData("ALTER TABLE dbo.Copy DROP CONSTRAINT PK_Copy WITH (", "MOVE TO", "ONLINE")]
+    [InlineData("ALTER TABLE dbo.Copy DROP COLUMN Shelf, CONSTRAINT PK_Copy WITH (ONLINE = ON), CK_Copy WITH (", "MOVE TO")]
+    [InlineData("ALTER EVENT SESSION LibTrace ON DATABASE ", "ADD", "DROP", "STATE")]
+    [InlineData("ALTER EVENT SESSION LibTrace ON DATABASE DROP ", "EVENT", "TARGET")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -636,6 +649,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY BranchId FOR XML RAW, ", "ROLLUP")]
     [InlineData("SELECT BranchId, CopyNo, ", "ROLLUP")]
     [InlineData("WITH Recent AS (SELECT 1 AS a), ", "XMLNAMESPACES")]
+    [InlineData("GRANT SELECT ON dbo.Copy TO LibUser, ", "WITH GRANT OPTION")]
+    [InlineData("DENY SELECT ON dbo.Copy TO LibUser, ", "CASCADE")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));

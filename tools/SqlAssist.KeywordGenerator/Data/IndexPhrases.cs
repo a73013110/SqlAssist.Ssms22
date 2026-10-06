@@ -81,10 +81,13 @@ internal static class IndexPhrases
         // NATIONAL 之後接得上名稱，再往下每一個字都是一整輪探測（展開三層探了三百多萬次）；ADD、DROP 各展開一層。
         // ADD、DROP 也是語句開頭字，… 找動詞會停在它們上，之後的 WITH ( 從語句開頭寫起；以 Lead 認的話，探測文字也比對得到
         // 展開出來的 ALTER TABLE … ADD NOT，兩條搶同一格。
+        // MOVE 之後非接 TO 檔案群組不可，續尾寫不出來，三種各以整段當證據。
         new("DROP INDEX ... WITH (*") { Gap = "i ON t" },
         new("DROP INDEX ... WITH (* MOVE TO") { Gap = "i ON t" },
         new("DROP CONSTRAINT ... WITH (*") { Lead = "ALTER TABLE t ", Gap = "k" },
+        new("DROP CONSTRAINT ... WITH (* MOVE TO") { Lead = "ALTER TABLE t ", Gap = "k" },
         new("DROP COLUMN ... WITH (*") { Lead = "ALTER TABLE t ", Gap = "a, CONSTRAINT k" },
+        new("DROP COLUMN ... WITH (* MOVE TO") { Lead = "ALTER TABLE t ", Gap = "a, CONSTRAINT k" },
         new("ALTER TABLE {name} ALTER COLUMN {name}"),
         new("ALTER TABLE {name} ALTER COLUMN {name} ADD") { Expand = 1 },
         new("ALTER TABLE {name} ALTER COLUMN {name} DROP") { Expand = 1 },
@@ -98,6 +101,7 @@ internal static class IndexPhrases
         new("ALTER TABLE {name} ALTER COLUMN {name} DROP NOT FOR REPLICATION WITH (*"),
         new("ALTER TABLE {name} REBUILD PARTITION = {value} WITH (*"),
         new("ALTER INDEX {name} ON {name} REBUILD PARTITION = {value} WITH (*"),
+        new("ALTER INDEX {name} ON {name} REORGANIZE PARTITION = {value} WITH (*"),
         new("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (*"),
         new("ALTER INDEX {name} ON {name} REBUILD PARTITION = ALL WITH (*"),
         new("CREATE CLUSTERED COLUMNSTORE INDEX {name} ON {name} WITH (*"),

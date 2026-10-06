@@ -159,6 +159,9 @@ internal static class SecurityPhrases
         // ALTER SYMMETRIC KEY 的 ADD、DROP 之後剖析器把 ENCRYPTION 當名稱讀，逐字探不出來，整段是證據。
         new("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY") { Expand = 2 },
         new("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY") { Expand = 2 },
+        // 可延伸金鑰管理（EKM）的金鑰：DROP 寫完名稱可以接 REMOVE PROVIDER KEY，REMOVE 非接整段不可，整段是證據。
+        new("DROP SYMMETRIC KEY {name} REMOVE PROVIDER KEY"),
+        new("DROP ASYMMETRIC KEY {name} REMOVE PROVIDER KEY"),
 
         // 主金鑰的備份與還原、憑證與非對稱金鑰的私密金鑰：檔案路徑、演算法之後的 ENCRYPTION BY、DECRYPTION BY。
         // 剖析器要看到 PASSWORD = 才回頭驗 ENCRYPTION，逐字探不出來，整段寫到 PASSWORD 的片語是證據；
@@ -285,10 +288,10 @@ internal static class SecurityPhrases
 
         // 主體寫完之後：REVOKE、DENY 接 CASCADE 與 AS 授與者，GRANT 接 WITH GRANT OPTION 與 AS。從 TO、FROM 寫起：
         // 單獨的名稱在前一格判不出位置時到處比對得上。前者拿 REVOKE 的樣板探；語句到這裡已經完整，WITH 被當成 CTE 的開頭扣掉，
-        // 由 GRANT 那一段整段當證據補回同一格。
-        new("TO {name}") { After = ["PermissionTarget", "PermissionList"], Template = 1 },
-        new("FROM {name}") { After = ["PermissionTarget", "PermissionList"], Template = 1 },
-        new("TO {name} WITH GRANT OPTION") { After = ["PermissionTarget", "PermissionList"] },
+        // 由 GRANT 那一段整段當證據補回同一格。主體以逗號一次寫幾個（TO a, b），最後一個之後接的字都一樣：中段 ,* 走過前面幾個。
+        new("TO ,* {name}") { After = ["PermissionTarget", "PermissionList"], Template = 1 },
+        new("FROM ,* {name}") { After = ["PermissionTarget", "PermissionList"], Template = 1 },
+        new("TO ,* {name} WITH GRANT OPTION") { After = ["PermissionTarget", "PermissionList"] },
 
         // CREATE USER 寫完名稱已經是完整的一句，之後的 FOR、WITHOUT 各自接 LOGIN；CREATE LOGIN 之後是 WITH PASSWORD 或 FROM。
         // FROM EXTERNAL 之後是 PROVIDER（Microsoft Entra 的主體）。

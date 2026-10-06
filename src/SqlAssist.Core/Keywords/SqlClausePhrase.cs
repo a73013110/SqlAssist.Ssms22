@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Localization;
 using SqlAssist.Core.Parsing;
@@ -46,6 +47,7 @@ public sealed class SqlClausePhrase
         EndsStatement = endsStatement;
         Words = words;
         _elements = Parse(pattern);
+        Length = _elements.Count(element => element.Kind != ElementKind.Items);
         _wordSet = new HashSet<string>(Array.ConvertAll(words, FirstWord), StringComparer.OrdinalIgnoreCase);
         _suggestions = new SqlLanguageCache<IReadOnlyList<SqlSuggestion>>(_ => BuildSuggestions());
         Certain = new SqlClausePhraseMatch(this, isCertain: true);
@@ -153,8 +155,10 @@ public sealed class SqlClausePhrase
     /// <remarks>
     /// 零項的片語沒有尾巴，只認游標處的位置（<see cref="After"/>）：「這個位置接得了這些字」。
     /// 游標選項這種會重複的格子（<c>CURSOR LOCAL FAST_FORWARD </c>）尾巴寫不出來，位置寫得出來。
+    /// 中段的 <c>,*</c> 是零到多項，自己不算一項：<c>TO ,* {name}</c> 與 <c>TO SCHEMA</c> 一樣長，以字面字結尾的優先；
+    /// <c>FETCH FROM {name}</c> 比 <c>FROM ,* {name}</c> 長。
     /// </remarks>
-    internal int Length => _elements.Length;
+    internal int Length { get; }
 
     /// <summary><paramref name="word"/> 是不是這個片語接得上的字；多字的一項認它的第一個字。</summary>
     internal bool Offers(string word) => _wordSet.Contains(word);
@@ -266,9 +270,11 @@ public sealed class SqlClausePhrase
     /// </remarks>
     private int MatchItems(IReadOnlyList<SqlToken> tokens, int last, int items, SqlKeywordPositionAnalyzer analyzer)
     {
-        // 之後是字面字的話那個字開始一項，前面緊接標頭或逗號：GRANT SELECT ON EXTERNAL 的 EXTERNAL 是類別，
-        // 不是 GRANT ,* EXTERNAL 的權限。之後是值、括號或逗號的不必（TO DISK = 'x' 的值前面是等號）。
-        if (_elements[items + 1] is { Kind: ElementKind.Word } next && IsWord(next.Word!) && !tokens[last].IsPunctuation(","))
+        // 之後是字面字或名稱的話它開始一項，前面緊接標頭或逗號：GRANT SELECT ON EXTERNAL 的 EXTERNAL 是類別，
+        // 不是 GRANT ,* EXTERNAL 的權限；FROM t LEFT 的 LEFT 不是 FROM ,* {name} 的主體。
+        // 之後是值、括號或逗號的不必（TO DISK = 'x' 的值前面是等號）。
+        if (_elements[items + 1] is { Kind: ElementKind.Word or ElementKind.Name } next &&
+            (next.Kind == ElementKind.Name || IsWord(next.Word!)) && !tokens[last].IsPunctuation(","))
         {
             return MatchBefore(tokens, last, items, analyzer);
         }

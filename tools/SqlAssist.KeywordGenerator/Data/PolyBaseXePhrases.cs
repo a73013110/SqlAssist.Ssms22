@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace SqlAssist.KeywordGenerator.Data;
 
 /// <summary>PolyBase、外部模型、外部程式庫、事件通知與擴充事件。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
@@ -81,10 +83,9 @@ internal static class PolyBaseXePhrases
         new("DROP EVENT SESSION {name} ON"),
         // ALTER 的 DROP 也一樣以逗號接下一個。ALTER 這幾段要寫在墊它的片語之前：證據照宣告順序立起 DROP 那一格，
         // 墊在後面的 EVENT、TARGET 才認得出那一格已經列了，不會再收成判不出位置時的附加字。
-        new("ALTER EVENT SESSION {name} ON SERVER ADD EVENT"),
-        new("ALTER EVENT SESSION {name} ON SERVER ADD TARGET"),
-        new("ALTER EVENT SESSION {name} ON SERVER DROP EVENT"),
-        new("ALTER EVENT SESSION {name} ON SERVER DROP TARGET"),
+        // 資料庫範圍的工作階段（ON DATABASE）收同一組動作。
+        .. new[] { "SERVER", "DATABASE" }.SelectMany(scope => new[] { "ADD EVENT", "ADD TARGET", "DROP EVENT", "DROP TARGET" }
+            .Select(action => new PhraseDeclaration($"ALTER EVENT SESSION {{name}} ON {scope} {action}"))),
         new("EVENT {name} ,") { Lead = "CREATE EVENT SESSION t ON SERVER ADD ", AlsoLeads = ["ALTER EVENT SESSION t ON SERVER DROP "] },
         new("EVENT {name} , ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },
         new("EVENT {name} ADD") { Lead = "CREATE EVENT SESSION t ON SERVER ADD " },

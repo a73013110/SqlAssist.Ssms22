@@ -136,5 +136,13 @@ internal static class DatabasePhrases
         new("ALTER WORKLOAD GROUP {name} WITH (*") { Expand = 2 },
         new("CREATE WORKLOAD GROUP {name} WITH ()") { Group = "(IMPORTANCE = HIGH)" },
         new("ALTER WORKLOAD GROUP {name} WITH ()") { Group = "(IMPORTANCE = HIGH)" },
+        // USING 之後是資源集區，外部資源集區以逗號與 EXTERNAL 接在後面，也可以只寫外部那一個。
+        // WITH (…) 可省：每一種標頭各宣告一份，不以 ... 跨過。
+        .. new[] { "CREATE", "ALTER" }.SelectMany(verb => new[] { "", " WITH ()" }
+            .SelectMany(options => new[] { " USING", " USING {name} ," }
+                .Select(tail => new PhraseDeclaration($"{verb} WORKLOAD GROUP {{name}}{options}{tail}")
+                {
+                    Group = options.Length == 0 ? null : "(IMPORTANCE = HIGH)",
+                }))),
     ];
 }

@@ -4434,6 +4434,38 @@ internal static class SqlKeywordCatalogData
         {
             "USING",
         }),
+        ("CREATE WORKLOAD GROUP {name} USING", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t USING ", false, false, true, false, new string[]
+        {
+            "EXTERNAL",
+        }),
+        ("CREATE WORKLOAD GROUP {name} USING {name} ,", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t USING t , ", true, false, true, false, new string[]
+        {
+            "EXTERNAL",
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH () USING", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (IMPORTANCE = HIGH) USING ", false, false, true, false, new string[]
+        {
+            "EXTERNAL",
+        }),
+        ("CREATE WORKLOAD GROUP {name} WITH () USING {name} ,", SqlKeywordPosition.StatementStart, "CREATE WORKLOAD GROUP t WITH (IMPORTANCE = HIGH) USING t , ", true, false, true, false, new string[]
+        {
+            "EXTERNAL",
+        }),
+        ("ALTER WORKLOAD GROUP {name} USING", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t USING ", false, false, true, false, new string[]
+        {
+            "EXTERNAL",
+        }),
+        ("ALTER WORKLOAD GROUP {name} USING {name} ,", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t USING t , ", true, false, true, false, new string[]
+        {
+            "EXTERNAL",
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH () USING", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (IMPORTANCE = HIGH) USING ", false, false, true, false, new string[]
+        {
+            "EXTERNAL",
+        }),
+        ("ALTER WORKLOAD GROUP {name} WITH () USING {name} ,", SqlKeywordPosition.StatementStart, "ALTER WORKLOAD GROUP t WITH (IMPORTANCE = HIGH) USING t , ", true, false, true, false, new string[]
+        {
+            "EXTERNAL",
+        }),
         ("BACKUP", SqlKeywordPosition.StatementStart, "BACKUP ", true, false, false, false, new string[]
         {
             "CERTIFICATE", "DATABASE", "LOG", "SERVICE", "MASTER KEY TO FILE",
@@ -4966,11 +4998,17 @@ internal static class SqlKeywordCatalogData
         }),
         ("DROP CONSTRAINT ... WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t DROP CONSTRAINT k WITH (", true, false, false, false, new string[]
         {
-            "MAXDOP", "ONLINE", "WAIT_AT_LOW_PRIORITY",
+            "MAXDOP", "ONLINE", "WAIT_AT_LOW_PRIORITY", "MOVE TO",
+        }),
+        ("DROP CONSTRAINT ... WITH (* MOVE TO", SqlKeywordPosition.Any, "ALTER TABLE t DROP CONSTRAINT k WITH (MOVE TO ", false, false, false, false, new string[]
+        {
         }),
         ("DROP COLUMN ... WITH (*", SqlKeywordPosition.Any, "ALTER TABLE t DROP COLUMN a, CONSTRAINT k WITH (", true, false, false, false, new string[]
         {
-            "MAXDOP", "ONLINE", "WAIT_AT_LOW_PRIORITY",
+            "MAXDOP", "ONLINE", "WAIT_AT_LOW_PRIORITY", "MOVE TO",
+        }),
+        ("DROP COLUMN ... WITH (* MOVE TO", SqlKeywordPosition.Any, "ALTER TABLE t DROP COLUMN a, CONSTRAINT k WITH (MOVE TO ", false, false, false, false, new string[]
+        {
         }),
         ("ALTER TABLE {name} ALTER COLUMN {name}", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ", false, false, true, false, new string[]
         {
@@ -5074,6 +5112,15 @@ internal static class SqlKeywordCatalogData
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
         ("ALTER INDEX {name} ON {name} REBUILD PARTITION = {value} WITH (*", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = 1 WITH (", true, false, false, false, new string[]
+        {
+            "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
+            "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
+            "FILLFACTOR", "IGNORE_DUP_KEY", "LOB_COMPACTION", "MAX_DURATION", "MAXDOP",
+            "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
+            "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
+            "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("ALTER INDEX {name} ON {name} REORGANIZE PARTITION = {value} WITH (*", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REORGANIZE PARTITION = 1 WITH (", true, false, false, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
             "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
@@ -9976,7 +10023,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER EVENT SESSION {name} ON DATABASE", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE ", true, false, true, false, new string[]
         {
-            "STATE", "WITH",
+            "STATE", "WITH", "ADD", "DROP",
         }),
         ("ALTER EVENT SESSION {name} ON DATABASE STATE", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE STATE ", true, false, false, false, new string[]
         {
@@ -10016,6 +10063,18 @@ internal static class SqlKeywordCatalogData
         {
         }),
         ("ALTER EVENT SESSION {name} ON SERVER DROP TARGET", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON SERVER DROP TARGET ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE ADD EVENT", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE ADD EVENT ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE ADD TARGET", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE ADD TARGET ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE DROP EVENT", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE DROP EVENT ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE DROP TARGET", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE DROP TARGET ", false, false, true, false, new string[]
         {
         }),
         ("EVENT {name} ,", SqlKeywordPosition.Any, "ALTER EVENT SESSION t ON SERVER DROP EVENT t.t , ", true, false, false, false, new string[]
@@ -10639,6 +10698,12 @@ internal static class SqlKeywordCatalogData
             "KEY",
         }),
         ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY SYMMETRIC KEY ", false, false, true, false, new string[]
+        {
+        }),
+        ("DROP SYMMETRIC KEY {name} REMOVE PROVIDER KEY", SqlKeywordPosition.StatementStart, "DROP SYMMETRIC KEY t REMOVE PROVIDER KEY ", true, false, false, true, new string[]
+        {
+        }),
+        ("DROP ASYMMETRIC KEY {name} REMOVE PROVIDER KEY", SqlKeywordPosition.StatementStart, "DROP ASYMMETRIC KEY t REMOVE PROVIDER KEY ", true, false, false, true, new string[]
         {
         }),
         ("BACKUP MASTER KEY TO FILE = {value}", SqlKeywordPosition.StatementStart, "BACKUP MASTER KEY TO FILE = 'x' ", true, false, true, false, new string[]
@@ -11985,15 +12050,15 @@ internal static class SqlKeywordCatalogData
             "INSERT", "KILL", "RECEIVE", "REFERENCES", "SELECT", "SEND", "SHOWPLAN", "SHUTDOWN",
             "SUBSCRIBE", "TAKE", "UNMASK", "UNSAFE", "UPDATE", "VIEW", "ALL",
         }),
-        ("TO {name}", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "REVOKE SELECT ON t TO t ", true, false, false, true, new string[]
+        ("TO ,* {name}", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "REVOKE SELECT ON t TO t ", true, false, false, true, new string[]
         {
             "AS", "CASCADE", "WITH GRANT OPTION",
         }),
-        ("FROM {name}", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "REVOKE SELECT ON t FROM t ", true, false, false, true, new string[]
+        ("FROM ,* {name}", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "REVOKE SELECT ON t FROM t ", true, false, false, true, new string[]
         {
             "AS", "CASCADE",
         }),
-        ("TO {name} WITH GRANT OPTION", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "GRANT SELECT ON t TO t WITH GRANT OPTION ", true, false, false, true, new string[]
+        ("TO ,* {name} WITH GRANT OPTION", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "GRANT SELECT ON t TO t WITH GRANT OPTION ", true, false, false, true, new string[]
         {
             "AS",
         }),
@@ -15100,6 +15165,14 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
+        ("ALTER INDEX {name} ON {name} REORGANIZE PARTITION = {value} WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REORGANIZE PARTITION = 1 WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER INDEX {name} ON {name} REORGANIZE PARTITION = {value} WITH (* LOB_COMPACTION =", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REORGANIZE PARTITION = 1 WITH (LOB_COMPACTION = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
         ("ALTER TABLE {name} REBUILD PARTITION = ALL WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.StatementStart, "ALTER TABLE t REBUILD PARTITION = ALL WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
@@ -16031,6 +16104,14 @@ internal static class SqlKeywordCatalogData
         {
             "TO",
         }),
+        ("DROP CONSTRAINT ... WITH (* MOVE", SqlKeywordPosition.Any, "ALTER TABLE t DROP CONSTRAINT k WITH (MOVE ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
+        ("DROP COLUMN ... WITH (* MOVE", SqlKeywordPosition.Any, "ALTER TABLE t DROP COLUMN a, CONSTRAINT k WITH (MOVE ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
         ("ALTER TABLE {name} ALTER COLUMN {name} ADD PERSISTED", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD PERSISTED ", true, false, false, true, new string[]
         {
             "WITH",
@@ -16076,6 +16157,10 @@ internal static class SqlKeywordCatalogData
             "COLLATE", "WITH",
         }),
         ("ALTER INDEX {name} ON {name} REBUILD PARTITION = {value}", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD PARTITION = 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE", "WITH",
+        }),
+        ("ALTER INDEX {name} ON {name} REORGANIZE PARTITION = {value}", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REORGANIZE PARTITION = 1 ", true, false, false, true, new string[]
         {
             "COLLATE", "WITH",
         }),
@@ -16703,6 +16788,14 @@ internal static class SqlKeywordCatalogData
         {
             "EVENT", "TARGET",
         }),
+        ("ALTER EVENT SESSION {name} ON DATABASE ADD", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE ADD ", true, false, false, false, new string[]
+        {
+            "EVENT", "TARGET",
+        }),
+        ("ALTER EVENT SESSION {name} ON DATABASE DROP", SqlKeywordPosition.StatementStart, "ALTER EVENT SESSION t ON DATABASE DROP ", true, false, false, false, new string[]
+        {
+            "EVENT", "TARGET",
+        }),
         ("START", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t START ", true, false, false, false, new string[]
         {
             "WITH",
@@ -16754,6 +16847,30 @@ internal static class SqlKeywordCatalogData
         ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION ", true, false, false, false, new string[]
         {
             "BY",
+        }),
+        ("DROP SYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "DROP SYMMETRIC KEY t ", true, false, true, true, new string[]
+        {
+            "REMOVE",
+        }),
+        ("DROP SYMMETRIC KEY {name} REMOVE", SqlKeywordPosition.StatementStart, "DROP SYMMETRIC KEY t REMOVE ", true, false, true, false, new string[]
+        {
+            "PROVIDER KEY",
+        }),
+        ("DROP SYMMETRIC KEY {name} REMOVE PROVIDER", SqlKeywordPosition.StatementStart, "DROP SYMMETRIC KEY t REMOVE PROVIDER ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "DROP ASYMMETRIC KEY t ", true, false, true, true, new string[]
+        {
+            "REMOVE",
+        }),
+        ("DROP ASYMMETRIC KEY {name} REMOVE", SqlKeywordPosition.StatementStart, "DROP ASYMMETRIC KEY t REMOVE ", true, false, true, false, new string[]
+        {
+            "PROVIDER KEY",
+        }),
+        ("DROP ASYMMETRIC KEY {name} REMOVE PROVIDER", SqlKeywordPosition.StatementStart, "DROP ASYMMETRIC KEY t REMOVE PROVIDER ", true, false, false, false, new string[]
+        {
+            "KEY",
         }),
         ("BACKUP MASTER", SqlKeywordPosition.StatementStart, "BACKUP MASTER ", true, false, false, false, new string[]
         {
@@ -17164,11 +17281,11 @@ internal static class SqlKeywordCatalogData
         {
             "FOR",
         }),
-        ("TO {name} WITH", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "GRANT SELECT ON t TO t WITH ", true, false, false, false, new string[]
+        ("TO ,* {name} WITH", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "GRANT SELECT ON t TO t WITH ", true, false, false, false, new string[]
         {
             "GRANT OPTION",
         }),
-        ("TO {name} WITH GRANT", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "GRANT SELECT ON t TO t WITH GRANT ", true, false, false, false, new string[]
+        ("TO ,* {name} WITH GRANT", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "GRANT SELECT ON t TO t WITH GRANT ", true, false, false, false, new string[]
         {
             "OPTION",
         }),
