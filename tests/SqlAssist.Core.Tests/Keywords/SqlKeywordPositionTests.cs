@@ -253,7 +253,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT * FROM t WHERE x IN (SELECT y FROM u) ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT COUNT(*) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT * FROM t ORDER BY SUM(a) ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
-    [InlineData("SELECT dbo.fn_Fee(a) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT dbo.fn_Fee(a) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT STRING_AGG(a, ',') WITHIN GROUP (ORDER BY a) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT b, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY a DESC) ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT * FROM t WHERE COALESCE(a, 1) ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OperandTail)]
@@ -433,7 +433,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT PublCode ")]
     [InlineData("SELECT a, b ")]
     [InlineData("SELECT a + b ")]
-    [InlineData("SELECT dbo.fn_Fee(a) ")]
+    [InlineData("SELECT l.CopyNo ")]
     [InlineData("SELECT N'x' ")]
     [InlineData("SELECT CASE WHEN a = 1 THEN 2 END ")]
     [InlineData("SELECT DISTINCT a ")]
@@ -489,8 +489,8 @@ public sealed class SqlKeywordPositionTests
     /// <remarks>
     /// 把 TOP 的引數當成清單的第一項，<c>SELECT TOP 10 </c> 就判成尾端，列的是 FROM 而
     /// 不是 CASE 與欄位——而且那一格還會被當成 <c>10</c> 的別名。
-    /// INSERT／DELETE 的 TOP 不是這一條。PERCENT、WITH TIES 掛在自己的位置，
-    /// 寫完 WITH TIES 就不再接。
+    /// DML 的 TOP 不是這一條，寫完回到動詞之後那一格（右括號不是衍生資料表），PERCENT 由片語給。
+    /// SELECT 的 PERCENT、WITH TIES 掛在自己的位置，寫完 WITH TIES 就不再接。
     /// </remarks>
     [Theory]
     [InlineData("SELECT TOP 10 ", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail)]
@@ -500,6 +500,9 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT DISTINCT TOP (@n) PERCENT WITH TIES ", SqlKeywordPosition.SelectList)]
     [InlineData("SELECT TOP 10 a ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
     [InlineData("DELETE TOP (10) ", SqlKeywordPosition.Any)]
+    [InlineData("UPDATE TOP (10) ", SqlKeywordPosition.DataSource)]
+    [InlineData("UPDATE TOP (10) PERCENT ", SqlKeywordPosition.DataSource)]
+    [InlineData("MERGE TOP (10) ", SqlKeywordPosition.Any)]
     public void TOP子句之後是選取清單起點(string textBeforeToken, SqlKeywordPosition expected)
     {
         var caret = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken);
@@ -1411,28 +1414,29 @@ public sealed class SqlKeywordPositionTests
     }
 
     [Theory]
-    [InlineData("SELECT dbo.fn_Fee('')\n")]
-    [InlineData("SELECT dbo.fn_Fee('')\r\n")]
-    [InlineData("SELECT dbo.fn_Fee('')\r")]
-    [InlineData("SELECT dbo.fn_Fee('')\n\n    ")]
-    [InlineData("SELECT [dbo].[fn_Fee]('')\n")]
-    [InlineData("SELECT LibArchive.dbo.fn_Fee('')\n")]
-    [InlineData("SELECT dbo.fn_Fee(COALESCE(NULL, ''))\n")]
-    [InlineData("SELECT 1\n")]
-    [InlineData("SELECT N''\n")]
-    [InlineData("SELECT @CopyNo\n")]
-    [InlineData("SELECT 1 + 2\n")]
-    [InlineData("SELECT (1 + 2)\n")]
-    [InlineData("SELECT (SELECT 1)\n")]
-    [InlineData("SELECT dbo.fn_Fee('') AS Fine\n")]
-    [InlineData("SELECT dbo.fn_Fee(''), 1\n")]
-    [InlineData("SELECT dbo.fn_Fee('') -- 計算費用\n")]
-    [InlineData("SELECT dbo.fn_Fee('')\n/* 計算費用 */ ")]
-    [InlineData("SELECT dbo.fn_Fee('') /* 外層\n /* 內層 */ 結束 */ ")]
-    public void 選取清單跨行保留續寫位置並開放所有語句片段(string textBeforeToken)
+    [InlineData("SELECT dbo.fn_Fee('')\n", true)]
+    [InlineData("SELECT dbo.fn_Fee('')\r\n", true)]
+    [InlineData("SELECT dbo.fn_Fee('')\r", true)]
+    [InlineData("SELECT dbo.fn_Fee('')\n\n    ", true)]
+    [InlineData("SELECT [dbo].[fn_Fee]('')\n", true)]
+    [InlineData("SELECT LibArchive.dbo.fn_Fee('')\n", true)]
+    [InlineData("SELECT dbo.fn_Fee(COALESCE(NULL, ''))\n", true)]
+    [InlineData("SELECT 1\n", false)]
+    [InlineData("SELECT N''\n", false)]
+    [InlineData("SELECT @CopyNo\n", false)]
+    [InlineData("SELECT 1 + 2\n", false)]
+    [InlineData("SELECT (1 + 2)\n", false)]
+    [InlineData("SELECT (SELECT 1)\n", false)]
+    [InlineData("SELECT dbo.fn_Fee('') AS Fine\n", false)]
+    [InlineData("SELECT dbo.fn_Fee(''), 1\n", false)]
+    [InlineData("SELECT dbo.fn_Fee('') -- 計算費用\n", true)]
+    [InlineData("SELECT dbo.fn_Fee('')\n/* 計算費用 */ ", true)]
+    [InlineData("SELECT dbo.fn_Fee('') /* 外層\n /* 內層 */ 結束 */ ", true)]
+    public void 選取清單跨行保留續寫位置並開放所有語句片段(string textBeforeToken, bool endsCall)
     {
         var tokens = SqlTokenizer.Tokenize(textBeforeToken);
-        var expected = SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail | SqlKeywordPosition.StatementStart;
+        var expected = SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail | SqlKeywordPosition.StatementStart |
+            (endsCall ? SqlKeywordPosition.FunctionCallTail : SqlKeywordPosition.None);
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken).Keywords);
 
@@ -1458,9 +1462,9 @@ public sealed class SqlKeywordPositionTests
     }
 
     [Theory]
-    [InlineData("SELECT dbo.fn_Fee('') ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
-    [InlineData("SELECT dbo.fn_Fee('') /* 同一行 */ ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
-    [InlineData("SELECT dbo.fn_Fee('\n') ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT dbo.fn_Fee('') ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT dbo.fn_Fee('') /* 同一行 */ ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
+    [InlineData("SELECT dbo.fn_Fee('\n') ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT [Copy\nNo] ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT\n", SqlKeywordPosition.SelectList)]
     [InlineData("SELECT 1,\n", SqlKeywordPosition.SelectList)]

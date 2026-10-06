@@ -130,6 +130,9 @@ public static class SqlDataTypeCatalog
         return false;
     }
 
+    /// <summary>名稱是內建型別或同義字；大小寫不敏感。</summary>
+    internal static bool IsBuiltIn(string name) => Find(name) is not null;
+
     /// <summary>內建型別的名稱，不含同義字；語法著色用。</summary>
     internal static IEnumerable<string> Names => Definitions.Select(definition => definition.Name);
 

@@ -2741,6 +2741,42 @@ internal static class SqlKeywordCatalogData
         {
             "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "TOP",
         }),
+        ("INSERT", SqlKeywordPosition.StatementStart, "INSERT ", false, false, true, false, new string[]
+        {
+            "BULK", "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OVER", "TOP",
+        }),
+        ("INSERT TOP ()", SqlKeywordPosition.StatementStart, "INSERT TOP (10) ", false, false, true, false, new string[]
+        {
+            "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OVER", "PERCENT",
+        }),
+        ("INSERT TOP () PERCENT", SqlKeywordPosition.StatementStart, "INSERT TOP (10) PERCENT ", false, false, true, false, new string[]
+        {
+            "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "OVER",
+        }),
+        ("UPDATE TOP ()", SqlKeywordPosition.StatementStart, "UPDATE TOP (10) ", false, false, true, false, new string[]
+        {
+            "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "PERCENT",
+        }),
+        ("UPDATE TOP () PERCENT", SqlKeywordPosition.StatementStart, "UPDATE TOP (10) PERCENT ", false, false, true, false, new string[]
+        {
+            "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+        }),
+        ("DELETE TOP ()", SqlKeywordPosition.StatementStart, "DELETE TOP (10) ", false, true, true, false, new string[]
+        {
+            "FROM", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "PERCENT",
+        }),
+        ("DELETE TOP () PERCENT", SqlKeywordPosition.StatementStart, "DELETE TOP (10) PERCENT ", false, true, true, false, new string[]
+        {
+            "FROM", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+        }),
+        ("MERGE TOP ()", SqlKeywordPosition.StatementStart, "MERGE TOP (10) ", false, false, true, false, new string[]
+        {
+            "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "PERCENT",
+        }),
+        ("MERGE TOP () PERCENT", SqlKeywordPosition.StatementStart, "MERGE TOP (10) PERCENT ", false, false, true, false, new string[]
+        {
+            "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET",
+        }),
         ("TRUNCATE TABLE", SqlKeywordPosition.StatementStart, "TRUNCATE TABLE ", false, false, true, false, new string[]
         {
         }),
@@ -8448,6 +8484,10 @@ internal static class SqlKeywordCatalogData
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "SPARSE",
             "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
         }),
+        ("XML (*", SqlKeywordPosition.Any, "DECLARE @x XML (", false, false, false, false, new string[]
+        {
+            "CONTENT", "DOCUMENT",
+        }),
         ("INDEX {name}", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
@@ -11704,6 +11744,14 @@ internal static class SqlKeywordCatalogData
         ("AI_GENERATE_EMBEDDINGS (* {value} USE MODEL {name}", SqlKeywordPosition.Any, "SELECT AI_GENERATE_EMBEDDINGS (1 USE MODEL t ", true, false, false, false, new string[]
         {
             "PARAMETERS",
+        }),
+        ("PARSE (* {value} AS {name}", SqlKeywordPosition.Any, "SELECT PARSE (1 AS t ", true, false, false, false, new string[]
+        {
+            "USING",
+        }),
+        ("TRY_PARSE (* {value} AS {name}", SqlKeywordPosition.Any, "SELECT TRY_PARSE (1 AS t ", true, false, false, false, new string[]
+        {
+            "USING",
         }),
         ("WITHIN GROUP", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) WITHIN GROUP ", true, false, false, false, new string[]
         {
@@ -16618,6 +16666,10 @@ internal static class SqlKeywordCatalogData
         {
             "NAME",
         }),
+        ("READONLY", SqlKeywordPosition.Any, "CREATE PROCEDURE p @p t READONLY ", false, false, false, false, new string[]
+        {
+            "AS", "FOR", "WITH",
+        }),
         ("DROP ASSEMBLY {name}", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY t ", true, false, false, true, new string[]
         {
             "WITH NO DEPENDENTS",
@@ -18027,6 +18079,7 @@ internal static class SqlKeywordCatalogData
     /// </summary>
     internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
+        ("", SqlKeywordPosition.None, "CREATE PROCEDURE p @p t ", new string[] { "READONLY" }),
         ("", SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC", "DIALOG" }),
         ("", SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY", "SEND", "RECEIVE", "MOVE", "GET" }),
         ("", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
@@ -18034,6 +18087,7 @@ internal static class SqlKeywordCatalogData
         ("", SqlKeywordPosition.OperandTail, "SELECT (a ", new string[] { "AT" }),
         ("", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN", "IGNORE", "RESPECT" }),
         ("AS", SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE AS ", new string[] { "EXTERNAL NAME" }),
+        ("READONLY AS", SqlKeywordPosition.Any, "CREATE PROCEDURE p @p t READONLY AS ", new string[] { "EXTERNAL" }),
         ("GRANT ,* ADMINISTER", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER ", new string[] { "BULK", "DATABASE" }),
         ("GRANT ,* ADMINISTER BULK", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER BULK ", new string[] { "OPERATIONS" }),
         ("GRANT ,* ADMINISTER DATABASE", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER DATABASE ", new string[] { "BULK" }),

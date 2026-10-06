@@ -431,12 +431,14 @@ public static class SqlClausePhraseCatalog
     /// 判不出位置時算數但不確定，理由見 <see cref="SqlClausePhraseMatch"/>。
     /// 區塊開頭接的是語句，所以語句開頭的片語在那裡一樣成立：<c>BEGIN SET NOCOUNT ON</c>。
     /// 沒有尾巴的片語從游標處開始，前一格就是游標處的位置，不必再分析一次。
+    /// 附加片語只加字，不看前一格的（Lead）也一樣：確定的話整份目錄讓給它，
+    /// <c>@p t READONLY AS </c> 之後只剩 EXTERNAL。
     /// </remarks>
     private static SqlClausePhraseMatch? Qualify(SqlClausePhrase phrase, SqlKeywordPosition before)
     {
         if (phrase.After == SqlKeywordPosition.Any)
         {
-            return phrase.Certain;
+            return phrase.IsAdditive ? phrase.Tentative : phrase.Certain;
         }
 
         if (before == SqlKeywordPosition.Any)
@@ -454,7 +456,6 @@ public static class SqlClausePhraseCatalog
             return null;
         }
 
-        // 附加片語只加字：確定的話整份目錄讓給它。
         return phrase.IsAdditive ? phrase.Tentative : phrase.Certain;
     }
 

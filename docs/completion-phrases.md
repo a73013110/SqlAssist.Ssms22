@@ -23,6 +23,7 @@
 同時比對得上時取項數多的（中段的 `,*` 是零到多項，自己不算一項），一樣多的以字面字結尾的優先：`JSON_ARRAY(NULL ` 是 `JSON_ARRAY (* NULL`（接 `ON NULL`），
 不是把 NULL 當成引數的 `JSON_ARRAY (* {value}`。同一條尾巴在前一格的幾個位置都確定成立時字取聯集：
 `ORDER BY a⏎FETCH ` 是查詢的尾端（`APPROX`），換了行也是下一句的開頭（`NEXT`），只取一個的話另一邊的字就不見了。
+字面字不認方括號與限定字（`[FROM]` 是名稱），內建型別的字例外：`[xml](`、`sys.xml(` 與 `xml(` 是同一個型別，都接得上 `XML (*`。
 
 帶 `After` 的片語再問 `SqlKeywordPositionAnalyzer.PositionBefore`：前一格判得出而且對得上
 才算，區塊開頭視同語句開頭（`BEGIN SET`），換行補上的語句開頭只給真的開頭（`UPDATE t⏎SET` 不是）。前一格判不出位置（`Any`）時比對結果是**可能**

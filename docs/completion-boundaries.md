@@ -11,10 +11,10 @@
   接 `WHEN`、`ELSE`、`END`；述詞的括號（`WHEN a = 1 AND (b = 2 OR c `）仍是同一個條件，接 `IS`、`THEN`，
   函式引數或 `IN` 的括號不是。
 - **`IIF(` 的第一個引數是述詞**：左括號就是它的 `WHERE`，`IIF(Fee > 2 ` 接 `AND`、`OR`，`IIF(@a ` 接 `IS`；
-  逗號之後是一般的值。穿出去借外層只剩選取清單尾端。
+  逗號之後是一般的值，借外層只剩選取清單尾端。
 - **逗號之後回到清單的起點**：`SELECT a, ` 與 `SELECT ` 同一個位置，判成尾端就沒有 `CASE`。沒關上的左括號也是起點（引數、`VALUES` 的一列），
   不借外層：`VALUES (1, ` 才列得出 `NULL`。定義清單的逗號之前是上一項（`… CASCADE, CONSTRAINT c ` 不借它的 `ON`）。
-- **TOP 子句不是選取清單的一項**：`SELECT TOP 10 ` 仍是起點，另接 `PERCENT`、`WITH TIES`。
+- **TOP 子句不是選取清單的一項**：`SELECT TOP 10 ` 仍是起點，另接 `PERCENT`、`WITH TIES`；DML 的回到動詞之後（`MERGE TOP (10) `）。
 - **`ON` 的述詞寫完是兩個位置的聯集**：述詞尾端（`AND`、`OR`）與資料來源尾端（`WHERE`、`JOIN`）。
 - **`SET` 子句寫完也是**：`UPDATE t SET a = 1 ` 另接 `WHERE`、`FROM`、`OUTPUT`。
   `OUTPUT` 與 `RECEIVE` 的清單是選取清單，一項寫完接 `AS`、`INTO`。
@@ -33,7 +33,7 @@
 錨點只在游標所在的那一句裡找，自己沒有錨點的一句（`EXEC`、`PRINT`）是 `Any`：
 借上一句的話，`WHERE b = 1⏎EXEC p @x ` 打不出 `OUTPUT`。
 
-**語句開頭**是能開始一句、前一格是界線的關鍵字，或語句開頭附加片語的字（`COPY`、`ENABLE`，見
+**語句開頭**是能開始一句、前一格是界線的關鍵字，或語句開頭附加片語的字（`COPY`、`ENABLE`；
 `StartsStatementAsPhrase`）：後者不進目錄，否則 `Copy` 資料表會被自動大寫。這種字也寫在句中（`WITH (NOLOCK)`、
 `DROP TABLE IF`、`THEN UPDATE`）：
 

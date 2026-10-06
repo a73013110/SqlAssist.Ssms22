@@ -1206,19 +1206,27 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <c>TOP 10</c>、<c>TOP (10)</c>、<c>TOP @n</c>，後面可以再接 <c>PERCENT</c> 與
     /// <c>WITH TIES</c>。TOP 的引數不是選取清單的第一項：當成一項的話，
     /// <c>SELECT TOP 10 </c> 會判成清單尾端，列出 FROM 而不是欄位與 CASE。
-    ///
-    /// 只認 SELECT 的 TOP：<c>INSERT TOP (5)</c>、<c>DELETE TOP (5)</c> 之後接的是
-    /// INTO、FROM，那兩處照舊由它們自己的子句決定。
     /// </remarks>
-    private bool EndsTopClause(int last)
+    private bool EndsTopClause(int last) =>
+        FindTopClauseOwner(last) is var owner and >= 0 && tokens[owner].IsKeyword("SELECT");
+
+    /// <summary>
+    /// <paramref name="last"/> 結束一個 TOP 子句時回傳寫它的那個動詞（SELECT、INSERT、UPDATE、DELETE、MERGE）；否則 -1。
+    /// </summary>
+    /// <remarks>
+    /// DML 的 TOP 只寫得出 <c>TOP (n) [PERCENT]</c>，沒有 WITH TIES。寫完之後回到動詞之後那一格：
+    /// <c>MERGE TOP (10) </c> 接的是 INTO 與目標，右括號不是衍生資料表。
+    /// </remarks>
+    private int FindTopClauseOwner(int last)
     {
         var index = last;
+        var ties = tokens[index].IsKeyword("TIES");
 
-        if (tokens[index].IsKeyword("TIES"))
+        if (ties)
         {
             if (index < 1 || !tokens[index - 1].IsKeyword("WITH"))
             {
-                return false;
+                return -1;
             }
 
             index -= 2;
@@ -1231,7 +1239,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         if (index < 0)
         {
-            return false;
+            return -1;
         }
 
         int top;
@@ -1246,12 +1254,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
         else
         {
-            return false;
+            return -1;
         }
 
         if (top < 1 || !tokens[top].IsKeyword("TOP"))
         {
-            return false;
+            return -1;
         }
 
         var before = top - 1;
@@ -1261,8 +1269,17 @@ public sealed partial class SqlKeywordPositionAnalyzer
             before--;
         }
 
-        return before >= 0 && tokens[before].IsKeyword("SELECT");
+        if (before >= 0 && tokens[before].IsKeyword("SELECT"))
+        {
+            return before;
+        }
+
+        return !ties && before == top - 1 && tokens[index].IsPunctuation(")") && IsDmlVerb(before) ? before : -1;
     }
+
+    private bool IsDmlVerb(int index) =>
+        tokens[index].IsKeyword("INSERT") || tokens[index].IsKeyword("UPDATE") ||
+        tokens[index].IsKeyword("DELETE") || tokens[index].IsKeyword("MERGE");
 
     /// <summary>
     /// <paramref name="last"/> 結束資料表名稱的 <c>FOR</c> 後綴時回傳那個 FOR；否則 -1。
@@ -1786,9 +1803,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
 
         // TOP 的引數要排在括號之前問：TOP (10) 的右括號不是一個算完的運算元。
-        // 之後仍是選取清單的起點，另外接得了 PERCENT、WITH TIES；WITH TIES 寫完就不再接。
-        if (EndsTopClause(last))
+        // SELECT 的之後仍是選取清單的起點，另外接得了 PERCENT、WITH TIES；WITH TIES 寫完就不再接。
+        // DML 的回到動詞之後那一格，PERCENT 由片語給。
+        if (FindTopClauseOwner(last) is var topOwner and >= 0)
         {
+            if (!tokens[topOwner].IsKeyword("SELECT"))
+            {
+                return AnalyzeAt(topOwner, followAlias);
+            }
+
             return new SqlCaretPosition(tokens[last].IsKeyword("TIES")
                 ? SqlKeywordPosition.SelectList
                 : SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail);
@@ -2351,8 +2374,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <paramref name="last"/> 寫完一次接得了 OVER 的呼叫：內建函式的括號，或 <c>NEXT VALUE FOR</c> 的序列名稱。
     /// </summary>
     /// <remarks>
-    /// 限定的名稱（<c>dbo.fn_Fee(a)</c>）是使用者定義函式，接不了 OVER。
-    /// <c>STRING_AGG(…) WITHIN GROUP (…)</c> 與前面那次呼叫是一個單位，照那次呼叫算。
+    /// 限定的名稱（<c>dbo.fn_Agg(a)</c>）也算：CLR 使用者定義彙總一定寫結構描述，接得了 OVER，
+    /// 只看文字分不出它與純量函式。<c>STRING_AGG(…) WITHIN GROUP (…)</c> 與前面那次呼叫是一個單位，照那次呼叫算。
     /// </remarks>
     private bool EndsFunctionCall(int last)
     {
@@ -2365,7 +2388,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 return EndsFunctionCall(open - 3);
             }
 
-            return open >= 1 && IsPlainWord(open - 1) && !(open >= 2 && tokens[open - 2].IsPunctuation("."));
+            return open >= 1 && IsPlainWord(open - 1);
         }
 
         var name = tokens[last].Kind == SqlTokenKind.Identifier ? SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last) : -1;

@@ -87,6 +87,10 @@ internal static class QueryPhrases
         new("AI_GENERATE_EMBEDDINGS (* {value} USE") { Lead = "SELECT " },
         new("AI_GENERATE_EMBEDDINGS (* {value} USE MODEL {name}") { Lead = "SELECT " },
 
+        // PARSE、TRY_PARSE 的型別之後是 USING 文化特性：型別是名稱，Lead 片語以名稱結尾的一段不立，另外宣告。
+        new("PARSE (* {value} AS {name}") { Lead = "SELECT " },
+        new("TRY_PARSE (* {value} AS {name}") { Lead = "SELECT " },
+
         // 有序集合彙總：STRING_AGG、PERCENTILE_CONT 的呼叫之後是 WITHIN GROUP (ORDER BY …)。剖析器要看到 GROUP
         // 才收 WITHIN，WITHIN 由整段證據補到函式呼叫之後；WITHIN GROUP 之後只接左括號。
         // LAG、FIRST_VALUE 這類函式的呼叫之後可以寫 IGNORE NULLS、RESPECT NULLS，再接 OVER；以位移函式的樣板探測。

@@ -427,7 +427,7 @@ public sealed class SqlClausePhrase
                 case ElementKind.Word:
                     return token.IsKeyword(Word!) && !(last >= 1 && tokens[last - 1].IsPunctuation("."))
                         ? last - 1
-                        : Mismatch;
+                        : MatchTypeName(tokens, last, Word!);
 
                 case ElementKind.Name:
                     // 保留字也收：ALTER INDEX ALL ON t、ALTER DATABASE CURRENT 在名稱那一格寫的就是
@@ -474,6 +474,32 @@ public sealed class SqlClausePhrase
                     var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, last);
                     return open >= 0 ? open - 1 : Mismatch;
             }
+        }
+
+        /// <summary>
+        /// 內建型別的字寫成 <c>[xml]</c>、<c>sys.xml</c> 也是同一個型別：片語裡的型別字（<c>XML (*</c>）照樣對得上。
+        /// </summary>
+        /// <remarks>其他結構描述的同名型別是使用者定義型別，不算。</remarks>
+        private static int MatchTypeName(IReadOnlyList<SqlToken> tokens, int last, string word)
+        {
+            var token = tokens[last];
+
+            if (token.Kind != SqlTokenKind.Identifier ||
+                !string.Equals(token.Value, word, StringComparison.OrdinalIgnoreCase) ||
+                !SqlDataTypeCatalog.IsBuiltIn(word))
+            {
+                return Mismatch;
+            }
+
+            if (last < 1 || !tokens[last - 1].IsPunctuation("."))
+            {
+                return last - 1;
+            }
+
+            return last >= 2 && tokens[last - 2].Kind == SqlTokenKind.Identifier &&
+                string.Equals(tokens[last - 2].Value, "sys", StringComparison.OrdinalIgnoreCase)
+                    ? last - 3
+                    : Mismatch;
         }
 
         private static int MatchGroup(IReadOnlyList<SqlToken> tokens, int last)

@@ -46,6 +46,15 @@ internal static class DdlPhrases
         // DELETE 的目標之後是 FROM（聯結來源）、WHERE、OUTPUT；寫完已是完整的一句，資料表提示的 WITH 被當成 CTE 的開頭扣掉，手寫補回。
         new("DELETE FROM {name}") { Values = ["WITH"] },
         new("MERGE") { Closed = false },
+        // DML 的 TOP (n) 之後是 PERCENT 與動詞之後的那些字（INTO、FROM、目標）；位置分析回到動詞之後那一格，
+        // 字由這裡給。目標後面還要再寫一段（SET、USING、VALUES），宣告不封閉。證據把 TOP 補進 INSERT 那一格時
+        // 立起的片語探測判成封閉，會藏掉目標，INSERT 也宣告不封閉。
+        new("INSERT") { Closed = false },
+        .. new[] { "INSERT", "UPDATE", "DELETE", "MERGE" }.SelectMany(verb => new[]
+        {
+            new PhraseDeclaration($"{verb} TOP ()") { Group = "(10)", Closed = false },
+            new PhraseDeclaration($"{verb} TOP () PERCENT") { Group = "(10)", Closed = false },
+        }),
         // TRUNCATE 不在 Kinds 裡（後面只有 TABLE），名稱格要有片語，執行期才認得出「種類之後是既有的名稱」。
         new("TRUNCATE TABLE"),
         // WITH ( 之後剖析器什麼名稱都收，PARTITIONS 探不出來，手寫；PARTITIONS (1) 之後還要關上 WITH 那一組括號才寫得完。
@@ -107,6 +116,9 @@ internal static class DdlPhrases
         new("AS " + ExternalName) { After = ["ModuleHeader"], Template = 1 },
         new("CREATE AGGREGATE ... " + ExternalName) { Gap = "a (@x int) RETURNS int" },
         new("CREATE TYPE {name} " + ExternalName),
+        // 資料表值參數的型別之後是 READONLY：參數清單判不出位置，READONLY 不是關鍵字，整段是證據，進判不出位置的附加片語。
+        // 證據寫到本體的 AS，與上面的 AS 同理只加字。
+        new("READONLY AS") { Lead = "CREATE PROCEDURE p @p t ", Additive = true },
         new("DROP ASSEMBLY {name} WITH") { Expand = 1 },
         // ALTER ASSEMBLY 寫完名稱之後的 DROP FILE、ADD FILE FROM 剖析器要看到整段才收，逐字探只探得到 FROM：
         // 名稱那一格自己宣告，其餘的字由整段證據補進前面那段。
@@ -145,6 +157,8 @@ internal static class DdlPhrases
         new("ON {name}") { After = ["ColumnDefinitionTail"], Template = 6 },
         new("COLUMN_SET FOR ALL_SPARSE_COLUMNS") { After = ["ColumnDefinitionTail"], Template = 7 },
         new("VARYING") { After = ["ColumnDefinitionTail"], Template = 8 },
+        // xml 型別的括號裡是 CONTENT、DOCUMENT 與結構描述集合；型別寫在宣告、參數與資料行定義都一樣，判不出位置，尾巴本身認得出來。
+        new("XML (*") { Lead = "DECLARE @x " },
         new("INDEX {name}") { After = ["ColumnDefinitionTail"] },
         new("MASKED WITH (*") { After = ["ColumnDefinitionTail"] },
 
