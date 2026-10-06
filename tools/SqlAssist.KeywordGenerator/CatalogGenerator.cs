@@ -285,9 +285,10 @@ public static class CatalogGenerator
     //         不算進來的話 CREATE TABLE t (a int FILESTREAM 之後什麼字都接得上。要這些字的格子換一個配得上的樣板探。
     // 46029 = "出現未預期的檔案結尾"，代表吃下去了、只是語句沒寫完，那是合法的。
     //
-    // 另有一族訊息說「這個字不是這裡的選項」（{0} is not a WITH option for a procedure.）：
-    // 選項名稱在文法上是任意識別字，認不認得留到之後才判。不算進來的話任何名稱都是合法的選項，
-    // CREATE TRIGGER … WITH 之後的 ENCRYPTION 就分不出來。號碼不手寫，從剖析器的訊息資源撈。
+    // 另有一族訊息說「這個字不是這裡的選項」（{0} is not a WITH option for a procedure.、
+    // {0} option is not supported for this type of login.）：選項名稱在文法上是任意識別字，認不認得留到之後才判。
+    // 不算進來的話任何名稱都是合法的選項，CREATE TRIGGER … WITH 之後的 ENCRYPTION、
+    // CREATE LOGIN … FROM EXTERNAL PROVIDER WITH 之後的 DEFAULT_DATABASE 就分不出來。號碼不手寫，從剖析器的訊息資源撈。
     private static int[] RejectingErrorNumbers(Assembly assembly, GeneratorLog log)
     {
         var messages = new ResourceManager("Microsoft.SqlServer.TransactSql.ScriptDom.TSqlParserResource", assembly)
@@ -296,7 +297,8 @@ public static class CatalogGenerator
         var optionRejections = messages.Cast<DictionaryEntry>()
             .Where(entry => entry.Key is string key && Regex.IsMatch(key, @"^SQL\d+Message$", RegexOptions.IgnoreCase) &&
                 entry.Value is string text &&
-                Regex.IsMatch(text, @"^(\{0\}|Option '\{0\}') is not a .*\b(option|hint|function)\b", RegexOptions.IgnoreCase))
+                (Regex.IsMatch(text, @"^(\{0\}|Option '\{0\}') is not a .*\b(option|hint|function)\b", RegexOptions.IgnoreCase) ||
+                 Regex.IsMatch(text, @"^\{0\} option is not supported\b", RegexOptions.IgnoreCase)))
             .Select(entry => int.Parse(Regex.Replace((string)entry.Key, @"\D", string.Empty), CultureInfo.InvariantCulture))
             .OrderBy(number => number)
             .ToList();

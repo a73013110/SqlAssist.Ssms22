@@ -126,6 +126,10 @@ internal static class DdlPhrases
         new("ALTER ASSEMBLY {name} WITH ,*"),
         new("ALTER ASSEMBLY {name} DROP FILE ALL"),
         new("ALTER ASSEMBLY {name} ADD FILE FROM {value}"),
+        // CREATE ASSEMBLY 的 WITH 只有 PERMISSION_SET 一項；FROM 可以寫幾個檔案、前面還可以有 AUTHORIZATION。
+        new("CREATE ASSEMBLY {name} FROM {value} WITH") { Expand = 1 },
+        new("CREATE ASSEMBLY ... WITH") { Gap = "t AUTHORIZATION o FROM 'x', 'y'" },
+        new("CREATE ASSEMBLY ... WITH PERMISSION_SET =") { Gap = "t AUTHORIZATION o FROM 'x', 'y'" },
 
         // 原生編譯模組的 BEGIN ATOMIC WITH (…)：ATOMIC 不是關鍵字，由這裡的證據進區塊開頭的附加片語。
         // BEGIN x WITH ( 剖析器要一項寫完才在 x 報錯，續尾把那一項寫完，才分得出 ATOMIC 不是名稱。

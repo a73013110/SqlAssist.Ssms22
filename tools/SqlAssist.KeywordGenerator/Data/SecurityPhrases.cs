@@ -152,15 +152,28 @@ internal static class SecurityPhrases
         new(head + " TO URL () WITH (*") { Group = "(PATH = 'x')" },
     ];
 
+    // 對稱金鑰的加密方式以逗號一次寫幾種（PASSWORD = 'x', CERTIFICATE c），第幾種都一樣。ASYMMETRIC、SYMMETRIC 之後只接 KEY：
+    // 第一種由展開立片語，逗號之後那一格也立（Gap 墊前一種），清單才併得成 SYMMETRIC KEY 一項。
+    private static PhraseDeclaration[] EncryptingMechanisms(string head) =>
+    [
+        new(head + " ,*"),
+        new(head) { Expand = 2 },
+        new(head + " ,* ASYMMETRIC") { Gap = "PASSWORD = 'x'," },
+        new(head + " ,* SYMMETRIC") { Gap = "PASSWORD = 'x'," },
+    ];
+
     internal static readonly PhraseDeclaration[] Keys =
     [
         // 金鑰與憑證的標頭：種類與名稱由 CREATE、ALTER 的展開給，這裡往下寫加密方式（ENCRYPTION BY 憑證、密碼或
         // 另一把金鑰）與 WITH 之後的演算法、主旨。等號之後的值（AES_256、RSA_2048）也由展開列，逗號之後由清單片語。
         new("CREATE MASTER KEY") { Expand = 3 },
         new("ALTER MASTER KEY") { Expand = 5 },
+        // 主金鑰改由服務主要金鑰加密：BY 之後剖析器什麼名稱都收，SERVICE MASTER KEY 只有整段是證據。
+        new("ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY"),
+        new("ALTER MASTER KEY DROP ENCRYPTION BY SERVICE MASTER KEY"),
         // ALTER SYMMETRIC KEY 的 ADD、DROP 之後剖析器把 ENCRYPTION 當名稱讀，逐字探不出來，整段是證據。
-        new("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY") { Expand = 2 },
-        new("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY") { Expand = 2 },
+        .. EncryptingMechanisms("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY"),
+        .. EncryptingMechanisms("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY"),
         // 可延伸金鑰管理（EKM）的金鑰：DROP 寫完名稱可以接 REMOVE PROVIDER KEY，REMOVE 非接整段不可，整段是證據。
         new("DROP SYMMETRIC KEY {name} REMOVE PROVIDER KEY"),
         new("DROP ASYMMETRIC KEY {name} REMOVE PROVIDER KEY"),
@@ -199,7 +212,7 @@ internal static class SecurityPhrases
         new("CREATE ASYMMETRIC KEY {name} FROM ASSEMBLY {name} ENCRYPTION BY PASSWORD"),
         new("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM = {name} ENCRYPTION BY PASSWORD"),
         new("CREATE SYMMETRIC KEY ... ALGORITHM = {name} ENCRYPTION BY PASSWORD") { Gap = "t WITH KEY_SOURCE = 'x'," },
-        new("CREATE SYMMETRIC KEY ... ENCRYPTION BY") { Gap = "t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x'" },
+        new("CREATE SYMMETRIC KEY ... ENCRYPTION BY ,*") { Gap = "t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x'" },
         new("CREATE SYMMETRIC KEY ... IDENTITY_VALUE = {value}") { Gap = "t WITH KEY_SOURCE = 'x'," },
         new("CREATE SYMMETRIC KEY ... IDENTITY_VALUE = {value} ENCRYPTION BY PASSWORD") { Gap = "t WITH KEY_SOURCE = 'x'," },
         new("CREATE SYMMETRIC KEY ... KEY_SOURCE = {value}") { Gap = "t WITH IDENTITY_VALUE = 'x'," },
@@ -209,7 +222,7 @@ internal static class SecurityPhrases
         new("CREATE SYMMETRIC KEY {name}") { Expand = 6 },
         // ALGORITHM = 之後的值寫完，剖析器把下一個字當名稱讀（ENCRYPTION BY 在它眼中是「名稱 BY」），探不出
         // ENCRYPTION；整段剖析得過就是證據，由片語裡的每一個字補進前面那段。金鑰、憑證之後的 WITH 也是 CTE 的開頭，被扣掉了。
-        new("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY") { Expand = 2 },
+        .. EncryptingMechanisms("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY"),
         new("CREATE ASYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY") { Expand = 1 },
         // REGENERATE、FORCE 剖析器也當名稱讀，同樣只有整段是證據。
         new("ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = {value}"),
@@ -319,6 +332,7 @@ internal static class SecurityPhrases
         // ALTER LOGIN 另有 NAME、NO CREDENTIAL，USER 才有 DEFAULT_SCHEMA），由標頭分開；應用程式角色同理。
         new("CREATE LOGIN {name} WITH ,*"),
         new("CREATE LOGIN {name} FROM WINDOWS WITH ,*"),
+        new("CREATE LOGIN {name} FROM EXTERNAL PROVIDER WITH ,*"),
         new("ALTER LOGIN {name} WITH ,*"),
         // ALLOW_ENCRYPTED_VALUE_MODIFICATIONS（Always Encrypted 的大量複製）官方語法圖寫得出來，ScriptDom TSql170 在值就報錯：
         // 手寫補進清單（Lagging），只有這一處。

@@ -8250,6 +8250,25 @@ internal static class SqlKeywordCatalogData
         {
             "AS", "COLLATE",
         }),
+        ("CREATE ASSEMBLY {name} FROM {value} WITH", SqlKeywordPosition.StatementStart, "CREATE ASSEMBLY t FROM 1 WITH ", true, false, true, false, new string[]
+        {
+            "PERMISSION_SET",
+        }),
+        ("CREATE ASSEMBLY {name} FROM {value} WITH PERMISSION_SET", SqlKeywordPosition.StatementStart, "CREATE ASSEMBLY t FROM 1 WITH PERMISSION_SET ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE ASSEMBLY {name} FROM {value} WITH PERMISSION_SET =", SqlKeywordPosition.StatementStart, "CREATE ASSEMBLY t FROM 1 WITH PERMISSION_SET = ", true, false, false, false, new string[]
+        {
+            "EXTERNAL_ACCESS", "SAFE", "UNSAFE",
+        }),
+        ("CREATE ASSEMBLY ... WITH", SqlKeywordPosition.StatementStart, "CREATE ASSEMBLY t AUTHORIZATION o FROM 'x', 'y' WITH ", true, false, true, false, new string[]
+        {
+            "PERMISSION_SET",
+        }),
+        ("CREATE ASSEMBLY ... WITH PERMISSION_SET =", SqlKeywordPosition.StatementStart, "CREATE ASSEMBLY t AUTHORIZATION o FROM 'x', 'y' WITH PERMISSION_SET = ", true, false, false, false, new string[]
+        {
+            "EXTERNAL_ACCESS", "SAFE", "UNSAFE",
+        }),
         ("ATOMIC WITH (*", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC WITH (", true, false, false, false, new string[]
         {
             "DATEFIRST", "DATEFORMAT", "DELAYED_DURABILITY", "LANGUAGE", "TRANSACTION",
@@ -10809,7 +10828,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER MASTER KEY ADD ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ENCRYPTION BY ", true, false, true, false, new string[]
         {
-            "PASSWORD",
+            "PASSWORD", "SERVICE",
         }),
         ("ALTER MASTER KEY ADD ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ENCRYPTION BY PASSWORD ", false, false, true, false, new string[]
         {
@@ -10820,12 +10839,22 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER MASTER KEY DROP ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP ENCRYPTION BY ", true, false, true, false, new string[]
         {
-            "PASSWORD",
+            "PASSWORD", "SERVICE",
         }),
         ("ALTER MASTER KEY DROP ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP ENCRYPTION BY PASSWORD ", false, false, true, false, new string[]
         {
         }),
+        ("ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER MASTER KEY DROP ENCRYPTION BY SERVICE MASTER KEY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP ENCRYPTION BY SERVICE MASTER KEY ", true, false, false, true, new string[]
+        {
+        }),
         ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
         {
             "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
         }),
@@ -10849,7 +10878,19 @@ internal static class SqlKeywordCatalogData
         ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY SYMMETRIC KEY ", false, false, true, false, new string[]
         {
         }),
+        ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY PASSWORD = 'x', ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ALTER SYMMETRIC KEY {name} ADD ENCRYPTION BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ENCRYPTION BY PASSWORD = 'x', SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
         ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
         {
             "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
         }),
@@ -10872,6 +10913,14 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY SYMMETRIC KEY ", false, false, true, false, new string[]
         {
+        }),
+        ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY PASSWORD = 'x', ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ALTER SYMMETRIC KEY {name} DROP ENCRYPTION BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t DROP ENCRYPTION BY PASSWORD = 'x', SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
         }),
         ("DROP SYMMETRIC KEY {name} REMOVE PROVIDER KEY", SqlKeywordPosition.StatementStart, "DROP SYMMETRIC KEY t REMOVE PROVIDER KEY ", true, false, false, true, new string[]
         {
@@ -11006,6 +11055,10 @@ internal static class SqlKeywordCatalogData
         {
         }),
         ("CREATE SYMMETRIC KEY ... ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x' ENCRYPTION BY ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC", "CERTIFICATE", "PASSWORD", "SYMMETRIC",
+        }),
+        ("CREATE SYMMETRIC KEY ... ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x' ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
         {
             "ASYMMETRIC", "CERTIFICATE", "PASSWORD", "SYMMETRIC",
         }),
@@ -11190,6 +11243,10 @@ internal static class SqlKeywordCatalogData
         {
             "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
         }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ,*", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
         ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ASYMMETRIC ", true, false, false, false, new string[]
         {
             "KEY",
@@ -11209,6 +11266,14 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY SYMMETRIC KEY ", false, false, true, false, new string[]
         {
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY PASSWORD = 'x', ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY PASSWORD = 'x', SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
         }),
         ("CREATE ASYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ", true, false, true, false, new string[]
         {
@@ -12387,6 +12452,14 @@ internal static class SqlKeywordCatalogData
         ("CREATE LOGIN {name} FROM WINDOWS WITH ,*", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM WINDOWS WITH DEFAULT_DATABASE = x, ", true, false, false, false, new string[]
         {
             "DEFAULT_DATABASE", "DEFAULT_LANGUAGE",
+        }),
+        ("CREATE LOGIN {name} FROM EXTERNAL PROVIDER WITH", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM EXTERNAL PROVIDER WITH ", true, false, true, false, new string[]
+        {
+            "DEFAULT_DATABASE", "DEFAULT_LANGUAGE", "SID", "TYPE",
+        }),
+        ("CREATE LOGIN {name} FROM EXTERNAL PROVIDER WITH ,*", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM EXTERNAL PROVIDER WITH DEFAULT_DATABASE = x, ", true, false, false, false, new string[]
+        {
+            "DEFAULT_DATABASE", "DEFAULT_LANGUAGE", "SID", "TYPE",
         }),
         ("ALTER LOGIN {name} WITH", SqlKeywordPosition.StatementStart, "ALTER LOGIN t WITH ", true, false, false, false, new string[]
         {
@@ -16752,6 +16825,10 @@ internal static class SqlKeywordCatalogData
         {
             "FROM",
         }),
+        ("CREATE ASSEMBLY {name} FROM {value}", SqlKeywordPosition.StatementStart, "CREATE ASSEMBLY t FROM 1 ", true, false, false, true, new string[]
+        {
+            "COLLATE", "WITH",
+        }),
         ("ATOMIC", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC ", true, false, false, false, new string[]
         {
             "WITH",
@@ -17147,6 +17224,22 @@ internal static class SqlKeywordCatalogData
         ("KILL STATS", SqlKeywordPosition.StatementStart, "KILL STATS ", true, false, false, false, new string[]
         {
             "JOB",
+        }),
+        ("ALTER MASTER KEY ADD ENCRYPTION BY SERVICE", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ENCRYPTION BY SERVICE ", true, false, true, false, new string[]
+        {
+            "MASTER KEY",
+        }),
+        ("ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ALTER MASTER KEY DROP ENCRYPTION BY SERVICE", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP ENCRYPTION BY SERVICE ", true, false, true, false, new string[]
+        {
+            "MASTER KEY",
+        }),
+        ("ALTER MASTER KEY DROP ENCRYPTION BY SERVICE MASTER", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP ENCRYPTION BY SERVICE MASTER ", true, false, false, false, new string[]
+        {
+            "KEY",
         }),
         ("ALTER SYMMETRIC KEY {name} ADD", SqlKeywordPosition.StatementStart, "ALTER SYMMETRIC KEY t ADD ", true, false, true, false, new string[]
         {
@@ -17622,6 +17715,10 @@ internal static class SqlKeywordCatalogData
             "CREDENTIAL",
         }),
         ("CREATE LOGIN {name} FROM WINDOWS", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM WINDOWS ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE LOGIN {name} FROM EXTERNAL PROVIDER", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM EXTERNAL PROVIDER ", true, false, false, true, new string[]
         {
             "WITH",
         }),
