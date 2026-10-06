@@ -1849,7 +1849,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER LOGIN {name}", SqlKeywordPosition.StatementStart, "ALTER LOGIN t ", true, false, false, false, new string[]
         {
-            "ADD", "DISABLE", "DROP", "ENABLE", "WITH",
+            "ADD CREDENTIAL", "DISABLE", "DROP CREDENTIAL", "ENABLE", "WITH",
         }),
         ("ALTER MASTER", SqlKeywordPosition.StatementStart, "ALTER MASTER ", true, false, false, false, new string[]
         {
@@ -4518,10 +4518,6 @@ internal static class SqlKeywordCatalogData
         {
             "TO",
         }),
-        ("BACKUP LOG {name} TO", SqlKeywordPosition.StatementStart, "BACKUP LOG t TO ", false, true, true, false, new string[]
-        {
-            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
-        }),
         ("BACKUP LOG KEY", SqlKeywordPosition.StatementStart, "BACKUP LOG KEY ", true, false, false, false, new string[]
         {
             "TO",
@@ -4735,6 +4731,10 @@ internal static class SqlKeywordCatalogData
         ("BACKUP DATABASE ... TO ,* {value}", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILE = 'x' TO t ", true, false, false, true, new string[]
         {
             "WITH", "MIRROR TO",
+        }),
+        ("BACKUP LOG {name} TO", SqlKeywordPosition.StatementStart, "BACKUP LOG t TO ", false, true, true, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
         }),
         ("BACKUP LOG {name} TO ,*", SqlKeywordPosition.StatementStart, "BACKUP LOG t TO DATABASE_SNAPSHOT, ", false, true, false, false, new string[]
         {
@@ -8114,6 +8114,33 @@ internal static class SqlKeywordCatalogData
         {
             "DEPENDENTS",
         }),
+        ("ALTER ASSEMBLY {name}", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t ", true, false, false, false, new string[]
+        {
+            "FROM", "WITH", "DROP FILE", "ADD FILE FROM",
+        }),
+        ("ALTER ASSEMBLY {name} WITH", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t WITH ", true, false, false, false, new string[]
+        {
+            "PERMISSION_SET", "UNCHECKED", "VISIBILITY",
+        }),
+        ("ALTER ASSEMBLY {name} WITH ,*", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t WITH PERMISSION_SET = EXTERNAL_ACCESS, ", true, false, false, false, new string[]
+        {
+            "PERMISSION_SET", "UNCHECKED", "VISIBILITY",
+        }),
+        ("ALTER ASSEMBLY {name} WITH ,* PERMISSION_SET =", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t WITH PERMISSION_SET = ", true, false, false, false, new string[]
+        {
+            "EXTERNAL_ACCESS", "SAFE", "UNSAFE",
+        }),
+        ("ALTER ASSEMBLY {name} WITH ,* VISIBILITY =", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t WITH VISIBILITY = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER ASSEMBLY {name} DROP FILE ALL", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t DROP FILE ALL ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER ASSEMBLY {name} ADD FILE FROM {value}", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t ADD FILE FROM 1 ", true, false, false, true, new string[]
+        {
+            "AS", "COLLATE",
+        }),
         ("ATOMIC WITH (*", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC WITH (", true, false, false, false, new string[]
         {
             "DATEFIRST", "DATEFORMAT", "DELAYED_DURABILITY", "LANGUAGE", "TRANSACTION",
@@ -10829,11 +10856,6 @@ internal static class SqlKeywordCatalogData
         ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM = {name} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = AES_128 ENCRYPTION BY PASSWORD ", true, false, false, false, new string[]
         {
         }),
-        (", ALGORITHM =", SqlKeywordPosition.Any, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x' , ALGORITHM = ", true, false, false, false, new string[]
-        {
-            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
-            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
-        }),
         ("CREATE SYMMETRIC KEY ... ALGORITHM = {name} ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x', ALGORITHM = AES_128 ENCRYPTION BY PASSWORD ", true, false, false, false, new string[]
         {
         }),
@@ -10906,19 +10928,6 @@ internal static class SqlKeywordCatalogData
         ("CREATE CERTIFICATE {name} FROM FILE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM FILE ", true, false, false, false, new string[]
         {
         }),
-        ("CREATE CERTIFICATE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH ", true, false, true, false, new string[]
-        {
-            "EXPIRY_DATE", "START_DATE", "SUBJECT",
-        }),
-        ("CREATE CERTIFICATE {name} WITH EXPIRY_DATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH EXPIRY_DATE ", true, false, false, false, new string[]
-        {
-        }),
-        ("CREATE CERTIFICATE {name} WITH START_DATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH START_DATE ", true, false, false, false, new string[]
-        {
-        }),
-        ("CREATE CERTIFICATE {name} WITH SUBJECT", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH SUBJECT ", true, false, false, false, new string[]
-        {
-        }),
         ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t ", true, false, false, false, new string[]
         {
             "FROM", "WITH",
@@ -10946,28 +10955,6 @@ internal static class SqlKeywordCatalogData
         ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t ", true, false, false, false, new string[]
         {
             "WITH",
-        }),
-        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ", true, false, false, false, new string[]
-        {
-            "ALGORITHM", "CREATION_DISPOSITION", "PROVIDER_KEY_NAME",
-        }),
-        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ALGORITHM ", true, false, false, false, new string[]
-        {
-        }),
-        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ALGORITHM = ", true, false, false, false, new string[]
-        {
-            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
-            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
-        }),
-        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH CREATION_DISPOSITION", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH CREATION_DISPOSITION ", true, false, false, false, new string[]
-        {
-        }),
-        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH CREATION_DISPOSITION =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH CREATION_DISPOSITION = ", true, false, false, false, new string[]
-        {
-            "CREATE_NEW", "OPEN_EXISTING",
-        }),
-        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH PROVIDER_KEY_NAME", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH PROVIDER_KEY_NAME ", true, false, false, false, new string[]
-        {
         }),
         ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t WITH ", true, false, true, false, new string[]
         {
@@ -11004,28 +10991,6 @@ internal static class SqlKeywordCatalogData
         ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name}", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t ", true, false, false, false, new string[]
         {
             "WITH",
-        }),
-        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ", true, false, false, false, new string[]
-        {
-            "ALGORITHM", "CREATION_DISPOSITION", "PROVIDER_KEY_NAME",
-        }),
-        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM ", true, false, false, false, new string[]
-        {
-        }),
-        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = ", true, false, false, false, new string[]
-        {
-            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
-            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
-        }),
-        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH CREATION_DISPOSITION", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH CREATION_DISPOSITION ", true, false, false, false, new string[]
-        {
-        }),
-        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH CREATION_DISPOSITION =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH CREATION_DISPOSITION = ", true, false, false, false, new string[]
-        {
-            "CREATE_NEW", "OPEN_EXISTING",
-        }),
-        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH PROVIDER_KEY_NAME", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH PROVIDER_KEY_NAME ", true, false, false, false, new string[]
-        {
         }),
         ("CREATE ASYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t WITH ", true, false, true, false, new string[]
         {
@@ -11073,24 +11038,6 @@ internal static class SqlKeywordCatalogData
             "PROVIDER",
         }),
         ("CREATE SYMMETRIC KEY {name} FROM PROVIDER", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t FROM PROVIDER ", false, false, true, false, new string[]
-        {
-        }),
-        ("CREATE SYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ", true, false, false, false, new string[]
-        {
-            "ALGORITHM", "IDENTITY_VALUE", "KEY_SOURCE",
-        }),
-        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM ", true, false, false, false, new string[]
-        {
-        }),
-        ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = ", true, false, false, false, new string[]
-        {
-            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
-            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
-        }),
-        ("CREATE SYMMETRIC KEY {name} WITH IDENTITY_VALUE", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH IDENTITY_VALUE ", true, false, false, false, new string[]
-        {
-        }),
-        ("CREATE SYMMETRIC KEY {name} WITH KEY_SOURCE", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH KEY_SOURCE ", true, false, false, false, new string[]
         {
         }),
         ("CREATE SYMMETRIC KEY {name} WITH ALGORITHM = {name} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128 ENCRYPTION BY ", true, false, false, false, new string[]
@@ -11183,6 +11130,10 @@ internal static class SqlKeywordCatalogData
         ("OPEN SYMMETRIC KEY {name} DECRYPTION BY CERTIFICATE {name} WITH PASSWORD", SqlKeywordPosition.StatementStart, "OPEN SYMMETRIC KEY t DECRYPTION BY CERTIFICATE t WITH PASSWORD ", true, false, false, false, new string[]
         {
         }),
+        ("CREATE CERTIFICATE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH ", true, false, true, false, new string[]
+        {
+            "EXPIRY_DATE", "START_DATE", "SUBJECT",
+        }),
         ("CREATE CERTIFICATE {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t WITH EXPIRY_DATE = 'x', ", true, false, false, false, new string[]
         {
             "START_DATE", "SUBJECT", "EXPIRY_DATE",
@@ -11195,9 +11146,86 @@ internal static class SqlKeywordCatalogData
         {
             "START_DATE", "SUBJECT", "EXPIRY_DATE",
         }),
+        ("CREATE SYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ", true, false, false, false, new string[]
+        {
+            "ALGORITHM", "IDENTITY_VALUE", "KEY_SOURCE",
+        }),
         ("CREATE SYMMETRIC KEY {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = AES_128, ", true, false, false, false, new string[]
         {
             "ALGORITHM", "IDENTITY_VALUE", "KEY_SOURCE",
+        }),
+        ("CREATE SYMMETRIC KEY {name} WITH ,* ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t WITH ALGORITHM = ", true, false, false, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} FROM PROVIDER {name} WITH", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t FROM PROVIDER t WITH ", true, false, false, false, new string[]
+        {
+            "ALGORITHM", "CREATION_DISPOSITION", "PROVIDER_KEY_NAME",
+        }),
+        ("CREATE SYMMETRIC KEY {name} FROM PROVIDER {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = AES_128, ", true, false, false, false, new string[]
+        {
+            "CREATION_DISPOSITION", "PROVIDER_KEY_NAME", "ALGORITHM",
+        }),
+        ("CREATE SYMMETRIC KEY {name} FROM PROVIDER {name} WITH ,* ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = ", true, false, false, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} FROM PROVIDER {name} WITH ,* CREATION_DISPOSITION =", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t FROM PROVIDER t WITH CREATION_DISPOSITION = ", true, false, false, false, new string[]
+        {
+            "CREATE_NEW", "OPEN_EXISTING",
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ", true, false, false, false, new string[]
+        {
+            "ALGORITHM", "CREATION_DISPOSITION", "PROVIDER_KEY_NAME",
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ALGORITHM = AES_128, ", true, false, false, false, new string[]
+        {
+            "CREATION_DISPOSITION", "PROVIDER_KEY_NAME", "ALGORITHM",
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH ,* ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ALGORITHM = ", true, false, false, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH ,* CREATION_DISPOSITION =", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH CREATION_DISPOSITION = ", true, false, false, false, new string[]
+        {
+            "CREATE_NEW", "OPEN_EXISTING",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ", true, false, false, false, new string[]
+        {
+            "ALGORITHM", "CREATION_DISPOSITION", "PROVIDER_KEY_NAME",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = AES_128, ", true, false, false, false, new string[]
+        {
+            "CREATION_DISPOSITION", "PROVIDER_KEY_NAME", "ALGORITHM",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ,* ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH ALGORITHM = ", true, false, false, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ,* CREATION_DISPOSITION =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t FROM PROVIDER t WITH CREATION_DISPOSITION = ", true, false, false, false, new string[]
+        {
+            "CREATE_NEW", "OPEN_EXISTING",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ", true, false, false, false, new string[]
+        {
+            "ALGORITHM", "CREATION_DISPOSITION", "PROVIDER_KEY_NAME",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ALGORITHM = AES_128, ", true, false, false, false, new string[]
+        {
+            "CREATION_DISPOSITION", "PROVIDER_KEY_NAME", "ALGORITHM",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH ,* ALGORITHM =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH ALGORITHM = ", true, false, false, false, new string[]
+        {
+            "AES_128", "AES_192", "AES_256", "DES", "DESX", "RC2", "RC4", "RC4_128", "RSA_1024",
+            "RSA_2048", "RSA_3072", "RSA_4096", "RSA_512", "TRIPLE_DES", "TRIPLE_DES_3KEY",
+        }),
+        ("CREATE ASYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name} WITH ,* CREATION_DISPOSITION =", SqlKeywordPosition.StatementStart, "CREATE ASYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t WITH CREATION_DISPOSITION = ", true, false, false, false, new string[]
+        {
+            "CREATE_NEW", "OPEN_EXISTING",
         }),
         ("CREATE CREDENTIAL {name} WITH", SqlKeywordPosition.StatementStart, "CREATE CREDENTIAL t WITH ", true, false, false, false, new string[]
         {
@@ -11246,6 +11274,14 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYMMETRIC KEY t ", true, false, false, true, new string[]
         {
+        }),
+        ("ADD SIGNATURE TO", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO ", false, false, true, false, new string[]
+        {
+            "ASSEMBLY", "DATABASE", "OBJECT",
+        }),
+        ("ADD COUNTER SIGNATURE TO", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO ", false, false, true, false, new string[]
+        {
+            "ASSEMBLY", "DATABASE", "OBJECT",
         }),
         ("ADD SIGNATURE TO {name} BY", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ", true, false, false, false, new string[]
         {
@@ -11512,17 +11548,9 @@ internal static class SqlKeywordCatalogData
         {
             "BROWSE", "JSON", "READ ONLY", "UPDATE", "XML",
         }),
-        ("FOR JSON", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR JSON ", true, false, false, false, new string[]
-        {
-            "AUTO", "PATH",
-        }),
         ("FOR READ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR READ ", true, false, false, false, new string[]
         {
             "ONLY",
-        }),
-        ("FOR XML", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR XML ", true, false, false, false, new string[]
-        {
-            "AUTO", "EXPLICIT", "PATH", "RAW",
         }),
         ("FOR", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR ", true, false, false, false, new string[]
         {
@@ -11574,9 +11602,17 @@ internal static class SqlKeywordCatalogData
         ("SYNONYM {name} FOR", SqlKeywordPosition.DdlObject, "CREATE SYNONYM t FOR ", false, false, true, false, new string[]
         {
         }),
+        ("FOR XML", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR XML ", true, false, false, false, new string[]
+        {
+            "AUTO", "EXPLICIT", "PATH", "RAW",
+        }),
         ("FOR XML ,*", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR XML AUTO, ", true, false, false, false, new string[]
         {
             "BINARY", "ELEMENTS", "ROOT", "TYPE", "XMLDATA", "XMLSCHEMA",
+        }),
+        ("FOR JSON", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR JSON ", true, false, false, false, new string[]
+        {
+            "AUTO", "PATH",
         }),
         ("FOR JSON ,*", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR JSON AUTO, ", true, false, false, false, new string[]
         {
@@ -12117,13 +12153,6 @@ internal static class SqlKeywordCatalogData
         {
             "PROVIDER",
         }),
-        ("CREATE LOGIN {name} WITH", SqlKeywordPosition.StatementStart, "CREATE LOGIN t WITH ", true, false, true, false, new string[]
-        {
-            "PASSWORD",
-        }),
-        ("CREATE LOGIN {name} WITH PASSWORD", SqlKeywordPosition.StatementStart, "CREATE LOGIN t WITH PASSWORD ", true, false, false, false, new string[]
-        {
-        }),
         ("ALTER ROLE {name} ADD", SqlKeywordPosition.StatementStart, "ALTER ROLE t ADD ", true, false, false, false, new string[]
         {
             "MEMBER",
@@ -12165,6 +12194,16 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER SERVER ROLE {name} WITH NAME", SqlKeywordPosition.StatementStart, "ALTER SERVER ROLE t WITH NAME ", true, false, false, false, new string[]
         {
+        }),
+        ("ALTER LOGIN {name} ADD CREDENTIAL {name}", SqlKeywordPosition.StatementStart, "ALTER LOGIN t ADD CREDENTIAL t ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER LOGIN {name} DROP CREDENTIAL {name}", SqlKeywordPosition.StatementStart, "ALTER LOGIN t DROP CREDENTIAL t ", true, false, false, true, new string[]
+        {
+        }),
+        ("CREATE LOGIN {name} WITH", SqlKeywordPosition.StatementStart, "CREATE LOGIN t WITH ", true, false, true, false, new string[]
+        {
+            "PASSWORD",
         }),
         ("CREATE LOGIN {name} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE LOGIN t WITH PASSWORD = 'x', ", true, false, false, false, new string[]
         {
@@ -14287,10 +14326,6 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
-        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ", true, false, true, false, new string[]
-        {
-            "ANONYMOUS", "USER",
-        }),
         ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t ", true, false, false, false, new string[]
         {
             "TO",
@@ -14305,10 +14340,6 @@ internal static class SqlKeywordCatalogData
         ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value}", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' ", true, false, false, false, new string[]
         {
             "WITH",
-        }),
-        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH ", true, false, true, false, new string[]
-        {
-            "ANONYMOUS", "USER",
         }),
         ("CREATE ROUTE {name} WITH", SqlKeywordPosition.StatementStart, "CREATE ROUTE t WITH ", true, false, false, false, new string[]
         {
@@ -14334,6 +14365,10 @@ internal static class SqlKeywordCatalogData
         {
             "ADDRESS", "BROKER_INSTANCE", "LIFETIME", "MIRROR_ADDRESS", "SERVICE_NAME",
         }),
+        ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ", true, false, true, false, new string[]
+        {
+            "ANONYMOUS", "USER",
+        }),
         ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ANONYMOUS = ON, ", true, false, false, false, new string[]
         {
             "USER", "ANONYMOUS",
@@ -14341,6 +14376,10 @@ internal static class SqlKeywordCatalogData
         ("CREATE REMOTE SERVICE BINDING {name} TO SERVICE {value} WITH ,* ANONYMOUS =", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t TO SERVICE 'x' WITH ANONYMOUS = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
+        }),
+        ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH ", true, false, true, false, new string[]
+        {
+            "ANONYMOUS", "USER",
         }),
         ("CREATE REMOTE SERVICE BINDING {name} AUTHORIZATION {name} TO SERVICE {value} WITH ,*", SqlKeywordPosition.StatementStart, "CREATE REMOTE SERVICE BINDING t AUTHORIZATION t TO SERVICE 'x' WITH ANONYMOUS = ON, ", true, false, false, false, new string[]
         {
@@ -16500,6 +16539,22 @@ internal static class SqlKeywordCatalogData
         {
             "WITH NO DEPENDENTS",
         }),
+        ("ALTER ASSEMBLY {name} DROP", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t DROP ", true, false, false, false, new string[]
+        {
+            "FILE",
+        }),
+        ("ALTER ASSEMBLY {name} DROP FILE", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t DROP FILE ", true, false, false, false, new string[]
+        {
+            "ALL",
+        }),
+        ("ALTER ASSEMBLY {name} ADD", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t ADD ", true, false, false, false, new string[]
+        {
+            "FILE FROM",
+        }),
+        ("ALTER ASSEMBLY {name} ADD FILE", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t ADD FILE ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
         ("ATOMIC", SqlKeywordPosition.BlockStart, "BEGIN ATOMIC ", true, false, false, false, new string[]
         {
             "WITH",
@@ -17116,6 +17171,14 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
+        ("CREATE SYMMETRIC KEY {name} FROM PROVIDER {name}", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t FROM PROVIDER t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE SYMMETRIC KEY {name} AUTHORIZATION {name} FROM PROVIDER {name}", SqlKeywordPosition.StatementStart, "CREATE SYMMETRIC KEY t AUTHORIZATION t FROM PROVIDER t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
         ("CREATE DATABASE SCOPED", SqlKeywordPosition.StatementStart, "CREATE DATABASE SCOPED ", true, false, false, true, new string[]
         {
             "AS", "COLLATE", "CONTAINMENT", "CREDENTIAL", "FOR", "KEY", "LOG", "ON",
@@ -17168,10 +17231,6 @@ internal static class SqlKeywordCatalogData
         {
             "TO",
         }),
-        ("ADD SIGNATURE TO {name}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t ", true, false, false, false, new string[]
-        {
-            "BY",
-        }),
         ("ADD COUNTER", SqlKeywordPosition.StatementStart, "ADD COUNTER ", true, false, false, false, new string[]
         {
             "SIGNATURE TO",
@@ -17179,6 +17238,10 @@ internal static class SqlKeywordCatalogData
         ("ADD COUNTER SIGNATURE", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE ", true, false, false, false, new string[]
         {
             "TO",
+        }),
+        ("ADD SIGNATURE TO {name}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t ", true, false, false, false, new string[]
+        {
+            "BY",
         }),
         ("ADD COUNTER SIGNATURE TO {name}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t ", true, false, false, false, new string[]
         {
@@ -17288,6 +17351,14 @@ internal static class SqlKeywordCatalogData
         ("TO ,* {name} WITH GRANT", SqlKeywordPosition.PermissionTarget | SqlKeywordPosition.PermissionList, "GRANT SELECT ON t TO t WITH GRANT ", true, false, false, false, new string[]
         {
             "OPTION",
+        }),
+        ("ALTER LOGIN {name} ADD", SqlKeywordPosition.StatementStart, "ALTER LOGIN t ADD ", true, false, false, false, new string[]
+        {
+            "CREDENTIAL",
+        }),
+        ("ALTER LOGIN {name} DROP", SqlKeywordPosition.StatementStart, "ALTER LOGIN t DROP ", true, false, false, false, new string[]
+        {
+            "CREDENTIAL",
         }),
         ("CREATE LOGIN {name} FROM WINDOWS", SqlKeywordPosition.StatementStart, "CREATE LOGIN t FROM WINDOWS ", true, false, false, true, new string[]
         {

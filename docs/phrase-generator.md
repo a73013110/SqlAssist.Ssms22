@@ -8,7 +8,7 @@
 
 | 寫法 | 意思 |
 |---|---|
-| `{name}` | 一個名稱單位，含點號；保留字（`ALTER DATABASE CURRENT`）與變數（`BACKUP DATABASE @db`）也算 |
+| `{name}` | 一個名稱單位，含點號；保留字（`CURRENT`）、變數（`@db`）與類別（`OBJECT::p`，多字的取最長建立種類）也算 |
 | `{value}` | 一個運算式：常值、變數、名稱、函式呼叫或一整組括號，以算術運算子或 `AT TIME ZONE` 串起來（`SqlOperand`） |
 | `=`、`:` | 選項的等號（`ALGORITHM =`）、`JSON_OBJECT` 鍵與值之間的冒號 |
 | `,` | 逗號，分隔同一句重複的一段（`ADD EVENT a.b, ADD`） |

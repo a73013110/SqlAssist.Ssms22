@@ -13,7 +13,7 @@ public enum ObjectKinds
 }
 
 // 片語的尾巴。執行期由 SqlClausePhrase 以同一份文字比對游標前的詞元：
-//   {name}   一個名稱單位，可以含點號與方括號；保留字（ALTER INDEX ALL、ALTER DATABASE CURRENT）與變數也算
+//   {name}   一個名稱單位，可以含點號與方括號；保留字（ALTER INDEX ALL、ALTER DATABASE CURRENT）、變數與類別（OBJECT::p）也算
 //   {value}  一個運算式：數值、字串、變數、名稱、函式呼叫，或一整組括號；探測代入剖析器收的數值或字串，都不收的代入名稱
 //   ()       一整組括號；探測代入 (a)，剖析器對括號裡的內容有要求時（RAISERROR 要訊息、嚴重性、狀態）由 Group 指定
 //   (*       還沒關上的左括號清單，游標在左括號或逗號之後。字是左括號之後與「第一項的每一種寫法接逗號」

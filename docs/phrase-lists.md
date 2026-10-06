@@ -16,6 +16,8 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 項的等號之後立成中段清單片語（`… WITH ,* CHECK_POLICY =`）再往下一層：`ON`／`OFF`、`PASSWORD = 'x' HASHED`
 在第幾項都一樣；括號清單（`WITH (* QUEUE_DELAY =`）與 CREATE INDEX 的 `WITH (` 同樣立。沒有字、探測文字已有片語、這一項在這份清單
 不合法、標頭含 `...` 的不立；等號之後收運算式的不封閉，否則 `SOURCE =` 之後列不出資料行。
+`Expand` 走到固定標頭清單的標頭（`CREATE SYMMETRIC KEY t WITH`）就停，第一項與項的等號之後由清單立：
+否則展開先佔了 `WITH ALGORITHM = ` 的探測文字，`,* ALGORITHM =` 不立，逗號之後那一項列不出值。
 官方有、ScriptDom 還不收的選項（`ALLOW_ENCRYPTED_VALUE_MODIFICATIONS`，TSql170 在值就報錯）寫在 `Lagging`：
 唯一不經剖析器證明的字，只驗標頭；ScriptDom 跟上就刪。
 剖析器什麼都收的清單探不出字：`GRANT` 收任何一串識別字（連 `AND` 都收），權限名稱由 `Evidence` 手寫（`sys.fn_builtin_permissions`），

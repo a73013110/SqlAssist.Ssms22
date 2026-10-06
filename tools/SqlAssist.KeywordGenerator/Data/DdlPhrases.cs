@@ -108,6 +108,12 @@ internal static class DdlPhrases
         new("CREATE AGGREGATE ... " + ExternalName) { Gap = "a (@x int) RETURNS int" },
         new("CREATE TYPE {name} " + ExternalName),
         new("DROP ASSEMBLY {name} WITH") { Expand = 1 },
+        // ALTER ASSEMBLY 寫完名稱之後的 DROP FILE、ADD FILE FROM 剖析器要看到整段才收，逐字探只探得到 FROM：
+        // 名稱那一格自己宣告，其餘的字由整段證據補進前面那段。
+        new("ALTER ASSEMBLY {name}"),
+        new("ALTER ASSEMBLY {name} WITH ,*"),
+        new("ALTER ASSEMBLY {name} DROP FILE ALL"),
+        new("ALTER ASSEMBLY {name} ADD FILE FROM {value}"),
 
         // 原生編譯模組的 BEGIN ATOMIC WITH (…)：ATOMIC 不是關鍵字，由這裡的證據進區塊開頭的附加片語。
         // BEGIN x WITH ( 剖析器要一項寫完才在 x 報錯，續尾把那一項寫完，才分得出 ATOMIC 不是名稱。

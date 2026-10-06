@@ -50,6 +50,9 @@ internal sealed class PhraseExplorer
     // 清單片語的標頭探測文字：一項寫到這裡就開了另一份清單（BACKUP DATABASE d TO 開裝置清單），見 AddList。
     private HashSet<string> _listHeadProbes = new(IgnoreCase);
 
+    // 固定標頭的逗號清單（CREATE LOGIN t WITH ,*）的標頭探測文字：展開走到這裡就停，見展開那一段。
+    private HashSet<string> _ownedListHeadProbes = new(IgnoreCase);
+
     // 括號清單與只認位置的清單一項的等號那一格，等全部宣告探完才立，見 AddItemValues。
     private readonly List<Action> _pendingItemValues = [];
 
@@ -190,6 +193,11 @@ internal sealed class PhraseExplorer
             declarations.Where(declaration => declaration.IsList || declaration.IsTailList)
                 .SelectMany(declaration => Anchors(declaration).Select(anchor =>
                     ProbeText(anchor.Lead, declaration.ListHead.Replace("...", "{name}"), declaration.Group, items: declaration.Items))),
+            IgnoreCase);
+        _ownedListHeadProbes = new HashSet<string>(
+            declarations.Where(declaration => declaration.IsList && !declaration.ListHead.Contains("..."))
+                .SelectMany(declaration => Anchors(declaration).Select(anchor =>
+                    ProbeText(anchor.Lead, declaration.ListHead, declaration.Group, items: declaration.Items))),
             IgnoreCase);
 
         foreach (var declaration in declarations)
@@ -781,8 +789,11 @@ internal sealed class PhraseExplorer
             var childProbe = probe + word + " ";
 
             // 已經探到這麼深的不再探；展開到的那一格已由只認位置的片語說了（觸發程序標頭的 WITH 之後是
-            // TriggerOption）也不再立：同一件事說兩次。
-            if (Explored(after, childPattern, expand - 1) || _positionPhraseProbes.Contains(childProbe))
+            // TriggerOption）也不再立：同一件事說兩次。宣告了清單的標頭（CREATE SYMMETRIC KEY t WITH）同理，
+            // 第一項與項的等號之後由清單立：展開先立了 WITH ALGORITHM = 的話，那一格的探測文字被它佔走，
+            // 清單不立 ,* ALGORITHM =，逗號之後寫的那一項列不出值。
+            if (Explored(after, childPattern, expand - 1) || _positionPhraseProbes.Contains(childProbe) ||
+                _ownedListHeadProbes.Contains(childProbe))
             {
                 continue;
             }
@@ -903,8 +914,8 @@ internal sealed class PhraseExplorer
                     continue;
                 }
 
-                // 探測文字相同就是同一格（見 AddEvidence）：展開已經立了那一格（CREATE SYMMETRIC KEY t WITH ALGORITHM =），
-                // 逗號之後那一格也由它的宣告說了，不另立一個互相搶比對。括號清單的一項寫在哪裡都是同一條尾巴：
+                // 探測文字相同就是同一格（見 AddEvidence）：別的宣告已經立了那一格，不另立一個互相搶比對
+                // （展開不走進固定標頭的清單，見展開那一段）。括號清單的一項寫在哪裡都是同一條尾巴：
                 // 等號那一格沒有字、只立了值之後那一格的，以及以 Lead 宣告、哪一份清單都比對得上的那一項
                 // （WITH (* DATA_COMPRESSION =、WITH (* MAX_DURATION = {value}）也算說了。
                 if (Phrases.WithProbe(slot).Any() || openList && (Phrases.AnyProbeStartingWith(slot) || LeadItem(listPattern, prefix, word)))

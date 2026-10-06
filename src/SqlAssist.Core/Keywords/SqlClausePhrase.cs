@@ -434,12 +434,20 @@ public sealed class SqlClausePhrase
                     // 保留字，而片語前後的字面值已經把位置釘住了，不必靠名稱這一格再擋。
                     // 變數也收：BACKUP DATABASE @db TO 是維護指令碼的常態寫法，而名稱寫不成變數的
                     // 語句本來就不合法，放行不會讓別的位置比對錯。
-                    return token.Kind switch
+                    // 安全性實體的類別也是名稱的一部分：ADD SIGNATURE TO OBJECT::p BY 的名稱格寫的是 OBJECT::p。
+                    if (token.Kind == SqlTokenKind.Variable)
                     {
-                        SqlTokenKind.Identifier => SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last) - 1,
-                        SqlTokenKind.Variable => last - 1,
-                        _ => Mismatch
-                    };
+                        return last - 1;
+                    }
+
+                    if (token.Kind != SqlTokenKind.Identifier)
+                    {
+                        return Mismatch;
+                    }
+
+                    var name = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last);
+                    var securable = SqlCatalogEntityPosition.ClassStartBefore(tokens, name - 1);
+                    return (securable >= 0 ? securable : name) - 1;
 
                 // 值的格子在文法上是運算式：FETCH NEXT @a - @b + 1 ROWS、JSON_OBJECT('k': Title NULL。
                 case ElementKind.Value:

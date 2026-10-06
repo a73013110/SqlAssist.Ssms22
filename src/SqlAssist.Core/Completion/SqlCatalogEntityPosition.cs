@@ -273,6 +273,26 @@ internal static class SqlCatalogEntityPosition
     private static SqlCatalogEntity? KindEndingAt(IReadOnlyList<SqlToken> tokens, int end, out int start) =>
         LongestKindEndingAt(tokens, end, out start) is { } kind ? SqlCatalogEntity.ForKind(kind) : null;
 
+    /// <summary>
+    /// <paramref name="colons"/> 那個 <c>::</c> 之前的類別第一個字；不是類別時為 -1。多字的類別（<c>ASYMMETRIC KEY::</c>）
+    /// 取最長的建立種類，名冊沒有的（<c>OBJECT::</c>、<c>TYPE::</c>）是一個字。
+    /// </summary>
+    internal static int ClassStartBefore(IReadOnlyList<SqlToken> tokens, int colons)
+    {
+        if (colons < 1 || !tokens[colons].IsPunctuation("::"))
+        {
+            return -1;
+        }
+
+        if (LongestKindEndingAt(tokens, colons - 1, out var start) is not null)
+        {
+            return start;
+        }
+
+        var word = tokens[colons - 1];
+        return word.Kind == SqlTokenKind.Identifier && !word.IsQuoted ? colons - 1 : -1;
+    }
+
     /// <summary>以 <paramref name="end"/> 結尾的最長建立種類；<paramref name="start"/> 是種類第一個字。</summary>
     private static string? LongestKindEndingAt(IReadOnlyList<SqlToken> tokens, int end, out int start)
     {

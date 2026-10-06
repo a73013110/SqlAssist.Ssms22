@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace SqlAssist.KeywordGenerator.Data;
 
 /// <summary>安全性：稽核、安全性原則、金鑰與憑證、權限、登入與使用者。探測順序見 <see cref="ClausePhrases.All"/>。</summary>
@@ -167,8 +169,7 @@ internal static class SecurityPhrases
         // 剖析器要看到 PASSWORD = 才回頭驗 ENCRYPTION，逐字探不出來，整段寫到 PASSWORD 的片語是證據；
         // 檔案路徑之後的語句已經完整，WITH 也由證據補回。SERVICE 之後剖析器什麼名稱都收，MASTER 寫成名稱，與展開出來的同一格。
         // WITH PRIVATE KEY ( 的項是多字的（ENCRYPTION BY PASSWORD = …），各敘述收的項相近，以尾巴認、取 ALTER CERTIFICATE 探，不封閉。
-        // 對稱金鑰的選項清單裡，逗號之後的 ALGORITHM = 也以尾巴認；演算法之後的 ENCRYPTION 以名稱結尾、Lead 立不了，
-        // 名稱與前面的選項以 … 跨過。
+        // 對稱金鑰的選項清單裡，逗號之後的演算法之後的 ENCRYPTION 以名稱結尾、Lead 立不了，名稱與前面的選項以 … 跨過。
         new("BACKUP MASTER KEY TO FILE = {value}") { Expand = 3 },
         new("BACKUP SERVICE {name} KEY TO FILE = {value}") { Expand = 3 },
         new("RESTORE MASTER KEY FROM FILE = {value}") { Expand = 3 },
@@ -197,7 +198,6 @@ internal static class SecurityPhrases
         new("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM = {name}") { Expand = 3 },
         new("CREATE ASYMMETRIC KEY {name} FROM ASSEMBLY {name} ENCRYPTION BY PASSWORD"),
         new("CREATE ASYMMETRIC KEY {name} FROM PROVIDER {name} WITH ALGORITHM = {name} ENCRYPTION BY PASSWORD"),
-        new(", ALGORITHM =") { Lead = "CREATE SYMMETRIC KEY t WITH KEY_SOURCE = 'x' ", Expand = 3 },
         new("CREATE SYMMETRIC KEY ... ALGORITHM = {name} ENCRYPTION BY PASSWORD") { Gap = "t WITH KEY_SOURCE = 'x'," },
         new("CREATE SYMMETRIC KEY ... ENCRYPTION BY") { Gap = "t WITH KEY_SOURCE = 'x', IDENTITY_VALUE = 'x'" },
         new("CREATE SYMMETRIC KEY ... IDENTITY_VALUE = {value}") { Gap = "t WITH KEY_SOURCE = 'x'," },
@@ -231,6 +231,10 @@ internal static class SecurityPhrases
         new("CREATE CERTIFICATE {name} WITH ,*"),
         new("CREATE CERTIFICATE {name} ENCRYPTION BY PASSWORD = {value} WITH ,*"),
         new("CREATE SYMMETRIC KEY {name} WITH ,*"),
+        // EKM 的金鑰：FROM PROVIDER 之後的 WITH 清單另有 PROVIDER_KEY_NAME、CREATION_DISPOSITION，與一般的金鑰分開宣告。
+        // 擁有者（AUTHORIZATION）可省，寫成 ... 的話項的等號之後不立，兩種標頭各宣告一份。
+        .. new[] { "SYMMETRIC", "ASYMMETRIC" }.SelectMany(kind => new[] { "", " AUTHORIZATION {name}" }
+            .Select(owner => new PhraseDeclaration($"CREATE {kind} KEY {{name}}{owner} FROM PROVIDER {{name}} WITH ,*"))),
         new("CREATE CREDENTIAL {name} WITH ,*"),
         new("ALTER CREDENTIAL {name} WITH ,*"),
         new("CREATE DATABASE SCOPED CREDENTIAL {name} WITH ,*"),
@@ -244,7 +248,10 @@ internal static class SecurityPhrases
         new("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE {name}"),
         new("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYMMETRIC KEY {name}"),
 
-        // 模組簽章：ADD、DROP [COUNTER] SIGNATURE TO|FROM 模組 BY 憑證或非對稱金鑰，ADD 的金鑰之後是 WITH PASSWORD 或 SIGNATURE。
+        // 模組簽章：ADD、DROP [COUNTER] SIGNATURE TO|FROM [類別::]模組 BY 憑證或非對稱金鑰，ADD 的金鑰之後是 WITH PASSWORD 或 SIGNATURE。
+        // DROP 的類別由 DROP 的展開列；ADD 不是物件種類的動詞，TO 那一格自己宣告，那一格也可以直接寫模組名稱。
+        new("ADD SIGNATURE TO") { Closed = false },
+        new("ADD COUNTER SIGNATURE TO") { Closed = false },
         new("ADD SIGNATURE TO {name} BY") { Expand = 3 },
         new("ADD COUNTER SIGNATURE TO {name} BY") { Expand = 3 },
         // 金鑰之後的語句已經完整，WITH 被當成 CTE 的開頭扣掉：整段是證據。
@@ -302,6 +309,9 @@ internal static class SecurityPhrases
         // 角色成員：ALTER 的展開只到名稱之後一層（ADD、DROP、WITH），再往下一層才是 MEMBER 與 NAME =。
         new("ALTER ROLE {name}") { Expand = 2 },
         new("ALTER SERVER ROLE {name}") { Expand = 2 },
+        // 登入的 ADD、DROP 之後是 CREDENTIAL（對應的認證）：剖析器要看到整段才收，整段是證據。
+        new("ALTER LOGIN {name} ADD CREDENTIAL {name}"),
+        new("ALTER LOGIN {name} DROP CREDENTIAL {name}"),
 
         // 登入與使用者的 WITH 選項清單：四種敘述接的選項各不相同（CREATE LOGIN 第一項只能是 PASSWORD、
         // ALTER LOGIN 另有 NAME、NO CREDENTIAL，USER 才有 DEFAULT_SCHEMA），由標頭分開；應用程式角色同理。
