@@ -74,6 +74,8 @@ public sealed class SqlArgumentPositionTests
         Assert.Equal(CompletionTarget.OdbcFunction, context.Target);
         Assert.Contains("CURRENT_TIME", names);
         Assert.Contains("DAYNAME", names);
+        Assert.Contains("USER", names);
+        Assert.Contains("RIGHT", names);
         Assert.Equal("CURRENT_TIME", SqlArgumentCatalog.OdbcFunctions.Single(item => item.DisplayText == "CURRENT_TIME").InsertionText);
         Assert.Equal("CURDATE(", SqlArgumentCatalog.OdbcFunctions.Single(item => item.DisplayText == "CURDATE").InsertionText);
     }

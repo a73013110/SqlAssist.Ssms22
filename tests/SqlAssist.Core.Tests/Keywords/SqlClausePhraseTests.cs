@@ -688,6 +688,11 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE TABLE dbo.Loan (LoanId int) ON LibData WITH (", "DATA_COMPRESSION")]
     [InlineData("ALTER DATABASE Lib SET AUTO_UPDATE_STATISTICS ON, AUTO_CREATE_STATISTICS ", "ON", "OFF")]
     [InlineData("ALTER DATABASE Lib\nSET AUTO_UPDATE_STATISTICS ON,\nAUTO_CREATE_STATISTICS ", "ON", "OFF")]
+    [InlineData("SET STATISTICS PROFILE, ", "TIME", "IO", "XML")]
+    [InlineData("SET STATISTICS IO, TIME, ", "PROFILE")]
+    [InlineData("CREATE FUNCTION dbo.Fn_Copy ()\nRETURNS TABLE\nRETURN (WITH ", "XMLNAMESPACES")]
+    [InlineData("CREATE FUNCTION dbo.Fn_Copy () RETURNS TABLE AS RETURN WITH ", "XMLNAMESPACES")]
+    [InlineData("CREATE FUNCTION dbo.Fn_Copy () RETURNS TABLE (CopyNo int) WITH EXECUTE AS 'Lib_Reader'\n", "ORDER", "AS")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);

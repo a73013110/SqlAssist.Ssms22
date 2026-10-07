@@ -21,6 +21,9 @@ internal static class StatementPhrases
         new("SET ,* ,"),
         new("SET ,* , DATEFORMAT") { Gap = "LANGUAGE 'x'", Values = DateFormats, Closed = true },
         new("SET ,* , DEADLOCK_PRIORITY") { Gap = "LANGUAGE 'x'", Values = DeadlockPriorities, Closed = true },
+
+        // SET STATISTICS IO, TIME ON：同一個開關寫幾個對象，逗號之後仍是 STATISTICS 的對象；較長的尾巴搶過 SET ,* ,。
+        new("SET STATISTICS ,* ,"),
     ];
 
     internal static readonly PhraseDeclaration[] BackupHeaders =

@@ -1455,6 +1455,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
             : null;
     }
 
+    /// <summary><paramref name="index"/> 緊接 <c>RETURN</c> 或 <c>RETURN (</c>：內嵌資料表值函式回傳的查詢從這裡開始。</summary>
+    private bool OpensReturnedQuery(int index) =>
+        index >= 1 &&
+        (tokens[index - 1].IsKeyword("RETURN") ||
+         (index >= 2 && tokens[index - 1].IsPunctuation("(") && tokens[index - 2].IsKeyword("RETURN")));
+
     /// <summary>
     /// <paramref name="last"/> 這一格是使用者正要取的新名字，或可能是。
     /// </summary>
@@ -1468,7 +1474,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 既有資料表，<c>FETCH … INTO </c> 與 <c>OUTPUT … INTO </c> 的子句錨點不是 SELECT，
     /// 都不在這裡。</item>
     /// <item>一句開頭的 <c>WITH </c> 與 <c>WITH c AS (…), </c> 的 CTE 名稱。資料表提示與選項的
-    /// <c>WITH</c> 不是一句的開頭，見 <see cref="IsStatementHead"/>。</item>
+    /// <c>WITH</c> 不是一句的開頭，見 <see cref="IsStatementHead"/>。內嵌資料表值函式的 <c>RETURN (WITH </c>
+    /// 也是：RETURN 接的運算式不會以 WITH 開頭。</item>
     /// </list>
     ///
     /// 帶限定字時一樣：<c>CREATE PROCEDURE dbo.</c> 的點號由 <see cref="AnalyzeAt"/>
@@ -1484,7 +1491,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return true;
         }
 
-        if (token.IsKeyword("WITH") && IsStatementHead(last))
+        if (token.IsKeyword("WITH") && (IsStatementHead(last) || OpensReturnedQuery(last)))
         {
             caret = new SqlCaretPosition(SqlKeywordPosition.Any, SqlCompletionSlot.Name);
             return true;

@@ -24,7 +24,7 @@
 - **`Name`**：`AS ` 之後的別名、`DECLARE @`、[CREATE 名稱](#create-的名稱格)列不出東西的那一段、`WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
   （`INSERT INTO `、`MERGE INTO ` 要既有資料表，是 `Grammar`）、`RESULT SETS ((` 的資料行名稱。
 - **`MaybeName`**：同一行沒有 AS 的別名、文法強制別名的括號之後（衍生資料表、`PIVOT (…) `、
-  `UNPIVOT (…) `）、CREATE 名稱列得出東西的那一段、片語列得出字的新名字格（一句開頭的 `WITH ` 也接 `XMLNAMESPACES`，
+  `UNPIVOT (…) `）、CREATE 名稱列得出東西的那一段、片語列得出字的新名字格（一句開頭與 `RETURN (` 之後的 `WITH ` 也接 `XMLNAMESPACES`，
   清單只有片語的字）、資料行定義的起點（`CREATE TABLE t (`、逗號之後、`DECLARE @t TABLE (`）、
   `ALTER TABLE t ADD `——新資料行名稱或 `CONSTRAINT` 都對。
 

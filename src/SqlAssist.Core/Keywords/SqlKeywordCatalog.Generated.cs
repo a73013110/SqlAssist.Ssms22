@@ -140,7 +140,7 @@ internal static class SqlKeywordCatalogData
         new("OPENXML", SqlKeywordPosition.DataSource),
         new("OPTION", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.MergeClause),
         new("OR", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
-        new("ORDER", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.IndexOption | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.WindowSpecification | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail),
+        new("ORDER", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.IndexOption | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.WindowSpecification | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.GroupByTail),
         new("OUTER", SqlKeywordPosition.TableSourceTail),
         new("OUTPUT", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.MergeClause),
         new("OVER", SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.InsertTarget),
@@ -280,6 +280,7 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.ModuleHeader, "CREATE VIEW v WITH SCHEMABINDING "),
         new(SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE "),
         new(SqlKeywordPosition.ModuleHeader, "CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING "),
+        new(SqlKeywordPosition.ModuleHeader, "CREATE FUNCTION f () RETURNS TABLE (a int) WITH EXECUTE AS CALLER "),
         new(SqlKeywordPosition.FunctionReturns, "CREATE FUNCTION f () "),
         new(SqlKeywordPosition.ResultSetList, "EXEC p WITH RESULT SETS ("),
         new(SqlKeywordPosition.ResultSetList, "EXEC p WITH RESULT SETS ((a int), "),
@@ -723,6 +724,10 @@ internal static class SqlKeywordCatalogData
         ("SET ,* , DEADLOCK_PRIORITY", SqlKeywordPosition.StatementStart, "SET LANGUAGE 'x' , DEADLOCK_PRIORITY ", true, true, false, false, new string[]
         {
             "NULL", "LOW", "NORMAL", "HIGH",
+        }),
+        ("SET STATISTICS ,* ,", SqlKeywordPosition.StatementStart, "SET STATISTICS IO, ", true, false, false, false, new string[]
+        {
+            "IO", "PROFILE", "TIME", "XML",
         }),
         ("CREATE", SqlKeywordPosition.StatementStart, "CREATE ", true, false, false, false, new string[]
         {
@@ -8452,6 +8457,14 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE TYPE {name} EXTERNAL NAME {name}", SqlKeywordPosition.StatementStart, "CREATE TYPE t EXTERNAL NAME t ", true, false, false, true, new string[]
         {
+        }),
+        ("RETURN ( WITH", SqlKeywordPosition.Any, "CREATE FUNCTION f () RETURNS TABLE RETURN (WITH ", false, false, false, false, new string[]
+        {
+            "XMLNAMESPACES",
+        }),
+        ("RETURN WITH", SqlKeywordPosition.Any, "CREATE FUNCTION f () RETURNS TABLE RETURN WITH ", false, false, false, false, new string[]
+        {
+            "XMLNAMESPACES",
         }),
         ("DROP ASSEMBLY {name} WITH", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY t WITH ", true, false, false, false, new string[]
         {

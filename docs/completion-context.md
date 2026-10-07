@@ -16,17 +16,16 @@
 SELECT DATEADD(|              → DAY、MONTH、YEAR…（15 個日期部分）
 SELECT * FROM dbo.Loan WITH (| → NOLOCK、UPDLOCK、INDEX(…（21 個資料表提示）
 SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 個查詢提示）
-SELECT {fn |                  → CURRENT_TIME、DAYNAME…（ODBC 純量函式）
+SELECT {fn |                  → CURRENT_TIME、USER、RIGHT…（ODBC 純量函式）
 ```
 
 都認得出來，是因為游標**前面**那個字就把話說完了。CTE 的 `WITH` 不會誤判——
 `;WITH c AS (` 的 `WITH` 與左括號之間隔著一個名稱。
 
 日期部分只在**第一個**引數：打過逗號之後那裡要的是數字與日期。哪些函式由函式目錄的簽章說
-（`DATE_BUCKET(datepart, …)`），不另列名單。提示則是一份清單，逗號之後還是提示。
-`INDEX` 提交時補左括號，理由與內建函式相同。
-
-日期部分只收完整名稱，不收 `yy`、`dd`：收了清單就要捲動。
+（`DATE_BUCKET(datepart, …)`），不另列名單；只收完整名稱，不收 `yy`、`dd`：收了清單就要捲動。
+提示是一份清單，逗號之後還是提示；`INDEX` 提交時補左括號，理由與內建函式相同。
+ODBC 收附錄 E 整份：sql-docs 的表格只列與 T-SQL 不重複的，引擎解譯的是整份。
 
 `CREATE INDEX … WITH (` 列的是索引選項（片語，見[子句片語](completion-phrases.md)）。
 已知會誤判的是 `OPENJSON(…) WITH (col int '$.x')`：也會列出資料表提示。沒有為它再加判斷：

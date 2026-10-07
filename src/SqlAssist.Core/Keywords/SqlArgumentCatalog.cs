@@ -117,28 +117,91 @@ public static class SqlArgumentCatalog
 
     /// <summary>ODBC 跳脫 <c>{fn …}</c> 的純量函式。</summary>
     /// <remarks>
-    /// 只收 SQL Server 文件列出、引擎自己認得的那一份，不收驅動程式才翻譯的 ODBC 標準函式。
-    /// <c>CURRENT_TIME</c> 的精確度可省，慣例寫法不帶括號。
+    /// 收 ODBC 附錄 E 的整份：sql-docs「ODBC Scalar Functions」說這些由引擎解譯，表格只列與 T-SQL 不重複的幾個，
+    /// 只收表格的話 <c>{fn USER()}</c>、<c>{fn RIGHT(…)}</c> 列不出來。
+    /// <c>CURRENT_TIME</c>、<c>CURRENT_TIMESTAMP</c> 的精確度可省，慣例寫法不帶括號。
     /// </remarks>
     private static readonly (string Name, Func<string> Description, bool TakesArguments)[] OdbcFunctionDefinitions =
     {
+        // 字串
+        ("ASCII", () => ArgumentText.OdbcAscii, true),
+        ("BIT_LENGTH", () => ArgumentText.OdbcBitLength, true),
+        ("CHAR", () => ArgumentText.OdbcChar, true),
+        ("CHAR_LENGTH", () => ArgumentText.OdbcCharLength, true),
+        ("CHARACTER_LENGTH", () => ArgumentText.OdbcCharLength, true),
+        ("CONCAT", () => ArgumentText.OdbcConcat, true),
+        ("DIFFERENCE", () => ArgumentText.OdbcDifference, true),
+        ("INSERT", () => ArgumentText.OdbcInsert, true),
+        ("LCASE", () => ArgumentText.OdbcLcase, true),
+        ("LEFT", () => ArgumentText.OdbcLeft, true),
+        ("LENGTH", () => ArgumentText.OdbcLength, true),
+        ("LOCATE", () => ArgumentText.OdbcLocate, true),
+        ("LTRIM", () => ArgumentText.OdbcLtrim, true),
+        ("OCTET_LENGTH", () => ArgumentText.OdbcOctetLength, true),
+        ("POSITION", () => ArgumentText.OdbcLocate, true),
+        ("REPEAT", () => ArgumentText.OdbcRepeat, true),
+        ("REPLACE", () => ArgumentText.OdbcReplace, true),
+        ("RIGHT", () => ArgumentText.OdbcRight, true),
+        ("RTRIM", () => ArgumentText.OdbcRtrim, true),
+        ("SOUNDEX", () => ArgumentText.OdbcSoundex, true),
+        ("SPACE", () => ArgumentText.OdbcSpace, true),
+        ("SUBSTRING", () => ArgumentText.OdbcSubstring, true),
+        ("UCASE", () => ArgumentText.OdbcUcase, true),
+
+        // 數值
+        ("ABS", () => ArgumentText.OdbcAbs, true),
+        ("ACOS", () => ArgumentText.OdbcAcos, true),
+        ("ASIN", () => ArgumentText.OdbcAsin, true),
+        ("ATAN", () => ArgumentText.OdbcAtan, true),
+        ("ATAN2", () => ArgumentText.OdbcAtan2, true),
+        ("CEILING", () => ArgumentText.OdbcCeiling, true),
+        ("COS", () => ArgumentText.OdbcCos, true),
+        ("COT", () => ArgumentText.OdbcCot, true),
+        ("DEGREES", () => ArgumentText.OdbcDegrees, true),
+        ("EXP", () => ArgumentText.OdbcExp, true),
+        ("FLOOR", () => ArgumentText.OdbcFloor, true),
+        ("LOG", () => ArgumentText.OdbcLog, true),
+        ("LOG10", () => ArgumentText.OdbcLog10, true),
+        ("MOD", () => ArgumentText.OdbcMod, true),
+        ("PI", () => ArgumentText.OdbcPi, true),
+        ("POWER", () => ArgumentText.OdbcPower, true),
+        ("RADIANS", () => ArgumentText.OdbcRadians, true),
+        ("RAND", () => ArgumentText.OdbcRand, true),
+        ("ROUND", () => ArgumentText.OdbcRound, true),
+        ("SIGN", () => ArgumentText.OdbcSign, true),
+        ("SIN", () => ArgumentText.OdbcSin, true),
+        ("SQRT", () => ArgumentText.OdbcSqrt, true),
+        ("TAN", () => ArgumentText.OdbcTan, true),
+        ("TRUNCATE", () => ArgumentText.OdbcTruncate, true),
+
+        // 日期、時間與間隔
         ("CURRENT_DATE", () => ArgumentText.OdbcCurrentDate, true),
         ("CURDATE", () => ArgumentText.OdbcCurrentDate, true),
         ("CURRENT_TIME", () => ArgumentText.OdbcCurrentTime, false),
         ("CURTIME", () => ArgumentText.OdbcCurrentTime, true),
+        ("CURRENT_TIMESTAMP", () => ArgumentText.OdbcCurrentTimestamp, false),
+        ("NOW", () => ArgumentText.OdbcCurrentTimestamp, true),
         ("DAYNAME", () => ArgumentText.OdbcDayname, true),
         ("DAYOFMONTH", () => ArgumentText.OdbcDayofmonth, true),
         ("DAYOFWEEK", () => ArgumentText.OdbcDayofweek, true),
-        ("MONTHNAME", () => ArgumentText.OdbcMonthname, true),
-        ("QUARTER", () => ArgumentText.OdbcQuarter, true),
-        ("WEEK", () => ArgumentText.OdbcWeek, true),
+        ("DAYOFYEAR", () => ArgumentText.OdbcDayofyear, true),
+        ("EXTRACT", () => ArgumentText.OdbcExtract, true),
         ("HOUR", () => ArgumentText.OdbcHour, true),
         ("MINUTE", () => ArgumentText.OdbcMinute, true),
+        ("MONTH", () => ArgumentText.OdbcMonth, true),
+        ("MONTHNAME", () => ArgumentText.OdbcMonthname, true),
+        ("QUARTER", () => ArgumentText.OdbcQuarter, true),
         ("SECOND", () => ArgumentText.OdbcSecond, true),
-        ("CONCAT", () => ArgumentText.OdbcConcat, true),
-        ("BIT_LENGTH", () => ArgumentText.OdbcBitLength, true),
-        ("OCTET_LENGTH", () => ArgumentText.OdbcOctetLength, true),
-        ("TRUNCATE", () => ArgumentText.OdbcTruncate, true)
+        ("TIMESTAMPADD", () => ArgumentText.OdbcTimestampadd, true),
+        ("TIMESTAMPDIFF", () => ArgumentText.OdbcTimestampdiff, true),
+        ("WEEK", () => ArgumentText.OdbcWeek, true),
+        ("YEAR", () => ArgumentText.OdbcYear, true),
+
+        // 系統與明確轉換
+        ("DATABASE", () => ArgumentText.OdbcDatabase, true),
+        ("IFNULL", () => ArgumentText.OdbcIfnull, true),
+        ("USER", () => ArgumentText.OdbcUser, true),
+        ("CONVERT", () => ArgumentText.OdbcConvert, true)
     };
 
     /// <summary>三份封閉清單裡的名稱拆成的字；多字寫法的每一個字都在內。</summary>

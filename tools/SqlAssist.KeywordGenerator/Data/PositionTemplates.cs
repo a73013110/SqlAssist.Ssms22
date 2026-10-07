@@ -94,11 +94,12 @@ internal static class PositionTemplates
         // 外部索引鍵的參考寫完之後：ON（DELETE、UPDATE）、NOT（FOR REPLICATION）與其他資料行條件約束。
         new("ReferencesTail", "CREATE TABLE t (a int REFERENCES u (a) "),
 
-        // 模組的 WITH 選項寫完之後是本體的 AS；函式參數清單之後的 RETURNS 不是關鍵字，由子句片語給。
+        // 模組的 WITH 選項寫完之後是本體的 AS，CLR 資料表值函式另接 ORDER；函式參數清單之後的 RETURNS 不是關鍵字，由子句片語給。
         new("ModuleHeader",
             "CREATE VIEW v WITH SCHEMABINDING ",
             "CREATE PROCEDURE p WITH RECOMPILE ",
-            "CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING "),
+            "CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING ",
+            "CREATE FUNCTION f () RETURNS TABLE (a int) WITH EXECUTE AS CALLER "),
         new("FunctionReturns", "CREATE FUNCTION f () "),
 
         // WITH RESULT SETS 的兩層括號：外層每一項是一組資料行定義或 AS OBJECT／TYPE／FOR XML，

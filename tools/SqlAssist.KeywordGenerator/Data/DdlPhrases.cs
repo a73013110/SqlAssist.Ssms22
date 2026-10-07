@@ -116,6 +116,10 @@ internal static class DdlPhrases
         new("AS " + ExternalName) { After = ["ModuleHeader"], Template = 1 },
         new("CREATE AGGREGATE ... " + ExternalName) { Gap = "a (@x int) RETURNS int" },
         new("CREATE TYPE {name} " + ExternalName),
+        // 內嵌資料表值函式的 RETURN 之後是一個查詢，可以從 CTE 開始；純量函式的 RETURN 接運算式，位置分析判不出，
+        // 所以只寫 WITH 那一格，以 Lead 墊 RETURNS TABLE。與一句開頭的 WITH 同理：前置子句要寫完括號與查詢才驗，CTE 名稱什麼都收。
+        new("RETURN ( WITH") { Lead = "CREATE FUNCTION f () RETURNS TABLE ", Endings = [" ('x' AS n) SELECT 1 AS a)"], Closed = false },
+        new("RETURN WITH") { Lead = "CREATE FUNCTION f () RETURNS TABLE ", Endings = [" ('x' AS n) SELECT 1 AS a"], Closed = false },
         // 資料表值參數的型別之後是 READONLY：參數清單判不出位置，READONLY 不是關鍵字，整段是證據，進判不出位置的附加片語。
         // 證據寫到本體的 AS，與上面的 AS 同理只加字。
         new("READONLY AS") { Lead = "CREATE PROCEDURE p @p t ", Additive = true },

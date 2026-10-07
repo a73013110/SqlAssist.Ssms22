@@ -111,6 +111,8 @@ public sealed class SqlCompletionPolicyTests
     [InlineData(";WITH c", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.ClauseKeyword)]
     [InlineData("WITH c AS (SELECT 1 AS a), ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any)]
     [InlineData("CREATE VIEW v AS WITH ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.ClauseKeyword)]
+    [InlineData("CREATE FUNCTION f () RETURNS TABLE RETURN (WITH ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.ClauseKeyword)]
+    [InlineData("CREATE FUNCTION f () RETURNS TABLE AS RETURN WITH ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.ClauseKeyword)]
     [InlineData("SELECT a INTO ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectIntoTail, CompletionTarget.Any)]
     [InlineData("SELECT a INTO #n", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectIntoTail, CompletionTarget.Any)]
     [InlineData("SELECT * INTO dbo.", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectIntoTail, CompletionTarget.Any)]
