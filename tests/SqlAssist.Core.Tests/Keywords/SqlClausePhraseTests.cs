@@ -724,6 +724,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("SETUSER 'Lib_Reader' WITH ", "NORESET")]
     [InlineData("DROP TRIGGER LoanAudit, CopyAudit ON ", "DATABASE", "ALL SERVER")]
     [InlineData("DROP TRIGGER IF EXISTS LoanAudit, CopyAudit ON ALL ", "SERVER")]
+    [InlineData("CREATE TABLE dbo.Loan (Title nvarchar(10) NOT NULL INDEX IX_Loan NONCLUSTERED (Title) ", "INCLUDE", "WHERE")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int NOT NULL INDEX IX_Loan UNIQUE ", "HASH", "NONCLUSTERED")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);

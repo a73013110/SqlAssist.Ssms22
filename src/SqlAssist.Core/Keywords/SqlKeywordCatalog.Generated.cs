@@ -9217,6 +9217,14 @@ internal static class SqlKeywordCatalogData
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
+        ("INDEX {name} ()", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t (a) ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "INCLUDE", "WHERE",
+        }),
         ("INDEX {name} CLUSTERED ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t CLUSTERED (a) ", true, false, false, false, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
@@ -9224,6 +9232,14 @@ internal static class SqlKeywordCatalogData
         ("INDEX {name} CLUSTERED ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t CLUSTERED (a) ", true, false, false, true, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} CLUSTERED ()", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t CLUSTERED (a) ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "INCLUDE", "WHERE",
         }),
         ("INDEX {name} NONCLUSTERED ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t NONCLUSTERED (a) ", true, false, false, false, new string[]
         {
@@ -9233,6 +9249,14 @@ internal static class SqlKeywordCatalogData
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
+        ("INDEX {name} NONCLUSTERED ()", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t NONCLUSTERED (a) ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "INCLUDE", "WHERE",
+        }),
         ("INDEX {name} UNIQUE ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t UNIQUE (a) ", true, false, false, false, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
@@ -9240,6 +9264,14 @@ internal static class SqlKeywordCatalogData
         ("INDEX {name} UNIQUE ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t UNIQUE (a) ", true, false, false, true, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} UNIQUE ()", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t UNIQUE (a) ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "INCLUDE", "WHERE",
         }),
         ("INDEX {name} UNIQUE CLUSTERED ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t UNIQUE CLUSTERED (a) ", true, false, false, false, new string[]
         {
@@ -9249,6 +9281,14 @@ internal static class SqlKeywordCatalogData
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
+        ("INDEX {name} UNIQUE CLUSTERED ()", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t UNIQUE CLUSTERED (a) ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "INCLUDE", "WHERE",
+        }),
         ("INDEX {name} UNIQUE NONCLUSTERED ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t UNIQUE NONCLUSTERED (a) ", true, false, false, false, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
@@ -9256,6 +9296,14 @@ internal static class SqlKeywordCatalogData
         ("INDEX {name} UNIQUE NONCLUSTERED ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t UNIQUE NONCLUSTERED (a) ", true, false, false, true, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} UNIQUE NONCLUSTERED ()", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t UNIQUE NONCLUSTERED (a) ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "INCLUDE", "WHERE",
         }),
         ("INDEX {name} HASH ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t HASH (a) ", true, false, false, false, new string[]
         {
@@ -9265,6 +9313,14 @@ internal static class SqlKeywordCatalogData
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
+        ("INDEX {name} HASH ()", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t HASH (a) ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "INCLUDE", "WHERE",
+        }),
         ("INDEX {name} NONCLUSTERED HASH ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t NONCLUSTERED HASH (a) ", true, false, false, false, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
@@ -9272,6 +9328,14 @@ internal static class SqlKeywordCatalogData
         ("INDEX {name} NONCLUSTERED HASH ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t NONCLUSTERED HASH (a) ", true, false, false, true, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} NONCLUSTERED HASH ()", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t NONCLUSTERED HASH (a) ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "INCLUDE", "WHERE",
         }),
         ("INDEX {name} CLUSTERED COLUMNSTORE WITH (*", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (", true, false, false, false, new string[]
         {
@@ -18181,6 +18245,14 @@ internal static class SqlKeywordCatalogData
         ("INDEX {name} UNIQUE", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t UNIQUE ", true, false, false, true, new string[]
         {
             "CLUSTERED", "COLUMNSTORE", "FILESTREAM_ON", "HASH", "NONCLUSTERED", "ON", "WHERE",
+        }),
+        ("INDEX {name} UNIQUE", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t UNIQUE ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "CLUSTERED", "HASH", "NONCLUSTERED", "WHERE",
         }),
         ("INDEX {name} NONCLUSTERED", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t NONCLUSTERED ", true, false, false, false, new string[]
         {

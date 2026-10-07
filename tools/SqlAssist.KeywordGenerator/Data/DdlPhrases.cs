@@ -220,9 +220,11 @@ internal static class DdlPhrases
         // 資料表定義與 ALTER TABLE ADD 裡的索引（INDEX i CLUSTERED COLUMNSTORE WITH (…)），前一格是定義清單的一項。
         // 索引鍵之後與 CREATE INDEX 一樣接 INCLUDE、WHERE、WITH、ON；名稱與索引鍵之間的種類寫法有限，逐一寫出，
         // 也是名稱之後那一格的證據（HASH、UNIQUE）。ALTER TABLE ADD 寫完索引鍵就是完整的語句，WITH 被當成下一句扣掉了，手寫補回。
+        // 資料行層級的索引（a int INDEX i UNIQUE (a)）剖析器也收索引鍵與 UNIQUE，帶索引鍵的這幾條也寫在型別之後那一格。
         new("INDEX {name}") { After = TableItem },
         new("INDEX {name} CLUSTERED") { After = TableItem },
-        .. InlineIndexKinds.Select(kind => new PhraseDeclaration($"INDEX {{name}} {kind}()") { After = TableItem, Values = ["WITH"] }),
+        .. InlineIndexKinds.Select(kind =>
+            new PhraseDeclaration($"INDEX {{name}} {kind}()") { After = [.. TableItem, "ColumnDefinitionTail"], Values = ["WITH"] }),
         new("INDEX {name} CLUSTERED COLUMNSTORE WITH (*") { After = TableItem },
         new("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (*") { After = TableItem },
 
