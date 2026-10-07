@@ -1745,6 +1745,8 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT * FROM t TABLESAMPLE SYSTEM (@n ", SqlKeywordPosition.TableSampleTail)]
     [InlineData("SELECT * FROM t AS a TABLESAMPLE (1 + 2 ", SqlKeywordPosition.TableSampleTail)]
     [InlineData("SELECT * FROM t TABLESAMPLE SYSTEM (ABS(@n) * 2 ", SqlKeywordPosition.TableSampleTail)]
+    [InlineData("SELECT * FROM t TABLESAMPLE SYSTEM (1 + 2 PERCENT) ", SqlKeywordPosition.TableSourceTail)]
+    [InlineData("SELECT * FROM t TABLESAMPLE (10 PERCENT) REPEATABLE (1) ", SqlKeywordPosition.TableSourceTail)]
     [InlineData("SELECT * FROM t PIVOT (SUM(x) ", SqlKeywordPosition.PivotClause)]
     [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR y ", SqlKeywordPosition.PivotClause)]
     [InlineData("SELECT * FROM t s PIVOT (AVG(s.x) FOR s.y ", SqlKeywordPosition.PivotClause)]

@@ -726,6 +726,11 @@ public sealed class SqlClausePhraseTests
     [InlineData("DROP TRIGGER IF EXISTS LoanAudit, CopyAudit ON ALL ", "SERVER")]
     [InlineData("CREATE TABLE dbo.Loan (Title nvarchar(10) NOT NULL INDEX IX_Loan NONCLUSTERED (Title) ", "INCLUDE", "WHERE")]
     [InlineData("CREATE TABLE dbo.Loan (LoanId int NOT NULL INDEX IX_Loan UNIQUE ", "HASH", "NONCLUSTERED")]
+    [InlineData("SELECT * FROM dbo.Loan OPTION (OPTIMIZE FOR (@CopyNo ", "UNKNOWN")]
+    [InlineData("SELECT * FROM dbo.Loan OPTION (RECOMPILE, OPTIMIZE FOR (@CopyNo = 1, @Branch ", "UNKNOWN")]
+    [InlineData("SELECT * FROM dbo.Loan TABLESAMPLE SYSTEM (1 + 2 PERCENT) ", "REPEATABLE", "WHERE", "JOIN")]
+    [InlineData("SELECT * FROM dbo.Loan TABLESAMPLE (10 ROWS) ", "REPEATABLE", "WHERE")]
+    [InlineData("SELECT * FROM dbo.Loan TABLESAMPLE (10 PERCENT) REPEATABLE (1) ", "WHERE", "JOIN")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -852,6 +857,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (LoanId) ", "ORDER")]
     [InlineData("CREATE TABLE dbo.Loan (LoanId int, INDEX IX_Loan (LoanId) ON LibData ", "TEXTIMAGE_ON")]
     [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' WITH LIFETIME = @Life ", "COALESCE")]
+    [InlineData("SELECT * FROM dbo.Loan TABLESAMPLE (10 PERCENT) REPEATABLE (1) ", "REPEATABLE")]
+    [InlineData("SELECT * FROM dbo.Loan ", "REPEATABLE")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));

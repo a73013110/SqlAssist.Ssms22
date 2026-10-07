@@ -39,6 +39,7 @@ internal static class ClausePhrases
         .. QueryPhrases.Clauses,
         .. StatementPhrases.ExecOptions,
         .. QueryPhrases.TableSample,
+        .. QueryPhrases.QueryHints,
         .. SecurityPhrases.Principals,
         .. DdlPhrases.Constraint,
         .. QueryPhrases.OffsetFetch,

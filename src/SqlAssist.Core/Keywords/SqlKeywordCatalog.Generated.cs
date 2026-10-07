@@ -14186,6 +14186,10 @@ internal static class SqlKeywordCatalogData
         {
             "COLLATE", "PERCENT", "ROWS",
         }),
+        ("OPTIMIZE FOR (* {name}", SqlKeywordPosition.Any, "SELECT 1 OPTION (OPTIMIZE FOR (@ReaderId ", true, false, false, false, new string[]
+        {
+            "UNKNOWN",
+        }),
         ("", SqlKeywordPosition.PermissionOn, "GRANT SELECT ON ", false, false, true, false, new string[]
         {
             "ASSEMBLY", "CERTIFICATE", "CONTRACT", "DATABASE", "ENDPOINT", "LOGIN", "OBJECT",
@@ -18932,6 +18936,10 @@ internal static class SqlKeywordCatalogData
         {
             "SETS",
         }),
+        ("OPTIMIZE", SqlKeywordPosition.Any, "SELECT 1 OPTION (OPTIMIZE ", false, false, true, false, new string[]
+        {
+            "FOR",
+        }),
         ("TO SCHEMA", SqlKeywordPosition.Any, "ALTER AUTHORIZATION ON OBJECT::t TO SCHEMA ", true, false, false, false, new string[]
         {
             "OWNER",
@@ -19646,7 +19654,7 @@ internal static class SqlKeywordCatalogData
     /// </summary>
     internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =
     {
-        ("", SqlKeywordPosition.None, "CREATE PROCEDURE p @p t ", new string[] { "READONLY" }),
+        ("", SqlKeywordPosition.None, "CREATE PROCEDURE p @p t ", new string[] { "READONLY", "OPTIMIZE" }),
         ("", SqlKeywordPosition.BlockStart, "BEGIN ", new string[] { "ATOMIC", "DIALOG", "CONVERSATION" }),
         ("", SqlKeywordPosition.StatementStart, "", new string[] { "ENABLE", "DISABLE", "COPY", "SEND", "RECEIVE", "MOVE", "GET" }),
         ("", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (", new string[] { "PERIOD", "CONNECTION" }),
@@ -19657,6 +19665,8 @@ internal static class SqlKeywordCatalogData
         ("CALLED ON NULL INPUT", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ON NULL INPUT ", new string[] { "AS", "BEGIN", "EXTERNAL" }),
         ("AS", SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE AS ", new string[] { "EXTERNAL NAME" }),
         ("READONLY AS", SqlKeywordPosition.Any, "CREATE PROCEDURE p @p t READONLY AS ", new string[] { "EXTERNAL" }),
+        ("TABLESAMPLE ()", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t TABLESAMPLE (10 PERCENT) ", new string[] { "CROSS", "EXCEPT", "FOR", "FULL", "GROUP", "HAVING", "HOLDLOCK", "INNER", "INTERSECT", "JOIN", "LEFT", "OPTION", "ORDER", "OUTER", "PIVOT", "REPEATABLE", "RIGHT", "UNION", "UNPIVOT", "WHERE" }),
+        ("TABLESAMPLE SYSTEM ()", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t TABLESAMPLE SYSTEM (10 PERCENT) ", new string[] { "CROSS", "EXCEPT", "FOR", "FULL", "GROUP", "HAVING", "HOLDLOCK", "INNER", "INTERSECT", "JOIN", "LEFT", "OPTION", "ORDER", "OUTER", "PIVOT", "REPEATABLE", "RIGHT", "UNION", "UNPIVOT", "WHERE" }),
         ("END", SqlKeywordPosition.StatementStart, "END ", new string[] { "CONVERSATION", "TRY", "CATCH" }),
         ("GRANT ,* ADMINISTER", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER ", new string[] { "BULK", "DATABASE" }),
         ("GRANT ,* ADMINISTER BULK", SqlKeywordPosition.StatementStart, "GRANT ADMINISTER BULK ", new string[] { "OPERATIONS" }),

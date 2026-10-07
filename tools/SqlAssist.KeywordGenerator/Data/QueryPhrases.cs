@@ -152,11 +152,21 @@ internal static class QueryPhrases
         new("") { After = ["FunctionReturns"] },
     ];
 
-    // 資料表之後的 TABLESAMPLE 接選用的 SYSTEM 或直接接括號。
+    // 資料表之後的 TABLESAMPLE 接選用的 SYSTEM 或直接接括號。樣本大小寫完、括號關上之後是 REPEATABLE (seed)，
+    // 也還是資料來源的尾端（WHERE、JOIN、別名）：只加字，否則別名那一格跟著封閉。
     internal static readonly PhraseDeclaration[] TableSample =
     [
         new("TABLESAMPLE") { After = ["TableSourceTail"] },
         new("") { After = ["TableSampleTail"] },
+        new("TABLESAMPLE ()") { After = ["TableSourceTail"], Group = "(10 PERCENT)", Additive = true },
+        new("TABLESAMPLE SYSTEM ()") { After = ["TableSourceTail"], Group = "(10 PERCENT)", Additive = true },
+    ];
+
+    // OPTION (OPTIMIZE FOR (@a = 1, @b UNKNOWN))：括號裡每個變數之後是 = 常值或 UNKNOWN，第幾個都一樣。
+    // OPTION ( 是查詢提示的封閉清單，位置分析判不出那一格，從提示寫起。
+    internal static readonly PhraseDeclaration[] QueryHints =
+    [
+        new("OPTIMIZE FOR (* {name}") { Lead = "SELECT 1 OPTION (" },
     ];
 
     // FETCH 的列數之後（NEXT 10 ROWS ONLY）不看前面是 OFFSET … ROWS 還是 SQL Server 2025 的 FETCH APPROX：尾巴從 NEXT、FIRST 寫起，
