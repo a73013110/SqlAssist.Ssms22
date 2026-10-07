@@ -104,15 +104,15 @@ internal static class DatabasePhrases
         // 資料庫加入可用性群組：SET HADR 之後的 AVAILABILITY GROUP = 剖析器要看到整段才收，整段是證據。
         new("ALTER DATABASE {name} SET HADR AVAILABILITY GROUP ="),
 
-        // 可用性複本：ON 之後是一或多個 '伺服器' WITH (…)，中段的 ,* 走過前面幾個複本。括號裡的選項等號之後是值
+        // 可用性複本：ADD、MODIFY 的 ON 之後是一或多個 '伺服器' WITH (…)，中段的 ,* 走過前面幾個複本。括號裡的選項等號之後是值
         // （FAILOVER_MODE = MANUAL），角色選項再開一組括號。SEEDING_MODE、AUTOMATED_BACKUP_PREFERENCE 這幾個剖析器還不認得。
         // CREATE 的複本寫在 FOR DATABASE 清單之後，前面那段由 ... 走過。
         new("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (*"),
         new("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (* SECONDARY_ROLE (*"),
         new("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (* PRIMARY_ROLE (*"),
-        new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (*"),
-        new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* SECONDARY_ROLE (*"),
-        new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* PRIMARY_ROLE (*"),
+        new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (*"),
+        new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (* SECONDARY_ROLE (*"),
+        new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (* PRIMARY_ROLE (*"),
         // FOR DATABASE 的資料庫清單寫完接 REPLICA；中段的 ,* 走過前面幾個資料庫。REPLICA 要寫完一個複本才驗，續尾補上。
         new("CREATE AVAILABILITY GROUP ... DATABASE ,* {name}")
         {

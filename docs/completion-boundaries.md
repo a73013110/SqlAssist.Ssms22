@@ -50,6 +50,7 @@
 子句屬於哪個**動詞**另問往回第一個能開始一句的字（`FindVerb`：`UPDATE t⏎SET` 屬於 UPDATE）；
 權限清單的一項（`REVOKE SELECT`、`GRANT CREATE TABLE`）與 `WITH` 不算，清單項的走訪（`StartsClauseOfItsOwn`）同一條；`IF UPDATE(a)` 是函式，`CASE … END` 整組跳過；
 不是關鍵字的語句開頭要真的是一句的開頭才算，否則 `SELECT Copy.CopyNo FROM` 的 FROM 找不到 SELECT。
+安全性原則 `AFTER`、`BEFORE` 之後的 `INSERT`、`UPDATE`、`DELETE` 是作業，不是動詞、語句開頭或子句錨點：否則 `AFTER UPDATE` 之後列資料表，換行寫的下一句也認不出開頭。
 
 - **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c `
   接 `INTO`（`FetchTail`），`RESTORE`（裝置清單）、`REVOKE`、`BULK INSERT`、`COPY INTO` 的 FROM 不接，`TRIM('x' FROM s)` 之後是運算式，`IS [NOT] DISTINCT FROM` 是比較運算子、也不是子句錨點。位置、目標與範圍分析共用 `IntroducesDataSource`，分岔時 `DISK` 被收成表。

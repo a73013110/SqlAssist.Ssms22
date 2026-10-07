@@ -95,11 +95,17 @@ internal static class SecurityPhrases
         // 安全性原則：ADD FILTER、BLOCK PREDICATE 函式 ON 資料表，BLOCK 之後可以帶 AFTER、BEFORE 的作業，述詞以逗號分隔，
         // 最後是 WITH (STATE = …)。CREATE 的名稱之後語句已經完整，ADD 被當成下一句的開頭扣掉，手寫補回。
         // 函式呼叫寫成名稱加括號，整段從語句開頭寫起：ADD 與作業的 INSERT、UPDATE、DELETE 都是語句開頭字，以 … 跨過的話
-        // 找動詞會停在它們上。逗號之後的述詞從逗號寫起，前面墊一個述詞。
+        // 找動詞會停在它們上。逗號之後的述詞從逗號寫起，前面墊一個述詞；述詞寫完的逗號與 ALTER 的尾巴相同，
+        // 分不出動詞，由 ALTER 那一組給（CREATE 也列出 ALTER、DROP），否則 ALTER 的逗號之後只剩 ADD。
+        // WITH (…) 之後的 NOT FOR REPLICATION 不分第幾個述詞，從 PREDICATE 寫起，以尾巴認。
         new("CREATE SECURITY POLICY {name}") { Expand = 3, Values = ["ADD"] },
         new("ALTER SECURITY POLICY {name}") { Expand = 3 },
         new("CREATE SECURITY POLICY {name} WITH (*"),
         new("ALTER SECURITY POLICY {name} WITH (*"),
+        new("CREATE SECURITY POLICY {name} WITH ()") { Group = "(STATE = ON)" },
+        new("PREDICATE {name} () ON {name} WITH ()") { Lead = "CREATE SECURITY POLICY t ADD FILTER ", Group = "(STATE = ON)" },
+        new("PREDICATE {name} () ON {name} AFTER {name} WITH ()") { Lead = "CREATE SECURITY POLICY t ADD BLOCK ", Group = "(STATE = ON)" },
+        new("PREDICATE {name} () ON {name} BEFORE {name} WITH ()") { Lead = "CREATE SECURITY POLICY t ADD BLOCK ", Group = "(STATE = ON)" },
         new("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name}"),
         new("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name} ,"),
         new("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name} WITH (*"),
@@ -111,10 +117,8 @@ internal static class SecurityPhrases
         new("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE UPDATE WITH (*"),
         new("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (*"),
         new(", ADD FILTER PREDICATE {name} () ON {name}") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },
-        new(", ADD FILTER PREDICATE {name} () ON {name} ,") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },
         new(", ADD FILTER PREDICATE {name} () ON {name} WITH (*") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },
         new(", ADD BLOCK PREDICATE {name} () ON {name}") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },
-        new(", ADD BLOCK PREDICATE {name} () ON {name} ,") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },
         new(", ADD BLOCK PREDICATE {name} () ON {name} WITH (*") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },
         new(", ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (*") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },
         new(", ADD BLOCK PREDICATE {name} () ON {name} AFTER UPDATE WITH (*") { Lead = "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t" },

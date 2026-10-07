@@ -14,6 +14,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("SELECT (CopyNo) AS c FROM ", CompletionTarget.DataSource)]
     [InlineData("UPDATE l SET CopyNo = 1 FROM ", CompletionTarget.DataSource)]
     [InlineData("UPDATE ", CompletionTarget.DataSource)]
+    [InlineData("CREATE SECURITY POLICY p ADD BLOCK PREDICATE dbo.f(a) ON dbo.Loan AFTER UPDATE ", CompletionTarget.ClauseKeyword)]
     [InlineData("INSERT INTO ", CompletionTarget.DataSource)]
     [InlineData("MERGE INTO ", CompletionTarget.DataSource)]
     [InlineData("MERGE INTO dbo.Loan AS target USING ", CompletionTarget.DataSource)]

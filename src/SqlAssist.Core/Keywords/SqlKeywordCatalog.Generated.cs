@@ -4146,16 +4146,16 @@ internal static class SqlKeywordCatalogData
         {
             "ALLOW_CONNECTIONS",
         }),
-        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (", true, false, false, false, new string[]
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (", true, false, false, false, new string[]
         {
             "APPLY_DELAY", "AVAILABILITY_MODE", "ENDPOINT_URL", "FAILOVER_MODE", "PRIMARY_ROLE",
             "SECONDARY_ROLE", "SESSION_TIMEOUT",
         }),
-        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* SECONDARY_ROLE (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (SECONDARY_ROLE (", true, false, true, false, new string[]
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (* SECONDARY_ROLE (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (SECONDARY_ROLE (", true, false, true, false, new string[]
         {
             "ALLOW_CONNECTIONS",
         }),
-        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* PRIMARY_ROLE (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (PRIMARY_ROLE (", true, false, true, false, new string[]
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (* PRIMARY_ROLE (*", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (PRIMARY_ROLE (", true, false, true, false, new string[]
         {
             "ALLOW_CONNECTIONS",
         }),
@@ -9831,6 +9831,22 @@ internal static class SqlKeywordCatalogData
         {
             "STATE",
         }),
+        ("CREATE SECURITY POLICY {name} WITH ()", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t WITH (STATE = ON) ", true, false, false, true, new string[]
+        {
+            "NOT",
+        }),
+        ("PREDICATE {name} () ON {name} WITH ()", SqlKeywordPosition.Any, "CREATE SECURITY POLICY t ADD FILTER PREDICATE t (a) ON t WITH (STATE = ON) ", true, false, false, true, new string[]
+        {
+            "NOT",
+        }),
+        ("PREDICATE {name} () ON {name} AFTER {name} WITH ()", SqlKeywordPosition.Any, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER INSERT WITH (STATE = ON) ", true, false, false, true, new string[]
+        {
+            "NOT",
+        }),
+        ("PREDICATE {name} () ON {name} BEFORE {name} WITH ()", SqlKeywordPosition.Any, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE WITH (STATE = ON) ", true, false, false, true, new string[]
+        {
+            "NOT",
+        }),
         ("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name}", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD FILTER PREDICATE t (a) ON t ", true, false, false, true, new string[]
         {
             "NOT", "WITH",
@@ -9875,10 +9891,6 @@ internal static class SqlKeywordCatalogData
         {
             "NOT", "WITH",
         }),
-        (", ADD FILTER PREDICATE {name} () ON {name} ,", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD FILTER PREDICATE t (a) ON t , ", true, false, false, false, new string[]
-        {
-            "ADD",
-        }),
         (", ADD FILTER PREDICATE {name} () ON {name} WITH (*", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD FILTER PREDICATE t (a) ON t WITH (", true, false, true, false, new string[]
         {
             "SCHEMABINDING", "STATE",
@@ -9886,10 +9898,6 @@ internal static class SqlKeywordCatalogData
         (", ADD BLOCK PREDICATE {name} () ON {name}", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t ", true, false, false, true, new string[]
         {
             "AFTER", "NOT", "WITH", "BEFORE",
-        }),
-        (", ADD BLOCK PREDICATE {name} () ON {name} ,", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t , ", true, false, false, false, new string[]
-        {
-            "ADD",
         }),
         (", ADD BLOCK PREDICATE {name} () ON {name} WITH (*", SqlKeywordPosition.Any, "CREATE SECURITY POLICY p ADD FILTER PREDICATE f(a) ON t, ADD BLOCK PREDICATE t (a) ON t WITH (", true, false, true, false, new string[]
         {
@@ -16634,6 +16642,14 @@ internal static class SqlKeywordCatalogData
         {
             "AS", "FOR",
         }),
+        ("CREATE ENDPOINT ... AS TCP (*", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (", true, false, false, false, new string[]
+        {
+            "CLEAR_PORT", "LISTENER_IP", "LISTENER_PORT", "PATH", "SITE", "SSL_PORT",
+        }),
+        ("ALTER ENDPOINT ... AS TCP (*", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (", true, false, false, false, new string[]
+        {
+            "CLEAR_PORT", "LISTENER_IP", "LISTENER_PORT", "PATH", "SITE", "SSL_PORT",
+        }),
         ("CREATE ENDPOINT ... FOR SERVICE_BROKER (*", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (", true, false, false, false, new string[]
         {
             "ADD", "ALTER", "AUTHENTICATION", "BATCHES", "CHARACTER_SET", "DATABASE", "DROP",
@@ -16754,6 +16770,42 @@ internal static class SqlKeywordCatalogData
         {
             "AES",
         }),
+        ("AUTHENTICATION = WINDOWS", SqlKeywordPosition.Any, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS ", true, false, true, false, new string[]
+        {
+            "CERTIFICATE", "KERBEROS", "NEGOTIATE", "NTLM",
+        }),
+        ("AUTHENTICATION = WINDOWS CERTIFICATE", SqlKeywordPosition.Any, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS CERTIFICATE ", false, false, false, false, new string[]
+        {
+        }),
+        ("AUTHENTICATION = WINDOWS KERBEROS", SqlKeywordPosition.Any, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS KERBEROS ", true, false, false, false, new string[]
+        {
+            "CERTIFICATE",
+        }),
+        ("AUTHENTICATION = WINDOWS KERBEROS CERTIFICATE", SqlKeywordPosition.Any, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS KERBEROS CERTIFICATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("AUTHENTICATION = WINDOWS NEGOTIATE", SqlKeywordPosition.Any, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS NEGOTIATE ", true, false, false, false, new string[]
+        {
+            "CERTIFICATE",
+        }),
+        ("AUTHENTICATION = WINDOWS NEGOTIATE CERTIFICATE", SqlKeywordPosition.Any, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS NEGOTIATE CERTIFICATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("AUTHENTICATION = WINDOWS NTLM", SqlKeywordPosition.Any, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS NTLM ", true, false, false, false, new string[]
+        {
+            "CERTIFICATE",
+        }),
+        ("AUTHENTICATION = WINDOWS NTLM CERTIFICATE", SqlKeywordPosition.Any, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS NTLM CERTIFICATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("AUTHENTICATION = CERTIFICATE {name}", SqlKeywordPosition.Any, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = CERTIFICATE t ", true, false, false, false, new string[]
+        {
+            "WINDOWS",
+        }),
+        ("AUTHENTICATION = CERTIFICATE {name} WINDOWS", SqlKeywordPosition.Any, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = CERTIFICATE t WINDOWS ", true, false, false, false, new string[]
+        {
+            "KERBEROS", "NEGOTIATE", "NTLM",
+        }),
         ("CREATE DATABASE ... WITH ,* FILESTREAM (* DIRECTORY_NAME =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH FILESTREAM (DIRECTORY_NAME = ", false, false, false, false, new string[]
         {
             "NULL",
@@ -16798,19 +16850,19 @@ internal static class SqlKeywordCatalogData
         {
             "ALL", "NO", "READ_WRITE",
         }),
-        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* AVAILABILITY_MODE =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (AVAILABILITY_MODE = ", true, false, false, false, new string[]
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (* AVAILABILITY_MODE =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (AVAILABILITY_MODE = ", true, false, false, false, new string[]
         {
             "ASYNCHRONOUS_COMMIT", "SYNCHRONOUS_COMMIT",
         }),
-        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* FAILOVER_MODE =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (FAILOVER_MODE = ", true, false, false, false, new string[]
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (* FAILOVER_MODE =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (FAILOVER_MODE = ", true, false, false, false, new string[]
         {
             "AUTOMATIC", "MANUAL",
         }),
-        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* SECONDARY_ROLE (* ALLOW_CONNECTIONS =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (SECONDARY_ROLE (ALLOW_CONNECTIONS = ", true, false, false, false, new string[]
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (* SECONDARY_ROLE (* ALLOW_CONNECTIONS =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (SECONDARY_ROLE (ALLOW_CONNECTIONS = ", true, false, false, false, new string[]
         {
             "ALL", "NO", "READ_ONLY",
         }),
-        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value} WITH (* PRIMARY_ROLE (* ALLOW_CONNECTIONS =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (PRIMARY_ROLE (ALLOW_CONNECTIONS = ", true, false, false, false, new string[]
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (* PRIMARY_ROLE (* ALLOW_CONNECTIONS =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' WITH (PRIMARY_ROLE (ALLOW_CONNECTIONS = ", true, false, false, false, new string[]
         {
             "ALL", "NO", "READ_WRITE",
         }),
@@ -17914,19 +17966,11 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
-        ("CREATE SECURITY POLICY {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t WITH (STATE = ", true, false, false, false, new string[]
-        {
-            "OFF", "ON",
-        }),
         ("ALTER SECURITY POLICY {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "ALTER SECURITY POLICY t WITH (STATE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
         ("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name} WITH (* SCHEMABINDING =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD FILTER PREDICATE t (a) ON t WITH (SCHEMABINDING = ", true, false, false, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("CREATE SECURITY POLICY {name} ADD FILTER PREDICATE {name} () ON {name} WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD FILTER PREDICATE t (a) ON t WITH (STATE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
@@ -17939,10 +17983,6 @@ internal static class SqlKeywordCatalogData
             "OFF", "ON",
         }),
         ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (* SCHEMABINDING =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER INSERT WITH (SCHEMABINDING = ", true, false, false, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} AFTER INSERT WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t AFTER INSERT WITH (STATE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
@@ -17963,10 +18003,6 @@ internal static class SqlKeywordCatalogData
             "OFF", "ON",
         }),
         ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (* SCHEMABINDING =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE WITH (SCHEMABINDING = ", true, false, false, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("CREATE SECURITY POLICY {name} ADD BLOCK PREDICATE {name} () ON {name} BEFORE DELETE WITH (* STATE =", SqlKeywordPosition.StatementStart, "CREATE SECURITY POLICY t ADD BLOCK PREDICATE t (a) ON t BEFORE DELETE WITH (STATE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
@@ -18021,6 +18057,14 @@ internal static class SqlKeywordCatalogData
         ("ALTER EXTERNAL MODEL {name} SET (* MODEL_TYPE =", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL MODEL t SET (MODEL_TYPE = ", true, false, false, false, new string[]
         {
             "EMBEDDINGS",
+        }),
+        ("CREATE ENDPOINT ... AS TCP (* LISTENER_IP =", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_IP = ", true, false, false, false, new string[]
+        {
+            "ALL",
+        }),
+        ("ALTER ENDPOINT ... AS TCP (* LISTENER_IP =", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS TCP (LISTENER_IP = ", true, false, false, false, new string[]
+        {
+            "ALL",
         }),
         ("CREATE ENDPOINT ... FOR SERVICE_BROKER (* MESSAGE_FORWARDING =", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (MESSAGE_FORWARDING = ", true, false, false, false, new string[]
         {
@@ -18243,7 +18287,7 @@ internal static class SqlKeywordCatalogData
         {
             "ON",
         }),
-        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON {value}", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' ", true, false, false, false, new string[]
+        ("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value}", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t MODIFY REPLICA ON 'x' ", true, false, false, false, new string[]
         {
             "WITH",
         }),
@@ -20101,6 +20145,14 @@ internal static class SqlKeywordCatalogData
         ("CREATE ENDPOINT {name} AUTHORIZATION {name}", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT t AUTHORIZATION t ", true, false, false, false, new string[]
         {
             "AFFINITY", "AS", "STATE",
+        }),
+        ("CREATE ENDPOINT ... AS", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS ", true, false, false, false, new string[]
+        {
+            "HTTP", "TCP",
+        }),
+        ("ALTER ENDPOINT ... AS", SqlKeywordPosition.StatementStart, "ALTER ENDPOINT e AS ", true, false, false, false, new string[]
+        {
+            "HTTP", "TCP",
         }),
         ("CREATE ENDPOINT ... FOR", SqlKeywordPosition.StatementStart, "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR ", true, false, false, false, new string[]
         {

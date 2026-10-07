@@ -121,9 +121,17 @@ internal static class ServiceBrokerPhrases
         // 名稱（與 CREATE 的擁有者）之後的 STATE = 與值之後的 AS。
         .. from head in new[] { "CREATE ENDPOINT {name}", "CREATE ENDPOINT {name} AUTHORIZATION {name}", "ALTER ENDPOINT {name}" }
            select new PhraseDeclaration($"{head} STATE =") { Expand = 1 },
+        // AS 之後的 TCP 括號裡是 LISTENER_PORT、LISTENER_IP；名稱與 AS 之間夾著擁有者與 STATE，以 ... 跨過。
+        // AS 那一格由整段的證據立（剖析器也收已移除的 HTTP，一併列出）。
+        .. from verb in new[] { "CREATE", "ALTER" }
+           select new PhraseDeclaration($"{verb} ENDPOINT ... AS TCP (*") { Gap = "e" },
         .. from verb in new[] { "CREATE", "ALTER" }
            from payload in EndpointPayloads
            from tail in new[] { "", " AUTHENTICATION =", " ENCRYPTION =" }.Concat(EndpointAlgorithms)
            select new PhraseDeclaration($"{verb} ENDPOINT ... FOR {payload} (*{tail}") { Gap = "e AS TCP (LISTENER_PORT = 4022)" },
+        // AUTHENTICATION 的 WINDOWS 與 CERTIFICATE 可以兩種都寫、順序不拘，WINDOWS 之後可以指定 NTLM、KERBEROS、NEGOTIATE。
+        // 兩種承載寫法相同，尾巴認得出來：從 AUTHENTICATION 寫起，不分第幾個選項。
+        new("AUTHENTICATION = WINDOWS") { Lead = "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (", Expand = 2 },
+        new("AUTHENTICATION = CERTIFICATE {name}") { Lead = "CREATE ENDPOINT e AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (", Expand = 1 },
     ];
 }

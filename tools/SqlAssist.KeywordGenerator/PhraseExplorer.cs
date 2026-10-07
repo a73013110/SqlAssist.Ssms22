@@ -125,6 +125,9 @@ internal sealed class PhraseExplorer
         var parts = head.Split([' '], StringSplitOptions.RemoveEmptyEntries);
         var hasRest = parts.Contains("...");
 
+        // Group 只給最後一組：前面那幾組是函式呼叫的引數（PREDICATE f (a) ON t WITH (STATE = ON)）。
+        var groupIndex = Array.LastIndexOf(parts, "()");
+
         for (var index = 0; index < parts.Length; index++)
         {
             var item = parts[index];
@@ -133,7 +136,7 @@ internal sealed class PhraseExplorer
             {
                 "{name}" => SelectName(text, following) + " ",
                 "{value}" => (SelectValue(text) ?? SelectName(text, following)) + " ",
-                "()" => (string.IsNullOrEmpty(group) ? "(a)" : group) + " ",
+                "()" => (string.IsNullOrEmpty(group) || index != groupIndex ? "(a)" : group) + " ",
                 "(*" when index < parts.Length - 1 && Array.IndexOf(parts, "(*") == index => "(" + items,
                 "(*" => "(",
                 "(" => "(",

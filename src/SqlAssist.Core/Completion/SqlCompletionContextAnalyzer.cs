@@ -830,8 +830,9 @@ public static class SqlCompletionContextAnalyzer
             return into ? CompletionTarget.Variable : CompletionTarget.Any;
         }
 
+        // 安全性原則的 AFTER UPDATE 是作業，不是 UPDATE 的目標。
         if (EndsWithKeyword(text, "JOIN", out keywordStart) ||
-            EndsWithKeyword(text, "UPDATE", out keywordStart) ||
+            (EndsWithKeyword(text, "UPDATE", out keywordStart) && !NamesBlockOperation(tokens, textBeforeToken, keywordStart)) ||
             EndsWithKeyword(text, "USING", out keywordStart))
         {
             return CompletionTarget.DataSource;
@@ -848,6 +849,14 @@ public static class SqlCompletionContextAnalyzer
 
         // 文字與詞元對不起來（關鍵字寫在尾端的註解裡），照舊當成資料來源。
         return index < 0 || new SqlStatementBoundaries(textBeforeToken, tokens).IntroducesDataSource(index);
+    }
+
+    /// <summary>從 <paramref name="keywordStart"/> 開始的 UPDATE 是安全性原則的作業。</summary>
+    private static bool NamesBlockOperation(IReadOnlyList<SqlToken> tokens, string textBeforeToken, int keywordStart)
+    {
+        var index = FindTokenAt(tokens, keywordStart);
+
+        return index >= 0 && new SqlStatementBoundaries(textBeforeToken, tokens).NamesBlockOperation(index);
     }
 
     /// <summary>從 <paramref name="keywordStart"/> 開始的關鍵字是一句的開頭。</summary>

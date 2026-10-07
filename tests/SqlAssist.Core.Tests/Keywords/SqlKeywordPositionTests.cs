@@ -1670,6 +1670,8 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE TRIGGER tr ON ALL SERVER FOR LOGON ", SqlKeywordPosition.TriggerEventEnd)]
     [InlineData("CREATE TRIGGER tr ON dbo.Loan INSTEAD OF DELETE AS ", SqlKeywordPosition.StatementStart)]
     [InlineData("CREATE TRIGGER tr ON ALL SERVER FOR LOGON AS ", SqlKeywordPosition.StatementStart)]
+    [InlineData("CREATE SECURITY POLICY p ADD BLOCK PREDICATE dbo.f(a) ON dbo.Loan AFTER UPDATE ", SqlKeywordPosition.Any)]
+    [InlineData("ALTER SECURITY POLICY p ADD BLOCK PREDICATE dbo.f(a) ON dbo.Loan AFTER INSERT\nALTER ", SqlKeywordPosition.DdlObject)]
     [InlineData("MERGE t USING s ON t.a = s.a WHEN ", SqlKeywordPosition.MergeWhen)]
     [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED THEN UPDATE SET a = 1\nWHEN ", SqlKeywordPosition.MergeWhen)]
     [InlineData("MERGE t USING s ON t.a = s.a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause | SqlKeywordPosition.OperandTail)]

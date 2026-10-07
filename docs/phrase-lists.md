@@ -35,7 +35,7 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 剖析器什麼都收的清單探不出字：`GRANT` 收任何一串識別字（連 `AND` 都收），權限名稱由 `Evidence` 手寫（`sys.fn_builtin_permissions`），
 每一條接在尾巴之後當證據、一個字一個字列。探到的字不算數：標頭與逗號之後只列證據的第一個字並封閉，證據中段立起的片語
 （`GRANT ,* VIEW`）是帶尾巴的附加片語，`DEFINITION` 加在 `PermissionList` 的 `ON`、`TO` 旁邊——`CONTROL` 寫完了也還接 `SERVER`。
-`()` 探測代入 `(a)`，對括號內容有要求的（RAISERROR）由 `Group` 指定。
+`()` 探測代入 `(a)`，對括號內容有要求的（RAISERROR）由 `Group` 指定最後一組（前面的是函式引數）。
 
 標頭夾著長度不定的一段（EXEC 的參數、BACKUP 的裝置清單、統計資料的資料行清單與篩選）寫成 `EXEC ... WITH ,*`：尾巴的 `WITH`
 對上了才找動詞，探測代入 `Gap`。宣告的 `Endings` 標頭也用：`RESTORE … WITH MOVE` 要寫完 `'a' TO 'b'` 才是一項。

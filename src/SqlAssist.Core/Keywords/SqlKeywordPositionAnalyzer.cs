@@ -647,7 +647,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     {
         var token = tokens[index];
 
-        if (token.Kind != SqlTokenKind.Identifier || !StartsStatementHere(index))
+        if (token.Kind != SqlTokenKind.Identifier || !StartsStatementHere(index) || NamesBlockOperation(index))
         {
             return false;
         }
@@ -1278,6 +1278,17 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         return !ties && before == top - 1 && tokens[index].IsPunctuation(")") && IsDmlVerb(before) ? before : -1;
     }
+
+    /// <summary>
+    /// <paramref name="index"/> 是 AFTER、BEFORE 之後的 INSERT、UPDATE、DELETE：安全性原則 BLOCK 述詞的作業
+    /// （<c>ON t AFTER UPDATE</c>），不是 DML 的動詞。
+    /// </summary>
+    /// <remarks>
+    /// 當成動詞的話 <c>AFTER UPDATE</c> 之後是資料來源、<c>WITH (…)</c> 之後借到它的尾端，換行寫的下一句也認不出開頭。
+    /// 觸發程序的事件由事件清單先認走（<see cref="FindStatementSlot"/>）。
+    /// </remarks>
+    internal bool NamesBlockOperation(int index) =>
+        index >= 1 && IsDmlEvent(index) && (tokens[index - 1].IsKeyword("AFTER") || tokens[index - 1].IsKeyword("BEFORE"));
 
     private bool IsDmlVerb(int index) =>
         tokens[index].IsKeyword("INSERT") || tokens[index].IsKeyword("UPDATE") ||
@@ -1976,6 +1987,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 return SqlKeywordPosition.Any;
             }
 
+            // 安全性原則的作業（AFTER INSERT）寫完是一項寫完：當成 INSERT 的話之後是插入目標。
+            if (NamesBlockOperation(last))
+            {
+                return SqlKeywordPosition.Any;
+            }
+
             if (AfterKeyword.TryGetValue(token.Value, out var position))
             {
                 return position;
@@ -2594,7 +2611,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 continue;
             }
 
-            if (anchors.TryGetValue(token.Value, out var position) &&
+            if (anchors.TryGetValue(token.Value, out var position) && !NamesBlockOperation(index) &&
                 ((position & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None || IsStatementHead(index)))
             {
                 if (RefineAnchor(index, clauseEnd: anchors == ClauseAnchors) is { } refined)
