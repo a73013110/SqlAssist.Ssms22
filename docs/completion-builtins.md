@@ -70,7 +70,7 @@ SQL Server 2025 才有的 `JSON`、`VECTOR` 同樣照收、不看連線的版本
 | `DECLARE @a INT = NULL, @b `、`CREATE PROCEDURE p @x int OUTPUT, @y `、`CREATE AGGREGATE g (@a ` | 前一個詞元是落在[宣告位置](completion-variables.md#宣告的位置仍然不開清單)上的變數 |
 | `RETURNS ` | 一個詞元就決定得了 |
 | `CAST(x AS `、`TRY_CAST`、`PARSE`、`TRY_PARSE`、`JSON_VALUE(j, p RETURNING ` | `AS`、`RETURNING` 而且還沒關上的那個左括號屬於簽章寫 `AS type`、`[RETURNING type]` 的函式 |
-| `CONVERT(`、`TRY_CONVERT(`、`SELECT IDENTITY(` | 左括號前面是簽章第一個參數為 `type` 的函式；資料行定義裡的 `IDENTITY(1, 1)` 是屬性，不算 |
+| `CONVERT(`、`TRY_CONVERT(`、`SELECT IDENTITY(` | 左括號前面是簽章第一個參數為 `type` 的函式；寫在型別之後那一格（`ColumnDefinitionTail`）的 `IDENTITY(1, 1)` 是屬性，不算；`DEFAULT CONVERT (` 是運算式，算 |
 | `CREATE TABLE t (Id `、`DECLARE @t TABLE (Id `、`ALTER TABLE t ADD Id `、`ALTER COLUMN Id `、`WITH RESULT SETS ((Id ` | 名稱前面那一格是資料行定義的開頭（位置分析的 `ColumnDefinition`、`AlterTableAdd`、`ResultSetColumn`，`ALTER COLUMN` 的 `AlterTableColumn`，`DROP COLUMN` 不算）；名稱可加方括號 |
 | `CREATE SEQUENCE s AS `、`CREATE TYPE t FROM ` | 以型別為底的物件，名稱之後的那個字 |
 | `CREATE PARTITION FUNCTION pf (` | 唯一的參數只寫型別、沒有名稱 |

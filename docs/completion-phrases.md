@@ -60,7 +60,7 @@
 
 清單在空前綴就開（`SqlCompletionPolicy.OffersPhraseVariables`），而確定比對的片語那一格收變數時，清單也放指令碼的變數，
 併在那一格本來的名稱之後：打 `@` 只是篩選這份預開的清單。封閉片語（`SET `、`GET CONVERSATION GROUP `）與目標收斂（`EXEC ` 列程序，
-`EXEC @proc`、`EXEC @ret = p`）是同一件事；只看片語封閉的話，前一格判得出位置的 `SET @`（`;`、`)`、`BEGIN` 之後）與 `EXEC @` 都列不出變數。
+`EXEC @proc`、`EXEC @ret = p`）與目錄名稱格（`BACKUP DATABASE @db`）是同一件事；只看片語封閉的話，前一格判得出位置的 `SET @`（`;`、`)`、`BEGIN` 之後）與 `EXEC @` 都列不出變數。
 宣告的位置（`CREATE PROCEDURE p `）照[變數](completion-variables.md#宣告的位置仍然不開清單)的判斷不列；資料指標那一格打 `@` 列的是名冊裡的資料指標變數，不另放。
 
 片語的字不看目標：目標說的是這一格要哪一種名稱，剖析器已證明片語的字接得上。候選清單依目標分派時

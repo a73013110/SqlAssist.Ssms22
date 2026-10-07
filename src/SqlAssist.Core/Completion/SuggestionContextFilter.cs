@@ -242,8 +242,8 @@ public static class SuggestionContextFilter
             CompletionTarget.Function => kind is SuggestionKind.Function
                 or SuggestionKind.TableFunction,
 
-            // APPLY 之後只有資料表值函式接得上；別名是 a.Doc.nodes('…') 的開頭。
-            CompletionTarget.TableFunction => kind is SuggestionKind.TableFunction or SuggestionKind.Alias ||
+            // APPLY 之後只有資料表值函式接得上；別名與左邊來源的資料行是 a.Doc.nodes('…')、Doc.nodes('…') 的開頭。
+            CompletionTarget.TableFunction => kind is SuggestionKind.TableFunction or SuggestionKind.Alias or SuggestionKind.Column ||
                 IsRowsetFunction(suggestion),
             // 指派的左邊（SET |）另列限定字的別名，見 SqlCompletionContextAnalyzer。
             CompletionTarget.Column => kind is SuggestionKind.Column or SuggestionKind.Alias,
@@ -288,6 +288,7 @@ public static class SuggestionContextFilter
             //
             // 小老鼠開頭的兩類與資料型別是被排除的：它們只出現在自己那一個位置，
             // 混進一般清單的話，每一次按鍵都要多比對一批一定比不中的名稱。
+            // 游標不在內建清單裡，只有指派給游標變數的右邊（SET @c = ）由上下文放進來，所以不擋。
             _ => kind is not (SuggestionKind.GlobalVariable
                 or SuggestionKind.Variable
                 or SuggestionKind.Parameter
@@ -300,7 +301,6 @@ public static class SuggestionContextFilter
                 or SuggestionKind.QueryHint
                 or SuggestionKind.InstanceListValue
                 or SuggestionKind.InstanceListValueInUse
-                or SuggestionKind.Cursor
                 or SuggestionKind.Window
                 or SuggestionKind.CatalogEntity)
         };

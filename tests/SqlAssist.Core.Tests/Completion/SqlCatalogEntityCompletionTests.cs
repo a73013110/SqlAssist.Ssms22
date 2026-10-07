@@ -173,6 +173,17 @@ public sealed class SqlCatalogEntityCompletionTests
         Assert.DoesNotContain(list, item => item.Kind is SuggestionKind.Keyword or SuggestionKind.Snippet);
     }
 
+    /// <summary>片語收變數的名稱格（維護指令碼的 <c>BACKUP DATABASE @db</c>）在空前綴就開的清單裡放指令碼的變數。</summary>
+    [Theory]
+    [InlineData("DECLARE @db sysname;\nBACKUP DATABASE |")]
+    [InlineData("DECLARE @db sysname;\nRESTORE DATABASE |")]
+    public async Task 收變數的名稱格列指令碼的變數(string text)
+    {
+        var list = await GetAsync(text, new SqlAssistSettings { IncludeDatabaseObjects = false }, new EntityMetadata { Throws = true });
+
+        Assert.Contains(list, item => item is { DisplayText: "@db", Kind: SuggestionKind.Variable });
+    }
+
     [Fact]
     public async Task 關掉資料庫物件時只剩片語的字()
     {

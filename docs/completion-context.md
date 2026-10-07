@@ -73,7 +73,8 @@ SELECT {fn |                  → CURRENT_TIME、DAYNAME…（ODBC 純量函式�
 `FROM`、`INTO` 之後接不接資料來源見[語句的界線](completion-boundaries.md#語句的界線)。資料指標那一格由位置分析的
 `IntroducesCursor` 一條認，位置與目標共用；名稱前的 `GLOBAL` 是修飾字，當成名稱就只剩 `INTO`。
 名稱只在指令碼裡，不查資料庫；宣告的認法（`Parsing/SqlCursorDeclaration`）與 `CursorOption` 共用。
-資料指標變數也收（`DECLARE @c CURSOR`、`SET @c = CURSOR`），`DEALLOCATE @` 照樣是這一格；
+資料指標變數也收（`DECLARE @c [AS] CURSOR`、`SET @c = CURSOR`），`DEALLOCATE @` 照樣是這一格；指派給它的 `SET @c = `
+另列這份名冊，目標仍是一般位置，`CURSOR` 才不被濾掉；
 選項只接在給內容的地方（具名宣告、`SET @c = CURSOR`），變數的宣告後面只有逗號或下一句。
 
 逗號那一列不靠前導關鍵字：前一、兩個詞元只有一個逗號，答案來自

@@ -365,6 +365,13 @@ public static class SqlCompletionContextAnalyzer
             return context.WithScriptSources(SqlScriptObjectSuggestions.Cursors(tokens));
         }
 
+        // 指派給游標變數的右邊只能是游標或 CURSOR 開頭的新定義，資料行與別名都接不上。目標仍是 Any：
+        // 改成游標那一格會連 CURSOR 這個字一起濾掉，而那是這一格最常寫的。
+        if (context.Target == CompletionTarget.Any && SqlCursorDeclaration.AssignsCursorVariable(tokens, context.TokenStart))
+        {
+            return context.WithScriptSources(SqlScriptObjectSuggestions.Cursors(tokens));
+        }
+
         if (context.Target == CompletionTarget.Window)
         {
             return context.WithScriptSources(SqlScriptObjectSuggestions.Windows(sql, tokens, caretPosition));

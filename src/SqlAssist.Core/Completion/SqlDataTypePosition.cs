@@ -321,37 +321,18 @@ public static class SqlDataTypePosition
     }
 
     /// <summary>
-    /// <paramref name="index"/> 那個字寫在一個資料行定義裡：<c>CREATE TABLE t (Id int IDENTITY(</c> 的 IDENTITY 是屬性，
-    /// 引數是種子與遞增；<c>SELECT IDENTITY(int, 1, 1)</c> 才是第一個參數是型別的函式。
+    /// <paramref name="index"/> 那個字是資料行定義的屬性：<c>CREATE TABLE t (Id int IDENTITY(</c> 的 IDENTITY 引數是種子與遞增；
+    /// <c>SELECT IDENTITY(int, 1, 1)</c> 才是第一個參數是型別的函式。
     /// </summary>
-    /// <remarks>那一項的第一個詞元是資料行定義的名稱，與型別的位置同一條判斷。</remarks>
+    /// <remarks>
+    /// 屬性寫在型別之後那一格（<see cref="SqlKeywordPosition.ColumnDefinitionTail"/>），問位置分析。只看「在資料行定義裡」的話，
+    /// 預設值與計算資料行的運算式（<c>DEFAULT CONVERT (</c>）也被當成屬性，第一個引數列不出型別。
+    /// </remarks>
     private static bool DefinesColumn(IReadOnlyList<SqlToken> tokens, int index, string textBeforeToken)
     {
-        var first = index;
+        var position = SqlKeywordPositionAnalyzer.PositionBefore(tokens, index, textBeforeToken);
 
-        while (first >= 1 && !tokens[first - 1].IsPunctuation(",") && !tokens[first - 1].IsKeyword("ADD"))
-        {
-            if (tokens[first - 1].IsPunctuation(")"))
-            {
-                first = SqlTokenNavigator.FindOpeningParenthesis(tokens, first - 1);
-
-                if (first < 0)
-                {
-                    return false;
-                }
-
-                continue;
-            }
-
-            if (tokens[first - 1].IsPunctuation("("))
-            {
-                break;
-            }
-
-            first--;
-        }
-
-        return first < index && NamesDefinedColumn(tokens, first, textBeforeToken);
+        return position != SqlKeywordPosition.Any && (position & SqlKeywordPosition.ColumnDefinitionTail) != SqlKeywordPosition.None;
     }
 
     private static bool IsBareIdentifier(SqlToken token)

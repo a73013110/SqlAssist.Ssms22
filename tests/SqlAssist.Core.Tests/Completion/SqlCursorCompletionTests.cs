@@ -59,12 +59,13 @@ public sealed class SqlCursorCompletionTests
     public void 名冊收具名游標與游標變數()
     {
         Assert.Equal(
-            new[] { "c1", "Loan cursor", "@v", "@w", "@x" },
+            new[] { "c1", "Loan cursor", "@v", "@w", "@a", "@x" },
             ScriptSources(
                 "DECLARE c1 INSENSITIVE SCROLL CURSOR FOR SELECT 1;\r\n" +
                 "DECLARE [Loan cursor] CURSOR LOCAL FAST_FORWARD FOR SELECT 1;\r\n" +
                 "DECLARE @v CURSOR;\r\n" +
                 "DECLARE @n int, @w CURSOR;\r\n" +
+                "DECLARE @a AS CURSOR;\r\n" +
                 "SET @x = CURSOR LOCAL FOR SELECT 3;\r\n" +
                 "DECLARE c1 CURSOR FOR SELECT 2;\r\n" +
                 "OPEN |"));
@@ -128,18 +129,39 @@ public sealed class SqlCursorCompletionTests
     public void 金鑰那一格不列資料指標(string tail)
     {
         var context = Analyze(Declared + tail);
-        var cursor = new SqlSuggestion("c", "c", "", "", SuggestionKind.Cursor);
 
         Assert.NotEqual(CompletionTarget.Cursor, context.Target);
-        Assert.Empty(SuggestionContextFilter.Filter(new[] { cursor }, context));
+        Assert.DoesNotContain(context.ScriptSources, suggestion => suggestion.Kind == SuggestionKind.Cursor);
     }
 
-    [Fact]
-    public void 一般位置不列游標()
+    /// <summary>游標只由上下文放進清單：一般位置與其他型別變數的指派都沒有。</summary>
+    [Theory]
+    [InlineData("SELECT |")]
+    [InlineData("DECLARE @n INT;\nSET @n = |")]
+    [InlineData("SET @CopyNo = |")]
+    public void 一般位置不列游標(string tail)
     {
-        var context = Analyze(Declared + "SELECT |");
-        var cursor = new SqlSuggestion("c", "c", "", "", SuggestionKind.Cursor);
+        var context = Analyze(Declared + tail);
 
-        Assert.Empty(SuggestionContextFilter.Filter(new[] { cursor }, context));
+        Assert.DoesNotContain(context.ScriptSources, suggestion => suggestion.Kind == SuggestionKind.Cursor);
+    }
+
+    /// <summary>
+    /// 指派給游標變數的右邊是游標或新的定義：列宣告的游標與游標變數，資料行不列；目標仍是一般位置，<c>CURSOR</c> 照樣在關鍵字裡。
+    /// </summary>
+    [Theory]
+    [InlineData("DECLARE @v CURSOR;\nSET @v = |")]
+    [InlineData("DECLARE @v CURSOR;\nSET @v = c|")]
+    [InlineData("SET @v = |;\nDECLARE @v CURSOR;")]
+    [InlineData("DECLARE @v AS CURSOR;\nSET @v = |")]
+    public void 指派給游標變數的右邊列游標(string tail)
+    {
+        var context = Analyze(Declared + tail);
+
+        Assert.Equal(CompletionTarget.Any, context.Target);
+        Assert.Contains(context.ScriptSources, suggestion => suggestion is { DisplayText: "c", Kind: SuggestionKind.Cursor });
+        Assert.Contains(context.ScriptSources, suggestion => suggestion is { DisplayText: "@v", Kind: SuggestionKind.Cursor });
+        Assert.All(context.ScriptSources, suggestion => Assert.Equal(SuggestionKind.Cursor, suggestion.Kind));
+        Assert.Equal(2, SuggestionContextFilter.Filter(context.ScriptSources, context).Count);
     }
 }

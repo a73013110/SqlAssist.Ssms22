@@ -868,10 +868,20 @@ public sealed class AuditDefinitions
             }
         }
 
-        /// <summary>型別名稱在語法樹上也是多段名稱；內建型別是字，交給字的名單判斷。</summary>
+        /// <summary>
+        /// 型別名稱在語法樹上也是多段名稱；內建型別是字，交給字的名單判斷。其餘是使用者定義型別，照名稱判斷：
+        /// <c>RESULT SETS (([Name] NAME))</c> 的 <c>NAME</c> 是範例資料庫的型別，碰巧與字同名。
+        /// </summary>
+        /// <remarks><c>sysname</c> 在 ScriptDom 是使用者定義型別的節點，所以另外問型別目錄。</remarks>
         public override void Visit(DataTypeReference node)
         {
-            foreach (var part in node.Name?.Identifiers ?? (IList<Identifier>)Array.Empty<Identifier>())
+            if (node.Name?.Identifiers is not { } parts ||
+                node is not SqlDataTypeReference && (parts.Count != 1 || !SqlDataTypeCatalog.TryGetDescription(parts[0].Value, out _)))
+            {
+                return;
+            }
+
+            foreach (var part in parts)
             {
                 _owner._notNames.Add(part.StartOffset);
             }

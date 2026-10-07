@@ -71,6 +71,22 @@ public sealed class SqlTableFunctionTargetTests
         Assert.Equal(new[] { "fn_LoansByReader" }, Filter(textBeforeCaret));
     }
 
+    /// <summary>
+    /// 左邊來源的資料行也是 APPLY 右邊的開頭：<c>CROSS APPLY Doc.nodes('…')</c> 對 XML 資料行呼叫方法，
+    /// 衍生資料表的資料行清單取的名稱也算。
+    /// </summary>
+    [Fact]
+    public void APPLY之後列得出左邊來源的資料行()
+    {
+        var sql = "SELECT * FROM (SELECT dbo.fn_LoanXml()) AS d(Doc) CROSS APPLY ";
+        var context = SqlCompletionContextAnalyzer.Analyze(sql, sql.Length);
+        var column = new SqlSuggestion("Doc", "Doc", string.Empty, string.Empty, SuggestionKind.Column);
+
+        Assert.Equal(CompletionTarget.TableFunction, context.Target);
+        Assert.Contains(context.ScopeSources, source => source.Names.Contains("Doc"));
+        Assert.Single(SuggestionContextFilter.Filter(new[] { column }, context));
+    }
+
     /// <remarks>
     /// 資料列集函式不在中繼資料裡：關鍵字的 <c>OPENROWSET</c>、<c>OPENXML</c> 與函式目錄的 <c>OPENJSON</c>
     /// 由位置旗標認出來。曾經整份被目標擋掉，<c>FROM </c> 之後一個都列不出來。

@@ -99,6 +99,20 @@ public sealed class AuditDefinitionsTests
         Assert.Equal(new[] { ("Loan", (string?)"LibArchive") }, Assert.Single(AuditDefinitions.Collect(sql).ColumnOwners(At(sql, "CopyNo", 1))!));
     }
 
+    /// <summary>內建型別是字；其餘型別名稱是使用者定義型別，碰巧與字同名（<c>NAME</c>）也照名稱判斷。</summary>
+    [Fact]
+    public void 型別參照只有內建型別是字()
+    {
+        const string sql = "EXEC dbo.Lib_Proc WITH RESULT SETS ((CopyNo INT, Title NAME, Code sysname, Tag dbo.Lib_Tag, Note national char(5)))";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.False(definitions.IsNameReference(At(sql, "INT", 1)));
+        Assert.False(definitions.IsNameReference(At(sql, "sysname", 1)));
+        Assert.False(definitions.IsNameReference(At(sql, "national", 1)));
+        Assert.True(definitions.IsNameReference(At(sql, "NAME", 1)));
+        Assert.True(definitions.IsNameReference(At(sql, "Lib_Tag", 1)));
+    }
+
     [Fact]
     public void 剖析不過的那一句不在語法樹上_錯之前也是()
     {

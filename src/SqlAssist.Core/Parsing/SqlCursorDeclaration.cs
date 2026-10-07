@@ -22,8 +22,8 @@ public static class SqlCursorDeclaration
     /// </summary>
     /// <remarks>
     /// 名稱與 ISO 選項各是一串非關鍵字的識別字，往回走到 <c>DECLARE</c> 為止：
-    /// 方括號裡的名稱不是關鍵字（<c>DECLARE [OPEN] CURSOR</c>）。變數緊接在 <c>CURSOR</c> 前面、
-    /// 是宣告清單的一項（<c>DECLARE @n int, @c CURSOR</c>），或是 <c>SET @c =</c> 的左邊。
+    /// 方括號裡的名稱不是關鍵字（<c>DECLARE [OPEN] CURSOR</c>）。變數是宣告清單的一項（<c>DECLARE @n int, @c CURSOR</c>，
+    /// 可以先寫 <c>AS</c>），或是 <c>SET @c =</c> 的左邊。
     /// </remarks>
     public static int FindName(IReadOnlyList<SqlToken> tokens, int cursor)
     {
@@ -43,10 +43,9 @@ public static class SqlCursorDeclaration
             return cursor - 2;
         }
 
-        if (cursor >= 2 && tokens[cursor - 1].Kind == SqlTokenKind.Variable &&
-            (tokens[cursor - 2].IsKeyword("DECLARE") || tokens[cursor - 2].IsPunctuation(",")))
+        if (DeclaredVariable(tokens, cursor) is var variable and >= 0)
         {
-            return cursor - 1;
+            return variable;
         }
 
         var declare = cursor - 1;
@@ -66,8 +65,46 @@ public static class SqlCursorDeclaration
     /// </summary>
     /// <remarks>變數的宣告只說它是游標，選項寫在之後的 <c>SET @c = CURSOR</c>。</remarks>
     public static bool TakesOptions(IReadOnlyList<SqlToken> tokens, int cursor) =>
-        FindName(tokens, cursor) is var name and >= 0 &&
-        !(name == cursor - 1 && tokens[name].Kind == SqlTokenKind.Variable);
+        FindName(tokens, cursor) >= 0 && DeclaredVariable(tokens, cursor) < 0;
+
+    /// <summary>
+    /// <paramref name="position"/> 前一個詞元是 <c>SET @c =</c> 的等號，而 <c>@c</c> 是這份指令碼的游標變數：
+    /// 右邊是一個游標（<c>SET @c = c1</c>）或新的定義（<c>SET @c = CURSOR FOR …</c>）。
+    /// </summary>
+    public static bool AssignsCursorVariable(IReadOnlyList<SqlToken> tokens, int position)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        var equals = tokens.Count - 1;
+
+        while (equals >= 0 && tokens[equals].End > position)
+        {
+            equals--;
+        }
+
+        if (equals < 2 ||
+            tokens[equals] is not { Kind: SqlTokenKind.Operator, Value: "=" } ||
+            tokens[equals - 1].Kind != SqlTokenKind.Variable ||
+            !tokens[equals - 2].IsKeyword("SET"))
+        {
+            return false;
+        }
+
+        var variable = tokens[equals - 1].Value;
+
+        foreach (var name in CollectNames(tokens))
+        {
+            if (string.Equals(name, variable, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>這份指令碼宣告的游標與游標變數，依出現順序、不重複。</summary>
     public static IReadOnlyList<string> CollectNames(IReadOnlyList<SqlToken> tokens)
@@ -92,6 +129,20 @@ public static class SqlCursorDeclaration
         }
 
         return (IReadOnlyList<string>?)names ?? Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// <paramref name="cursor"/> 的 <c>CURSOR</c> 是宣告清單一項的型別（<c>DECLARE @n int, @c CURSOR</c>、<c>DECLARE @c AS CURSOR</c>）時，
+    /// 回傳變數的詞元索引；否則 -1。
+    /// </summary>
+    private static int DeclaredVariable(IReadOnlyList<SqlToken> tokens, int cursor)
+    {
+        var variable = cursor >= 1 && tokens[cursor - 1].IsKeyword("AS") ? cursor - 2 : cursor - 1;
+
+        return variable >= 1 && tokens[variable].Kind == SqlTokenKind.Variable &&
+            (tokens[variable - 1].IsKeyword("DECLARE") || tokens[variable - 1].IsPunctuation(","))
+                ? variable
+                : -1;
     }
 
     private static bool IsPlainWord(SqlToken token) =>

@@ -131,7 +131,7 @@ public static class SqlCompletionCandidates
 
         // 登入、使用者、憑證這些名稱只有目錄檢視知道；片語的字照接上來（ALTER DATABASE 之後的 CURRENT、
         // DROP USER 之後的 IF），目錄的關鍵字由上下文過濾照位置挑。關掉「列出資料庫物件與欄位」時只剩字，
-        // 與執行個體名單同一條。
+        // 與執行個體名單同一條。片語收變數的那一格（BACKUP DATABASE @db）另有指令碼的變數。
         if (context.Target == CompletionTarget.CatalogEntity)
         {
             var suggestions = builtIn.Where(item => item.Kind == SuggestionKind.Keyword).ToList();
@@ -145,7 +145,7 @@ public static class SqlCompletionCandidates
                 }
             }
 
-            return suggestions.Concat(PhraseOf(context)).ToArray();
+            return suggestions.Concat(PhraseOf(context)).Concat(context.ScriptSources).ToArray();
         }
 
         // 內建型別是一份封閉的清單，但使用者自訂的資料表型別在資料庫裡，
