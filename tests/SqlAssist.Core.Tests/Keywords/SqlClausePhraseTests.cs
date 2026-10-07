@@ -661,6 +661,20 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE COLUMN MASTER KEY LibKey WITH (KEY_STORE_PROVIDER_NAME = 'x', KEY_PATH = 'y', ENCLAVE_COMPUTATIONS (", "SIGNATURE")]
     [InlineData("ALTER ENDPOINT LibEndpoint STATE = ", "DISABLED", "STARTED", "STOPPED")]
     [InlineData("CREATE ENDPOINT LibEndpoint AUTHORIZATION LibOwner STATE = ", "DISABLED", "STARTED", "STOPPED")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int INDEX IX_Loan NONCLUSTERED ", "WITH", "ON")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int INDEX IX_Loan CLUSTERED ", "WITH", "ON")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int INDEX IX_Loan NONCLUSTERED WITH (DATA_COMPRESSION = ROW) ", "ON", "FILESTREAM_ON")]
+    [InlineData("ALTER TABLE dbo.Loan ALTER COLUMN CopyNo ADD ", "MASKED WITH")]
+    [InlineData("ALTER TABLE dbo.Loan ALTER COLUMN CopyNo ADD MASKED WITH (", "FUNCTION")]
+    [InlineData("ALTER TABLE dbo.Loan ALTER COLUMN CopyNo DROP ", "MASKED")]
+    [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) INCLUDE (LoanId) WHERE CopyNo > 0\nWITH (DATA_COMPRESSION = ROW) ", "ON", "FILESTREAM_ON")]
+    [InlineData("CREATE UNIQUE CLUSTERED INDEX IX_Loan ON dbo.Loan (CopyNo) WITH (ONLINE = ON) ", "ON", "FILESTREAM_ON")]
+    [InlineData("CREATE CLUSTERED COLUMNSTORE INDEX IX_Loan ON dbo.Loan WITH (DROP_EXISTING = ON) ", "ON")]
+    [InlineData("CREATE TABLE dbo.Loan AS FileTable WITH (", "FILETABLE_DIRECTORY", "FILETABLE_FULLPATH_UNIQUE_CONSTRAINT_NAME")]
+    [InlineData("CREATE TABLE dbo.Loan AS FileTable WITH (FILETABLE_DIRECTORY = 'Loan', ", "FILETABLE_FULLPATH_UNIQUE_CONSTRAINT_NAME")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int) ON LibData WITH (", "DATA_COMPRESSION")]
+    [InlineData("ALTER DATABASE Lib SET AUTO_UPDATE_STATISTICS ON, AUTO_CREATE_STATISTICS ", "ON", "OFF")]
+    [InlineData("ALTER DATABASE Lib\nSET AUTO_UPDATE_STATISTICS ON,\nAUTO_CREATE_STATISTICS ", "ON", "OFF")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);

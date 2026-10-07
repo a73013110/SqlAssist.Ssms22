@@ -163,7 +163,12 @@ internal static class DdlPhrases
         new("VARYING") { After = ["ColumnDefinitionTail"], Template = 8 },
         // xml 型別的括號裡是 CONTENT、DOCUMENT 與結構描述集合；型別寫在宣告、參數與資料行定義都一樣，判不出位置，尾巴本身認得出來。
         new("XML (*") { Lead = "DECLARE @x " },
+        // 資料行層級的索引名稱之後的種類：之後是 WITH (…)、ON；WITH (…) 之後的 FILESTREAM_ON 補進型別之後那一格。
+        // 不從 INDEX {name} 展開：那一格接得上整份資料行選項，每個字都會另立一個片語。
         new("INDEX {name}") { After = ["ColumnDefinitionTail"] },
+        .. new[] { "CLUSTERED", "NONCLUSTERED", "HASH", "NONCLUSTERED HASH" }.Select(kind =>
+            new PhraseDeclaration($"INDEX {{name}} {kind}") { After = ["ColumnDefinitionTail"] }),
+        new("FILESTREAM_ON {name}") { After = ["ColumnDefinitionTail"], Template = 9 },
         new("MASKED WITH (*") { After = ["ColumnDefinitionTail"] },
 
         // 時態表：期間資料行（GENERATED ALWAYS AS ROW START）寫在型別之後；PERIOD FOR SYSTEM_TIME
@@ -176,7 +181,8 @@ internal static class DdlPhrases
         new("GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN") { After = ["ColumnDefinitionTail"] },
         new("GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN") { After = ["ColumnDefinitionTail"] },
         new("PERIOD FOR SYSTEM_TIME ()") { After = ["ColumnDefinition", "AlterTableAdd"], Group = "(a, b)" },
-        new("CREATE TABLE {name} () WITH (*") { Group = "(a int)" },
+        // 資料表選項的 WITH (…) 寫在定義、AS FILETABLE 或儲存段之後，前面那段由 ... 走過；FILETABLE 的選項也在這一份。
+        new("CREATE TABLE ... WITH (*") { Gap = "t (a int)" },
         new("CREATE TYPE {name} AS TABLE () WITH (*") { Group = "(a int)" },
         new("ALTER TABLE {name} SET (*"),
         new("SYSTEM_VERSIONING = ON (*") { Lead = "CREATE TABLE t (a int) WITH (" },

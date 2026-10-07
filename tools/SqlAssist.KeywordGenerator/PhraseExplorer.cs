@@ -52,7 +52,9 @@ internal sealed class PhraseExplorer
 
     // 固定標頭的逗號清單（CREATE LOGIN t WITH ,*）的標頭探測文字：展開走到這裡就停，見展開那一段。
     private HashSet<string> _ownedListHeadProbes = new(IgnoreCase);
-    private string[] _declaredProbes = [];
+
+    // 非清單宣告的樣式與探測文字：清單的一項是否已由宣告寫出，見 AddItemWords。
+    private (string Pattern, string Probe)[] _declarations = [];
 
     // 括號清單與只認位置的清單一項的等號那一格，等全部宣告探完才立，見 AddItemValues。
     private readonly List<Action> _pendingItemValues = [];
@@ -209,10 +211,10 @@ internal sealed class PhraseExplorer
             IgnoreCase);
 
         // 墊了前一項的（,* NO POPULATION 的 Gap）說的是之後那一項，不算寫出了前一項。
-        _declaredProbes = declarations
+        _declarations = declarations
             .Where(declaration => !declaration.IsList && !declaration.IsTailList && (declaration.Gap == null || declaration.Pattern.Contains("...")))
             .SelectMany(declaration => Anchors(declaration).Select(anchor =>
-                ProbeText(anchor.Lead, declaration.Pattern, declaration.Group, declaration.Gap, items: declaration.Items)))
+                (declaration.Pattern, ProbeText(anchor.Lead, declaration.Pattern, declaration.Group, declaration.Gap, items: declaration.Items))))
             .ToArray();
 
         foreach (var declaration in declarations)
@@ -989,8 +991,10 @@ internal sealed class PhraseExplorer
                     continue;
                 }
 
-                // 宣告寫出了這一項（RESULT SETS 從 OptionItem 寫起）：第幾項都由那一條說。
-                if (_declaredProbes.Any(probe => probe.StartsWith(slot, StringComparison.OrdinalIgnoreCase)))
+                // 宣告寫出了這一項（RESULT SETS 從 OptionItem 寫起）：第幾項都由那一條說。同一份清單往這一項裡面寫的宣告
+                // （SET ,* AUTO_CREATE_STATISTICS ON (*）不算：它說的是更後面的格子，這一項的下一個字仍由這裡立。
+                if (_declarations.Any(declared => declared.Probe.StartsWith(slot, StringComparison.OrdinalIgnoreCase) &&
+                    !declared.Pattern.StartsWith(itemPattern + " ", StringComparison.OrdinalIgnoreCase)))
                 {
                     done.Add(word);
                     continue;

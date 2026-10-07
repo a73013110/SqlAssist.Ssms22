@@ -13,8 +13,8 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 中段 `,*` 之後是字面字或名稱時，它開始一項、前面緊接標頭或逗號，否則 `GRANT SELECT ON EXTERNAL` 的類別會比對成權限，
 `FROM t LEFT` 的 `LEFT` 比對成 `FROM ,* {name}` 的主體。主體寫完之後（`TO a, b CASCADE`）寫成 `TO ,* {name}`，第幾個主體都一樣。
 標頭的片語給第一項；逗號之後以每種第一項接逗號探測取聯集（用過的選項剖析器不收第二次），
-探到新字再取第一個往下一項探（`VECTOR_SEARCH` 的引數順序固定）。一種第一項之後的逗號就列得出每一種第一項的，剖析器不記用過的項
-也不分組，其餘不再探：事件通知幾百個事件各探一次的話產生器跑不完；`SET ANSI_DEFAULTS, ` 之後列不出 `DATEFIRST`，照舊每一種都探。
+探到新字再取第一個往下一項探（`VECTOR_SEARCH` 的引數順序固定）。一種第一項之後就列得出每一種第一項的（剖析器不記用過的項），
+其餘不再探：否則事件通知幾百個事件各探一次跑不完；`SET ANSI_DEFAULTS, ` 之後列不出 `DATEFIRST`，照舊每一種都探。
 一項接得了逗號就好，整句寫不寫得完不論；
 值要過剖析器的（`FORMAT_TYPE =`）代入那一格列得出的第一個字，只收特定值的（`METRIC`）由 `Endings` 補。
 剖析器當名稱讀的項（`GROUP BY ,* ,` 的 `ROLLUP`）以 `Values` 補進逗號之後那一格，接在探到的那一項之後驗。
@@ -25,7 +25,7 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 接得上的字（`FOR LOGON` 之後的 `AS`）；括號清單由宣告的展開說。以尾巴比對的清單（`ALTER DATABASE {name} SET ,* ,`）的項同樣立，
 否則 `SET DB_CHAINING ON, TRUSTWORTHY ` 之後沒有 `ON`、`OFF`。第一個字是關鍵字的不立，之後寫什麼由位置分析說：
 `GROUP BY a, CASE` 之後是運算式，續尾寫不完 CASE 就判成封閉、藏掉資料行。第一項那一格已有展開立的片語時從逗號之後那一格探，
-宣告寫出了這一項的（`RESULT SETS`）不立，否則較長的 `,*` 片語在第一項搶走比對。
+宣告寫出了這一項的（`RESULT SETS`）不立，否則較長的 `,*` 片語在第一項搶走比對；同清單更深一層的宣告（`,* AUTO_CREATE_STATISTICS ON (*`）不算。
 等號之後收得下一串值的寫成 `= ,* {value}`（`PROCESS AFFINITY CPU = 0, 2 TO 3`）。中段 `,*` 探零項的證據（沒墊 `Gap`），
 字也補進標頭那一格：`WITH ,* SEARCH PROPERTY LIST` 在第一項同樣寫得出來。
 `Expand` 走到固定標頭清單的標頭（`CREATE SYMMETRIC KEY t WITH`）就停，第一項與項的等號之後由清單立：

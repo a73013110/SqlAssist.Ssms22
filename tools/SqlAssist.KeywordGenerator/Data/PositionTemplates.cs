@@ -151,13 +151,13 @@ internal static class PositionTemplates
 
         // 型別或計算資料行的運算式寫完之後：NOT NULL、IDENTITY、條件約束；HIDDEN、SPARSE、PERSISTED 由子句片語給。
         // 只配某些寫法的字各探自己的樣板，由 DdlPhrases 的證據補進同一格（計算資料行、varbinary(max)、IDENTITY (…)、OPENJSON、
-        // ALTER COLUMN、條件約束選項、xml、字元型別）。ALTER COLUMN 寫到型別就完整，這裡多出整份語句開頭的字；
+        // ALTER COLUMN、條件約束選項、xml、字元型別、內嵌索引選項）。ALTER COLUMN 寫到型別就完整，這裡多出整份語句開頭的字；
         // 不影響清單：這一格一定比對得到位置片語，關鍵字只由片語給。
         new("ColumnDefinitionTail",
             "CREATE TABLE t (a int ", "CREATE TABLE t (a AS b ", "CREATE TABLE t (a varbinary(max) ",
             "CREATE TABLE t (a int IDENTITY(1, 1) ", "SELECT * FROM OPENJSON(@j) WITH (a int ",
             "ALTER TABLE t ALTER COLUMN a int ", "CREATE TABLE t (a int UNIQUE WITH FILLFACTOR = 80 ", "CREATE TABLE t (a xml ",
-            "CREATE TABLE t (a nchar "),
+            "CREATE TABLE t (a nchar ", "CREATE TABLE t (a int INDEX i WITH (DATA_COMPRESSION = ROW) "),
         new("BlockStart", "BEGIN ", "BEGIN TRY SELECT 1 END TRY BEGIN "),
 
         // 區塊寫完：下一句，以及 IF 的 ELSE、TRY／CATCH 區塊的 END TRY、END CATCH。

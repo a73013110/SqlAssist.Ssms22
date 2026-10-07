@@ -335,6 +335,7 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int UNIQUE WITH FILLFACTOR = 80 "),
         new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a xml "),
         new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a nchar "),
+        new(SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX i WITH (DATA_COMPRESSION = ROW) "),
         new(SqlKeywordPosition.BlockStart, "BEGIN "),
         new(SqlKeywordPosition.BlockStart, "BEGIN TRY SELECT 1 END TRY BEGIN "),
         new(SqlKeywordPosition.BlockEnd, "BEGIN SELECT 1 END "),
@@ -3772,6 +3773,10 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
+        ("ALTER DATABASE {name} SET ,* AUTO_CREATE_STATISTICS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, AUTO_CREATE_STATISTICS ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
         ("ALTER DATABASE {name} SET ,* AUTO_SHRINK", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, AUTO_SHRINK ", true, false, false, false, new string[]
         {
             "OFF", "ON",
@@ -3800,6 +3805,10 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
+        ("ALTER DATABASE {name} SET ,* DATE_CORRELATION_OPTIMIZATION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, DATE_CORRELATION_OPTIMIZATION ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
         ("ALTER DATABASE {name} SET ,* DB_CHAINING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, DB_CHAINING ", true, false, false, false, new string[]
         {
             "OFF", "ON",
@@ -3824,12 +3833,24 @@ internal static class SqlKeywordCatalogData
         {
             "CHECKSUM", "NONE", "TORN_PAGE_DETECTION",
         }),
+        ("ALTER DATABASE {name} SET ,* PARAMETERIZATION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, PARAMETERIZATION ", true, false, false, false, new string[]
+        {
+            "FORCED", "SIMPLE",
+        }),
         ("ALTER DATABASE {name} SET ,* PARTNER", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, PARTNER ", true, false, false, false, new string[]
         {
             "FAILOVER", "FORCE_SERVICE_ALLOW_DATA_LOSS", "OFF", "RESUME", "SAFETY", "SUSPEND",
             "TIMEOUT",
         }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, QUERY_STORE ", true, false, false, false, new string[]
+        {
+            "CLEAR",
+        }),
         ("ALTER DATABASE {name} SET ,* QUOTED_IDENTIFIER", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, QUOTED_IDENTIFIER ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* READ_COMMITTED_SNAPSHOT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, READ_COMMITTED_SNAPSHOT ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
@@ -4963,6 +4984,42 @@ internal static class SqlKeywordCatalogData
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
+        ("CREATE INDEX ... WITH ()", SqlKeywordPosition.StatementStart, "CREATE INDEX ix ON t (a) WITH (DROP_EXISTING = ON) ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "ON",
+        }),
+        ("CREATE UNIQUE INDEX ... WITH ()", SqlKeywordPosition.StatementStart, "CREATE UNIQUE INDEX ix ON t (a) WITH (DROP_EXISTING = ON) ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "ON",
+        }),
+        ("CREATE CLUSTERED INDEX ... WITH ()", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED INDEX ix ON t (a) WITH (DROP_EXISTING = ON) ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "ON",
+        }),
+        ("CREATE NONCLUSTERED INDEX ... WITH ()", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED INDEX ix ON t (a) WITH (DROP_EXISTING = ON) ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "ON",
+        }),
+        ("CREATE UNIQUE CLUSTERED INDEX ... WITH ()", SqlKeywordPosition.StatementStart, "CREATE UNIQUE CLUSTERED INDEX ix ON t (a) WITH (DROP_EXISTING = ON) ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "ON",
+        }),
+        ("CREATE UNIQUE NONCLUSTERED INDEX ... WITH ()", SqlKeywordPosition.StatementStart, "CREATE UNIQUE NONCLUSTERED INDEX ix ON t (a) WITH (DROP_EXISTING = ON) ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "ON",
+        }),
+        ("CREATE NONCLUSTERED COLUMNSTORE INDEX ... WITH ()", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE INDEX ix ON t (a) WITH (DROP_EXISTING = ON) ", true, false, false, true, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE COLUMNSTORE INDEX ... WITH ()", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE INDEX ix ON t (a) WITH (DROP_EXISTING = ON) ", true, false, false, true, new string[]
+        {
+            "ON",
+        }),
+        ("CREATE CLUSTERED COLUMNSTORE INDEX ... WITH ()", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE INDEX ix ON t WITH (DROP_EXISTING = ON) ", true, false, false, true, new string[]
+        {
+            "ON",
+        }),
         ("ALTER INDEX {name} ON {name} REBUILD WITH (*", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD WITH (", true, false, false, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
@@ -5181,11 +5238,19 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER TABLE {name} ALTER COLUMN {name} ADD", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD ", true, false, false, false, new string[]
         {
-            "HIDDEN", "NOT FOR REPLICATION", "PERSISTED", "ROWGUIDCOL", "SPARSE",
+            "HIDDEN", "MASKED WITH", "NOT FOR REPLICATION", "PERSISTED", "ROWGUIDCOL", "SPARSE",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD MASKED", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD MASKED ", true, false, false, false, new string[]
+        {
+            "WITH",
         }),
         ("ALTER TABLE {name} ALTER COLUMN {name} ADD NOT", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD NOT ", true, false, false, false, new string[]
         {
             "FOR REPLICATION",
+        }),
+        ("ALTER TABLE {name} ALTER COLUMN {name} ADD MASKED WITH (*", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t ADD MASKED WITH (", true, false, false, false, new string[]
+        {
+            "FUNCTION",
         }),
         ("ALTER TABLE {name} ALTER COLUMN {name} DROP", SqlKeywordPosition.StatementStart, "ALTER TABLE t ALTER COLUMN t DROP ", true, false, false, false, new string[]
         {
@@ -6582,6 +6647,10 @@ internal static class SqlKeywordCatalogData
         {
             "AUTO", "MANUAL", "OFF",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
@@ -6676,6 +6745,10 @@ internal static class SqlKeywordCatalogData
         {
             "AUTO", "MANUAL", "OFF",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
@@ -6769,6 +6842,10 @@ internal static class SqlKeywordCatalogData
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING ", true, false, false, false, new string[]
         {
             "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
@@ -6867,6 +6944,10 @@ internal static class SqlKeywordCatalogData
         {
             "AUTO", "MANUAL", "OFF",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
@@ -6961,6 +7042,10 @@ internal static class SqlKeywordCatalogData
         {
             "AUTO", "MANUAL", "OFF",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
@@ -7054,6 +7139,10 @@ internal static class SqlKeywordCatalogData
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING ", true, false, false, false, new string[]
         {
             "AUTO", "MANUAL", "OFF",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
+        {
+            "PROPERTY LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
@@ -8628,6 +8717,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("CHECK", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int CHECK ", true, false, false, false, new string[]
         {
@@ -8667,6 +8757,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("IDENTITY", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int IDENTITY ", true, false, false, false, new string[]
         {
@@ -8674,6 +8765,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("INDEX", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX ", false, false, true, false, new string[]
         {
@@ -8692,6 +8784,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("PRIMARY", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int PRIMARY ", true, false, false, false, new string[]
         {
@@ -8706,6 +8799,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("SPARSE", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int SPARSE ", true, false, false, false, new string[]
         {
@@ -8713,6 +8807,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("UNIQUE", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int UNIQUE ", true, false, false, false, new string[]
         {
@@ -8720,7 +8815,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
-            "CLUSTERED", "FILESTREAM_ON", "NONCLUSTERED",
+            "FILESTREAM_ON", "CLUSTERED", "NONCLUSTERED",
         }),
         ("PERSISTED", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a AS b PERSISTED ", true, false, false, false, new string[]
         {
@@ -8728,6 +8823,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("FILESTREAM", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a varbinary(max) FILESTREAM ", true, false, false, false, new string[]
         {
@@ -8735,6 +8831,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("NOT FOR REPLICATION", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int IDENTITY(1, 1) NOT FOR REPLICATION ", true, false, false, false, new string[]
         {
@@ -8742,6 +8839,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("AS JSON", SqlKeywordPosition.ColumnDefinitionTail, "SELECT * FROM OPENJSON(@j) WITH (a int AS JSON ", true, false, false, false, new string[]
         {
@@ -8749,6 +8847,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("WITH (*", SqlKeywordPosition.ColumnDefinitionTail, "ALTER TABLE t ALTER COLUMN a int WITH (", true, false, false, false, new string[]
         {
@@ -8773,6 +8872,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("VARYING", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a nchar VARYING ", true, false, false, false, new string[]
         {
@@ -8780,6 +8880,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("XML (*", SqlKeywordPosition.Any, "DECLARE @x XML (", false, false, false, false, new string[]
         {
@@ -8791,7 +8892,47 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
-            "CLUSTERED", "FILESTREAM_ON", "HASH", "NONCLUSTERED", "WHERE",
+            "FILESTREAM_ON", "CLUSTERED", "HASH", "NONCLUSTERED", "WHERE",
+        }),
+        ("INDEX {name} CLUSTERED", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t CLUSTERED ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "WHERE",
+        }),
+        ("INDEX {name} NONCLUSTERED", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t NONCLUSTERED ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "HASH", "WHERE",
+        }),
+        ("INDEX {name} HASH", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t HASH ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "INCLUDE", "WHERE",
+        }),
+        ("INDEX {name} NONCLUSTERED HASH", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t NONCLUSTERED HASH ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON", "INCLUDE", "WHERE",
+        }),
+        ("FILESTREAM_ON {name}", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX i WITH (DATA_COMPRESSION = ROW) FILESTREAM_ON t ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("MASKED WITH (*", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int MASKED WITH (", true, false, false, false, new string[]
         {
@@ -8823,6 +8964,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN ", true, false, false, false, new string[]
         {
@@ -8830,6 +8972,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("PERIOD FOR SYSTEM_TIME ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (PERIOD FOR SYSTEM_TIME (a, b) ", true, false, false, false, new string[]
         {
@@ -8837,7 +8980,7 @@ internal static class SqlKeywordCatalogData
         ("PERIOD FOR SYSTEM_TIME ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD PERIOD FOR SYSTEM_TIME (a, b) ", true, false, false, true, new string[]
         {
         }),
-        ("CREATE TABLE {name} () WITH (*", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (", true, false, false, false, new string[]
+        ("CREATE TABLE ... WITH (*", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (", true, false, false, false, new string[]
         {
             "CLUSTERED", "DATA_COMPRESSION", "DATA_DELETION", "DISTRIBUTION", "DURABILITY",
             "FILETABLE_COLLATE_FILENAME", "FILETABLE_DIRECTORY",
@@ -17463,35 +17606,35 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
-        ("CREATE TABLE {name} () WITH (* DATA_DELETION =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (DATA_DELETION = ", true, false, false, false, new string[]
+        ("CREATE TABLE ... WITH (* DATA_DELETION =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (DATA_DELETION = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("CREATE TABLE {name} () WITH (* DISTRIBUTION =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (DISTRIBUTION = ", true, false, false, false, new string[]
+        ("CREATE TABLE ... WITH (* DISTRIBUTION =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (DISTRIBUTION = ", true, false, false, false, new string[]
         {
             "HASH", "REPLICATE", "ROUND_ROBIN",
         }),
-        ("CREATE TABLE {name} () WITH (* DURABILITY =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (DURABILITY = ", true, false, false, false, new string[]
+        ("CREATE TABLE ... WITH (* DURABILITY =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (DURABILITY = ", true, false, false, false, new string[]
         {
             "SCHEMA_AND_DATA", "SCHEMA_ONLY",
         }),
-        ("CREATE TABLE {name} () WITH (* FILETABLE_DIRECTORY =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (FILETABLE_DIRECTORY = ", false, false, false, false, new string[]
+        ("CREATE TABLE ... WITH (* FILETABLE_DIRECTORY =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (FILETABLE_DIRECTORY = ", false, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("CREATE TABLE {name} () WITH (* LEDGER =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (LEDGER = ", true, false, false, false, new string[]
+        ("CREATE TABLE ... WITH (* LEDGER =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (LEDGER = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("CREATE TABLE {name} () WITH (* LOCATION =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (LOCATION = ", true, false, false, false, new string[]
+        ("CREATE TABLE ... WITH (* LOCATION =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (LOCATION = ", true, false, false, false, new string[]
         {
             "USER_DB",
         }),
-        ("CREATE TABLE {name} () WITH (* MEMORY_OPTIMIZED =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (MEMORY_OPTIMIZED = ", true, false, false, false, new string[]
+        ("CREATE TABLE ... WITH (* MEMORY_OPTIMIZED =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (MEMORY_OPTIMIZED = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("CREATE TABLE {name} () WITH (* REMOTE_DATA_ARCHIVE =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (REMOTE_DATA_ARCHIVE = ", true, false, false, false, new string[]
+        ("CREATE TABLE ... WITH (* REMOTE_DATA_ARCHIVE =", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) WITH (REMOTE_DATA_ARCHIVE = ", true, false, false, false, new string[]
         {
             "ON",
         }),
@@ -18148,6 +18291,18 @@ internal static class SqlKeywordCatalogData
         {
             "TO",
         }),
+        ("CREATE NONCLUSTERED COLUMNSTORE", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE ", true, false, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE COLUMNSTORE", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE ", true, false, false, false, new string[]
+        {
+            "INDEX",
+        }),
+        ("CREATE CLUSTERED COLUMNSTORE", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE ", true, false, false, false, new string[]
+        {
+            "INDEX",
+        }),
         ("ALTER INDEX {name} ON {name} REBUILD", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t REBUILD ", true, false, false, true, new string[]
         {
             "PARTITION", "WITH",
@@ -18274,10 +18429,6 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
-        ("CREATE CLUSTERED COLUMNSTORE", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE ", true, false, false, false, new string[]
-        {
-            "INDEX",
-        }),
         ("CREATE CLUSTERED COLUMNSTORE INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE CLUSTERED COLUMNSTORE INDEX t ", true, false, false, false, new string[]
         {
             "ON",
@@ -18286,17 +18437,9 @@ internal static class SqlKeywordCatalogData
         {
             "ON", "ORDER", "WHERE", "WITH",
         }),
-        ("CREATE NONCLUSTERED COLUMNSTORE", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE ", true, false, false, false, new string[]
-        {
-            "INDEX",
-        }),
         ("CREATE NONCLUSTERED COLUMNSTORE INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE INDEX t ", true, false, false, false, new string[]
         {
             "ON",
-        }),
-        ("CREATE COLUMNSTORE", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE ", true, false, false, false, new string[]
-        {
-            "INDEX",
         }),
         ("CREATE COLUMNSTORE INDEX {name}", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE INDEX t ", true, false, false, false, new string[]
         {
@@ -18362,10 +18505,6 @@ internal static class SqlKeywordCatalogData
         {
             "INDEX",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
-        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
         {
             "LIST",
@@ -18373,10 +18512,6 @@ internal static class SqlKeywordCatalogData
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
         {
@@ -18386,10 +18521,6 @@ internal static class SqlKeywordCatalogData
         {
             "POPULATION",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
-        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
         {
             "LIST",
@@ -18397,10 +18528,6 @@ internal static class SqlKeywordCatalogData
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
         {
@@ -18410,10 +18537,6 @@ internal static class SqlKeywordCatalogData
         {
             "POPULATION",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
-        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
         {
             "LIST",
@@ -18421,10 +18544,6 @@ internal static class SqlKeywordCatalogData
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
-        {
-            "PROPERTY LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
         {
@@ -18818,6 +18937,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("GENERATED ALWAYS AS SEQUENCE_NUMBER", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER ", true, false, false, false, new string[]
         {
@@ -18829,6 +18949,7 @@ internal static class SqlKeywordCatalogData
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
             "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("PERIOD", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (PERIOD ", false, false, true, false, new string[]
         {

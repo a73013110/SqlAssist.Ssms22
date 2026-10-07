@@ -8,6 +8,15 @@ internal static class IndexPhrases
     // 靜態欄位依序初始化，要寫在用到它的 Options 之前。
     private static readonly string[] Compressions = ["DATA_COMPRESSION", "XML_COMPRESSION"];
 
+    // CREATE 與 INDEX 之間的種類，以及探測墊的名稱與索引鍵（叢集資料行存放區索引沒有索引鍵）。索引名稱墊 ix：
+    // 探測文字與 IndexOption 的樣板（i）、資料行存放區的 WITH (*（t）錯開，否則清單項的等號那一格被當成已經立了。
+    private static readonly (string Kind, string Gap)[] CreateIndexKinds =
+    [
+        .. new[] { "", "UNIQUE ", "CLUSTERED ", "NONCLUSTERED ", "UNIQUE CLUSTERED ", "UNIQUE NONCLUSTERED ", "NONCLUSTERED COLUMNSTORE ", "COLUMNSTORE " }
+            .Select(kind => (kind, "ix ON t (a)")),
+        ("CLUSTERED COLUMNSTORE ", "ix ON t"),
+    ];
+
     // 條件約束的索引鍵前面可夾的種類；記憶體最佳化的雜湊索引只寫得成 NONCLUSTERED HASH（PRIMARY KEY HASH 剖析不過）。
     private static readonly string[] ConstraintIndexKinds = ["", "CLUSTERED ", "NONCLUSTERED ", "NONCLUSTERED HASH "];
 
@@ -35,6 +44,13 @@ internal static class IndexPhrases
         new("INDEX {name} ON {name} ()") { Lead = "CREATE ", Values = ["WITH"] },
         new("INCLUDE ()") { Lead = "CREATE INDEX t ON t (a) ", Values = ["WITH"] },
         new("") { After = ["IndexOption"] },
+        // WITH (…) 寫完之後是 ON 檔案群組與 FILESTREAM_ON；前面夾的 INCLUDE、篩選的 WHERE 長度不定，以 ... 從動詞跨過。
+        // ... 要從動詞寫起，INDEX 前面的種類逐一寫出。
+        .. CreateIndexKinds.Select(kind => new PhraseDeclaration($"CREATE {kind.Kind}INDEX ... WITH ()")
+        {
+            Gap = kind.Gap,
+            Group = "(DROP_EXISTING = ON)",
+        }),
 
         // 其餘接索引選項的 WITH (…)：ALTER INDEX 的 REBUILD、REORGANIZE、SET，ALTER TABLE 的 REBUILD、SWITCH，
         // 以及條件約束的索引鍵之後（PRIMARY KEY (a) WITH (…)）。各敘述收的選項不同，標頭固定的寫成括號清單由剖析器探；
@@ -89,7 +105,9 @@ internal static class IndexPhrases
         new("DROP COLUMN ... WITH (*") { Lead = "ALTER TABLE t ", Gap = "a, CONSTRAINT k" },
         new("DROP COLUMN ... WITH (* MOVE TO") { Lead = "ALTER TABLE t ", Gap = "a, CONSTRAINT k" },
         new("ALTER TABLE {name} ALTER COLUMN {name}"),
-        new("ALTER TABLE {name} ALTER COLUMN {name} ADD") { Expand = 1 },
+        // ADD MASKED 要寫完 WITH (FUNCTION = …) 才驗，續尾把它寫完；括號裡的 FUNCTION 另寫，型別之後那一格的 MASKED WITH (* 前一格不同。
+        new("ALTER TABLE {name} ALTER COLUMN {name} ADD") { Expand = 1, Endings = [" WITH (FUNCTION = 'default()')"] },
+        new("ALTER TABLE {name} ALTER COLUMN {name} ADD MASKED WITH (*"),
         new("ALTER TABLE {name} ALTER COLUMN {name} DROP") { Expand = 1 },
         new("ALTER TABLE {name} ALTER COLUMN {name} ADD PERSISTED WITH (*"),
         new("ALTER TABLE {name} ALTER COLUMN {name} DROP PERSISTED WITH (*"),
