@@ -933,17 +933,15 @@ internal sealed class PhraseExplorer
             TakesVariable = items.TakesVariable,
         });
 
-        if (pattern.EndsWith(" ,*", StringComparison.Ordinal))
+        // 以尾巴比對的清單（ALTER DATABASE d SET a ON, b）逗號之後一樣是一項：那一項寫了第一個字還沒完、項的等號之後同樣立格。
+        (string, IReadOnlyList<string>)[] slots = [(head, firsts), (items.Probe, items.Words)];
+
+        if (itemWords)
         {
-            (string, IReadOnlyList<string>)[] slots = [(head, firsts), (items.Probe!, items.Words)];
-
-            if (itemWords)
-            {
-                AddItemWords(headPattern + " ,*", after, slots, items.Probe!.Substring(0, items.Probe.Length - 2) + " ", endings);
-            }
-
-            AddItemValues(headPattern + " ,*", after, slots, endings);
+            AddItemWords(headPattern + " ,*", after, slots, items.Probe.Substring(0, items.Probe.Length - 2) + " ", endings);
         }
+
+        AddItemValues(headPattern + " ,*", after, slots, endings);
 
         foreach (var word in lagging ?? [])
         {
@@ -972,7 +970,7 @@ internal sealed class PhraseExplorer
 
         foreach (var (prefix, words) in slots)
         {
-            foreach (var word in words.Where(word => StartsWord.IsMatch(word) && !word.Contains(' ')))
+            foreach (var word in words.Where(word => StartsWord.IsMatch(word) && !word.Contains(' ') && !_keywords.Contains(word)))
             {
                 var written = prefix + word;
                 var slot = written + " ";

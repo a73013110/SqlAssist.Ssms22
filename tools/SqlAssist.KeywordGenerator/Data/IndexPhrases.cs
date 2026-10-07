@@ -107,6 +107,9 @@ internal static class IndexPhrases
         new("CREATE CLUSTERED COLUMNSTORE INDEX {name} ON {name} WITH (*"),
         new("CREATE NONCLUSTERED COLUMNSTORE INDEX {name} ON {name} () WITH (*"),
         new("CREATE COLUMNSTORE INDEX {name} ON {name} () WITH (*"),
+        // 非叢集資料行存放區索引的索引鍵之後多一個 ORDER (…)，比 INDEX {name} ON {name} () 長，比對取它；WITH 補回的理由同上。
+        new("CREATE NONCLUSTERED COLUMNSTORE INDEX {name} ON {name} ()") { Values = ["WITH"] },
+        new("CREATE COLUMNSTORE INDEX {name} ON {name} ()") { Values = ["WITH"] },
 
         // XML 與 JSON 索引：XML、JSON 剖析器要看到整段才收，CREATE 的展開探不出來，整段是證據（種類也交給 CreatedKinds）。
         // 索引鍵之後各接自己的字，比 CREATE INDEX 那條長，比對取它；寫得完一句的 WITH 與 CREATE INDEX 那條一樣補回來，之後的選項由位置給。
@@ -154,6 +157,8 @@ internal static class IndexPhrases
                 new($"{head} WITH ,* {NoPopulation}") { Gap = ChangeTrackingOff + "," },
                 new($"{head} WITH (* {NoPopulation}") { Items = ChangeTrackingOff + ", " },
             ])),
+        // KEY INDEX 之後括號裡的目錄與檔案群組（ON (c, FILEGROUP g)、ON (FILEGROUP g)）：一項是目錄名稱或 FILEGROUP 檔案群組。
+        .. new[] { "", " ()" }.Select(columns => new PhraseDeclaration($"CREATE FULLTEXT INDEX ON {{name}}{columns} KEY INDEX {{name}} ON (*")),
         new("ALTER FULLTEXT INDEX ON {name} SET") { Expand = 2 },
         .. FullTextSettings("ALTER FULLTEXT INDEX ON {name} SET"),
 

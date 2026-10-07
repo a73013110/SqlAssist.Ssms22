@@ -166,13 +166,33 @@ public sealed class PhraseExplorerTests : IDisposable
     [Fact]
     public void 逗號清單項的第一個字之後另立中段清單的片語()
     {
-        var explorer = Create(pool: ["AUTO", "CHANGE_TRACKING", "MANUAL", "OFF", "STOPLIST"]);
+        var explorer = Create(pool: ["AUTO", "CHANGE_TRACKING", "MANUAL", "OFF", "STOPLIST"], keywords: ["OFF"]);
 
         explorer.Explore([new("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,*")]);
 
         var tracking = explorer.Phrases[ProbedPhrase.Key("StatementStart", "CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* CHANGE_TRACKING")];
         Assert.Equal(["AUTO", "MANUAL", "OFF"], tracking.Words.OrderBy(word => word, StringComparer.Ordinal));
         Assert.False(explorer.Phrases.Contains(ProbedPhrase.Key("StatementStart", "CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* OFF")));
+    }
+
+    /// <summary>
+    /// 以尾巴比對的清單（,* ,）逗號之後一樣是一項：TRUSTWORTHY 之後是 ON、OFF。
+    /// 項的第一個字是關鍵字的不立：之後寫什麼由位置分析說（GROUP BY a, CASE 之後是運算式）。
+    /// </summary>
+    [Fact]
+    public void 以尾巴比對的清單也立逗號之後那一項()
+    {
+        var explorer = Create(pool: ["DB_CHAINING", "OFF", "ON", "TRUSTWORTHY"], keywords: ["OFF", "ON"]);
+
+        explorer.Explore([new("ALTER DATABASE {name} SET ,* ,")]);
+
+        var trustworthy = explorer.Phrases[ProbedPhrase.Key("StatementStart", "ALTER DATABASE {name} SET ,* TRUSTWORTHY")];
+        Assert.Equal(["OFF", "ON"], trustworthy.Words.OrderBy(word => word, StringComparer.Ordinal));
+
+        var keyword = Create(pool: ["DB_CHAINING", "OFF", "ON", "TRUSTWORTHY"], keywords: ["OFF", "ON", "TRUSTWORTHY"]);
+        keyword.Explore([new("ALTER DATABASE {name} SET ,* ,")]);
+
+        Assert.False(keyword.Phrases.Contains(ProbedPhrase.Key("StatementStart", "ALTER DATABASE {name} SET ,* TRUSTWORTHY")));
     }
 
     /// <summary>標頭夾著 ... 的清單，項的等號之後照樣立：RESTORE … WITH STOPATMARK = 'm' 之後是 AFTER。</summary>
@@ -317,11 +337,11 @@ public sealed class PhraseExplorerTests : IDisposable
         Assert.Contains("SELECT FROM", exception.Message);
     }
 
-    private PhraseExplorer Create(string[]? functions = null, string[]? pool = null)
+    private PhraseExplorer Create(string[]? functions = null, string[]? pool = null, string[]? keywords = null)
     {
         var prober = new KeywordProber(KeywordProberTests.Rejecting, _cachePath, loadCache: false);
         pool ??= Pool;
-        return new PhraseExplorer(prober, pool, ["ALTER", "OR", "PROCEDURE", "SELECT", "TABLE", "ON", "OFF"], pool,
+        return new PhraseExplorer(prober, pool, ["ALTER", "OR", "PROCEDURE", "SELECT", "TABLE", "ON", "OFF"], keywords ?? pool,
             new Dictionary<string, List<string>>(), Templates, Continuations.Phrases)
         {
             BuiltInFunctions = functions ?? [],

@@ -32,6 +32,9 @@ internal static class StatementPhrases
         // SERVICE MASTER KEY 的 MASTER 剖析器當名稱讀，手寫。
         new("BACKUP SERVICE") { Values = ["MASTER"] },
         new("RESTORE SERVICE") { Values = ["MASTER"] },
+        // 只做復原的 RESTORE DATABASE d WITH RECOVERY 不寫 FROM：名稱寫完就是完整的語句，WITH 也是 CTE 的開頭被扣掉了，手寫補回。
+        new("RESTORE DATABASE {name}") { Values = ["WITH"], Endings = [" RECOVERY"] },
+        new("RESTORE LOG {name}") { Values = ["WITH"], Endings = [" RECOVERY"] },
 
         // 備份對象：資料庫名稱之後、TO／FROM 之前可以列幾個檔案或檔案群組（FILE = 'a', FILEGROUP = 'b'），也是逗號清單。
         // 標頭寫到名稱為止，TO、FROM 開的是裝置清單，不是這份清單的項。

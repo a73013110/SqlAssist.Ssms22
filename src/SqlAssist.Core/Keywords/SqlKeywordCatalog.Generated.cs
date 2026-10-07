@@ -3744,6 +3744,127 @@ internal static class SqlKeywordCatalogData
             "TORN_PAGE_DETECTION", "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY",
             "TWO_DIGIT_YEAR_CUTOFF", "VARDECIMAL_STORAGE_FORMAT", "WITNESS",
         }),
+        ("ALTER DATABASE {name} SET ,* ALLOW_SNAPSHOT_ISOLATION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, ALLOW_SNAPSHOT_ISOLATION ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* ANSI_NULL_DEFAULT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, ANSI_NULL_DEFAULT ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* ANSI_NULLS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, ANSI_NULLS ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* ANSI_PADDING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, ANSI_PADDING ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* ANSI_WARNINGS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, ANSI_WARNINGS ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* ARITHABORT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, ARITHABORT ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* AUTO_CLOSE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, AUTO_CLOSE ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* AUTO_SHRINK", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, AUTO_SHRINK ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* AUTO_UPDATE_STATISTICS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, AUTO_UPDATE_STATISTICS ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* AUTO_UPDATE_STATISTICS_ASYNC", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, AUTO_UPDATE_STATISTICS_ASYNC ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* CONCAT_NULL_YIELDS_NULL", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, CONCAT_NULL_YIELDS_NULL ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* CURSOR_CLOSE_ON_COMMIT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, CURSOR_CLOSE_ON_COMMIT ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* CURSOR_DEFAULT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, CURSOR_DEFAULT ", true, false, false, false, new string[]
+        {
+            "GLOBAL", "LOCAL",
+        }),
+        ("ALTER DATABASE {name} SET ,* DATA_RETENTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, DATA_RETENTION ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* DB_CHAINING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, DB_CHAINING ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, ENCRYPTION ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* HONOR_BROKER_PRIORITY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, HONOR_BROKER_PRIORITY ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* MIXED_PAGE_ALLOCATION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, MIXED_PAGE_ALLOCATION ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* NUMERIC_ROUNDABORT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, NUMERIC_ROUNDABORT ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* PAGE_VERIFY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, PAGE_VERIFY ", true, false, false, false, new string[]
+        {
+            "CHECKSUM", "NONE", "TORN_PAGE_DETECTION",
+        }),
+        ("ALTER DATABASE {name} SET ,* PARTNER", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, PARTNER ", true, false, false, false, new string[]
+        {
+            "FAILOVER", "FORCE_SERVICE_ALLOW_DATA_LOSS", "OFF", "RESUME", "SAFETY", "SUSPEND",
+            "TIMEOUT",
+        }),
+        ("ALTER DATABASE {name} SET ,* QUOTED_IDENTIFIER", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, QUOTED_IDENTIFIER ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* RECOVERY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, RECOVERY ", true, false, false, false, new string[]
+        {
+            "BULK_LOGGED", "FULL", "SIMPLE",
+        }),
+        ("ALTER DATABASE {name} SET ,* RECURSIVE_TRIGGERS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, RECURSIVE_TRIGGERS ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* SUPPLEMENTAL_LOGGING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, SUPPLEMENTAL_LOGGING ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* TEMPORAL_HISTORY_RETENTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, TEMPORAL_HISTORY_RETENTION ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* TORN_PAGE_DETECTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, TORN_PAGE_DETECTION ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* TRUSTWORTHY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, TRUSTWORTHY ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* VARDECIMAL_STORAGE_FORMAT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, VARDECIMAL_STORAGE_FORMAT ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* WITNESS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, WITNESS ", true, false, false, false, new string[]
+        {
+            "OFF",
+        }),
         ("ALTER DATABASE {name} SET ,* TARGET_RECOVERY_TIME = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TARGET_RECOVERY_TIME = 1 ", true, false, false, false, new string[]
         {
             "MINUTES", "SECONDS",
@@ -4592,7 +4713,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("RESTORE DATABASE {name}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t ", true, false, false, true, new string[]
         {
-            "FILE", "FILEGROUP", "FROM", "PAGE", "READ_WRITE_FILEGROUPS",
+            "FILE", "FILEGROUP", "FROM", "PAGE", "READ_WRITE_FILEGROUPS", "WITH",
         }),
         ("RESTORE DATABASE {name} FILE", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FILE ", true, false, false, false, new string[]
         {
@@ -4653,7 +4774,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("RESTORE LOG {name}", SqlKeywordPosition.StatementStart, "RESTORE LOG t ", true, false, false, true, new string[]
         {
-            "FILE", "FILEGROUP", "FROM", "PAGE", "READ_WRITE_FILEGROUPS",
+            "FILE", "FILEGROUP", "FROM", "PAGE", "READ_WRITE_FILEGROUPS", "WITH",
         }),
         ("RESTORE LOG {name} FILE", SqlKeywordPosition.StatementStart, "RESTORE LOG t FILE ", true, false, false, false, new string[]
         {
@@ -5217,6 +5338,14 @@ internal static class SqlKeywordCatalogData
             "METRIC", "ONLINE", "OPTIMIZE_FOR_ARRAY_SEARCH", "OPTIMIZE_FOR_SEQUENTIAL_KEY",
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
+        }),
+        ("CREATE NONCLUSTERED COLUMNSTORE INDEX {name} ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE NONCLUSTERED COLUMNSTORE INDEX t ON t (a) ", true, false, false, true, new string[]
+        {
+            "ON", "ORDER", "WHERE", "WITH",
+        }),
+        ("CREATE COLUMNSTORE INDEX {name} ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE COLUMNSTORE INDEX t ON t (a) ", true, false, false, true, new string[]
+        {
+            "ON", "ORDER", "WHERE", "WITH",
         }),
         ("CREATE XML INDEX {name} ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE XML INDEX t ON t (a) ", true, false, false, false, new string[]
         {
@@ -6939,6 +7068,14 @@ internal static class SqlKeywordCatalogData
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* NO POPULATION", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO POPULATION ", true, false, false, false, new string[]
         {
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (", false, false, false, false, new string[]
+        {
+            "FILEGROUP",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON (*", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (", false, false, false, false, new string[]
+        {
+            "FILEGROUP",
         }),
         ("ALTER FULLTEXT INDEX ON {name} SET", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET ", true, false, false, false, new string[]
         {
@@ -8924,6 +9061,26 @@ internal static class SqlKeywordCatalogData
         ("CREATE TABLE {name} () AS", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) AS ", true, false, false, false, new string[]
         {
             "EDGE", "NODE",
+        }),
+        ("CREATE TABLE {name} ()", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) ", true, false, false, true, new string[]
+        {
+            "AS", "FEDERATED", "FILESTREAM_ON", "ON", "TEXTIMAGE_ON", "WITH",
+        }),
+        ("CREATE TABLE {name} AS FILETABLE", SqlKeywordPosition.StatementStart, "CREATE TABLE t AS FILETABLE ", true, false, false, true, new string[]
+        {
+            "FEDERATED", "FILESTREAM_ON", "ON", "TEXTIMAGE_ON", "WITH",
+        }),
+        ("CREATE TABLE ... ON {name}", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) ON t ", true, false, false, true, new string[]
+        {
+            "FEDERATED", "FILESTREAM_ON", "TEXTIMAGE_ON", "WITH",
+        }),
+        ("CREATE TABLE ... TEXTIMAGE_ON {name}", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) TEXTIMAGE_ON t ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "TEXTIMAGE_ON", "WITH",
+        }),
+        ("CREATE TABLE ... FILESTREAM_ON {name}", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) FILESTREAM_ON t ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "TEXTIMAGE_ON", "WITH",
         }),
         ("CONNECTION (* {name}", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (CONNECTION (t ", true, false, false, false, new string[]
         {

@@ -208,6 +208,13 @@ internal static class DdlPhrases
         // 是定義裡的一項，括號裡是逗號清單、每一項是 名稱 TO 名稱。TO 要看到另一個名稱與兩層右括號才驗。
         new("CREATE TABLE {name} AS"),
         new("CREATE TABLE {name} () AS") { Group = "(a int)" },
+        // 定義或 AS FILETABLE 之後依序是 ON 檔案群組、TEXTIMAGE_ON、FILESTREAM_ON 與 WITH (…)，每一段之後都是完整的語句，
+        // WITH 也是 CTE 的開頭，被當成下一句扣掉了，手寫補回。不展開：FILESTREAM_ON 收值，剖析器把值之後的字都當成運算式往下讀。
+        // 前面寫了哪幾段由 ... 走過，FILETABLE、圖形資料表與一般定義共用。
+        new("CREATE TABLE {name} ()") { Group = "(a int)", Values = ["WITH"] },
+        new("CREATE TABLE {name} AS FILETABLE") { Values = ["WITH"] },
+        .. new[] { "ON", "TEXTIMAGE_ON", "FILESTREAM_ON" }.Select(storage =>
+            new PhraseDeclaration($"CREATE TABLE ... {storage} {{name}}") { Gap = "t (a int)", Values = ["WITH"] }),
         new("CONNECTION (* {name}") { After = ["ColumnDefinition", "AlterTableAdd"], Endings = [" x))"] },
         new("CONNECTION ()") { After = ["ColumnDefinition", "AlterTableAdd"], Group = "(a TO b)", Expand = 2 },
 

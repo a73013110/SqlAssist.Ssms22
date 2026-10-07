@@ -640,6 +640,18 @@ public sealed class SqlClausePhraseTests
     [InlineData("DECLARE LoanCursor ", "INSENSITIVE", "SCROLL", "CURSOR")]
     [InlineData("DECLARE LoanCursor INSENSITIVE ", "SCROLL", "CURSOR")]
     [InlineData("DECLARE LoanCursor SCROLL ", "CURSOR")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int) ", "ON", "TEXTIMAGE_ON", "FILESTREAM_ON", "WITH")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int) TEXTIMAGE_ON LibText ", "FILESTREAM_ON", "WITH")]
+    [InlineData("CREATE TABLE dbo.Loan AS FILETABLE ON LibData TEXTIMAGE_ON \"default\" ", "FILESTREAM_ON", "WITH")]
+    [InlineData("CREATE COLUMNSTORE INDEX IX_Loan ON dbo.Loan (LoanId, CopyNo) ", "ORDER", "WHERE", "WITH")]
+    [InlineData("CREATE NONCLUSTERED COLUMNSTORE INDEX IX_Loan ON dbo.Loan (LoanId, CopyNo) ", "ORDER", "WITH")]
+    [InlineData("CREATE FULLTEXT INDEX ON dbo.Copy KEY INDEX PK_Copy ON (", "FILEGROUP")]
+    [InlineData("CREATE FULLTEXT INDEX ON dbo.Copy (Title) KEY INDEX PK_Copy ON (CopyCatalog, ", "FILEGROUP")]
+    [InlineData("ALTER DATABASE Lib SET DB_CHAINING ON, TRUSTWORTHY ", "OFF", "ON")]
+    [InlineData("ALTER DATABASE Lib SET READ_ONLY, PARTNER ", "FAILOVER", "SAFETY")]
+    [InlineData("RESTORE DATABASE LibArchive ", "WITH", "FROM")]
+    [InlineData("RESTORE LOG LibArchive ", "WITH", "FROM")]
+    [InlineData("RESTORE DATABASE LibArchive WITH ", "RECOVERY")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -762,6 +774,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("DECLARE @Copy ", "INSENSITIVE")]
     [InlineData("DECLARE @Copy int, @Loan ", "SCROLL")]
     [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY GROUPING SETS (ROLLUP (", "CUBE")]
+    [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (LoanId) ", "ORDER")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int, INDEX IX_Loan (LoanId) ON LibData ", "TEXTIMAGE_ON")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));
@@ -812,6 +826,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE FULLTEXT STOPLIST CopyStoplist FROM ", false)]
     [InlineData("DBCC CHECKIDENT (", false)]
     [InlineData("DBCC CHECKDB (N'LibArchive', ", false)]
+    [InlineData("CREATE FULLTEXT INDEX ON dbo.Copy KEY INDEX PK_Copy ON (", false)]
+    [InlineData("ALTER DATABASE Lib SET DB_CHAINING ON, TRUSTWORTHY ", true)]
     public void 封閉的片語換掉整份清單(string textBeforeCaret, bool closed)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
