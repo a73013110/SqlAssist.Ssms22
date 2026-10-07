@@ -35,6 +35,9 @@ public sealed class ProbedPhrase
     /// <summary>宣告寫明了封閉（Closed = true）；探測的收尾不改它。不輸出。</summary>
     public bool DeclaredClosed { get; init; }
 
+    /// <summary>宣告封閉時手寫的值：那一格只有這幾個字，之後的片語探測拿第一個代入名稱。不輸出。</summary>
+    public IReadOnlyList<string> DeclaredValues { get; init; } = [];
+
     public bool EndsStatement { get; init; }
 
     /// <summary>這一格接得了名稱、值或括號：唯一接續的併項不跨過它。清單片語一律是 false。</summary>

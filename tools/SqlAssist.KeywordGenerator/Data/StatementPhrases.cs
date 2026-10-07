@@ -29,9 +29,9 @@ internal static class StatementPhrases
         // （DISK、URL、TAPE）。HEADERONLY 這一族也走到 FROM 之後；DATABASE、LOG 之後的名稱是展開的一步。
         new("BACKUP") { Expand = 2 },
         new("RESTORE") { Expand = 2 },
-        // SERVICE MASTER KEY 的 MASTER 剖析器當名稱讀，手寫。
-        new("BACKUP SERVICE") { Values = ["MASTER"] },
-        new("RESTORE SERVICE") { Values = ["MASTER"] },
+        // SERVICE MASTER KEY 的 MASTER 剖析器當名稱讀、整句寫完才驗，手寫並宣告封閉：之後的片語探測代入 MASTER。
+        new("BACKUP SERVICE") { Values = ["MASTER"], Closed = true },
+        new("RESTORE SERVICE") { Values = ["MASTER"], Closed = true },
         // 只做復原的 RESTORE DATABASE d WITH RECOVERY 不寫 FROM：名稱寫完就是完整的語句，WITH 也是 CTE 的開頭被扣掉了，手寫補回。
         new("RESTORE DATABASE {name}") { Values = ["WITH"], Endings = [" RECOVERY"] },
         new("RESTORE LOG {name}") { Values = ["WITH"], Endings = [" RECOVERY"] },

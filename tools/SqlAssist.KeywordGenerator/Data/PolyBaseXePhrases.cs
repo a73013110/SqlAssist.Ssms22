@@ -68,12 +68,19 @@ internal static class PolyBaseXePhrases
     [
         // 事件通知：ON SERVER、DATABASE、QUEUE，FOR 之後的事件與 DDL 觸發程序同一份，事件之後 TO SERVICE。
         // ON 只展開兩層：第三層是每一個事件各立一個只接 TO 的片語（上千個），事件由 FOR 那一格的片語列。
+        // 事件一次寫得了幾個，逗號之後的下一個事件以尾巴認（FOR ,* ,），寫完幾個事件之後的 TO 由中段的 ,* 走過前面幾個。
         // DROP 一次刪得了幾個，名稱以 … 跨過。
         new("CREATE EVENT NOTIFICATION {name} ON") { Expand = 2 },
-        new("CREATE EVENT NOTIFICATION {name} ON SERVER FOR"),
-        new("CREATE EVENT NOTIFICATION {name} ON DATABASE FOR"),
-        new("CREATE EVENT NOTIFICATION {name} ON SERVER FOR {name}") { Expand = 2 },
-        new("CREATE EVENT NOTIFICATION {name} ON DATABASE FOR {name}") { Expand = 2 },
+        .. from target in new[] { "SERVER", "DATABASE", "QUEUE {name}" }
+           from fanIn in new[] { "", " WITH FAN_IN" }
+           let head = $"CREATE EVENT NOTIFICATION {{name}} ON {target}{fanIn} FOR"
+           from declaration in new PhraseDeclaration[]
+           {
+               new(head),
+               new(head + " ,* ,"),
+               new(head + " ,* {name}") { Expand = 2 },
+           }
+           select declaration,
         new("DROP EVENT NOTIFICATION ... ON") { Gap = "a, b" },
 
         // 擴充事件：名稱之後的 ON SERVER，之後是 ADD EVENT、ADD TARGET。ALTER 的 ADD、DROP 剖析器要看到 EVENT、TARGET

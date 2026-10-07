@@ -190,6 +190,9 @@ internal static class SecurityPhrases
         new("BACKUP SERVICE {name} KEY TO FILE = {value} ENCRYPTION BY PASSWORD"),
         new("RESTORE MASTER KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value} ENCRYPTION BY PASSWORD"),
         new("RESTORE SERVICE {name} KEY FROM FILE = {value} DECRYPTION BY PASSWORD"),
+        // 密碼之後還能寫 FORCE（解不開的金鑰照樣還原）。
+        new("RESTORE MASTER KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value} ENCRYPTION BY PASSWORD = {value}"),
+        new("RESTORE SERVICE {name} KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value}"),
         new("BACKUP CERTIFICATE {name} TO FILE = {value}") { Expand = 2 },
         new("CREATE CERTIFICATE {name} FROM FILE = {value}") { Expand = 2 },
         new("ALTER CERTIFICATE {name}") { Expand = 2 },
@@ -232,6 +235,8 @@ internal static class SecurityPhrases
         // Always Encrypted 的金鑰：資料行主金鑰的 WITH (…)，資料行加密金鑰的值一組一組寫（每把主金鑰一組），
         // ALTER 一次加或刪一組。演算法與加密值是字串與二進位值，不列。
         new("CREATE COLUMN MASTER KEY {name} WITH (*"),
+        // ENCLAVE_COMPUTATIONS (SIGNATURE = 0x…)：SIGNATURE 剖析器當名稱讀、整句寫完才驗，續尾寫完簽章。
+        new("CREATE COLUMN MASTER KEY {name} WITH (* ENCLAVE_COMPUTATIONS (*") { Items = "KEY_STORE_PROVIDER_NAME = 'x', KEY_PATH = 'x', ", Endings = [" = 0x01))"] },
         new("CREATE COLUMN ENCRYPTION KEY {name} WITH") { Expand = 1 },
         new("CREATE COLUMN ENCRYPTION KEY {name} WITH VALUES ,* (*"),
         new("ALTER COLUMN ENCRYPTION KEY {name}") { Expand = 2 },

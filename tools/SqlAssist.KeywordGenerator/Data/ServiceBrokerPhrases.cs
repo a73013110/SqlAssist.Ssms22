@@ -118,6 +118,9 @@ internal static class ServiceBrokerPhrases
         // 等號之後的值逐條寫（... 不收 Expand）。ALGORITHM 之後剖析器要讀完演算法才驗，寫到演算法的整段是證據
         // （DISABLED 之後沒有演算法）。HTTP／SOAP 端點已移除，不做。
         // 埠號要在剖析器驗的範圍內（1024 到 32767），否則每一句都在埠號報錯、什麼字都過得了。
+        // 名稱（與 CREATE 的擁有者）之後的 STATE = 與值之後的 AS。
+        .. from head in new[] { "CREATE ENDPOINT {name}", "CREATE ENDPOINT {name} AUTHORIZATION {name}", "ALTER ENDPOINT {name}" }
+           select new PhraseDeclaration($"{head} STATE =") { Expand = 1 },
         .. from verb in new[] { "CREATE", "ALTER" }
            from payload in EndpointPayloads
            from tail in new[] { "", " AUTHENTICATION =", " ENCRYPTION =" }.Concat(EndpointAlgorithms)

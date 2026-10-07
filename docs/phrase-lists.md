@@ -4,7 +4,8 @@
 尾巴的寫法、展開與證據見[子句片語的產生器](phrase-generator.md)。
 
 標頭開的逗號選項清單寫成 `ALTER USER {name} WITH ,*`，共用位置 `OptionItem`（各佔位元不夠）；
-DDL 觸發程序的事件（`ON DATABASE FOR`）也是，事件依標頭而不同，寫完一項仍回報 `TriggerEventEnd`。
+DDL 觸發程序的事件（`ON DATABASE FOR`）也是，事件依標頭而不同，寫完一項仍回報 `TriggerEventEnd`；
+事件通知的事件（`CREATE EVENT NOTIFICATION {name} ON SERVER FOR ,* ,`）不經位置分析、以尾巴比對，寫完幾個事件之後的 `TO` 寫成中段的 `FOR ,* {name}`。
 目標與 `FOR` 之間的 `WITH` 選項不改事件，片語比對跨過寫完的選項（`SkipTriggerOptions`），否則每種選項組合都要一份片語；
 `...` 跨不過去，選項裡的 `EXECUTE` 也能開始一句。
 分析器走訪清單交出錨點，比對錨點前的標頭。
@@ -12,7 +13,9 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 中段 `,*` 之後是字面字或名稱時，它開始一項、前面緊接標頭或逗號，否則 `GRANT SELECT ON EXTERNAL` 的類別會比對成權限，
 `FROM t LEFT` 的 `LEFT` 比對成 `FROM ,* {name}` 的主體。主體寫完之後（`TO a, b CASCADE`）寫成 `TO ,* {name}`，第幾個主體都一樣。
 標頭的片語給第一項；逗號之後以每種第一項接逗號探測取聯集（用過的選項剖析器不收第二次），
-探到新字再取第一個往下一項探（`VECTOR_SEARCH` 的引數順序固定）。一項接得了逗號就好，整句寫不寫得完不論；
+探到新字再取第一個往下一項探（`VECTOR_SEARCH` 的引數順序固定）。一種第一項之後的逗號就列得出每一種第一項的，剖析器不記用過的項
+也不分組，其餘不再探：事件通知幾百個事件各探一次的話產生器跑不完；`SET ANSI_DEFAULTS, ` 之後列不出 `DATEFIRST`，照舊每一種都探。
+一項接得了逗號就好，整句寫不寫得完不論；
 值要過剖析器的（`FORMAT_TYPE =`）代入那一格列得出的第一個字，只收特定值的（`METRIC`）由 `Endings` 補。
 剖析器當名稱讀的項（`GROUP BY ,* ,` 的 `ROLLUP`）以 `Values` 補進逗號之後那一格，接在探到的那一項之後驗。
 項的等號之後立成中段清單片語（`… WITH ,* CHECK_POLICY =`）再往下一層：`ON`／`OFF`、`PASSWORD = 'x' HASHED`

@@ -39,11 +39,11 @@
   值、名稱與選項的等號各是一步、不算一層（`FETCH ABSOLUTE 1 FROM`）；接得了值的格子是運算式，
   不走名稱與等號。等號之後的值不逐一展開，以第一個字與數值各往下一次（`SIZE = 5 MB`）。同一格層數比上次多才再展開，位置片語說了的不立（樣板名稱寫 `t`）。
   宣告的 `Endings` 跟著往下（`MASKED` 要寫完 `WITH (…)` 才驗）。
-- 探測代入：`{value}` 用剖析器收的數值或字串，都不收的照 `{name}`；`{name}` 用普通名稱，只收變數的用變數，其餘格子與等號之後用那一格列得出的
-  第一個字：`ALGORITHM =` 什麼名稱都先收，整句寫完才驗。剖析器要看到下一個字才收名稱的
+- 探測代入：`{value}` 用剖析器收的數值或字串，都不收的照 `{name}`；`{name}` 用普通名稱，只收變數的用變數，宣告封閉的用手寫值，
+  其餘格子與等號之後用那一格列得出的第一個字：剖析器整句寫完才驗（`ALGORITHM =`、`RESTORE SERVICE MASTER`）。剖析器要看到下一個字才收名稱的
   （`ALTER SERVER AUDIT a WITH`）接上片語的下一項判，只收兩段的（擴充事件）代入 `t.t`。
 - `Kinds`：`CREATE`、`ALTER`、`DROP` 之後是物件種類，展開到名稱為止，名稱之後只列一層（`CREATE TABLE t ` 的 `AS`）：
-  否則 `CREATE PROCEDURE p AS` 之後是整份語句開頭。更深的標頭各自宣告，已是位置的（`CREATE SEQUENCE t `）由位置片語說。
+  否則 `CREATE PROCEDURE p AS` 之後是整份語句開頭。更深的標頭各自宣告。
   `CREATE` 寫到名稱的種類（`SYMMETRIC KEY`、`UNIQUE CLUSTERED INDEX`）輸出成 `CreatedKinds`，
   位置分析拿它判新名字，不手寫名單；名稱寫得成兩段式（`CREATE INDEX s.i` 不行）另記 `SchemaQualified`。
   名稱之後接得上 `AUTHORIZATION` 的另立擁有者那一格（`CREATE SCHEMA s AUTHORIZATION`）。

@@ -195,6 +195,46 @@ public sealed class PhraseExplorerTests : IDisposable
         Assert.False(keyword.Phrases.Contains(ProbedPhrase.Key("StatementStart", "ALTER DATABASE {name} SET ,* TRUSTWORTHY")));
     }
 
+    /// <summary>
+    /// 逗號之後還收得了同一項的清單（事件通知的事件），每一種第一項探到的都一樣，只探一種；
+    /// 用過的項不收第二次的清單（ALTER LOGIN 的 NAME）照舊每一種各探一次、取聯集。
+    /// </summary>
+    [Fact]
+    public void 收得了重複項的清單只探一種第一項()
+    {
+        var events = Create(pool: ["OBJECT_ALTERED", "OBJECT_CREATED", "OBJECT_DELETED", "TO"]);
+
+        events.Explore([new("CREATE EVENT NOTIFICATION {name} ON SERVER FOR ,* ,")]);
+
+        var next = events.Phrases[ProbedPhrase.Key("StatementStart", "CREATE EVENT NOTIFICATION {name} ON SERVER FOR ,* ,")];
+        Assert.Equal(["OBJECT_ALTERED", "OBJECT_CREATED", "OBJECT_DELETED"], next.Words.OrderBy(word => word, StringComparer.Ordinal));
+
+        var login = Create(pool: ["CHECK_POLICY", "NAME", "OFF", "ON", "PASSWORD"]);
+        login.Explore([new("ALTER LOGIN {name} WITH ,*")]);
+
+        Assert.Contains("NAME", login.Phrases[ProbedPhrase.Key("StatementStart", "ALTER LOGIN {name} WITH ,*")].Words);
+    }
+
+    /// <summary>
+    /// 宣告封閉的手寫值是那一格唯一的寫法：之後的片語探測代入它，不代入普通名稱。
+    /// RESTORE SERVICE t KEY … 整句寫完才在 t 報「必須是 MASTER」，密碼的值與之後的 FORCE 就探不出來。
+    /// </summary>
+    [Fact]
+    public void 宣告封閉的手寫值代入之後的名稱格()
+    {
+        var explorer = Create(pool: ["FORCE"]);
+
+        explorer.Explore(
+        [
+            new("RESTORE SERVICE") { Values = ["MASTER"], Closed = true },
+            new("RESTORE SERVICE {name} KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value}"),
+        ]);
+
+        var password = explorer.Phrases[ProbedPhrase.Key("StatementStart", "RESTORE SERVICE {name} KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value}")];
+        Assert.StartsWith("RESTORE SERVICE MASTER KEY ", password.Probe, StringComparison.Ordinal);
+        Assert.Equal(["FORCE"], password.Words);
+    }
+
     /// <summary>標頭夾著 ... 的清單，項的等號之後照樣立：RESTORE … WITH STOPATMARK = 'm' 之後是 AFTER。</summary>
     [Fact]
     public void 標頭夾著其餘標頭的清單也立項的等號之後()

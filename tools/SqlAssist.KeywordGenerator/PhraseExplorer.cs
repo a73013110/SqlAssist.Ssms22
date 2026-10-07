@@ -152,6 +152,13 @@ internal sealed class PhraseExplorer
     /// </remarks>
     public string SelectName(string probe, string? next)
     {
+        // 宣告封閉的手寫值（RESTORE SERVICE 只有 MASTER）：剖析器把它當名稱讀、整句寫完才驗，
+        // 代入普通名稱的話整句永遠寫不完，之後的值與字都探不出來。
+        if (Phrases.WithProbe(probe).FirstOrDefault(phrase => phrase.DeclaredValues.Count > 0) is { } declared)
+        {
+            return declared.DeclaredValues[0];
+        }
+
         if (!probe.EndsWith("= ", StringComparison.Ordinal) && TakesName(probe, next))
         {
             // 下一項是括號的，看名稱撐不撐得過左括號（EVENT a.b (ACTION …)）。
@@ -765,6 +772,7 @@ internal sealed class PhraseExplorer
                 TakesVariable = TakesVariableOnly(probe) || _prober.AcceptsName(probe, Continuations.PlainVariable, _continuations),
                 TakesName = takesName,
                 DeclaredClosed = closed == true,
+                DeclaredValues = closed == true ? [.. (values ?? []).Where(value => !string.IsNullOrEmpty(value))] : [],
                 EndsStatement = endsStatement,
                 // 括號也是一個運算元：CREATE DATABASE d ON 之後是 PRIMARY 或 (，不能併成 ON PRIMARY。
                 // 類別之後的 :: 也是：ALTER AUTHORIZATION ON ASSEMBLY 之後是 ::，ASSEMBLY TO 只是名叫 ASSEMBLY 的物件。
@@ -1175,8 +1183,17 @@ internal sealed class PhraseExplorer
             closed = closed && !_prober.AcceptsName(itemProbe, Continuations.PlainName, _continuations);
             takesVariable = takesVariable || _prober.AcceptsName(itemProbe, Continuations.PlainVariable, _continuations);
 
-            var fresh = Words(itemProbe, extraEndings).Where(word => !words.Contains(word)).ToList();
+            var listed = Words(itemProbe, extraEndings);
+            var fresh = listed.Where(word => !words.Contains(word)).ToList();
             words.AddRange(fresh);
+
+            // 一種第一項之後的逗號列得出每一種第一項（事件 FOR QN__DYNAMICS, 之後是全部事件），剖析器不記用過的項，
+            // 也不分組：其餘的第一項探到的都一樣，不再探，否則幾百個事件各探一次整份候選字。
+            // SET ANSI_DEFAULTS, 之後列不出 DATEFIRST（開關一組、值一組），照舊每一種各探一次。
+            if (prefix == head && firsts.All(first => listed.Contains(first, IgnoreCase)))
+            {
+                pending = new Queue<(string Prefix, string Item)>(pending.Where(entry => entry.Prefix != head));
+            }
 
             if (fresh.Count > 0)
             {

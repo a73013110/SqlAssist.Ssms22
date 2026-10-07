@@ -652,6 +652,15 @@ public sealed class SqlClausePhraseTests
     [InlineData("RESTORE DATABASE LibArchive ", "WITH", "FROM")]
     [InlineData("RESTORE LOG LibArchive ", "WITH", "FROM")]
     [InlineData("RESTORE DATABASE LibArchive WITH ", "RECOVERY")]
+    [InlineData("CREATE EVENT NOTIFICATION LoanNote ON SERVER FOR QN__DYNAMICS, ", "QN__PARAMETER_TABLE", "QN__TEMPLATE")]
+    [InlineData("CREATE EVENT NOTIFICATION LoanNote ON SERVER FOR QN__DYNAMICS, QN__TEMPLATE ", "TO")]
+    [InlineData("CREATE EVENT NOTIFICATION LoanNote ON DATABASE WITH FAN_IN FOR Create_Table, ", "DROP_TABLE")]
+    [InlineData("CREATE EVENT NOTIFICATION LoanNote ON QUEUE dbo.LoanQueue FOR Queue_Activation\nTO ", "SERVICE")]
+    [InlineData("RESTORE SERVICE MASTER KEY FROM FILE = 'c:\\key' DECRYPTION BY PASSWORD = 'x' ", "FORCE")]
+    [InlineData("RESTORE MASTER KEY FROM FILE = 'c:\\key' DECRYPTION BY PASSWORD = 'x' ENCRYPTION BY PASSWORD = 'y' ", "FORCE")]
+    [InlineData("CREATE COLUMN MASTER KEY LibKey WITH (KEY_STORE_PROVIDER_NAME = 'x', KEY_PATH = 'y', ENCLAVE_COMPUTATIONS (", "SIGNATURE")]
+    [InlineData("ALTER ENDPOINT LibEndpoint STATE = ", "DISABLED", "STARTED", "STOPPED")]
+    [InlineData("CREATE ENDPOINT LibEndpoint AUTHORIZATION LibOwner STATE = ", "DISABLED", "STARTED", "STOPPED")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -828,6 +837,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("DBCC CHECKDB (N'LibArchive', ", false)]
     [InlineData("CREATE FULLTEXT INDEX ON dbo.Copy KEY INDEX PK_Copy ON (", false)]
     [InlineData("ALTER DATABASE Lib SET DB_CHAINING ON, TRUSTWORTHY ", true)]
+    [InlineData("CREATE EVENT NOTIFICATION LoanNote ON SERVER FOR QN__DYNAMICS, ", true)]
+    [InlineData("ALTER ENDPOINT LibEndpoint STATE = ", true)]
     public void 封閉的片語換掉整份清單(string textBeforeCaret, bool closed)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
