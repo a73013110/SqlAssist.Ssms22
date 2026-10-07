@@ -419,23 +419,24 @@ public sealed partial class SqlKeywordPositionAnalyzer
             (FindClausePosition(offset - 1) & SqlKeywordPosition.OrderByTail) != SqlKeywordPosition.None;
     }
 
-    /// <summary><paramref name="last"/> 寫完 <c>TABLESAMPLE [SYSTEM] (</c> 的樣本大小：數值或變數。</summary>
+    /// <summary><paramref name="last"/> 寫完 <c>TABLESAMPLE [SYSTEM] (</c> 的樣本大小。</summary>
+    /// <remarks>樣本大小是運算式：只認單一數值的話 <c>TABLESAMPLE (1 + 2 </c> 之後列不出 ROWS、PERCENT。</remarks>
     private bool EndsTableSampleSize(int last)
     {
-        if (last < 2 ||
-            tokens[last].Kind is not (SqlTokenKind.Number or SqlTokenKind.Variable) ||
-            !tokens[last - 1].IsPunctuation("("))
+        var size = SqlOperand.SkipBackward(tokens, last);
+
+        if (size < 2 || !tokens[size - 1].IsPunctuation("("))
         {
             return false;
         }
 
-        var sample = tokens[last - 2].IsKeyword("SYSTEM") ? last - 3 : last - 2;
+        var sample = tokens[size - 2].IsKeyword("SYSTEM") ? size - 3 : size - 2;
         return sample >= 0 && tokens[sample].IsKeyword("TABLESAMPLE");
     }
 
     /// <summary>
     /// <paramref name="last"/> 寫完 PIVOT、UNPIVOT 括號裡的一段：第一段（<c>PIVOT (SUM(x) </c>、
-    /// <c>UNPIVOT (v </c>，之後是 FOR），或 FOR 的資料行（<c>FOR y </c>，之後是 IN）。
+    /// <c>UNPIVOT (v </c>，之後是 FOR），或 FOR 的資料行（<c>FOR y </c>、<c>FOR s.y </c>，之後是 IN）。
     /// </summary>
     private bool EndsPivotPart(int last)
     {
@@ -446,7 +447,9 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return false;
         }
 
-        if (last - 1 > open && tokens[last - 1].IsKeyword("FOR"))
+        var column = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last);
+
+        if (column - 1 > open && tokens[column - 1].IsKeyword("FOR"))
         {
             return IsPlainWord(last);
         }

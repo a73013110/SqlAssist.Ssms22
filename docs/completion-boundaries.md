@@ -53,4 +53,4 @@
 安全性原則 `AFTER`、`BEFORE` 之後的 `INSERT`、`UPDATE`、`DELETE` 是作業，不是動詞、語句開頭或子句錨點：否則 `AFTER UPDATE` 之後列資料表，換行寫的下一句也認不出開頭。
 
 - **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c `
-  接 `INTO`（`FetchTail`），`RESTORE`（裝置清單）、`REVOKE`、`BULK INSERT`、`COPY INTO` 的 FROM 不接，`TRIM('x' FROM s)` 之後是運算式，`IS [NOT] DISTINCT FROM` 是比較運算子、也不是子句錨點。位置、目標與範圍分析共用 `IntroducesDataSource`，分岔時 `DISK` 被收成表。
+  接 `INTO`（`FetchTail`），`RESTORE`（裝置清單）、`REVOKE`、`BULK INSERT`、`COPY INTO` 的 FROM 不接，簽章有 FROM 的函式括號裡（`TRIM('x' FROM s)`、`{fn EXTRACT(HOUR FROM d)}`）之後是運算式，`IS [NOT] DISTINCT FROM` 是比較運算子、也不是子句錨點。位置、目標與範圍分析共用 `IntroducesDataSource`，分岔時 `DISK` 被收成表。

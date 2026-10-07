@@ -119,89 +119,91 @@ public static class SqlArgumentCatalog
     /// <remarks>
     /// 收 ODBC 附錄 E 的整份：sql-docs「ODBC Scalar Functions」說這些由引擎解譯，表格只列與 T-SQL 不重複的幾個，
     /// 只收表格的話 <c>{fn USER()}</c>、<c>{fn RIGHT(…)}</c> 列不出來。
-    /// <c>CURRENT_TIME</c>、<c>CURRENT_TIMESTAMP</c> 的精確度可省，慣例寫法不帶括號。
+    /// 簽章照附錄 E，與 <see cref="SqlFunctionCatalog"/> 同一種寫法：帶不帶括號提交由它說
+    /// （<c>CURRENT_TIME</c>、<c>CURRENT_TIMESTAMP</c> 的精確度可省，慣例寫法不帶括號），
+    /// 引數自有文法的也由它說（<c>EXTRACT(… FROM …)</c>，見 <see cref="TryGetOdbcSignature"/>）。
     /// </remarks>
-    private static readonly (string Name, Func<string> Description, bool TakesArguments)[] OdbcFunctionDefinitions =
+    private static readonly (string Name, string Signature, Func<string> Description)[] OdbcFunctionDefinitions =
     {
         // 字串
-        ("ASCII", () => ArgumentText.OdbcAscii, true),
-        ("BIT_LENGTH", () => ArgumentText.OdbcBitLength, true),
-        ("CHAR", () => ArgumentText.OdbcChar, true),
-        ("CHAR_LENGTH", () => ArgumentText.OdbcCharLength, true),
-        ("CHARACTER_LENGTH", () => ArgumentText.OdbcCharLength, true),
-        ("CONCAT", () => ArgumentText.OdbcConcat, true),
-        ("DIFFERENCE", () => ArgumentText.OdbcDifference, true),
-        ("INSERT", () => ArgumentText.OdbcInsert, true),
-        ("LCASE", () => ArgumentText.OdbcLcase, true),
-        ("LEFT", () => ArgumentText.OdbcLeft, true),
-        ("LENGTH", () => ArgumentText.OdbcLength, true),
-        ("LOCATE", () => ArgumentText.OdbcLocate, true),
-        ("LTRIM", () => ArgumentText.OdbcLtrim, true),
-        ("OCTET_LENGTH", () => ArgumentText.OdbcOctetLength, true),
-        ("POSITION", () => ArgumentText.OdbcLocate, true),
-        ("REPEAT", () => ArgumentText.OdbcRepeat, true),
-        ("REPLACE", () => ArgumentText.OdbcReplace, true),
-        ("RIGHT", () => ArgumentText.OdbcRight, true),
-        ("RTRIM", () => ArgumentText.OdbcRtrim, true),
-        ("SOUNDEX", () => ArgumentText.OdbcSoundex, true),
-        ("SPACE", () => ArgumentText.OdbcSpace, true),
-        ("SUBSTRING", () => ArgumentText.OdbcSubstring, true),
-        ("UCASE", () => ArgumentText.OdbcUcase, true),
+        ("ASCII", "ASCII(string_exp)", () => ArgumentText.OdbcAscii),
+        ("BIT_LENGTH", "BIT_LENGTH(string_exp)", () => ArgumentText.OdbcBitLength),
+        ("CHAR", "CHAR(code)", () => ArgumentText.OdbcChar),
+        ("CHAR_LENGTH", "CHAR_LENGTH(string_exp)", () => ArgumentText.OdbcCharLength),
+        ("CHARACTER_LENGTH", "CHARACTER_LENGTH(string_exp)", () => ArgumentText.OdbcCharLength),
+        ("CONCAT", "CONCAT(string_exp1, string_exp2)", () => ArgumentText.OdbcConcat),
+        ("DIFFERENCE", "DIFFERENCE(string_exp1, string_exp2)", () => ArgumentText.OdbcDifference),
+        ("INSERT", "INSERT(string_exp1, start, length, string_exp2)", () => ArgumentText.OdbcInsert),
+        ("LCASE", "LCASE(string_exp)", () => ArgumentText.OdbcLcase),
+        ("LEFT", "LEFT(string_exp, count)", () => ArgumentText.OdbcLeft),
+        ("LENGTH", "LENGTH(string_exp)", () => ArgumentText.OdbcLength),
+        ("LOCATE", "LOCATE(string_exp1, string_exp2[, start])", () => ArgumentText.OdbcLocate),
+        ("LTRIM", "LTRIM(string_exp)", () => ArgumentText.OdbcLtrim),
+        ("OCTET_LENGTH", "OCTET_LENGTH(string_exp)", () => ArgumentText.OdbcOctetLength),
+        ("POSITION", "POSITION(character_exp IN character_exp)", () => ArgumentText.OdbcLocate),
+        ("REPEAT", "REPEAT(string_exp, count)", () => ArgumentText.OdbcRepeat),
+        ("REPLACE", "REPLACE(string_exp1, string_exp2, string_exp3)", () => ArgumentText.OdbcReplace),
+        ("RIGHT", "RIGHT(string_exp, count)", () => ArgumentText.OdbcRight),
+        ("RTRIM", "RTRIM(string_exp)", () => ArgumentText.OdbcRtrim),
+        ("SOUNDEX", "SOUNDEX(string_exp)", () => ArgumentText.OdbcSoundex),
+        ("SPACE", "SPACE(count)", () => ArgumentText.OdbcSpace),
+        ("SUBSTRING", "SUBSTRING(string_exp, start, length)", () => ArgumentText.OdbcSubstring),
+        ("UCASE", "UCASE(string_exp)", () => ArgumentText.OdbcUcase),
 
         // 數值
-        ("ABS", () => ArgumentText.OdbcAbs, true),
-        ("ACOS", () => ArgumentText.OdbcAcos, true),
-        ("ASIN", () => ArgumentText.OdbcAsin, true),
-        ("ATAN", () => ArgumentText.OdbcAtan, true),
-        ("ATAN2", () => ArgumentText.OdbcAtan2, true),
-        ("CEILING", () => ArgumentText.OdbcCeiling, true),
-        ("COS", () => ArgumentText.OdbcCos, true),
-        ("COT", () => ArgumentText.OdbcCot, true),
-        ("DEGREES", () => ArgumentText.OdbcDegrees, true),
-        ("EXP", () => ArgumentText.OdbcExp, true),
-        ("FLOOR", () => ArgumentText.OdbcFloor, true),
-        ("LOG", () => ArgumentText.OdbcLog, true),
-        ("LOG10", () => ArgumentText.OdbcLog10, true),
-        ("MOD", () => ArgumentText.OdbcMod, true),
-        ("PI", () => ArgumentText.OdbcPi, true),
-        ("POWER", () => ArgumentText.OdbcPower, true),
-        ("RADIANS", () => ArgumentText.OdbcRadians, true),
-        ("RAND", () => ArgumentText.OdbcRand, true),
-        ("ROUND", () => ArgumentText.OdbcRound, true),
-        ("SIGN", () => ArgumentText.OdbcSign, true),
-        ("SIN", () => ArgumentText.OdbcSin, true),
-        ("SQRT", () => ArgumentText.OdbcSqrt, true),
-        ("TAN", () => ArgumentText.OdbcTan, true),
-        ("TRUNCATE", () => ArgumentText.OdbcTruncate, true),
+        ("ABS", "ABS(numeric_exp)", () => ArgumentText.OdbcAbs),
+        ("ACOS", "ACOS(float_exp)", () => ArgumentText.OdbcAcos),
+        ("ASIN", "ASIN(float_exp)", () => ArgumentText.OdbcAsin),
+        ("ATAN", "ATAN(float_exp)", () => ArgumentText.OdbcAtan),
+        ("ATAN2", "ATAN2(float_exp1, float_exp2)", () => ArgumentText.OdbcAtan2),
+        ("CEILING", "CEILING(numeric_exp)", () => ArgumentText.OdbcCeiling),
+        ("COS", "COS(float_exp)", () => ArgumentText.OdbcCos),
+        ("COT", "COT(float_exp)", () => ArgumentText.OdbcCot),
+        ("DEGREES", "DEGREES(numeric_exp)", () => ArgumentText.OdbcDegrees),
+        ("EXP", "EXP(float_exp)", () => ArgumentText.OdbcExp),
+        ("FLOOR", "FLOOR(numeric_exp)", () => ArgumentText.OdbcFloor),
+        ("LOG", "LOG(float_exp)", () => ArgumentText.OdbcLog),
+        ("LOG10", "LOG10(float_exp)", () => ArgumentText.OdbcLog10),
+        ("MOD", "MOD(integer_exp1, integer_exp2)", () => ArgumentText.OdbcMod),
+        ("PI", "PI()", () => ArgumentText.OdbcPi),
+        ("POWER", "POWER(numeric_exp, integer_exp)", () => ArgumentText.OdbcPower),
+        ("RADIANS", "RADIANS(numeric_exp)", () => ArgumentText.OdbcRadians),
+        ("RAND", "RAND([integer_exp])", () => ArgumentText.OdbcRand),
+        ("ROUND", "ROUND(numeric_exp, integer_exp)", () => ArgumentText.OdbcRound),
+        ("SIGN", "SIGN(numeric_exp)", () => ArgumentText.OdbcSign),
+        ("SIN", "SIN(float_exp)", () => ArgumentText.OdbcSin),
+        ("SQRT", "SQRT(float_exp)", () => ArgumentText.OdbcSqrt),
+        ("TAN", "TAN(float_exp)", () => ArgumentText.OdbcTan),
+        ("TRUNCATE", "TRUNCATE(numeric_exp, integer_exp)", () => ArgumentText.OdbcTruncate),
 
         // 日期、時間與間隔
-        ("CURRENT_DATE", () => ArgumentText.OdbcCurrentDate, true),
-        ("CURDATE", () => ArgumentText.OdbcCurrentDate, true),
-        ("CURRENT_TIME", () => ArgumentText.OdbcCurrentTime, false),
-        ("CURTIME", () => ArgumentText.OdbcCurrentTime, true),
-        ("CURRENT_TIMESTAMP", () => ArgumentText.OdbcCurrentTimestamp, false),
-        ("NOW", () => ArgumentText.OdbcCurrentTimestamp, true),
-        ("DAYNAME", () => ArgumentText.OdbcDayname, true),
-        ("DAYOFMONTH", () => ArgumentText.OdbcDayofmonth, true),
-        ("DAYOFWEEK", () => ArgumentText.OdbcDayofweek, true),
-        ("DAYOFYEAR", () => ArgumentText.OdbcDayofyear, true),
-        ("EXTRACT", () => ArgumentText.OdbcExtract, true),
-        ("HOUR", () => ArgumentText.OdbcHour, true),
-        ("MINUTE", () => ArgumentText.OdbcMinute, true),
-        ("MONTH", () => ArgumentText.OdbcMonth, true),
-        ("MONTHNAME", () => ArgumentText.OdbcMonthname, true),
-        ("QUARTER", () => ArgumentText.OdbcQuarter, true),
-        ("SECOND", () => ArgumentText.OdbcSecond, true),
-        ("TIMESTAMPADD", () => ArgumentText.OdbcTimestampadd, true),
-        ("TIMESTAMPDIFF", () => ArgumentText.OdbcTimestampdiff, true),
-        ("WEEK", () => ArgumentText.OdbcWeek, true),
-        ("YEAR", () => ArgumentText.OdbcYear, true),
+        ("CURRENT_DATE", "CURRENT_DATE()", () => ArgumentText.OdbcCurrentDate),
+        ("CURDATE", "CURDATE()", () => ArgumentText.OdbcCurrentDate),
+        ("CURRENT_TIME", "CURRENT_TIME[(time_precision)]", () => ArgumentText.OdbcCurrentTime),
+        ("CURTIME", "CURTIME()", () => ArgumentText.OdbcCurrentTime),
+        ("CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP[(timestamp_precision)]", () => ArgumentText.OdbcCurrentTimestamp),
+        ("NOW", "NOW()", () => ArgumentText.OdbcCurrentTimestamp),
+        ("DAYNAME", "DAYNAME(date_exp)", () => ArgumentText.OdbcDayname),
+        ("DAYOFMONTH", "DAYOFMONTH(date_exp)", () => ArgumentText.OdbcDayofmonth),
+        ("DAYOFWEEK", "DAYOFWEEK(date_exp)", () => ArgumentText.OdbcDayofweek),
+        ("DAYOFYEAR", "DAYOFYEAR(date_exp)", () => ArgumentText.OdbcDayofyear),
+        ("EXTRACT", "EXTRACT(extract_field FROM extract_source)", () => ArgumentText.OdbcExtract),
+        ("HOUR", "HOUR(time_exp)", () => ArgumentText.OdbcHour),
+        ("MINUTE", "MINUTE(time_exp)", () => ArgumentText.OdbcMinute),
+        ("MONTH", "MONTH(date_exp)", () => ArgumentText.OdbcMonth),
+        ("MONTHNAME", "MONTHNAME(date_exp)", () => ArgumentText.OdbcMonthname),
+        ("QUARTER", "QUARTER(date_exp)", () => ArgumentText.OdbcQuarter),
+        ("SECOND", "SECOND(time_exp)", () => ArgumentText.OdbcSecond),
+        ("TIMESTAMPADD", "TIMESTAMPADD(interval, integer_exp, timestamp_exp)", () => ArgumentText.OdbcTimestampadd),
+        ("TIMESTAMPDIFF", "TIMESTAMPDIFF(interval, timestamp_exp1, timestamp_exp2)", () => ArgumentText.OdbcTimestampdiff),
+        ("WEEK", "WEEK(date_exp)", () => ArgumentText.OdbcWeek),
+        ("YEAR", "YEAR(date_exp)", () => ArgumentText.OdbcYear),
 
         // 系統與明確轉換
-        ("DATABASE", () => ArgumentText.OdbcDatabase, true),
-        ("IFNULL", () => ArgumentText.OdbcIfnull, true),
-        ("USER", () => ArgumentText.OdbcUser, true),
-        ("CONVERT", () => ArgumentText.OdbcConvert, true)
+        ("DATABASE", "DATABASE()", () => ArgumentText.OdbcDatabase),
+        ("IFNULL", "IFNULL(exp, value)", () => ArgumentText.OdbcIfnull),
+        ("USER", "USER()", () => ArgumentText.OdbcUser),
+        ("CONVERT", "CONVERT(value_exp, data_type)", () => ArgumentText.OdbcConvert)
     };
 
     /// <summary>三份封閉清單裡的名稱拆成的字；多字寫法的每一個字都在內。</summary>
@@ -217,7 +219,7 @@ public static class SqlArgumentCatalog
         new(_ => Build(QueryHintDefinitions, SuggestionKind.QueryHint));
 
     private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> OdbcFunctionCache =
-        new(_ => Build(OdbcFunctionDefinitions, SuggestionKind.BuiltInFunction));
+        new(_ => BuildOdbcFunctions());
 
     /// <summary><c>DATEADD</c> 這一族第一個引數的建議項。</summary>
     public static IReadOnlyList<SqlSuggestion> DateParts => DatePartCache.Current;
@@ -230,6 +232,28 @@ public static class SqlArgumentCatalog
 
     /// <summary>ODBC <c>{fn </c> 之後的純量函式建議項。</summary>
     public static IReadOnlyList<SqlSuggestion> OdbcFunctions => OdbcFunctionCache.Current;
+
+    /// <summary>查出 ODBC 純量函式的簽章；大小寫不敏感。</summary>
+    /// <remarks>
+    /// 與 T-SQL 同名的（<c>LEFT</c>、<c>CONVERT</c>）引數不一定一樣，<c>{fn</c> 之後的呼叫只問這一份。
+    /// </remarks>
+    public static bool TryGetOdbcSignature(string? name, out string signature)
+    {
+        if (!string.IsNullOrEmpty(name))
+        {
+            foreach (var (candidate, value, _) in OdbcFunctionDefinitions)
+            {
+                if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    signature = value;
+                    return true;
+                }
+            }
+        }
+
+        signature = string.Empty;
+        return false;
+    }
 
     /// <summary>
     /// 查出一個提示或日期部分的一行說明；大小寫不敏感。
@@ -350,6 +374,26 @@ public static class SqlArgumentCatalog
                 description,
                 description,
                 SuggestionKind.DatePart));
+        }
+
+        return suggestions;
+    }
+
+    private static IReadOnlyList<SqlSuggestion> BuildOdbcFunctions()
+    {
+        var suggestions = new List<SqlSuggestion>(OdbcFunctionDefinitions.Length);
+
+        foreach (var (name, signature, describe) in OdbcFunctionDefinitions)
+        {
+            var description = describe();
+            var takesArguments = signature.Length > name.Length && signature[name.Length] == '(';
+
+            suggestions.Add(new SqlSuggestion(
+                name,
+                takesArguments ? name + "(" : name,
+                description,
+                description,
+                SuggestionKind.BuiltInFunction));
         }
 
         return suggestions;

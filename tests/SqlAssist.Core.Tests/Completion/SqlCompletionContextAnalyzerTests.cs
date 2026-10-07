@@ -558,6 +558,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("CREATE LOGIN Lib_Reader FROM ")]
     [InlineData("SELECT TRIM('x' FROM ")]
     [InlineData("SELECT TRIM(LEADING '0' FROM ")]
+    [InlineData("SELECT {fn EXTRACT(HOUR FROM ")]
     public void 不接資料來源的FROM之後不列資料表(string textBeforeCaret)
     {
         Assert.NotEqual(CompletionTarget.DataSource, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Target);

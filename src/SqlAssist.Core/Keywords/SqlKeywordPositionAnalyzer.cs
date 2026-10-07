@@ -844,7 +844,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 打 <c>@</c> 之後資料表變數也照資料來源提交。
     ///
     /// UPDATE 的 FROM 所屬的動詞是 SET：帶資料行指派的 SET（<see cref="IntroducesOptions"/>）算 UPDATE。
-    /// 寫在簽章有 FROM 的函式括號裡的不是：<c>TRIM(' ' FROM x)</c> 的 FROM 是函式引數的文法，之後是運算式。
+    /// 寫在簽章有 FROM 的函式括號裡的不是：<c>TRIM(' ' FROM x)</c>、<c>{fn EXTRACT(HOUR FROM d)}</c> 的 FROM 是函式引數的文法，之後是運算式。
     /// 只看沒關上的括號不夠——寫到一半的 <c>SELECT COUNT(u.| FROM t u</c> 括號也沒關上。其餘判不出動詞的照舊當成資料來源。
     ///
     /// 位置分析（FROM、INTO 之後，以它們為錨點的清單與子句尾端）、上下文分析的目標與範圍分析的資料來源
@@ -865,7 +865,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
             return !(tokens[keyword].IsKeyword("FROM") &&
                 open >= 1 &&
-                SqlFunctionCatalog.TryGetSignature(tokens[open - 1].Value, out var signature) &&
+                TryGetFunctionSignature(open - 1, out var signature) &&
                 signature.Contains(" FROM"));
         }
 
@@ -881,6 +881,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
             token.IsKeyword("DELETE") ||
             (token.IsKeyword("SET") && !IntroducesOptions(verb));
     }
+
+    /// <summary>查出 <paramref name="name"/> 這個函式的簽章：ODBC <c>{fn</c> 跳脫裡的查 ODBC 那一份，其餘查內建函式。</summary>
+    private bool TryGetFunctionSignature(int name, out string signature) =>
+        name >= 2 && tokens[name - 1].IsKeyword("fn") && tokens[name - 2] is { Kind: SqlTokenKind.Operator, Value: "{" }
+            ? SqlArgumentCatalog.TryGetOdbcSignature(tokens[name].Value, out signature)
+            : SqlFunctionCatalog.TryGetSignature(tokens[name].Value, out signature);
 
     /// <summary><paramref name="index"/> 是比較運算子 <c>IS [NOT] DISTINCT FROM</c> 的 FROM，不是子句。</summary>
     /// <remarks>
