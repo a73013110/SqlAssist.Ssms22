@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -168,6 +169,36 @@ public sealed class SqlDataTypeCompletionTests
         var list = await GetAsync(sqlWithCaret);
 
         Assert.Contains(list, item => item.Kind == SuggestionKind.Keyword && item.DisplayText == "AS");
+    }
+
+    /// <summary>
+    /// 不寫型別的 <c>timestamp</c> 是 rowversion 資料行：名稱之後型別與資料行條件約束都接得上。
+    /// </summary>
+    [Theory]
+    [InlineData("CREATE TABLE dbo.Loan (timestamp |")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId INT PRIMARY KEY, timestamp |")]
+    [InlineData("ALTER TABLE dbo.Loan ADD timestamp |")]
+    public async Task 不寫型別的timestamp也列資料行條件約束(string sqlWithCaret)
+    {
+        var list = await GetAsync(sqlWithCaret);
+
+        Assert.Contains(list, item => item.Kind == SuggestionKind.DataType && item.DisplayText == "INT");
+        Assert.Contains(list, item => item.Kind == SuggestionKind.Keyword && item.DisplayText == "NOT");
+        Assert.Contains(list, item => item.Kind == SuggestionKind.Keyword && item.DisplayText.StartsWith("PRIMARY", StringComparison.Ordinal));
+        Assert.Contains(list, item => item.Kind == SuggestionKind.Keyword && item.DisplayText == "NULL");
+    }
+
+    /// <summary>其餘名稱之後只接型別（與計算資料行的 AS）：資料行定義的尾端不打散型別那一格。</summary>
+    [Theory]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId |")]
+    [InlineData("CREATE TABLE dbo.Loan ([timestamp] |")]
+    public async Task 一般資料行名稱之後不列資料行條件約束(string sqlWithCaret)
+    {
+        var list = await GetAsync(sqlWithCaret);
+
+        Assert.Contains(list, item => item.Kind == SuggestionKind.DataType && item.DisplayText == "INT");
+        Assert.DoesNotContain(list, item => item.Kind == SuggestionKind.Keyword && item.DisplayText == "NOT");
+        Assert.DoesNotContain(list, item => item.Kind == SuggestionKind.Keyword && item.DisplayText == "NULL");
     }
 
     /// <summary>運算元還沒寫完、型別已經寫了，或那個函式不接型別時不另外放行 AS。</summary>

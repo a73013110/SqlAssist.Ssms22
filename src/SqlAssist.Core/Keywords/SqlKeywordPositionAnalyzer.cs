@@ -406,6 +406,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 在詞元上與名稱分不開，見 <see cref="FindSetOptionPart"/>；以及資料行定義的尾端，
     /// <c>ALTER TABLE t ADD a int</c> 寫在括號外，一句就寫完了（括號裡的由 <see cref="AddStatementStartOnNewLine"/> 排除）。
     /// 序列的選項也是：選項不以逗號分隔、全都可以不寫，<c>CREATE SEQUENCE s CACHE⏎CREATE</c> 的第二個 CREATE 是下一句。
+    /// 外部索引鍵寫完參考或一個動作（<c>ON DELETE CASCADE</c>、<c>NOT FOR REPLICATION</c>）同理：<c>ALTER TABLE t ADD … REFERENCES u (a)</c>
+    /// 寫在括號外就寫完了一句。
     /// </remarks>
     private const SqlKeywordPosition StatementEndPositions =
         SqlKeywordPosition.SelectListTail |
@@ -417,6 +419,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
         SqlKeywordPosition.FetchTail |
         SqlKeywordPosition.UpdateSetTail |
         SqlKeywordPosition.ColumnDefinitionTail |
+        SqlKeywordPosition.ReferencesTail |
         SqlKeywordPosition.SequenceOption |
         SqlKeywordPosition.SetOptionValue;
 

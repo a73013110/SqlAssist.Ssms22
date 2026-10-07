@@ -150,7 +150,7 @@ public static class SqlCompletionCandidates
 
         // 內建型別是一份封閉的清單，但使用者自訂的資料表型別在資料庫裡，
         // DECLARE @t dbo.XType 要的正是後者。片語的字照接上來：資料行定義的 PERIOD 之後還有 FOR。
-        // 宣告的型別前面可以先寫 AS（DECLARE @x AS int），那個字從目錄接上來。
+        // 宣告的型別前面可以先寫 AS（DECLARE @x AS int），那個字從目錄接上來；不寫型別的 timestamp 資料行另接 NOT、NULL 這些尾端的字。
         if (context.Target == CompletionTarget.DataType)
         {
             var types = settings.IncludeDatabaseObjects
@@ -160,7 +160,7 @@ public static class SqlCompletionCandidates
             return SqlDataTypeCatalog.All
                 .Concat(types)
                 .Concat(PhraseOf(context))
-                .Concat(builtIn.Where(item => SuggestionContextFilter.IsTypeAs(item, context)))
+                .Concat(builtIn.Where(item => SuggestionContextFilter.IsTypeSlotKeyword(item, context)))
                 .ToArray();
         }
 

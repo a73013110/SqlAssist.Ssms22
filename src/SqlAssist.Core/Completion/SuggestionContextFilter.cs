@@ -57,23 +57,30 @@ public static class SuggestionContextFilter
         var phraseSnippet = StartsWithPhraseWord(suggestion, context);
         var phraseVariable = suggestion.Kind == SuggestionKind.Variable &&
             SqlCompletionPolicy.OffersPhraseVariables(context);
-        var typeAs = IsTypeAs(suggestion, context);
+        var typeSlotKeyword = IsTypeSlotKeyword(suggestion, context);
 
         return (!context.Bracketed || IsBracketable(suggestion, context)) &&
-               (IsProvenPhraseWord(suggestion) || phraseSnippet || phraseVariable || typeAs ||
+               (IsProvenPhraseWord(suggestion) || phraseSnippet || phraseVariable || typeSlotKeyword ||
                 IsAllowedForTarget(suggestion, context.Target)) &&
-               (phraseSnippet || phraseVariable || typeAs || IsAllowedForPosition(suggestion, context)) &&
+               (phraseSnippet || phraseVariable || typeSlotKeyword || IsAllowedForPosition(suggestion, context)) &&
                IsAllowedForSchema(suggestion, context) &&
                IsAllowedSystemSchema(suggestion, context);
     }
 
-    /// <summary>目錄裡的 <c>AS</c>，而這一格寫得出引出型別的 <c>AS</c>（<see cref="SqlCompletionContext.AcceptsTypeAs"/>）。</summary>
-    internal static bool IsTypeAs(SqlSuggestion suggestion, SqlCompletionContext context)
+    /// <summary>
+    /// 型別那一格也接得上的目錄關鍵字：引出型別的 <c>AS</c>（<see cref="SqlCompletionContext.AcceptsTypeAs"/>），
+    /// 以及型別可以不寫時資料行定義尾端的字（<see cref="SqlCompletionContext.TypeIsOptional"/>）。
+    /// </summary>
+    internal static bool IsTypeSlotKeyword(SqlSuggestion suggestion, SqlCompletionContext context)
     {
-        return context.AcceptsTypeAs &&
-            suggestion.Kind == SuggestionKind.Keyword &&
-            suggestion.Tag is not SqlClausePhrase &&
-            string.Equals(suggestion.DisplayText, "AS", StringComparison.OrdinalIgnoreCase);
+        if (suggestion.Kind != SuggestionKind.Keyword || suggestion.Tag is SqlClausePhrase)
+        {
+            return false;
+        }
+
+        return (context.AcceptsTypeAs && string.Equals(suggestion.DisplayText, "AS", StringComparison.OrdinalIgnoreCase)) ||
+            (context.TypeIsOptional && suggestion.Positions.Allows(SqlKeywordPosition.ColumnDefinitionTail) &&
+                context.ClausePhrase?.Hides(suggestion.DisplayText) != true);
     }
 
     /// <summary>

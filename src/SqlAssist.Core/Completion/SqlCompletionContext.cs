@@ -32,7 +32,8 @@ public sealed class SqlCompletionContext
         SqlTableReference? columnOwner = null,
         string? textBeforeCaret = null,
         bool acceptsTypeAs = false,
-        IReadOnlyList<SqlCatalogEntity>? catalogEntities = null)
+        IReadOnlyList<SqlCatalogEntity>? catalogEntities = null,
+        bool typeIsOptional = false)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         Slot = slot;
@@ -54,6 +55,7 @@ public sealed class SqlCompletionContext
         ColumnOwner = columnOwner;
         TextBeforeCaret = textBeforeCaret;
         AcceptsTypeAs = acceptsTypeAs;
+        TypeIsOptional = typeIsOptional;
         CatalogEntities = catalogEntities ?? Array.Empty<SqlCatalogEntity>();
     }
 
@@ -272,6 +274,15 @@ public sealed class SqlCompletionContext
     public bool AcceptsTypeAs { get; }
 
     /// <summary>
+    /// 這一格的型別可以不寫：資料行定義寫到這裡已經完整，型別之外也接資料行定義尾端的字。
+    /// </summary>
+    /// <remarks>
+    /// 只有不寫型別的 <c>timestamp</c> 資料行（rowversion）：<c>CREATE TABLE t (timestamp |</c> 接型別也接 <c>NOT NULL</c>。
+    /// 哪一格算數由位置分析說（<see cref="SqlKeywordPosition.ColumnDefinitionTail"/>），型別清單不自己認名稱。
+    /// </remarks>
+    public bool TypeIsOptional { get; }
+
+    /// <summary>
     /// <see cref="CompletionTarget.CatalogEntity"/> 那一格要哪幾種名稱；其餘目標是空的。
     /// </summary>
     /// <remarks>主體那一格是兩種（使用者與角色），<c>GRANT SELECT TO </c> 說不出是哪一層時是四種。</remarks>
@@ -349,6 +360,7 @@ public sealed class SqlCompletionContext
             ColumnOwner,
             textBeforeCaret ?? TextBeforeCaret,
             AcceptsTypeAs,
-            CatalogEntities);
+            CatalogEntities,
+            TypeIsOptional);
     }
 }

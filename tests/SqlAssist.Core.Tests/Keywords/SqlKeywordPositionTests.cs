@@ -718,6 +718,9 @@ public sealed class SqlKeywordPositionTests
         SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OperandTail | SqlKeywordPosition.FunctionCallTail)]
     [InlineData("SELECT * FROM t ", SqlKeywordPosition.TableSourceTail)]
     [InlineData("CREATE TABLE t (a int CHECK (a > 1) ", SqlKeywordPosition.ColumnDefinitionTail)]
+    [InlineData("CREATE TABLE t (timestamp ", SqlKeywordPosition.ColumnDefinitionTail)]
+    [InlineData("CREATE TABLE t (a int, timestamp NOT NULL ", SqlKeywordPosition.ColumnDefinitionTail)]
+    [InlineData("ALTER TABLE t ADD TIMESTAMP ", SqlKeywordPosition.ColumnDefinitionTail)]
     public void 運算元寫完疊上運算元之後(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
@@ -732,6 +735,8 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE TABLE t (PRIMARY KEY (a) ")]
     [InlineData("CREATE TABLE t (PERIOD FOR SYSTEM_TIME (a, b) ")]
     [InlineData("CREATE TABLE t (a int) ")]
+    [InlineData("CREATE TABLE t ([timestamp] ")]
+    [InlineData("CREATE TABLE t (a NOT NULL ")]
     [InlineData("INSERT INTO t (a, b ")]
     [InlineData("ALTER TABLE t ALTER COLUMN a ADD PERSISTED ")]
     public void 不是型別之後的尾巴(string textBeforeToken)
@@ -1726,6 +1731,16 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE TABLE t (a int REFERENCES u (a) ON DELETE CASCADE ", SqlKeywordPosition.ReferencesTail)]
     [InlineData("CREATE TABLE t (a int REFERENCES u (a) ON DELETE SET NULL ", SqlKeywordPosition.ReferencesTail)]
     [InlineData("ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES u (a) ON UPDATE NO ACTION ", SqlKeywordPosition.ReferencesTail)]
+    [InlineData("ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES u (a)\n",
+        SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.StatementStart)]
+    [InlineData("ALTER TABLE t WITH CHECK ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES u (a) ON UPDATE CASCADE ON DELETE CASCADE\n",
+        SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.StatementStart)]
+    [InlineData("ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES u (a) ON DELETE SET DEFAULT\n",
+        SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.StatementStart)]
+    [InlineData("ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES u (a) NOT FOR REPLICATION\n",
+        SqlKeywordPosition.ReferencesTail | SqlKeywordPosition.StatementStart)]
+    [InlineData("CREATE TABLE t (a int REFERENCES u (a) ON DELETE CASCADE\n", SqlKeywordPosition.ReferencesTail)]
+    [InlineData("CREATE TABLE t (a int REFERENCES u (a) ON DELETE CASCADE, ", SqlKeywordPosition.ColumnDefinition)]
     [InlineData("GRANT REFERENCES ON t ", SqlKeywordPosition.PermissionTarget)]
     [InlineData("SELECT * FROM t ORDER BY a OFFSET 10 ", SqlKeywordPosition.OffsetTail)]
     [InlineData("SELECT * FROM t ORDER BY a OFFSET @n ", SqlKeywordPosition.OffsetTail)]

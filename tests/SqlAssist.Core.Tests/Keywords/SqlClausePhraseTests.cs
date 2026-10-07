@@ -534,6 +534,10 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER DATABASE Lib SET READ_ONLY, ", "RESTRICTED_USER", "AUTO_CLOSE")]
     [InlineData("ALTER DATABASE Lib SET READ_ONLY, RESTRICTED_USER ", "WITH")]
     [InlineData("ALTER DATABASE Lib SET READ_COMMITTED_SNAPSHOT OFF ", "WITH")]
+    [InlineData("COMMIT ", "WITH", "TRAN")]
+    [InlineData("COMMIT TRAN ", "WITH")]
+    [InlineData("COMMIT TRANSACTION LibTran ", "WITH")]
+    [InlineData("COMMIT WITH (", "DELAYED_DURABILITY")]
     [InlineData("ALTER DATABASE Lib SET OFFLINE WITH ", "ROLLBACK", "NO_WAIT")]
     [InlineData("ALTER DATABASE CURRENT SET MULTI_USER WITH ROLLBACK ", "AFTER", "IMMEDIATE")]
     [InlineData("ALTER DATABASE Lib SET SINGLE_USER WITH ROLLBACK AFTER 10 ", "SECONDS")]
@@ -974,6 +978,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER TABLE dbo.Loan ALTER COLUMN Note varchar(100) NOT NULL\n", "WITH", "SELECT")]
     [InlineData("ALTER SEQUENCE dbo.LoanNo\n", "RESTART", "SELECT")]
     [InlineData("END CONVERSATION 10\n", "WITH", "ENABLE")]
+    [InlineData("ALTER TABLE dbo.Loan ADD CONSTRAINT FK_Loan_Copy FOREIGN KEY (CopyNo) REFERENCES dbo.Copy (CopyNo) ON DELETE CASCADE\n",
+        "ON", "ALTER")]
     public void 語句寫完又換行時片語只加字(string textBeforeCaret, string phraseWord, string nextStatementWord)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);

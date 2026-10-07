@@ -114,7 +114,12 @@ public static class SqlCompletionContextAnalyzer
         // 封閉的子句片語排在其他封閉清單之前：片語比對的是游標前的整條尾巴，
         // CREATE INDEX … WITH ( 是索引選項，只看「WITH 緊接著左括號」會當成資料表提示。
         // 名字那一格也在它之後問：片語說得出這裡要什麼，就不是使用者要取的名字。
-        if (caret.Phrase is { IsClosed: true } closedPhrase)
+        // 型別可以不寫的那一格（CREATE TABLE t (timestamp |）例外：資料行定義尾端的片語封閉，型別仍接得上。
+        var typeIsOptional = keywordPosition != SqlKeywordPosition.Any &&
+            (keywordPosition & SqlKeywordPosition.ColumnDefinitionTail) != SqlKeywordPosition.None &&
+            SqlDataTypePosition.IsDataTypeSlot(tokens, textBeforeToken);
+
+        if (caret.Phrase is { IsClosed: true } closedPhrase && !typeIsOptional)
         {
             return new SqlCompletionContext(
                 SqlCompletionSlot.Grammar,
@@ -168,7 +173,8 @@ public static class SqlCompletionContextAnalyzer
                 qualifierPath,
                 qualifierStart: qualifierStart,
                 clausePhrase: caret.Phrase,
-                acceptsTypeAs: SqlDataTypePosition.AcceptsAs(tokens, textBeforeToken));
+                acceptsTypeAs: SqlDataTypePosition.AcceptsAs(tokens, textBeforeToken),
+                typeIsOptional: typeIsOptional);
         }
 
         // 這個位置文法上只能是使用者自己取的名字：AS 之後的別名、

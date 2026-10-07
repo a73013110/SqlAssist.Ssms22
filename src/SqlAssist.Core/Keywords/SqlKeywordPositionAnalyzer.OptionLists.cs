@@ -275,7 +275,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         var start = FindColumnDefinitionStart(last);
 
-        if (start < 0 || start >= last)
+        if (start < 0 || start > last)
         {
             return false;
         }
@@ -376,6 +376,10 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 從 <paramref name="start"/> 的新資料行名稱跳過型別或計算資料行的 <c>AS</c> 運算式，回傳之後的位置；
     /// 不是這種開頭（<c>CONSTRAINT</c>、<c>INDEX</c>、<c>PERIOD FOR</c>）或還沒寫完時回 -1。
     /// </summary>
+    /// <remarks>
+    /// 型別可以不寫的只有 <c>timestamp</c>：不寫型別的 <c>timestamp</c> 是 rowversion 資料行、名稱就叫 timestamp，
+    /// 之後直接是條件約束（<c>CREATE TABLE t (timestamp NOT NULL)</c>）。同一個字之後寫了型別就是叫這個名字的資料行。
+    /// </remarks>
     private int SkipColumnHead(int start, int last)
     {
         var name = tokens[start];
@@ -383,6 +387,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
         if (name.Kind != SqlTokenKind.Identifier || IsBareKeyword(start))
         {
             return -1;
+        }
+
+        if (start == last)
+        {
+            return OmitsType(start) ? start + 1 : -1;
         }
 
         // 計算資料行：運算式寫到哪裡為止，取 AS 之後整段是一個運算式的最後一個詞元。
@@ -402,11 +411,18 @@ public sealed partial class SqlKeywordPositionAnalyzer
         // 型別不是關鍵字；是關鍵字的只有多字型別的第一個字（NATIONAL）。
         var type = SqlTokenNavigator.SkipDataType(tokens, start + 1, last + 1);
 
-        return type > start + 1 &&
-            (!IsBareKeyword(start + 1) || SqlDataTypeCatalog.CountWords(tokens, start + 1, last + 1) > 0)
-                ? type
-                : -1;
+        if (type > start + 1 &&
+            (!IsBareKeyword(start + 1) || SqlDataTypeCatalog.CountWords(tokens, start + 1, last + 1) > 0))
+        {
+            return type;
+        }
+
+        return OmitsType(start) ? start + 1 : -1;
     }
+
+    /// <summary><paramref name="name"/> 的資料行名稱之後可以不寫型別：沒加方括號的 <c>timestamp</c>。</summary>
+    private bool OmitsType(int name) =>
+        !tokens[name].IsQuoted && string.Equals(tokens[name].Value, "timestamp", StringComparison.OrdinalIgnoreCase);
 
     /// <summary><paramref name="last"/> 寫完 ORDER BY 的 <c>OFFSET</c> 值，一個運算式（<see cref="SqlOperand.SkipBackward"/>）。</summary>
     private bool EndsOffsetValue(int last)

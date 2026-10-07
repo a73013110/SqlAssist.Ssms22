@@ -82,6 +82,10 @@ SQL Server 2025 才有的 `JSON`、`VECTOR` 同樣照收、不看連線的版本
 時列它，不看目標與位置旗標。各認一份的症狀是 `SELECT CAST(@y ` 借別名的 `AS` 碰巧列得出來，
 `SET @x = CAST(@y ` 就列不出來。
 
+型別可以不寫的只有 `timestamp`：不寫型別的 `timestamp` 資料行是 rowversion，`CREATE TABLE t (timestamp ` 已是
+寫完的一項，位置分析判成 `ColumnDefinitionTail`。型別清單照列，另列資料行定義尾端的字（`NOT`、`NULL`、`PRIMARY KEY`；
+`TypeIsOptional`），尾端的封閉片語不收掉型別。其餘名稱與 `[timestamp]` 之後只接型別。
+
 資料行定義的開頭是一條規則：左括號前面是一份資料列的定義標頭——資料表的名稱（`CREATE` 以 `TABLE` 結尾的種類，
 含 `EXTERNAL TABLE`；`INSERT BULK t`）、資料表型別（`@t TABLE`、`AS TABLE`、CLR 的 `RETURNS TABLE`），或資料列集函式的
 結構描述（`OPENJSON(@j) WITH (`、`OPENXML(…) WITH (`）。名稱的省略段（`LibArchive..t`、`..t`）由共用的名稱單位跳過。
