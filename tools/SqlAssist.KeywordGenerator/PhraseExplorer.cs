@@ -307,7 +307,7 @@ internal sealed class PhraseExplorer
     public void AddEvidence(IReadOnlyList<PhraseDeclaration> declarations)
     {
         // 先換掉探到的字，證據補進來的（REVOKE 之後的 GRANT）才留得住。
-        AddListFirsts(declarations);
+        AddEvidenceFirsts(declarations);
 
         var evidence = declarations
             .Concat(declarations.Where(declaration => declaration.Classes).SelectMany(ClassEvidence))
@@ -442,17 +442,18 @@ internal sealed class PhraseExplorer
             Lagging = null,
         });
 
-    // 手寫證據的清單：標頭那一格（第一項）與逗號之後只列證據的第一個字，探到的字剖析器什麼都收、不算數；
-    // 那一格也沒有名稱，封閉。
-    private void AddListFirsts(IReadOnlyList<PhraseDeclaration> declarations)
+    // 手寫證據的那一格只列證據的第一個字，探到的字剖析器什麼都收、不算數；那一格也沒有名稱，封閉。
+    // 清單是標頭那一格（第一項）與逗號之後，其餘是片語本身（範圍設定 TIME_ZONE = 之後只有 LOCAL，不是剖析器也收的 ON）。
+    private void AddEvidenceFirsts(IReadOnlyList<PhraseDeclaration> declarations)
     {
-        foreach (var declaration in declarations.Where(declaration => declaration.IsList && declaration.Evidence != null))
+        foreach (var declaration in declarations.Where(declaration => declaration.Evidence != null))
         {
             var firsts = declaration.Evidence!.Select(tail => tail.Split(' ')[0]).Distinct(IgnoreCase).ToList();
+            string[] patterns = declaration.IsList ? [declaration.ListHead, declaration.Pattern] : [declaration.Pattern];
 
             foreach (var (position, _) in Anchors(declaration))
             {
-                foreach (var pattern in new[] { declaration.ListHead, declaration.Pattern })
+                foreach (var pattern in patterns)
                 {
                     if (Phrases.TryGet(ProbedPhrase.Key(position, pattern), out var phrase))
                     {

@@ -170,6 +170,21 @@ internal static class SecurityPhrases
         // 另一把金鑰）與 WITH 之後的演算法、主旨。等號之後的值（AES_256、RSA_2048）也由展開列，逗號之後由清單片語。
         new("CREATE MASTER KEY") { Expand = 3 },
         new("ALTER MASTER KEY") { Expand = 5 },
+        // 服務主要金鑰：FORCE 之後是 REGENERATE，WITH 之後是成對的帳戶與密碼（OLD_ACCOUNT 只接 OLD_PASSWORD）。
+        // WITH 與逗號之後剖析器把選項當名稱讀、什麼名稱都收，探不出字，手寫並宣告封閉。
+        new("ALTER SERVICE MASTER KEY") { Expand = 2 },
+        new("ALTER SERVICE MASTER KEY WITH")
+        {
+            Values = ["OLD_ACCOUNT", "NEW_ACCOUNT"],
+            Closed = true,
+            Endings = [" = 'a', OLD_PASSWORD = 'p'", " = 'a', NEW_PASSWORD = 'p'"],
+        },
+        .. new[] { "OLD", "NEW" }.Select(pair => new PhraseDeclaration($"ALTER SERVICE MASTER KEY WITH {pair}_ACCOUNT = {{value}} ,")
+        {
+            Values = [$"{pair}_PASSWORD"],
+            Closed = true,
+            Endings = [" = 'p'"],
+        }),
         // 主金鑰改由服務主要金鑰加密：BY 之後剖析器什麼名稱都收，SERVICE MASTER KEY 只有整段是證據。
         new("ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY"),
         new("ALTER MASTER KEY DROP ENCRYPTION BY SERVICE MASTER KEY"),

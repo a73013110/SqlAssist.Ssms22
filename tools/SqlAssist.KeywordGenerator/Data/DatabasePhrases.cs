@@ -27,7 +27,7 @@ internal static class DatabasePhrases
         // PERSISTENT_LOG_BUFFER = ON (DIRECTORY_NAME = …) 剖析器還不認得。
         new("CREATE DATABASE {name}") { Values = ["WITH"], Endings = [" TRUSTWORTHY ON"] },
         new("CREATE DATABASE ... WITH ,*") { Gap = "t COLLATE Latin1_General_CI_AS", Endings = [FileStreamOptions] },
-        new("CREATE DATABASE ... WITH ,* FILESTREAM (*") { Gap = "t COLLATE Latin1_General_CI_AS", Endings = [" = OFF)"] },
+        FileStream("CREATE DATABASE ... WITH ,*", "t COLLATE Latin1_General_CI_AS"),
 
         new("ALTER DATABASE {name} ADD FILE ,* (*") { Expand = 2 },
         new("ALTER DATABASE {name} ADD FILE ,* ()") { Group = FileSpec, Expand = 1 },
@@ -53,6 +53,10 @@ internal static class DatabasePhrases
     // WITH 之後的資料庫選項：共用續尾（ON、= ON）寫得完 TRUSTWORTHY、LEDGER，FILESTREAM 要一組括號。
     private const string DatabaseOption = " TRUSTWORTHY ON";
     private const string FileStreamOptions = " (NON_TRANSACTED_ACCESS = OFF)";
+
+    // FILESTREAM (NON_TRANSACTED_ACCESS = …, DIRECTORY_NAME = …)：CREATE DATABASE 的 WITH 與 ALTER DATABASE 的 SET 同一份。
+    private static PhraseDeclaration FileStream(string head, string? gap = null) =>
+        new(head + " FILESTREAM (*") { Gap = gap, Endings = [" = OFF)"] };
 
     private static PhraseDeclaration[] CreateDatabase(string head) =>
     [
@@ -89,6 +93,7 @@ internal static class DatabasePhrases
         new("ALTER DATABASE {name} SET ,* QUERY_STORE (* CLEANUP_POLICY = (*"),
         new("ALTER DATABASE {name} SET ,* QUERY_STORE = ON (* CLEANUP_POLICY = (*"),
         new("ALTER DATABASE {name} SET ,* AUTOMATIC_TUNING (*"),
+        FileStream("ALTER DATABASE {name} SET ,*"),
 
         // 終止子句 WITH ROLLBACK AFTER n SECONDS、ROLLBACK IMMEDIATE、NO_WAIT。選項寫完這一句已經完整，WITH 也是 CTE 的開頭
         // 被扣掉了：寫到 WITH 的整段是證據，WITH 補進選項那一格（那一格還不是片語就另立）。剖析器在任何選項之後都收，

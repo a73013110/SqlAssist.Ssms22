@@ -731,6 +731,17 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT * FROM dbo.Loan TABLESAMPLE SYSTEM (1 + 2 PERCENT) ", "REPEATABLE", "WHERE", "JOIN")]
     [InlineData("SELECT * FROM dbo.Loan TABLESAMPLE (10 ROWS) ", "REPEATABLE", "WHERE")]
     [InlineData("SELECT * FROM dbo.Loan TABLESAMPLE (10 PERCENT) REPEATABLE (1) ", "WHERE", "JOIN")]
+    [InlineData("ALTER DATABASE SCOPED CONFIGURATION SET ", "TIME_ZONE", "PREVIEW_FEATURES", "OPTIONAL_PARAMETER_OPTIMIZATION")]
+    [InlineData("ALTER DATABASE SCOPED CONFIGURATION SET TIME_ZONE = ", "LOCAL")]
+    [InlineData("ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET ELEVATE_ONLINE = ", "WHEN_SUPPORTED", "FAIL_UNSUPPORTED", "OFF")]
+    [InlineData("ALTER DATABASE Lib SET FILESTREAM (", "NON_TRANSACTED_ACCESS", "DIRECTORY_NAME")]
+    [InlineData("ALTER DATABASE Lib SET AUTO_CLOSE OFF, FILESTREAM (NON_TRANSACTED_ACCESS = FULL, ", "DIRECTORY_NAME")]
+    [InlineData("ALTER DATABASE Lib SET FILESTREAM (NON_TRANSACTED_ACCESS = ", "OFF", "READ_ONLY", "FULL")]
+    [InlineData("ALTER SERVICE MASTER KEY ", "REGENERATE", "FORCE REGENERATE", "WITH")]
+    [InlineData("ALTER SERVICE MASTER KEY FORCE ", "REGENERATE")]
+    [InlineData("ALTER SERVICE MASTER KEY WITH ", "OLD_ACCOUNT", "NEW_ACCOUNT")]
+    [InlineData("ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'LibSvc', ", "OLD_PASSWORD")]
+    [InlineData("ALTER SERVICE MASTER KEY WITH NEW_ACCOUNT = 'LibSvc', ", "NEW_PASSWORD")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -859,6 +870,10 @@ public sealed class SqlClausePhraseTests
     [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' WITH LIFETIME = @Life ", "COALESCE")]
     [InlineData("SELECT * FROM dbo.Loan TABLESAMPLE (10 PERCENT) REPEATABLE (1) ", "REPEATABLE")]
     [InlineData("SELECT * FROM dbo.Loan ", "REPEATABLE")]
+    [InlineData("ALTER DATABASE SCOPED CONFIGURATION SET TIME_ZONE = ", "ON")]
+    [InlineData("ALTER DATABASE SCOPED CONFIGURATION SET ELEVATE_ONLINE = ", "PRIMARY")]
+    [InlineData("ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'LibSvc', ", "NEW_PASSWORD")]
+    [InlineData("ALTER SERVICE MASTER KEY WITH NEW_ACCOUNT = 'LibSvc', ", "OLD_PASSWORD")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));

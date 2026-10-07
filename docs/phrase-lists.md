@@ -14,7 +14,7 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 `FROM t LEFT` 的 `LEFT` 比對成 `FROM ,* {name}` 的主體。主體寫完之後（`TO a, b CASCADE`）寫成 `TO ,* {name}`，第幾個主體都一樣。
 標頭的片語給第一項；逗號之後以每種第一項接逗號探測取聯集（用過的選項剖析器不收第二次），
 探到新字再取第一個往下一項探（`VECTOR_SEARCH` 的引數順序固定）。一種第一項之後就列得出每一種第一項的（剖析器不記用過的項），
-其餘不再探：否則事件通知幾百個事件各探一次跑不完；`SET ANSI_DEFAULTS, ` 之後列不出 `DATEFIRST`，照舊每一種都探。
+其餘不再探（事件通知有幾百個事件）；`SET ANSI_DEFAULTS, ` 之後列不出 `DATEFIRST`，照舊每一種都探。
 一項接得了逗號就好，整句寫不寫得完不論；
 值要過剖析器的（`FORMAT_TYPE =`）代入那一格列得出的第一個字，只收特定值的（`METRIC`）由 `Endings` 補。
 剖析器當名稱讀的項（`GROUP BY ,* ,` 的 `ROLLUP`）以 `Values` 補進逗號之後那一格，接在探到的那一項之後驗。
@@ -24,16 +24,16 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 逗號清單的一項寫了第一個字還沒完（接不了逗號）也立一格（`WITH ,* CHANGE_TRACKING` 之後是 `MANUAL`、`AUTO`、`OFF`），扣掉寫完一項之後
 接得上的字（`FOR LOGON` 之後的 `AS`）；括號清單由宣告的展開說。以尾巴比對的清單（`ALTER DATABASE {name} SET ,* ,`）的項同樣立，
 否則 `SET DB_CHAINING ON, TRUSTWORTHY ` 之後沒有 `ON`、`OFF`。第一個字是關鍵字的不立，之後寫什麼由位置分析說：
-`GROUP BY a, CASE` 之後是運算式，續尾寫不完 CASE 就判成封閉、藏掉資料行。第一項那一格已有展開立的片語時從逗號之後那一格探，
+`GROUP BY a, CASE` 續尾寫不完，會判成封閉、藏掉資料行。第一項那一格已有展開立的片語時從逗號之後那一格探，
 宣告寫出了這一項的（`RESULT SETS`）不立，否則較長的 `,*` 片語在第一項搶走比對；同清單更深一層的宣告（`,* AUTO_CREATE_STATISTICS ON (*`）不算。
 等號之後收得下一串值的寫成 `= ,* {value}`（`PROCESS AFFINITY CPU = 0, 2 TO 3`）。中段 `,*` 探零項的證據（沒墊 `Gap`），
 字也補進標頭那一格：`WITH ,* SEARCH PROPERTY LIST` 在第一項同樣寫得出來。
 `Expand` 走到固定標頭清單的標頭（`CREATE SYMMETRIC KEY t WITH`）就停，第一項與項的等號之後由清單立：
-否則展開先佔了 `WITH ALGORITHM = ` 的探測文字，`,* ALGORITHM =` 不立，逗號之後那一項列不出值。
+否則展開先佔了探測文字，`,* ALGORITHM =` 不立、逗號之後列不出值。
 官方有、ScriptDom 還不收的選項（`ALLOW_ENCRYPTED_VALUE_MODIFICATIONS`，TSql170 在值就報錯）寫在 `Lagging`：
 唯一不經剖析器證明的字，只驗標頭；ScriptDom 跟上就刪。
-剖析器什麼都收的清單探不出字：`GRANT` 收任何一串識別字（連 `AND` 都收），權限名稱由 `Evidence` 手寫（`sys.fn_builtin_permissions`），
-每一條接在尾巴之後當證據、一個字一個字列。探到的字不算數：標頭與逗號之後只列證據的第一個字並封閉，證據中段立起的片語
+剖析器什麼都收的清單探不出字：`GRANT` 收任何一串識別字，權限名稱由 `Evidence` 手寫（`sys.fn_builtin_permissions`），
+每一條接在尾巴之後當證據、一個字一個字列。探到的字不算數：標頭與逗號之後（不是清單的是片語本身：`TIME_ZONE =` 也收 `ON`，證據寫 `LOCAL`）只列證據的第一個字並封閉，證據中段立起的片語
 （`GRANT ,* VIEW`）是帶尾巴的附加片語，`DEFINITION` 加在 `PermissionList` 的 `ON`、`TO` 旁邊——`CONTROL` 寫完了也還接 `SERVER`。
 `()` 探測代入 `(a)`，對括號內容有要求的（RAISERROR）由 `Group` 指定最後一組（前面的是函式引數）。
 

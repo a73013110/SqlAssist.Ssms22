@@ -2067,7 +2067,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER SERVICE MASTER KEY", SqlKeywordPosition.StatementStart, "ALTER SERVICE MASTER KEY ", true, false, false, false, new string[]
         {
-            "FORCE", "REGENERATE", "WITH",
+            "FORCE REGENERATE", "REGENERATE", "WITH",
         }),
         ("ALTER SERVICE MASTER ON", SqlKeywordPosition.StatementStart, "ALTER SERVICE MASTER ON ", true, false, false, false, new string[]
         {
@@ -3120,39 +3120,71 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER DATABASE SCOPED CONFIGURATION SET", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CONFIGURATION SET ", false, false, false, false, new string[]
         {
-            "ACCELERATED_PLAN_FORCING", "ASYNC_STATS_UPDATE_WAIT_AT_LOW_PRIORITY",
+            "ACCELERATED_PLAN_FORCING", "ALLOW_BUILTIN_TVF_IN_ALL_COMPAT_LEVELS",
+            "ALLOW_STALE_VECTOR_INDEX", "ASYNC_STATS_UPDATE_WAIT_AT_LOW_PRIORITY",
             "BATCH_MODE_ADAPTIVE_JOINS", "BATCH_MODE_MEMORY_GRANT_FEEDBACK",
             "BATCH_MODE_ON_ROWSTORE", "CE_FEEDBACK", "DEFERRED_COMPILATION_TV", "DOP_FEEDBACK",
             "ELEVATE_ONLINE", "ELEVATE_RESUMABLE", "EXEC_QUERY_STATS_FOR_SCALAR_FUNCTIONS",
+            "FORCE_SHOWPLAN_RUNTIME_PARAMETER_COLLECTION", "FULLTEXT_INDEX_VERSION",
             "GLOBAL_TEMPORARY_TABLE_AUTO_DROP", "IDENTITY_CACHE", "INTERLEAVED_EXECUTION_TVF",
             "ISOLATE_SECURITY_POLICY_CARDINALITY", "LAST_QUERY_PLAN_STATS",
             "LEDGER_DIGEST_STORAGE_ENDPOINT", "LEGACY_CARDINALITY_ESTIMATION",
             "LIGHTWEIGHT_QUERY_PROFILING", "MAXDOP", "MEMORY_GRANT_FEEDBACK_PERCENTILE_GRANT",
             "MEMORY_GRANT_FEEDBACK_PERSISTENCE", "OPTIMIZE_FOR_AD_HOC_WORKLOADS",
             "OPTIMIZED_PLAN_FORCING", "OPTIMIZED_SP_EXECUTESQL",
-            "PARAMETER_SENSITIVE_PLAN_OPTIMIZATION", "PARAMETER_SNIFFING",
-            "PAUSED_RESUMABLE_INDEX_ABORT_DURATION_MINUTES", "QUERY_OPTIMIZER_HOTFIXES",
-            "ROW_MODE_MEMORY_GRANT_FEEDBACK", "TSQL_SCALAR_UDF_INLINING",
-            "VERBOSE_TRUNCATION_WARNINGS", "XTP_PROCEDURE_EXECUTION_STATISTICS",
-            "XTP_QUERY_EXECUTION_STATISTICS",
+            "OPTIONAL_PARAMETER_OPTIMIZATION", "PARAMETER_SENSITIVE_PLAN_OPTIMIZATION",
+            "PARAMETER_SNIFFING", "PAUSED_RESUMABLE_INDEX_ABORT_DURATION_MINUTES",
+            "PREVIEW_FEATURES", "QUERY_OPTIMIZER_HOTFIXES",
+            "READABLE_SECONDARY_TEMPORARY_STATS_AUTO_CREATE",
+            "READABLE_SECONDARY_TEMPORARY_STATS_AUTO_UPDATE", "ROW_MODE_MEMORY_GRANT_FEEDBACK",
+            "TIME_ZONE", "TSQL_SCALAR_UDF_INLINING", "VERBOSE_TRUNCATION_WARNINGS",
+            "XTP_PROCEDURE_EXECUTION_STATISTICS", "XTP_QUERY_EXECUTION_STATISTICS",
+        }),
+        ("ALTER DATABASE SCOPED CONFIGURATION SET ELEVATE_ONLINE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CONFIGURATION SET ELEVATE_ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "WHEN_SUPPORTED", "FAIL_UNSUPPORTED",
+        }),
+        ("ALTER DATABASE SCOPED CONFIGURATION SET ELEVATE_RESUMABLE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CONFIGURATION SET ELEVATE_RESUMABLE = ", true, false, false, false, new string[]
+        {
+            "OFF", "WHEN_SUPPORTED", "FAIL_UNSUPPORTED",
+        }),
+        ("ALTER DATABASE SCOPED CONFIGURATION SET TIME_ZONE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CONFIGURATION SET TIME_ZONE = ", true, false, false, false, new string[]
+        {
+            "LOCAL",
         }),
         ("ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET ", false, false, false, false, new string[]
         {
-            "ACCELERATED_PLAN_FORCING", "ASYNC_STATS_UPDATE_WAIT_AT_LOW_PRIORITY",
+            "ACCELERATED_PLAN_FORCING", "ALLOW_BUILTIN_TVF_IN_ALL_COMPAT_LEVELS",
+            "ALLOW_STALE_VECTOR_INDEX", "ASYNC_STATS_UPDATE_WAIT_AT_LOW_PRIORITY",
             "BATCH_MODE_ADAPTIVE_JOINS", "BATCH_MODE_MEMORY_GRANT_FEEDBACK",
             "BATCH_MODE_ON_ROWSTORE", "CE_FEEDBACK", "DEFERRED_COMPILATION_TV", "DOP_FEEDBACK",
             "ELEVATE_ONLINE", "ELEVATE_RESUMABLE", "EXEC_QUERY_STATS_FOR_SCALAR_FUNCTIONS",
+            "FORCE_SHOWPLAN_RUNTIME_PARAMETER_COLLECTION", "FULLTEXT_INDEX_VERSION",
             "GLOBAL_TEMPORARY_TABLE_AUTO_DROP", "IDENTITY_CACHE", "INTERLEAVED_EXECUTION_TVF",
             "ISOLATE_SECURITY_POLICY_CARDINALITY", "LAST_QUERY_PLAN_STATS",
             "LEDGER_DIGEST_STORAGE_ENDPOINT", "LEGACY_CARDINALITY_ESTIMATION",
             "LIGHTWEIGHT_QUERY_PROFILING", "MAXDOP", "MEMORY_GRANT_FEEDBACK_PERCENTILE_GRANT",
             "MEMORY_GRANT_FEEDBACK_PERSISTENCE", "OPTIMIZE_FOR_AD_HOC_WORKLOADS",
             "OPTIMIZED_PLAN_FORCING", "OPTIMIZED_SP_EXECUTESQL",
-            "PARAMETER_SENSITIVE_PLAN_OPTIMIZATION", "PARAMETER_SNIFFING",
-            "PAUSED_RESUMABLE_INDEX_ABORT_DURATION_MINUTES", "QUERY_OPTIMIZER_HOTFIXES",
-            "ROW_MODE_MEMORY_GRANT_FEEDBACK", "TSQL_SCALAR_UDF_INLINING",
-            "VERBOSE_TRUNCATION_WARNINGS", "XTP_PROCEDURE_EXECUTION_STATISTICS",
-            "XTP_QUERY_EXECUTION_STATISTICS",
+            "OPTIONAL_PARAMETER_OPTIMIZATION", "PARAMETER_SENSITIVE_PLAN_OPTIMIZATION",
+            "PARAMETER_SNIFFING", "PAUSED_RESUMABLE_INDEX_ABORT_DURATION_MINUTES",
+            "PREVIEW_FEATURES", "QUERY_OPTIMIZER_HOTFIXES",
+            "READABLE_SECONDARY_TEMPORARY_STATS_AUTO_CREATE",
+            "READABLE_SECONDARY_TEMPORARY_STATS_AUTO_UPDATE", "ROW_MODE_MEMORY_GRANT_FEEDBACK",
+            "TIME_ZONE", "TSQL_SCALAR_UDF_INLINING", "VERBOSE_TRUNCATION_WARNINGS",
+            "XTP_PROCEDURE_EXECUTION_STATISTICS", "XTP_QUERY_EXECUTION_STATISTICS",
+        }),
+        ("ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET ELEVATE_ONLINE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET ELEVATE_ONLINE = ", true, false, false, false, new string[]
+        {
+            "OFF", "WHEN_SUPPORTED", "FAIL_UNSUPPORTED",
+        }),
+        ("ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET ELEVATE_RESUMABLE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET ELEVATE_RESUMABLE = ", true, false, false, false, new string[]
+        {
+            "OFF", "WHEN_SUPPORTED", "FAIL_UNSUPPORTED",
+        }),
+        ("ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET TIME_ZONE =", SqlKeywordPosition.StatementStart, "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET TIME_ZONE = ", true, false, false, false, new string[]
+        {
+            "LOCAL",
         }),
         ("CREATE DATABASE {name} CONTAINMENT =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = ", true, false, false, false, new string[]
         {
@@ -4059,6 +4091,10 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} SET ,* AUTOMATIC_TUNING (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTOMATIC_TUNING (", true, false, false, false, new string[]
         {
             "CREATE_INDEX", "DROP_INDEX", "FORCE_LAST_GOOD_PLAN", "MAINTAIN_INDEX",
+        }),
+        ("ALTER DATABASE {name} SET ,* FILESTREAM (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET FILESTREAM (", true, false, true, false, new string[]
+        {
+            "DIRECTORY_NAME", "NON_TRANSACTED_ACCESS",
         }),
         ("ALTER DATABASE {name} SET ,* ONLINE WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ONLINE WITH ", true, false, false, false, new string[]
         {
@@ -12723,6 +12759,22 @@ internal static class SqlKeywordCatalogData
         ("ALTER MASTER KEY DROP ENCRYPTION BY PASSWORD", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY DROP ENCRYPTION BY PASSWORD ", false, false, true, false, new string[]
         {
         }),
+        ("ALTER SERVICE MASTER KEY FORCE", SqlKeywordPosition.StatementStart, "ALTER SERVICE MASTER KEY FORCE ", true, false, false, false, new string[]
+        {
+            "REGENERATE",
+        }),
+        ("ALTER SERVICE MASTER KEY WITH", SqlKeywordPosition.StatementStart, "ALTER SERVICE MASTER KEY WITH ", true, false, true, false, new string[]
+        {
+            "NEW_ACCOUNT", "OLD_ACCOUNT",
+        }),
+        ("ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = {value} ,", SqlKeywordPosition.StatementStart, "ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'x' , ", true, false, true, false, new string[]
+        {
+            "OLD_PASSWORD",
+        }),
+        ("ALTER SERVICE MASTER KEY WITH NEW_ACCOUNT = {value} ,", SqlKeywordPosition.StatementStart, "ALTER SERVICE MASTER KEY WITH NEW_ACCOUNT = 'x' , ", true, false, true, false, new string[]
+        {
+            "NEW_PASSWORD",
+        }),
         ("ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY ", true, false, false, true, new string[]
         {
         }),
@@ -15995,6 +16047,14 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} SET ,* AUTOMATIC_TUNING (* MAINTAIN_INDEX =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTOMATIC_TUNING (MAINTAIN_INDEX = ", true, false, false, false, new string[]
         {
             "DEFAULT", "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* FILESTREAM (* DIRECTORY_NAME =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET FILESTREAM (DIRECTORY_NAME = ", false, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("ALTER DATABASE {name} SET ,* FILESTREAM (* NON_TRANSACTED_ACCESS =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET FILESTREAM (NON_TRANSACTED_ACCESS = ", true, false, false, false, new string[]
+        {
+            "FULL", "OFF", "READ_ONLY",
         }),
         ("ALTER AVAILABILITY GROUP {name} ADD REPLICA ON ,* {value} WITH (* AVAILABILITY_MODE =", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t ADD REPLICA ON 'x' WITH (AVAILABILITY_MODE = ", true, false, false, false, new string[]
         {
