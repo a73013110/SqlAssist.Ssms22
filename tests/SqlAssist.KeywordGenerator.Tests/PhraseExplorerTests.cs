@@ -17,6 +17,7 @@ public sealed class PhraseExplorerTests : IDisposable
         ["StatementStart"] = ["", "SELECT 1; "],
         ["DataSource"] = ["SELECT * FROM "],
         ["SelectListTail"] = ["SELECT a "],
+        ["BlockStart"] = ["BEGIN "],
     };
 
     private readonly string _cachePath = Path.Combine(Path.GetTempPath(), "SqlAssist.KeywordGenerator.Tests." + Guid.NewGuid() + ".cache");
@@ -160,6 +161,20 @@ public sealed class PhraseExplorerTests : IDisposable
         Assert.True(policy.Closed);
         var password = explorer.Phrases[ProbedPhrase.Key("StatementStart", "ALTER LOGIN {name} WITH ,* PASSWORD = {value}")];
         Assert.Equal(["HASHED", "MUST_CHANGE", "OLD_PASSWORD", "UNLOCK"], password.Words.OrderBy(word => word, StringComparer.Ordinal));
+    }
+
+    /// <summary>等號之後也收運算式的那一格（ENCRYPTION = 列得出 CASE），代入寫完一個值的字，不代入運算式的開頭。</summary>
+    [Fact]
+    public void 等號之後收運算式時代入寫完一個值的字()
+    {
+        var explorer = Create(pool: ["CASE", "COALESCE", "ENCRYPTION", "LIFETIME", "OFF", "ON"]);
+        const string head = "DIALOG {name} FROM SERVICE {name} TO SERVICE {value} WITH ,*";
+
+        explorer.Explore([new(head) { After = ["BlockStart"] }]);
+
+        var encryption = explorer.Phrases[ProbedPhrase.Key("BlockStart", head + " ENCRYPTION =")];
+        Assert.Contains("CASE", encryption.Words);
+        Assert.False(explorer.Phrases.Contains(ProbedPhrase.Key("BlockStart", head + " ENCRYPTION = {name}")));
     }
 
     /// <summary>逗號清單一項的第一個字還沒寫完也是一格：CHANGE_TRACKING 之後是 MANUAL、AUTO、OFF，寫在第幾項都一樣。</summary>

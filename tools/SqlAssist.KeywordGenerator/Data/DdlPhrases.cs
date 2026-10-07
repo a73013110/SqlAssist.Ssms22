@@ -128,6 +128,8 @@ internal static class DdlPhrases
         // 名稱那一格自己宣告，其餘的字由整段證據補進前面那段。
         new("ALTER ASSEMBLY {name}"),
         new("ALTER ASSEMBLY {name} WITH ,*"),
+        // 換新版本的 FROM 之後同一份選項（VISIBILITY、PERMISSION_SET、UNCHECKED DATA）。
+        new("ALTER ASSEMBLY {name} FROM {value} WITH ,*"),
         new("ALTER ASSEMBLY {name} DROP FILE ALL"),
         new("ALTER ASSEMBLY {name} ADD FILE FROM {value}"),
         // CREATE ASSEMBLY 的 WITH 只有 PERMISSION_SET 一項；FROM 可以寫幾個檔案、前面還可以有 AUTHORIZATION。

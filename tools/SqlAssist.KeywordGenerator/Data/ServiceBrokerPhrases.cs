@@ -17,16 +17,21 @@ internal static class ServiceBrokerPhrases
     internal static readonly PhraseDeclaration[] All =
     [
         // BEGIN DIALOG [CONVERSATION] @h FROM SERVICE s TO SERVICE 'x' ON CONTRACT c WITH …：FROM、TO 之後的 SERVICE 剖析器要讀完
-        // 名稱才驗，逐字探不出來，寫到目標服務（含逗號之後的服務代理執行個體）的整段是證據；之後的 ON CONTRACT 由展開探，
-        // 寫完一句扣掉的 WITH 手寫補回。
+        // 名稱才驗，逐字探不出來，寫到目標服務（含逗號之後的服務代理執行個體）的整段是證據；之後的 ON CONTRACT 由展開探。
+        // WITH 之後的選項是逗號清單（RELATED_CONVERSATION[_GROUP]、LIFETIME、ENCRYPTION，剖析器要逗號），寫完一句扣掉的 WITH
+        // 由清單的整段證據補回；ON CONTRACT 可省，兩種標頭各一份。
         // FROM SERVICE 那一格證據不立（以名稱結尾、沒有字），另外宣告，目錄物件名冊才認得出那一格要服務的名稱。
         // BEGIN 之後是區塊開頭的位置：從 DIALOG 寫起，否則證據把 BEGIN 立成封閉片語，藏掉 ATOMIC、CATCH 與片段。
         .. from head in new[] { "DIALOG {name}", "DIALOG CONVERSATION {name}" }
+           select new PhraseDeclaration(head + " FROM SERVICE") { After = ["BlockStart"] },
+        .. from head in new[] { "DIALOG {name}", "DIALOG CONVERSATION {name}" }
+           from target in new[] { " TO SERVICE {value}", " TO SERVICE {value} , {value}" }
+           let to = head + " FROM SERVICE {name}" + target
            from declaration in new PhraseDeclaration[]
            {
-               new(head + " FROM SERVICE") { After = ["BlockStart"] },
-               new(head + " FROM SERVICE {name} TO SERVICE {value}") { After = ["BlockStart"], Expand = 4, Values = ["WITH"] },
-               new(head + " FROM SERVICE {name} TO SERVICE {value} , {value}") { After = ["BlockStart"], Expand = 4, Values = ["WITH"] },
+               new(to) { After = ["BlockStart"], Expand = 2 },
+               new(to + " WITH ,*") { After = ["BlockStart"] },
+               new(to + " ON CONTRACT {name} WITH ,*") { After = ["BlockStart"] },
            }
            select declaration,
 

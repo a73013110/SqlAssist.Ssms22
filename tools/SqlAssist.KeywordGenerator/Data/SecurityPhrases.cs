@@ -341,6 +341,8 @@ internal static class SecurityPhrases
         new("CREATE LOGIN {name} FROM WINDOWS WITH ,*"),
         new("CREATE LOGIN {name} FROM EXTERNAL PROVIDER WITH ,*"),
         new("ALTER LOGIN {name} WITH ,*"),
+        // 密碼之後的 MUST_CHANGE、UNLOCK 可以寫兩個：項的等號之後只立一層，再往下一層由展開說。
+        new("ALTER LOGIN {name} WITH ,* PASSWORD = {value}") { Expand = 1 },
         // ALLOW_ENCRYPTED_VALUE_MODIFICATIONS（Always Encrypted 的大量複製）官方語法圖寫得出來，ScriptDom TSql170 在值就報錯：
         // 手寫補進清單（Lagging），只有這一處。
         new("CREATE USER {name} WITH ,*") { Lagging = [AllowEncryptedValueModifications] },

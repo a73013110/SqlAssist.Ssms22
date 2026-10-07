@@ -453,6 +453,11 @@ public sealed class SqlClausePhraseTests
     [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO ", "SERVICE")]
     [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' ", "ON", "WITH")]
     [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' ON ", "CONTRACT")]
+    [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' ON CONTRACT LoanContract ", "WITH")]
+    [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' ON CONTRACT LoanContract\nWITH ","RELATED_CONVERSATION_GROUP", "ENCRYPTION")]
+    [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE @Target WITH RELATED_CONVERSATION_GROUP = @Group, ", "ENCRYPTION", "LIFETIME")]
+    [InlineData("BEGIN DIALOG CONVERSATION @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver', 'current database' ON CONTRACT LoanContract WITH ENCRYPTION = ON, ", "LIFETIME")]
+    [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' WITH ENCRYPTION = ", "ON", "OFF")]
     [InlineData("CREATE SERVICE LoanService ON ", "QUEUE")]
     [InlineData("CREATE SERVICE LoanService AUTHORIZATION dbo ", "ON")]
     [InlineData("CREATE MESSAGE TYPE LoanRequest VALIDATION = ", "WELL_FORMED_XML", "NONE")]
@@ -582,6 +587,10 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER ASSEMBLY LibClr DROP ", "FILE")]
     [InlineData("ALTER ASSEMBLY LibClr DROP FILE ", "ALL")]
     [InlineData("ALTER ASSEMBLY LibClr WITH PERMISSION_SET = SAFE, VISIBILITY = ", "ON", "OFF")]
+    [InlineData("ALTER ASSEMBLY LibClr FROM 'x' WITH ", "VISIBILITY", "PERMISSION_SET", "UNCHECKED")]
+    [InlineData("ALTER ASSEMBLY LibClr FROM 'x' WITH VISIBILITY = ON, UNCHECKED ", "DATA")]
+    [InlineData("ALTER LOGIN LibLogin WITH PASSWORD = 'x' UNLOCK ", "MUST_CHANGE")]
+    [InlineData("ALTER LOGIN LibLogin WITH DEFAULT_LANGUAGE = us_english, PASSWORD = 'x' MUST_CHANGE ", "UNLOCK")]
     [InlineData("CREATE DATABASE LibSnap ON (NAME = Lib_dat, FILENAME = 'x'), (NAME = Lib_log, FILENAME = 'y') AS ", "SNAPSHOT OF")]
     [InlineData("CREATE DATABASE LibSnap ON (NAME = Lib_dat, FILENAME = 'x') AS SNAPSHOT ", "OF")]
     [InlineData("ALTER DATABASE LibArchive SET HADR ", "AVAILABILITY GROUP", "OFF", "SUSPEND", "RESUME")]
@@ -817,6 +826,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY GROUPING SETS (ROLLUP (", "CUBE")]
     [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (LoanId) ", "ORDER")]
     [InlineData("CREATE TABLE dbo.Loan (LoanId int, INDEX IX_Loan (LoanId) ON LibData ", "TEXTIMAGE_ON")]
+    [InlineData("BEGIN DIALOG @Handle FROM SERVICE LoanSender TO SERVICE 'LoanReceiver' WITH LIFETIME = @Life ", "COALESCE")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));

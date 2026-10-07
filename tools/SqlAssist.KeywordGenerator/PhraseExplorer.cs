@@ -836,7 +836,10 @@ internal sealed class PhraseExplorer
         {
             if (words.Count > 0 && !Explored(after, pattern + " {name}", expand - 1))
             {
-                Add(pattern + " {name}", probe + words[0] + " ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
+                // 也收運算式的那一格（BEGIN DIALOG … WITH ENCRYPTION = 之後列得出 CASE、COALESCE），第一個字可能只是運算式的開頭，
+                // 代入它探到的是 CASE 之後的字：取寫完一個值的字（接得上逗號、右括號或寫完一句），都沒有才取第一個。
+                var written = words.FirstOrDefault(word => WritesValue(probe + word + " ")) ?? words[0];
+                Add(pattern + " {name}", probe + written + " ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
             }
 
             // 等號之後收得下一串以逗號分隔的值（PROCESS AFFINITY CPU = 0, 2 TO 3）：寫完的那幾個是中段的 ,*，
@@ -1230,6 +1233,13 @@ internal sealed class PhraseExplorer
         }
 
         return _prober.FirstEndingPast(probe + Continuations.PlainName + " " + literal, _continuations, probe.Length) != null;
+    }
+
+    // 寫到 written（以空白結尾）是一個寫完的值：接得上逗號或右括號，或已寫完一句。
+    private bool WritesValue(string written)
+    {
+        return _prober.FirstRejection(written + ",") > written.Length || _prober.FirstRejection(written + ")") > written.Length ||
+            _prober.IsComplete(written.TrimEnd());
     }
 
     // 這一格只收變數：變數之後再接一個字，剖析器也不在變數本身報錯，普通名稱卻過不了。只看變數的話，剖析器在更前面報
