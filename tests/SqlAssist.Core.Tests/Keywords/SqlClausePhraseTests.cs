@@ -627,6 +627,10 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE AVAILABILITY GROUP LibAg WITH (DTC_SUPPORT = PER_DB)\nFOR DATABASE LibArchive, LibStage\n", "REPLICA")]
     [InlineData("ENABLE TRIGGER LoanAudit, CopyAudit ON ", "DATABASE", "ALL SERVER")]
     [InlineData("DISABLE TRIGGER LoanAudit, CopyAudit, ReaderAudit ON ALL ", "SERVER")]
+    [InlineData("CREATE SEQUENCE dbo.LoanNo NO MAXVALUE ", "INCREMENT BY", "CACHE")]
+    [InlineData("ALTER SEQUENCE dbo.LoanNo NO MINVALUE ", "MAXVALUE", "RESTART")]
+    [InlineData("CREATE SEQUENCE dbo.LoanNo MINVALUE 1 MAXVALUE 10 CACHE\nCREATE ", "SEQUENCE")]
+    [InlineData("ALTER SEQUENCE dbo.LoanNo NO CYCLE MINVALUE 1\nALTER ", "SEQUENCE")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -841,6 +845,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER TABLE dbo.Loan ADD Note varchar(100)\n", "SPARSE", "SELECT")]
     [InlineData("ALTER TABLE dbo.Loan ALTER COLUMN Note varchar(100) NOT NULL\n", "WITH", "SELECT")]
     [InlineData("ALTER SEQUENCE dbo.LoanNo\n", "RESTART", "SELECT")]
+    [InlineData("END CONVERSATION 10\n", "WITH", "ENABLE")]
     public void 語句寫完又換行時片語只加字(string textBeforeCaret, string phraseWord, string nextStatementWord)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);

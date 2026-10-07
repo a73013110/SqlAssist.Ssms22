@@ -35,9 +35,9 @@
 
 語句寫到片語為止已經完整（`EndsStatement`）、游標又換了行：下一句與這一句的續寫都可能，片語一律比對成**可能**。
 `CREATE USER u⏎` 之後照樣列 `WITHOUT`、`FOR`，`CREATE SEQUENCE s⏎` 列 `START WITH`，`CREATE DATABASE d ON (…)⏎` 列 `LOG`。
-換行是不是界線由位置分析說（下一句的開頭在那一格的位置裡），片語不另判；另判的話位置分析不補語句開頭的那一格
-（`SequenceOption`）兩邊都落空。游標處因換行補上了語句開頭時，探測文字寫不完一句的片語也一樣：
-`ALTER TABLE t ADD a int⏎` 的型別之後那一格拿 `CREATE TABLE` 探，照樣列下一句的字。
+換行是不是界線由位置分析說（下一句的開頭在那一格的位置裡），片語不另判。游標處因換行補上了語句開頭時，探測文字寫不完一句的片語也一樣：
+`ALTER TABLE t ADD a int⏎` 的型別之後那一格拿 `CREATE TABLE` 探，照樣列下一句的字。游標處判不出位置時附加片語的字一併加：
+`END CONVERSATION 10⏎` 之後寫得出 `ENABLE`。
 
 寫完一句的片語另問位置分析這一句是不是 IF 只有一句的主體（`EndsIfBodyAt`），是的話字併上 `IfBodyEnd` 比語句開頭多出來的字（`ELSE`，取自目錄）。
 `IF 1 = 1 COMMIT ` 的位置判不出來，游標處沒有 `IfBodyEnd`；比對確定時字又只來自片語，`ELSE` 兩邊都落空。

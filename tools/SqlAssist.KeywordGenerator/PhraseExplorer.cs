@@ -615,6 +615,8 @@ internal sealed class PhraseExplorer
                 continue;
             }
 
+            ContinueHalfOptions(position, ending);
+
             foreach (var phrase in Phrases.Values)
             {
                 if (phrase != position && phrase.After[0] == position.After[0] && phrase.Closed && !phrase.TakesName &&
@@ -623,6 +625,39 @@ internal sealed class PhraseExplorer
                     // 唯一接續已經併過（MASKED WITH）：同一個字開頭的取位置片語那一項。
                     var firsts = new HashSet<string>(position.Words.Select(FirstWord), IgnoreCase);
                     phrase.Words = [.. position.Words, .. phrase.Words.Where(word => !firsts.Contains(FirstWord(word)))];
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 寫到一半的選項接上的字，單獨也是這一格另一個寫到一半的片語（<c>NO</c> 之後的 <c>MAXVALUE</c>）：
+    /// 兩段接起來寫完一個選項的，立成片語，由位置片語併字。
+    /// </summary>
+    /// <remarks>
+    /// 執行期取比對得上的最長尾巴，前一格又處處是這個位置；不立的話 <c>NO MAXVALUE </c> 比對成要值的
+    /// <c>MAXVALUE</c>，寫完的一項被當成寫到一半，清單一個字都不列。單獨寫完的字（<c>NO CYCLE</c> 的 CYCLE）
+    /// 比對不到片語，本來就回到位置，不必立。
+    /// </remarks>
+    private void ContinueHalfOptions(ProbedPhrase position, string ending)
+    {
+        var after = position.After[0];
+        var completes = (string probe) => _prober.IsComplete(probe.TrimEnd() + ending);
+        var halves = Phrases.Values
+            .Where(phrase => phrase != position && phrase.After[0] == after && !completes(phrase.Probe))
+            .ToList();
+
+        foreach (var half in halves)
+        {
+            foreach (var word in half.Words.ToList())
+            {
+                var pattern = half.Pattern + " " + word;
+                var probe = half.Probe + word + " ";
+
+                if (Phrases.TryGet(ProbedPhrase.Key(after, word), out var alone) && !completes(alone.Probe) &&
+                    !Phrases.Contains(ProbedPhrase.Key(after, pattern)) && completes(probe))
+                {
+                    Add(pattern, probe, after, child: true);
                 }
             }
         }

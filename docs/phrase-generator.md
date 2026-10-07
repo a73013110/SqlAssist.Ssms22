@@ -39,19 +39,19 @@
   值、名稱與選項的等號各是一步、不算一層（`FETCH ABSOLUTE 1 FROM`）；接得了值的格子是運算式，
   不走名稱與等號。等號之後的值不逐一展開，以第一個字與數值各往下一次（`SIZE = 5 MB`）。同一格層數比上次多才再展開，位置片語說了的不立。
   宣告的 `Endings` 跟著往下（`MASKED` 要寫完 `WITH (FUNCTION = …)` 才驗）。
-- 探測代入：`{value}` 用剖析器收的數值或字串，都不收的照 `{name}`（`CONTAINSTABLE (` 的資料行）；`{name}` 用普通名稱，只收變數的用變數，其餘格子與等號之後用那一格列得出的
+- 探測代入：`{value}` 用剖析器收的數值或字串，都不收的照 `{name}`；`{name}` 用普通名稱，只收變數的用變數，其餘格子與等號之後用那一格列得出的
   第一個字：`ALGORITHM =` 什麼名稱都先收，整句寫完才驗。剖析器要看到下一個字才收名稱的
-  （`ALTER SERVER AUDIT a WITH`、`ALTER SERVICE s (`）接上片語的下一項判，只收兩段的（擴充事件）代入 `t.t`。
+  （`ALTER SERVER AUDIT a WITH`）接上片語的下一項判，只收兩段的（擴充事件）代入 `t.t`。
 - `Kinds`：`CREATE`、`ALTER`、`DROP` 之後是物件種類，展開到名稱為止，名稱之後只列一層（`CREATE TABLE t ` 的 `AS`）：
   否則 `CREATE PROCEDURE p AS` 之後是整份語句開頭。更深的標頭各自宣告，已是位置的（`CREATE SEQUENCE t `）由位置片語說。
-  `CREATE` 寫到名稱的種類（`SYMMETRIC KEY`、`UNIQUE CLUSTERED INDEX`、`OR ALTER PROCEDURE`）輸出成 `CreatedKinds`，
+  `CREATE` 寫到名稱的種類（`SYMMETRIC KEY`、`UNIQUE CLUSTERED INDEX`）輸出成 `CreatedKinds`，
   位置分析拿它判新名字，不手寫名單；名稱寫得成兩段式（`CREATE INDEX s.i` 不行）另記 `SchemaQualified`。
   名稱之後接得上 `AUTHORIZATION` 的另立擁有者那一格（`CREATE SCHEMA s AUTHORIZATION`）。
-- `Values`：剖析器把值當名稱看、分不出來時才手寫（`SET DATEFORMAT` 的 `dmy`、資料庫加密金鑰的演算法）。
+- `Values`：剖析器把值當名稱看、分不出來時才手寫（`SET DATEFORMAT` 的 `dmy`）。
   每個值仍要接得上一組續尾（含 `Endings`）或開得了一組清單，否則中止產生；`Closed` 由人宣告那一格只有這幾個值。
   手寫的值也往下展開。
 - `Template`：`After` 位置的第幾個樣板（`IS` 要 `WHERE a `，不是 `WHERE a = 1 `）。換樣板探的仍是同一格：
-  證據補進那一格的片語、字取聯集（計算資料行才接的 `PERSISTED` 補進型別之後那一格）。
+  證據補進那一格的片語、字取聯集（`PERSISTED` 補進型別之後那一格）。
 
 ## 片語裡的每一個字
 
@@ -92,7 +92,8 @@
   判得出來的一律寫 `After`；兩種都寫時 `Lead` 墊位置的樣板，否則立成兩個片語互搶。
 
 展開出來寫完一個選項的片語回到位置本身，字併進位置片語的：位置樣板接上哪一條續尾就完整，它接上同一條也完整
-（型別之後的 `NULL`，序列的 `START WITH 1`）；寫到一半的（`NOT`、`NO`）照舊。片語只拿一個樣板探，
+（型別之後的 `NULL`，序列的 `START WITH 1`）；寫到一半的（`NOT`、`NO`）照舊。接上一個字就寫完、那個字單獨卻是
+寫到一半的片語時另立（`NO MAXVALUE`）：否則比對成要值的 `MAXVALUE`。片語只拿一個樣板探，
 位置片語的字由各樣板的證據補齊，照自己探到的列的話 `ALTER COLUMN a int NOT NULL ` 之後沒有 `WITH`。
 
 前一格判不出位置的（選取清單以外的 `NEXT VALUE`、預設值條件約束）寫更長的 `Lead` 尾巴。

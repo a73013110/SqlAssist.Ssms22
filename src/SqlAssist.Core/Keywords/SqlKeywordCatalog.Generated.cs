@@ -18691,6 +18691,16 @@ internal static class SqlKeywordCatalogData
         {
             "NULL", "NOTRUNCATE", "TRUNCATEONLY",
         }),
+        ("NO MAXVALUE", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t NO MAXVALUE ", true, false, false, true, new string[]
+        {
+            "AS", "CACHE", "CYCLE", "INCREMENT BY", "MAXVALUE", "MINVALUE", "NO", "START WITH",
+            "RESTART",
+        }),
+        ("NO MINVALUE", SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t NO MINVALUE ", true, false, false, true, new string[]
+        {
+            "AS", "CACHE", "CYCLE", "INCREMENT BY", "MAXVALUE", "MINVALUE", "NO", "START WITH",
+            "RESTART",
+        }),
     };
 
     /// <summary>

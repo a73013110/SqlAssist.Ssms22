@@ -171,9 +171,11 @@ public static class SqlClausePhraseCatalog
         }
 
         // 判不出位置時整份目錄進場，附加片語的字也一樣：None 的附加片語只在這裡出現。
+        // 寫完一句的尾巴只比對到可能（換了行）時，游標處可能是下一句的開頭，附加片語的字一併加：
+        // END CONVERSATION 10⏎ 之後照樣寫得出 ENABLE。
         if (caret == SqlKeywordPosition.Any)
         {
-            return best ?? MatchAdditive(caret);
+            return best is { Phrase.EndsStatement: true } ? UnionAdditive(best, MatchAdditive(caret)) : best ?? MatchAdditive(caret);
         }
 
         // 錨點之後緊接的第一格由標頭本身那個片語說（CREATE LOGIN 的第一項只能是 PASSWORD），上面已比對過。
@@ -223,8 +225,12 @@ public static class SqlClausePhraseCatalog
             return best;
         }
 
-        var position = MatchAdditive(caret);
+        return UnionAdditive(best, MatchAdditive(caret));
+    }
 
+    /// <summary>尾巴與游標處的附加片語都對上時合成一個：字取聯集，只加字、比對只算可能。</summary>
+    private static SqlClausePhraseMatch? UnionAdditive(SqlClausePhraseMatch? best, SqlClausePhraseMatch? position)
+    {
         if (best is null || position is null)
         {
             return best ?? position;

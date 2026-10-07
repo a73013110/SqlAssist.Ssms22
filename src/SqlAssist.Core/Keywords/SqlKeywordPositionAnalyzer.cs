@@ -405,6 +405,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 子句尾端之外還有 SET 選項名稱之後：識別字的選項值（<c>SET DATEFORMAT dmy</c>）
     /// 在詞元上與名稱分不開，見 <see cref="FindSetOptionPart"/>；以及資料行定義的尾端，
     /// <c>ALTER TABLE t ADD a int</c> 寫在括號外，一句就寫完了（括號裡的由 <see cref="AddStatementStartOnNewLine"/> 排除）。
+    /// 序列的選項也是：選項不以逗號分隔、全都可以不寫，<c>CREATE SEQUENCE s CACHE⏎CREATE</c> 的第二個 CREATE 是下一句。
     /// </remarks>
     private const SqlKeywordPosition StatementEndPositions =
         SqlKeywordPosition.SelectListTail |
@@ -416,6 +417,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
         SqlKeywordPosition.FetchTail |
         SqlKeywordPosition.UpdateSetTail |
         SqlKeywordPosition.ColumnDefinitionTail |
+        SqlKeywordPosition.SequenceOption |
         SqlKeywordPosition.SetOptionValue;
 
     /// <summary>
