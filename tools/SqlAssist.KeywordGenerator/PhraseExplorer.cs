@@ -783,6 +783,7 @@ internal sealed class PhraseExplorer
                 // 類別之後的 :: 也是：ALTER AUTHORIZATION ON ASSEMBLY 之後是 ::，ASSEMBLY TO 只是名叫 ASSEMBLY 的物件。
                 TakesOperand = takesName || sample != null || TakesVariableOnly(probe) || _prober.FirstRejection(probe + "(") > probe.Length ||
                     _prober.FirstRejection(probe + "::") > probe.Length,
+                TakesGroup = TakesGroup(probe),
                 EndsItem = _prober.FirstRejection(probe + ",") > probe.Length || _prober.FirstRejection(probe + ")") > probe.Length,
             });
         }
@@ -1240,6 +1241,14 @@ internal sealed class PhraseExplorer
     {
         return _prober.FirstRejection(written + ",") > written.Length || _prober.FirstRejection(written + ")") > written.Length ||
             _prober.IsComplete(written.TrimEnd());
+    }
+
+    // 這一格接得上寫完的一組括號：寫到一半的括號剖析器可能回頭在那一項的開頭報錯（CREATE TABLE t (INDEX i CLUSTERED ( 在 INDEX），
+    // 只問左括號的話 INDEX i 之後併成 CLUSTERED COLUMNSTORE，寫不出 CLUSTERED (a)。錯要落在整組括號之後，缺右括號的檔案結尾不算。
+    private bool TakesGroup(string probe)
+    {
+        const string group = "(a)";
+        return _prober.FirstEndingPast(probe + group, ["", ")"], probe.Length + group.Length) != null;
     }
 
     // 這一格只收變數：變數之後再接一個字，剖析器也不在變數本身報錯，普通名稱卻過不了。只看變數的話，剖析器在更前面報

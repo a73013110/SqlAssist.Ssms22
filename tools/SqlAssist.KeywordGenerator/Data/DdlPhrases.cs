@@ -27,6 +27,9 @@ internal static class DdlPhrases
     private static readonly string[] InlineIndexKinds =
         ["", "CLUSTERED ", "NONCLUSTERED ", "UNIQUE ", "UNIQUE CLUSTERED ", "UNIQUE NONCLUSTERED ", "HASH ", "NONCLUSTERED HASH "];
 
+    // 資料表定義清單的一項：CREATE TABLE 的定義與 ALTER TABLE ADD 之後。
+    private static readonly string[] TableItem = ["ColumnDefinition", "AlterTableAdd"];
+
     internal static readonly PhraseDeclaration[] Objects =
     [
         // CREATE、ALTER、DROP 之後是物件種類（Kinds）：展開到名稱為止，名稱之後只列一層（CREATE TABLE t 之後的 AS），
@@ -186,7 +189,7 @@ internal static class DdlPhrases
         new("GENERATED ALWAYS AS SUSER_SNAME END HIDDEN") { After = ["ColumnDefinitionTail"] },
         new("GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN") { After = ["ColumnDefinitionTail"] },
         new("GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN") { After = ["ColumnDefinitionTail"] },
-        new("PERIOD FOR SYSTEM_TIME ()") { After = ["ColumnDefinition", "AlterTableAdd"], Group = "(a, b)" },
+        new("PERIOD FOR SYSTEM_TIME ()") { After = TableItem, Group = "(a, b)" },
         // 資料表選項的 WITH (…) 寫在定義、AS FILETABLE 或儲存段之後，前面那段由 ... 走過；FILETABLE 的選項也在這一份。
         new("CREATE TABLE ... WITH (*") { Gap = "t (a int)" },
         new("CREATE TYPE {name} AS TABLE () WITH (*") { Group = "(a int)" },
@@ -209,12 +212,14 @@ internal static class DdlPhrases
         new("CREATE EXTERNAL TABLE {name} () WITH (*") { Group = "(a int)", Expand = 1 },
         new("CREATE EXTERNAL TABLE {name} WITH (*") { Expand = 1 },
 
-        // 資料表定義裡的索引（INDEX i CLUSTERED COLUMNSTORE WITH (…)）：前一格判不出位置，尾巴本身認得出來。
-        // 索引鍵之後與 CREATE INDEX 一樣接 INCLUDE、WHERE、WITH、ON；名稱與索引鍵之間的種類寫法有限，逐一寫出。
-        new("INDEX {name} CLUSTERED") { Lead = "CREATE TABLE t (a int, " },
-        .. InlineIndexKinds.Select(kind => new PhraseDeclaration($"INDEX {{name}} {kind}()") { Lead = "CREATE TABLE t (a int, " }),
-        new("INDEX {name} CLUSTERED COLUMNSTORE WITH (*") { Lead = "CREATE TABLE t (a int, " },
-        new("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (*") { Lead = "CREATE TABLE t (a int, " },
+        // 資料表定義與 ALTER TABLE ADD 裡的索引（INDEX i CLUSTERED COLUMNSTORE WITH (…)），前一格是定義清單的一項。
+        // 索引鍵之後與 CREATE INDEX 一樣接 INCLUDE、WHERE、WITH、ON；名稱與索引鍵之間的種類寫法有限，逐一寫出，
+        // 也是名稱之後那一格的證據（HASH、UNIQUE）。ALTER TABLE ADD 寫完索引鍵就是完整的語句，WITH 被當成下一句扣掉了，手寫補回。
+        new("INDEX {name}") { After = TableItem },
+        new("INDEX {name} CLUSTERED") { After = TableItem },
+        .. InlineIndexKinds.Select(kind => new PhraseDeclaration($"INDEX {{name}} {kind}()") { After = TableItem, Values = ["WITH"] }),
+        new("INDEX {name} CLUSTERED COLUMNSTORE WITH (*") { After = TableItem },
+        new("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (*") { After = TableItem },
 
         // 圖形資料表：名稱或定義之後的 AS NODE、AS EDGE；邊緣條件約束 CONNECTION (a TO b, …) ON DELETE CASCADE
         // 是定義裡的一項，括號裡是逗號清單、每一項是 名稱 TO 名稱。TO 要看到另一個名稱與兩層右括號才驗。
@@ -227,8 +232,8 @@ internal static class DdlPhrases
         new("CREATE TABLE {name} AS FILETABLE") { Values = ["WITH"] },
         .. new[] { "ON", "TEXTIMAGE_ON", "FILESTREAM_ON" }.Select(storage =>
             new PhraseDeclaration($"CREATE TABLE ... {storage} {{name}}") { Gap = "t (a int)", Values = ["WITH"] }),
-        new("CONNECTION (* {name}") { After = ["ColumnDefinition", "AlterTableAdd"], Endings = [" x))"] },
-        new("CONNECTION ()") { After = ["ColumnDefinition", "AlterTableAdd"], Group = "(a TO b)", Expand = 2 },
+        new("CONNECTION (* {name}") { After = TableItem, Endings = [" x))"] },
+        new("CONNECTION ()") { After = TableItem, Group = "(a TO b)", Expand = 2 },
 
         // Always Encrypted 的資料行：ENCRYPTION_TYPE 的值剖析器要看到下一項才驗，續尾把清單寫完。
         new("ENCRYPTED WITH (*") { After = ["ColumnDefinitionTail"] },

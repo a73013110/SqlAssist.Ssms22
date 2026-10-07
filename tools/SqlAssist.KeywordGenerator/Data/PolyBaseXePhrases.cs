@@ -30,38 +30,36 @@ internal static class PolyBaseXePhrases
     // 宣告在用到它的片語之前：靜態欄位照書寫順序初始化。
     private static readonly string[] LibraryPlatforms = ["WINDOWS", "LINUX"];
 
+    // 外部程式庫與外部語言的名稱之後都可以寫 AUTHORIZATION，之後的文法相同，兩種標頭各宣告一份。
+    private static readonly string[] Owners = ["", " AUTHORIZATION {name}"];
+
     internal static readonly PhraseDeclaration[] ExternalLibraries =
     [
-        // 外部程式庫：名稱之後可以寫 AUTHORIZATION，FROM 之後一個平台一組檔案，SET 只換一組，WITH (LANGUAGE = …) 的值是字串。
+        // 外部程式庫：FROM 之後一個平台一組檔案，SET 只換一組，WITH (LANGUAGE = …) 的值是字串。
         // PLATFORM 的值剖析器什麼名稱都收，只能手寫，取文件的兩個平台；CONTENT 要寫在第一項。
-        new("CREATE EXTERNAL LIBRARY {name} FROM ,* (*"),
-        new("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name} FROM ,* (*"),
-        new("CREATE EXTERNAL LIBRARY {name} FROM ,* (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
-        new("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name} FROM ,* (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
+        .. Owners.SelectMany(owner => new PhraseDeclaration[]
+        {
+            new($"CREATE EXTERNAL LIBRARY {{name}}{owner} FROM ,* (*"),
+            new($"CREATE EXTERNAL LIBRARY {{name}}{owner} FROM ,* (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
+            new($"ALTER EXTERNAL LIBRARY {{name}}{owner} SET (*"),
+            new($"ALTER EXTERNAL LIBRARY {{name}}{owner} SET (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
+            new($"ALTER EXTERNAL LIBRARY {{name}}{owner} SET () WITH (*") { Group = "(CONTENT = 'x')" },
+        }),
         new("CREATE EXTERNAL LIBRARY ... WITH (*") { Gap = "t FROM (CONTENT = 'x')" },
-        new("ALTER EXTERNAL LIBRARY {name} SET (*"),
-        new("ALTER EXTERNAL LIBRARY {name} SET (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
-        new("ALTER EXTERNAL LIBRARY {name} SET () WITH (*") { Group = "(CONTENT = 'x')" },
-        new("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET (*"),
-        new("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET (* PLATFORM =") { Items = "CONTENT = 'x', ", Values = LibraryPlatforms, Closed = true },
-        new("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET () WITH (*") { Group = "(CONTENT = 'x')" },
 
         // 外部語言：與外部程式庫同一種檔案規格（CONTENT、FILE_NAME、PLATFORM、PARAMETERS、ENVIRONMENT_VARIABLES），
-        // CREATE 的 FROM 一個平台一組，ALTER 以 SET、ADD 換或加一組，REMOVE PLATFORM 刪一組；名稱之後都可以寫 AUTHORIZATION。
-        new("CREATE EXTERNAL LANGUAGE {name} FROM ,* (*"),
-        new("CREATE EXTERNAL LANGUAGE {name} AUTHORIZATION {name} FROM ,* (*"),
-        new("CREATE EXTERNAL LANGUAGE {name} FROM ,* (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
-        new("ALTER EXTERNAL LANGUAGE {name}") { Expand = 2 },
-        new("ALTER EXTERNAL LANGUAGE {name} SET (*"),
-        new("ALTER EXTERNAL LANGUAGE {name} ADD (*"),
-        new("ALTER EXTERNAL LANGUAGE {name} SET (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
-        new("ALTER EXTERNAL LANGUAGE {name} ADD (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
-        new("ALTER EXTERNAL LANGUAGE {name} REMOVE PLATFORM") { Values = LibraryPlatforms, Closed = true },
-        new("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name}") { Expand = 2 },
-        new("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} SET (*"),
-        new("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} ADD (*"),
-        new("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} SET (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
-        new("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} ADD (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
+        // CREATE 的 FROM 一個平台一組，ALTER 以 SET、ADD 換或加一組，REMOVE PLATFORM 刪一組。
+        .. Owners.SelectMany(owner => new PhraseDeclaration[]
+        {
+            new($"CREATE EXTERNAL LANGUAGE {{name}}{owner} FROM ,* (*"),
+            new($"CREATE EXTERNAL LANGUAGE {{name}}{owner} FROM ,* (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
+            new($"ALTER EXTERNAL LANGUAGE {{name}}{owner}") { Expand = 2 },
+            new($"ALTER EXTERNAL LANGUAGE {{name}}{owner} SET (*"),
+            new($"ALTER EXTERNAL LANGUAGE {{name}}{owner} ADD (*"),
+            new($"ALTER EXTERNAL LANGUAGE {{name}}{owner} SET (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
+            new($"ALTER EXTERNAL LANGUAGE {{name}}{owner} ADD (* PLATFORM =") { Items = "CONTENT = 'x', FILE_NAME = 'x', ", Values = LibraryPlatforms, Closed = true },
+            new($"ALTER EXTERNAL LANGUAGE {{name}}{owner} REMOVE PLATFORM") { Values = LibraryPlatforms, Closed = true },
+        }),
     ];
 
     internal static readonly PhraseDeclaration[] Events =

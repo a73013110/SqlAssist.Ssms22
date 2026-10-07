@@ -80,6 +80,8 @@ internal static class StatementPhrases
         new("ENCRYPTION (*") { After = ["OptionItem"], Template = 8 },
         new("ENCRYPTION (* ALGORITHM =") { After = ["OptionItem"], Template = 8 },
         new("ENCRYPTION (* SERVER") { After = ["OptionItem"], Template = 8, Items = "ALGORITHM = AES_256, ", Expand = 1 },
+        // RESTORE 的 FILESTREAM (DIRECTORY_NAME = …) 同理，從 OptionItem 寫起（RESTORE 的樣板）。
+        new("FILESTREAM (*") { After = ["OptionItem"], Template = 10 },
     ];
 
     internal static readonly PhraseDeclaration[] Statistics =

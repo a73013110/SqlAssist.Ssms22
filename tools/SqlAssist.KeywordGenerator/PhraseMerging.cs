@@ -53,6 +53,7 @@ internal static class PhraseMerging
                 TakesName = phrase.TakesName,
                 EndsStatement = phrase.EndsStatement,
                 TakesOperand = phrase.TakesOperand,
+                TakesGroup = phrase.TakesGroup,
                 EndsItem = phrase.EndsItem,
                 Additive = phrase.Additive,
             };
@@ -68,7 +69,7 @@ internal static class PhraseMerging
     private static string Chain(PhraseTable phrases, string after, string pattern, string word)
     {
         if (!phrases.TryGet(ProbedPhrase.Key(after, pattern.Length > 0 ? pattern + " " + word : word), out var next) ||
-            next.EndsStatement || next.EndsItem || !next.Closed || next.TakesOperand || next.Words.Count != 1)
+            next.EndsStatement || next.EndsItem || !next.Closed || next.TakesOperand || next.TakesGroup || next.Words.Count != 1)
         {
             return word;
         }

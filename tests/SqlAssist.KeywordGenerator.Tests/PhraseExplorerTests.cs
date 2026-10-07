@@ -18,6 +18,7 @@ public sealed class PhraseExplorerTests : IDisposable
         ["DataSource"] = ["SELECT * FROM "],
         ["SelectListTail"] = ["SELECT a "],
         ["BlockStart"] = ["BEGIN "],
+        ["ColumnDefinition"] = ["CREATE TABLE t ("],
     };
 
     private readonly string _cachePath = Path.Combine(Path.GetTempPath(), "SqlAssist.KeywordGenerator.Tests." + Guid.NewGuid() + ".cache");
@@ -101,6 +102,23 @@ public sealed class PhraseExplorerTests : IDisposable
         Assert.True(phrase.Closed);
         Assert.False(phrase.TakesOperand);
         Assert.False(phrase.TakesName);
+    }
+
+    /// <summary>
+    /// 寫到一半的左括號剖析器回頭在 INDEX 報錯，接不接得了括號要看寫完的一組（INDEX i CLUSTERED (a)）；
+    /// 那不是運算元，位置片語的字照樣併得進來。
+    /// </summary>
+    [Fact]
+    public void 寫完的一組括號接得上才算接得了括號()
+    {
+        var explorer = Create(pool: ["COLUMNSTORE"]);
+
+        explorer.Explore([new("INDEX {name} CLUSTERED") { After = ["ColumnDefinition"] }]);
+        var phrase = explorer.Phrases[ProbedPhrase.Key("ColumnDefinition", "INDEX {name} CLUSTERED")];
+
+        Assert.Equal(["COLUMNSTORE"], phrase.Words);
+        Assert.True(phrase.TakesGroup);
+        Assert.False(phrase.TakesOperand);
     }
 
     /// <summary>

@@ -76,9 +76,10 @@
 
 ## 唯一的接續併成一項
 
-後面只接得了一個字的字與那個字併成一項：`ASYMMETRIC KEY`、`ENCRYPTION BY PASSWORD`、`OR ALTER`，選一次寫完。
-條件是那個字寫到這裡還沒完整、封閉、接不了名稱、值、括號或 `::`——`OPEN SYMMETRIC` 也是完整的資料指標語句，不併；
-括號清單寫完一項也算完整（`ENCRYPTION = REQUIRED` 不併 `ALGORITHM`）。
+後面只接得了一個字的字與那個字併成一項：`ASYMMETRIC KEY`、`ENCRYPTION BY PASSWORD`，選一次寫完。
+條件是那個字寫到這裡還沒完整、封閉、接不了名稱、值、括號或 `::`（`OPEN SYMMETRIC` 是完整的資料指標語句）；
+括號清單寫完一項也算完整（`ENCRYPTION = REQUIRED` 不併 `ALGORITHM`）。括號看寫完的一組：
+`INDEX i CLUSTERED (` 剖析器回頭報在 `INDEX`，只問左括號就併成 `CLUSTERED COLUMNSTORE`。
 中間每一段的片語照舊；片語接不接得上一個字認的是一項的第一個字。
 
 ## 前一格
@@ -97,7 +98,6 @@
 位置片語的字由各樣板的證據補齊，照自己探到的列的話 `ALTER COLUMN a int NOT NULL ` 之後沒有 `WITH`。
 
 前一格判不出位置的（選取清單以外的 `NEXT VALUE`、預設值條件約束）寫更長的 `Lead` 尾巴。
-從判得出的那一格寫得到就從那裡寫：視窗框架中段（`AND` 之後）判不出位置，片語從 `ROWS` 寫起；
-函式引數裡判不出位置，`JSON_OBJECT (* {value} : {value} NULL ON NULL` 從呼叫寫起。
+從判得出的那一格寫得到就從那裡寫：視窗框架中段（`AND` 之後）判不出位置，片語從 `ROWS` 寫起。
 同一條尾巴在幾種敘述接的字不同（兩種稽核規格的 `ADD (`）時，`AlsoLeads` 各墊一次，字取聯集；
 證據立起的那一段只拿 `Lead` 探，墊接得最多的敘述（條件約束墊資料行層級，`NONCLUSTERED` 之後還接 `NOT NULL`）。

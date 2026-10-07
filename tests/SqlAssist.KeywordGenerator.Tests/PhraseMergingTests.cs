@@ -32,6 +32,19 @@ public sealed class PhraseMergingTests
         Assert.Equal(["SYMMETRIC", "MASTER"], table[ProbedPhrase.Key("StatementStart", "OPEN")].Words);
     }
 
+    /// <summary>資料表定義的 INDEX i CLUSTERED 之後也接得上 (a)：併成 CLUSTERED COLUMNSTORE 的話寫不出 CLUSTERED (a)。</summary>
+    [Fact]
+    public void 接得上一組括號的字不併()
+    {
+        var table = new PhraseTable();
+        Add(table, "INDEX {name}", ["CLUSTERED", "HASH"]);
+        Add(table, "INDEX {name} CLUSTERED", ["COLUMNSTORE"], takesGroup: true);
+
+        PhraseMerging.ChainUniqueContinuations(table);
+
+        Assert.Equal(["CLUSTERED", "HASH"], table[ProbedPhrase.Key("StatementStart", "INDEX {name}")].Words);
+    }
+
     [Fact]
     public void 唯一的接續一路往下併()
     {
@@ -74,13 +87,15 @@ public sealed class PhraseMergingTests
         Assert.Equal(2, PhraseMerging.MergePositions([closed, open]).Count);
     }
 
-    private static void Add(PhraseTable table, string pattern, string[] words, bool closed = true, bool endsStatement = false, bool takesOperand = false)
+    private static void Add(PhraseTable table, string pattern, string[] words, bool closed = true, bool endsStatement = false, bool takesOperand = false,
+        bool takesGroup = false)
     {
         table.Set(ProbedPhrase.Key("StatementStart", pattern), new ProbedPhrase(pattern, "StatementStart", pattern + " ", words)
         {
             Closed = closed,
             EndsStatement = endsStatement,
             TakesOperand = takesOperand,
+            TakesGroup = takesGroup,
         });
     }
 

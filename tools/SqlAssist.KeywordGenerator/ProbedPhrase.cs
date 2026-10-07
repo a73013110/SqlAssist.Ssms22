@@ -44,6 +44,12 @@ public sealed class ProbedPhrase
     public bool TakesOperand { get; init; }
 
     /// <summary>
+    /// 寫完的一組括號接得上（INDEX i CLUSTERED (a)）：唯一接續的併項不跨過它。不併進 TakesOperand：資料行層級的
+    /// INDEX i CLUSTERED 剖析器也收括號，算進去的話它不再併上型別之後那一格的字。不輸出。
+    /// </summary>
+    public bool TakesGroup { get; init; }
+
+    /// <summary>
     /// 寫到這一格已是括號清單完整的一項：接得了逗號或右括號（端點的 ENCRYPTION = REQUIRED 之後可以寫完）。
     /// 唯一接續的併項不跨過它，否則選 REQUIRED 就被迫寫上可有可無的 ALGORITHM。不輸出。
     /// </summary>

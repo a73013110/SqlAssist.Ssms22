@@ -1815,7 +1815,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER FULLTEXT INDEX ON {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ", true, false, false, false, new string[]
         {
-            "ADD", "ALTER", "DISABLE", "DROP", "ENABLE", "PAUSE POPULATION",
+            "ADD", "ALTER COLUMN", "DISABLE", "DROP", "ENABLE", "PAUSE POPULATION",
             "RESUME POPULATION", "SET", "START", "STOP POPULATION",
         }),
         ("ALTER FULLTEXT STOPLIST", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT STOPLIST ", false, false, true, false, new string[]
@@ -7295,6 +7295,12 @@ internal static class SqlKeywordCatalogData
         ("ALTER FULLTEXT INDEX ON {name} DROP () WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t DROP (a) WITH NO POPULATION ", true, false, false, true, new string[]
         {
         }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name} ADD STATISTICAL_SEMANTICS WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t ADD STATISTICAL_SEMANTICS WITH NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name} DROP STATISTICAL_SEMANTICS WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t DROP STATISTICAL_SEMANTICS WITH NO POPULATION ", true, false, false, true, new string[]
+        {
+        }),
         ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST {name} WITH NO POPULATION", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST t WITH NO POPULATION ", true, false, false, true, new string[]
         {
         }),
@@ -7561,6 +7567,10 @@ internal static class SqlKeywordCatalogData
         }),
         ("ENCRYPTION (* SERVER CERTIFICATE", SqlKeywordPosition.OptionItem, "BACKUP DATABASE d TO DISK = 'x' WITH ENCRYPTION (ALGORITHM = AES_256, SERVER CERTIFICATE ", true, false, false, false, new string[]
         {
+        }),
+        ("FILESTREAM (*", SqlKeywordPosition.OptionItem, "RESTORE DATABASE d FROM DISK = 'x' WITH FILESTREAM (", true, false, true, false, new string[]
+        {
+            "DIRECTORY_NAME",
         }),
         ("CREATE STATISTICS ... WITH", SqlKeywordPosition.StatementStart, "CREATE STATISTICS s ON t (a) WITH ", true, false, false, false, new string[]
         {
@@ -9176,43 +9186,85 @@ internal static class SqlKeywordCatalogData
         ("CREATE EXTERNAL TABLE {name} WITH (* TABLE_OPTIONS", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL TABLE t WITH (TABLE_OPTIONS ", true, false, false, false, new string[]
         {
         }),
-        ("INDEX {name} CLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED ", true, false, false, false, new string[]
+        ("INDEX {name}", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t ", true, false, false, false, new string[]
+        {
+            "COLUMNSTORE", "FILESTREAM_ON", "HASH", "ON", "UNIQUE", "WHERE", "WITH",
+            "CLUSTERED", "NONCLUSTERED",
+        }),
+        ("INDEX {name}", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t ", true, false, false, true, new string[]
+        {
+            "CLUSTERED", "COLUMNSTORE", "FILESTREAM_ON", "HASH", "NONCLUSTERED", "ON", "UNIQUE",
+            "WHERE",
+        }),
+        ("INDEX {name} CLUSTERED", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED ", true, false, false, false, new string[]
         {
             "COLUMNSTORE",
         }),
-        ("INDEX {name} ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t (a) ", true, false, false, false, new string[]
+        ("INDEX {name} ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t (a) ", true, false, false, false, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
-        ("INDEX {name} CLUSTERED ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED (a) ", true, false, false, false, new string[]
+        ("INDEX {name} ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t (a) ", true, false, false, true, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
-        ("INDEX {name} NONCLUSTERED ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED (a) ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t CLUSTERED (a) ", true, false, false, false, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
-        ("INDEX {name} UNIQUE ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t UNIQUE (a) ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t CLUSTERED (a) ", true, false, false, true, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
-        ("INDEX {name} UNIQUE CLUSTERED ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t UNIQUE CLUSTERED (a) ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t NONCLUSTERED (a) ", true, false, false, false, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
-        ("INDEX {name} UNIQUE NONCLUSTERED ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t UNIQUE NONCLUSTERED (a) ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t NONCLUSTERED (a) ", true, false, false, true, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
-        ("INDEX {name} HASH ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t HASH (a) ", true, false, false, false, new string[]
+        ("INDEX {name} UNIQUE ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t UNIQUE (a) ", true, false, false, false, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
-        ("INDEX {name} NONCLUSTERED HASH ()", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED HASH (a) ", true, false, false, false, new string[]
+        ("INDEX {name} UNIQUE ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t UNIQUE (a) ", true, false, false, true, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (*", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (", true, false, false, false, new string[]
+        ("INDEX {name} UNIQUE CLUSTERED ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t UNIQUE CLUSTERED (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} UNIQUE CLUSTERED ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t UNIQUE CLUSTERED (a) ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} UNIQUE NONCLUSTERED ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t UNIQUE NONCLUSTERED (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} UNIQUE NONCLUSTERED ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t UNIQUE NONCLUSTERED (a) ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} HASH ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t HASH (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} HASH ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t HASH (a) ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} NONCLUSTERED HASH ()", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t NONCLUSTERED HASH (a) ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} NONCLUSTERED HASH ()", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t NONCLUSTERED HASH (a) ", true, false, false, true, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (*", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (", true, false, false, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
             "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
@@ -9221,7 +9273,7 @@ internal static class SqlKeywordCatalogData
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (*", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (*", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (", true, false, false, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
             "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
@@ -10069,21 +10121,9 @@ internal static class SqlKeywordCatalogData
         {
             "CONTENT", "PLATFORM",
         }),
-        ("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t AUTHORIZATION t FROM (", true, false, true, false, new string[]
-        {
-            "CONTENT", "PLATFORM",
-        }),
         ("CREATE EXTERNAL LIBRARY {name} FROM ,* (* PLATFORM =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t FROM (CONTENT = 'x', PLATFORM = ", true, false, true, false, new string[]
         {
             "WINDOWS", "LINUX",
-        }),
-        ("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name} FROM ,* (* PLATFORM =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t AUTHORIZATION t FROM (CONTENT = 'x', PLATFORM = ", true, false, true, false, new string[]
-        {
-            "WINDOWS", "LINUX",
-        }),
-        ("CREATE EXTERNAL LIBRARY ... WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t FROM (CONTENT = 'x') WITH (", true, false, true, false, new string[]
-        {
-            "LANGUAGE",
         }),
         ("ALTER EXTERNAL LIBRARY {name} SET (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t SET (", true, false, true, false, new string[]
         {
@@ -10097,6 +10137,14 @@ internal static class SqlKeywordCatalogData
         {
             "LANGUAGE",
         }),
+        ("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t AUTHORIZATION t FROM (", true, false, true, false, new string[]
+        {
+            "CONTENT", "PLATFORM",
+        }),
+        ("CREATE EXTERNAL LIBRARY {name} AUTHORIZATION {name} FROM ,* (* PLATFORM =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t AUTHORIZATION t FROM (CONTENT = 'x', PLATFORM = ", true, false, true, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
         ("ALTER EXTERNAL LIBRARY {name} AUTHORIZATION {name} SET (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LIBRARY t AUTHORIZATION t SET (", true, false, true, false, new string[]
         {
             "CONTENT", "PLATFORM",
@@ -10109,11 +10157,11 @@ internal static class SqlKeywordCatalogData
         {
             "LANGUAGE",
         }),
-        ("CREATE EXTERNAL LANGUAGE {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE t FROM (", true, false, true, false, new string[]
+        ("CREATE EXTERNAL LIBRARY ... WITH (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LIBRARY t FROM (CONTENT = 'x') WITH (", true, false, true, false, new string[]
         {
-            "CONTENT", "FILE_NAME", "ENVIRONMENT_VARIABLES", "PARAMETERS", "PLATFORM",
+            "LANGUAGE",
         }),
-        ("CREATE EXTERNAL LANGUAGE {name} AUTHORIZATION {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE t AUTHORIZATION t FROM (", true, false, true, false, new string[]
+        ("CREATE EXTERNAL LANGUAGE {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE t FROM (", true, false, true, false, new string[]
         {
             "CONTENT", "FILE_NAME", "ENVIRONMENT_VARIABLES", "PARAMETERS", "PLATFORM",
         }),
@@ -10136,6 +10184,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} REMOVE", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t REMOVE ", false, false, true, false, new string[]
         {
+            "PLATFORM",
         }),
         ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} SET", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t SET ", true, false, false, false, new string[]
         {
@@ -10167,6 +10216,14 @@ internal static class SqlKeywordCatalogData
         {
             "WINDOWS", "LINUX",
         }),
+        ("CREATE EXTERNAL LANGUAGE {name} AUTHORIZATION {name} FROM ,* (*", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE t AUTHORIZATION t FROM (", true, false, true, false, new string[]
+        {
+            "CONTENT", "FILE_NAME", "ENVIRONMENT_VARIABLES", "PARAMETERS", "PLATFORM",
+        }),
+        ("CREATE EXTERNAL LANGUAGE {name} AUTHORIZATION {name} FROM ,* (* PLATFORM =", SqlKeywordPosition.StatementStart, "CREATE EXTERNAL LANGUAGE t AUTHORIZATION t FROM (CONTENT = 'x', FILE_NAME = 'x', PLATFORM = ", true, false, true, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
         ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} SET (*", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t SET (", true, false, true, false, new string[]
         {
             "CONTENT", "FILE_NAME", "ENVIRONMENT_VARIABLES", "PARAMETERS", "PLATFORM",
@@ -10180,6 +10237,10 @@ internal static class SqlKeywordCatalogData
             "WINDOWS", "LINUX",
         }),
         ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} ADD (* PLATFORM =", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t ADD (CONTENT = 'x', FILE_NAME = 'x', PLATFORM = ", true, false, true, false, new string[]
+        {
+            "WINDOWS", "LINUX",
+        }),
+        ("ALTER EXTERNAL LANGUAGE {name} AUTHORIZATION {name} REMOVE PLATFORM", SqlKeywordPosition.StatementStart, "ALTER EXTERNAL LANGUAGE t AUTHORIZATION t REMOVE PLATFORM ", true, false, true, false, new string[]
         {
             "WINDOWS", "LINUX",
         }),
@@ -16646,6 +16707,10 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
+        ("FILESTREAM (* DIRECTORY_NAME =", SqlKeywordPosition.OptionItem, "RESTORE DATABASE d FROM DISK = 'x' WITH FILESTREAM (DIRECTORY_NAME = ", false, false, false, false, new string[]
+        {
+            "NULL",
+        }),
         ("COMMIT TRAN ... WITH (* DELAYED_DURABILITY =", SqlKeywordPosition.StatementStart, "COMMIT TRAN t WITH (DELAYED_DURABILITY = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
@@ -16742,115 +16807,115 @@ internal static class SqlKeywordCatalogData
         {
             "FALSE", "TRUE",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* DROP_EXISTING =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (DROP_EXISTING = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* DROP_EXISTING =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (DROP_EXISTING = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* ONLINE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (ONLINE = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* ONLINE =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (ONLINE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* PAD_INDEX =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (PAD_INDEX = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* RESUMABLE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (RESUMABLE = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* RESUMABLE =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (RESUMABLE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        ("INDEX {name} CLUSTERED COLUMNSTORE WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* ALLOW_PAGE_LOCKS =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (ALLOW_PAGE_LOCKS = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* ALLOW_ROW_LOCKS =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (ALLOW_ROW_LOCKS = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* COMPRESS_ALL_ROW_GROUPS =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (COMPRESS_ALL_ROW_GROUPS = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* DROP_EXISTING =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (DROP_EXISTING = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* DROP_EXISTING =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (DROP_EXISTING = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* IGNORE_DUP_KEY =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (IGNORE_DUP_KEY = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* ONLINE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (ONLINE = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* ONLINE =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (ONLINE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* OPTIMIZE_FOR_ARRAY_SEARCH =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (OPTIMIZE_FOR_ARRAY_SEARCH = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* OPTIMIZE_FOR_SEQUENTIAL_KEY =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* PAD_INDEX =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* PAD_INDEX =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (PAD_INDEX = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* RESUMABLE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (RESUMABLE = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* RESUMABLE =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (RESUMABLE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* SORT_IN_TEMPDB =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (SORT_IN_TEMPDB = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* STATISTICS_INCREMENTAL =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (STATISTICS_INCREMENTAL = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* STATISTICS_NORECOMPUTE =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (STATISTICS_NORECOMPUTE = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED COLUMNSTORE () WITH (* WAIT_AT_LOW_PRIORITY =", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (INDEX t NONCLUSTERED COLUMNSTORE (a) WITH (WAIT_AT_LOW_PRIORITY = ", true, false, false, false, new string[]
         {
             "OFF", "ON",
         }),
@@ -17625,6 +17690,46 @@ internal static class SqlKeywordCatalogData
         {
             "POPULATION",
         }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER ", true, false, false, false, new string[]
+        {
+            "COLUMN",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t ", true, false, false, false, new string[]
+        {
+            "ADD STATISTICAL_SEMANTICS", "DROP STATISTICAL_SEMANTICS",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name} ADD", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t ADD ", true, false, false, false, new string[]
+        {
+            "STATISTICAL_SEMANTICS",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name} ADD STATISTICAL_SEMANTICS", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t ADD STATISTICAL_SEMANTICS ", true, false, false, true, new string[]
+        {
+            "WITH NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name} ADD STATISTICAL_SEMANTICS WITH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t ADD STATISTICAL_SEMANTICS WITH ", true, false, false, false, new string[]
+        {
+            "NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name} ADD STATISTICAL_SEMANTICS WITH NO", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t ADD STATISTICAL_SEMANTICS WITH NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name} DROP", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t DROP ", true, false, false, false, new string[]
+        {
+            "STATISTICAL_SEMANTICS",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name} DROP STATISTICAL_SEMANTICS", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t DROP STATISTICAL_SEMANTICS ", true, false, false, true, new string[]
+        {
+            "WITH NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name} DROP STATISTICAL_SEMANTICS WITH", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t DROP STATISTICAL_SEMANTICS WITH ", true, false, false, false, new string[]
+        {
+            "NO POPULATION",
+        }),
+        ("ALTER FULLTEXT INDEX ON {name} ALTER COLUMN {name} DROP STATISTICAL_SEMANTICS WITH NO", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t ALTER COLUMN t DROP STATISTICAL_SEMANTICS WITH NO ", true, false, false, false, new string[]
+        {
+            "POPULATION",
+        }),
         ("ALTER FULLTEXT INDEX ON {name} SET STOPLIST {name}", SqlKeywordPosition.StatementStart, "ALTER FULLTEXT INDEX ON t SET STOPLIST t ", true, false, false, true, new string[]
         {
             "WITH NO POPULATION",
@@ -18047,16 +18152,28 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
-        ("INDEX {name} UNIQUE", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t UNIQUE ", true, false, false, false, new string[]
+        ("INDEX {name} UNIQUE", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t UNIQUE ", true, false, false, false, new string[]
         {
             "COLUMNSTORE", "FILESTREAM_ON", "HASH", "ON", "WHERE", "WITH", "CLUSTERED",
             "NONCLUSTERED",
         }),
-        ("INDEX {name} NONCLUSTERED", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t NONCLUSTERED ", true, false, false, false, new string[]
+        ("INDEX {name} UNIQUE", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t UNIQUE ", true, false, false, true, new string[]
+        {
+            "CLUSTERED", "COLUMNSTORE", "FILESTREAM_ON", "HASH", "NONCLUSTERED", "ON", "WHERE",
+        }),
+        ("INDEX {name} NONCLUSTERED", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t NONCLUSTERED ", true, false, false, false, new string[]
         {
             "HASH", "COLUMNSTORE",
         }),
-        ("INDEX {name} CLUSTERED COLUMNSTORE", SqlKeywordPosition.Any, "CREATE TABLE t (a int, INDEX t CLUSTERED COLUMNSTORE ", true, false, false, false, new string[]
+        ("INDEX {name} NONCLUSTERED", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t NONCLUSTERED ", true, false, false, false, new string[]
+        {
+            "COLUMNSTORE", "HASH",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE", SqlKeywordPosition.ColumnDefinition, "CREATE TABLE t (INDEX t CLUSTERED COLUMNSTORE ", true, false, false, false, new string[]
+        {
+            "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
+        }),
+        ("INDEX {name} CLUSTERED COLUMNSTORE", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD INDEX t CLUSTERED COLUMNSTORE ", true, false, false, true, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),

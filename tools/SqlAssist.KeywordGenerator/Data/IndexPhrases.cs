@@ -28,10 +28,14 @@ internal static class IndexPhrases
     ];
 
     // 母體擴展：CREATE 在 CHANGE_TRACKING OFF 之後、ALTER 在一個動作之後以 NO POPULATION 不擴展，ALTER 另有開始、停止擴展的動作。
+    // 動作含 ALTER COLUMN c 加減語意索引（STATISTICAL_SEMANTICS）。
     private const string NoPopulation = "NO POPULATION";
     private const string ChangeTrackingOff = "CHANGE_TRACKING OFF";
     private static readonly string[] FullTextPopulatedActions =
-        ["ADD ()", "DROP ()", "SET STOPLIST {name}", "SET STOPLIST = {name}", "SET SEARCH PROPERTY LIST {name}", "SET SEARCH PROPERTY LIST = {name}"];
+    [
+        "ADD ()", "DROP ()", "ALTER COLUMN {name} ADD STATISTICAL_SEMANTICS", "ALTER COLUMN {name} DROP STATISTICAL_SEMANTICS",
+        "SET STOPLIST {name}", "SET STOPLIST = {name}", "SET SEARCH PROPERTY LIST {name}", "SET SEARCH PROPERTY LIST = {name}",
+    ];
     private static readonly string[] FullTextPopulations =
         ["START FULL POPULATION", "START INCREMENTAL POPULATION", "START UPDATE POPULATION", "STOP POPULATION", "PAUSE POPULATION", "RESUME POPULATION"];
 
