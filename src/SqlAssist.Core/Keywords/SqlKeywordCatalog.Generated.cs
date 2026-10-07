@@ -161,7 +161,7 @@ internal static class SqlKeywordCatalogData
         new("REPLICATION", SqlKeywordPosition.None),
         new("RESTORE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("RESTRICT", SqlKeywordPosition.None),
-        new("RETURN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("RETURN", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.ModuleHeader | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("REVERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("REVOKE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("RIGHT", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
@@ -281,6 +281,7 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE "),
         new(SqlKeywordPosition.ModuleHeader, "CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING "),
         new(SqlKeywordPosition.ModuleHeader, "CREATE FUNCTION f () RETURNS TABLE (a int) WITH EXECUTE AS CALLER "),
+        new(SqlKeywordPosition.ModuleHeader, "CREATE FUNCTION f () RETURNS TABLE WITH SCHEMABINDING "),
         new(SqlKeywordPosition.FunctionReturns, "CREATE FUNCTION f () "),
         new(SqlKeywordPosition.ResultSetList, "EXEC p WITH RESULT SETS ("),
         new(SqlKeywordPosition.ResultSetList, "EXEC p WITH RESULT SETS ((a int), "),
@@ -8425,6 +8426,22 @@ internal static class SqlKeywordCatalogData
             "IDENTITY", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
             "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
+        ("DROP TRIGGER ,* {name} ON", SqlKeywordPosition.StatementStart, "DROP TRIGGER t ON ", true, false, false, false, new string[]
+        {
+            "ALL SERVER", "DATABASE",
+        }),
+        ("DROP TRIGGER ,* {name} ON ALL", SqlKeywordPosition.StatementStart, "DROP TRIGGER t ON ALL ", true, false, false, false, new string[]
+        {
+            "SERVER",
+        }),
+        ("DROP TRIGGER IF EXISTS ,* {name} ON", SqlKeywordPosition.StatementStart, "DROP TRIGGER IF EXISTS t ON ", true, false, false, false, new string[]
+        {
+            "ALL SERVER", "DATABASE",
+        }),
+        ("DROP TRIGGER IF EXISTS ,* {name} ON ALL", SqlKeywordPosition.StatementStart, "DROP TRIGGER IF EXISTS t ON ALL ", true, false, false, false, new string[]
+        {
+            "SERVER",
+        }),
         ("", SqlKeywordPosition.ProcedureOption, "CREATE PROCEDURE p WITH ", true, false, false, false, new string[]
         {
             "ENCRYPTION", "EXEC AS", "EXECUTE AS", "NATIVE_COMPILATION", "RECOMPILE",
@@ -8450,14 +8467,6 @@ internal static class SqlKeywordCatalogData
         ("EXEC AS", SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption, "CREATE PROCEDURE p WITH EXEC AS ", true, false, false, false, new string[]
         {
             "CALLER", "OWNER", "SELF",
-        }),
-        ("RETURNS NULL ON NULL INPUT", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS NULL ON NULL INPUT ", true, false, false, false, new string[]
-        {
-            "AS", "BEGIN", "EXTERNAL",
-        }),
-        ("CALLED ON NULL INPUT", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ON NULL INPUT ", true, false, false, false, new string[]
-        {
-            "AS", "BEGIN", "EXTERNAL",
         }),
         ("AS EXTERNAL NAME {name}", SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE AS EXTERNAL NAME t ", true, false, false, false, new string[]
         {
@@ -12516,6 +12525,18 @@ internal static class SqlKeywordCatalogData
         }),
         ("KILL STATS JOB {value}", SqlKeywordPosition.StatementStart, "KILL STATS JOB 1 ", true, false, false, true, new string[]
         {
+        }),
+        ("SHUTDOWN WITH", SqlKeywordPosition.StatementStart, "SHUTDOWN WITH ", true, false, false, false, new string[]
+        {
+            "NOWAIT",
+        }),
+        ("RECONFIGURE WITH", SqlKeywordPosition.StatementStart, "RECONFIGURE WITH ", true, false, false, false, new string[]
+        {
+            "OVERRIDE",
+        }),
+        ("SETUSER {value} WITH", SqlKeywordPosition.StatementStart, "SETUSER 'x' WITH ", true, false, false, false, new string[]
+        {
+            "NORESET",
         }),
         ("OPEN", SqlKeywordPosition.StatementStart, "OPEN ", false, true, true, false, new string[]
         {
@@ -18366,6 +18387,18 @@ internal static class SqlKeywordCatalogData
         {
             "JOB",
         }),
+        ("SHUTDOWN", SqlKeywordPosition.StatementStart, "SHUTDOWN ", true, false, false, true, new string[]
+        {
+            "WITH NOWAIT",
+        }),
+        ("RECONFIGURE", SqlKeywordPosition.StatementStart, "RECONFIGURE ", true, false, false, true, new string[]
+        {
+            "WITH OVERRIDE",
+        }),
+        ("SETUSER {value}", SqlKeywordPosition.StatementStart, "SETUSER 'x' ", true, false, false, true, new string[]
+        {
+            "WITH NORESET",
+        }),
         ("ALTER MASTER KEY ADD ENCRYPTION BY SERVICE", SqlKeywordPosition.StatementStart, "ALTER MASTER KEY ADD ENCRYPTION BY SERVICE ", true, false, true, false, new string[]
         {
             "MASTER KEY",
@@ -19548,6 +19581,8 @@ internal static class SqlKeywordCatalogData
         ("", SqlKeywordPosition.AlterTableAdd, "ALTER TABLE t ADD ", new string[] { "PERIOD", "CONNECTION" }),
         ("", SqlKeywordPosition.OperandTail, "SELECT (a ", new string[] { "AT" }),
         ("", SqlKeywordPosition.FunctionCallTail, "SELECT (SUM(a) ", new string[] { "WITHIN", "IGNORE", "RESPECT" }),
+        ("RETURNS NULL ON NULL INPUT", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS NULL ON NULL INPUT ", new string[] { "AS", "BEGIN", "EXTERNAL" }),
+        ("CALLED ON NULL INPUT", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ON NULL INPUT ", new string[] { "AS", "BEGIN", "EXTERNAL" }),
         ("AS", SqlKeywordPosition.ModuleHeader, "CREATE PROCEDURE p WITH RECOMPILE AS ", new string[] { "EXTERNAL NAME" }),
         ("READONLY AS", SqlKeywordPosition.Any, "CREATE PROCEDURE p @p t READONLY AS ", new string[] { "EXTERNAL" }),
         ("END", SqlKeywordPosition.StatementStart, "END ", new string[] { "CONVERSATION", "TRY", "CATCH" }),

@@ -715,6 +715,15 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE FUNCTION dbo.Fn_Copy ()\nRETURNS TABLE\nRETURN (WITH ", "XMLNAMESPACES")]
     [InlineData("CREATE FUNCTION dbo.Fn_Copy () RETURNS TABLE AS RETURN WITH ", "XMLNAMESPACES")]
     [InlineData("CREATE FUNCTION dbo.Fn_Copy () RETURNS TABLE (CopyNo int) WITH EXECUTE AS 'Lib_Reader'\n", "ORDER", "AS")]
+    [InlineData("CREATE FUNCTION dbo.Fn_Copy (@Code varchar(10))\nRETURNS TABLE WITH ENCRYPTION, SCHEMABINDING, CALLED ON NULL INPUT\n", "RETURN", "AS")]
+    [InlineData("CREATE FUNCTION dbo.Fn_Copy () RETURNS TABLE WITH SCHEMABINDING\n", "RETURN", "AS")]
+    [InlineData("CREATE FUNCTION dbo.Fn_Copy () RETURNS int WITH RETURNS NULL ON NULL INPUT ", "AS", "BEGIN")]
+    [InlineData("SHUTDOWN WITH ", "NOWAIT")]
+    [InlineData("SHUTDOWN\nWITH ", "NOWAIT")]
+    [InlineData("RECONFIGURE WITH ", "OVERRIDE")]
+    [InlineData("SETUSER 'Lib_Reader' WITH ", "NORESET")]
+    [InlineData("DROP TRIGGER LoanAudit, CopyAudit ON ", "DATABASE", "ALL SERVER")]
+    [InlineData("DROP TRIGGER IF EXISTS LoanAudit, CopyAudit ON ALL ", "SERVER")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -731,6 +740,7 @@ public sealed class SqlClausePhraseTests
     /// </remarks>
     [Theory]
     [InlineData("SET DATEFORMAT ", "ON")]
+    [InlineData("SHUTDOWN WITH ", "XMLNAMESPACES")]
     [InlineData("SET LANGUAGE 'us_english', ", "SELECT")]
     [InlineData("ALTER DATABASE Lib ADD FILE (NAME = Lib2), (", "SELECT")]
     [InlineData("SET LANGUAGE ", "OFF")]

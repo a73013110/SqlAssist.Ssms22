@@ -141,6 +141,11 @@ internal static class StatementPhrases
         // KILL 之後是工作階段、工作單位或這兩種寫法：QUERY、STATS 剖析器要看到整段才收，整段是證據。
         new("KILL QUERY NOTIFICATION SUBSCRIPTION ALL"),
         new("KILL STATS JOB {value}"),
+
+        // 單字就寫完一句的敘述，WITH 之後的選項被當成 CTE 的開頭扣掉了，由更長的片語補回。
+        new("SHUTDOWN WITH"),
+        new("RECONFIGURE WITH"),
+        new("SETUSER {value} WITH"),
     ];
 
     internal static readonly PhraseDeclaration[] Dbcc =

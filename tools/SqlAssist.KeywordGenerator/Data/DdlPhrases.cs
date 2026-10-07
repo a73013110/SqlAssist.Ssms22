@@ -103,14 +103,19 @@ internal static class DdlPhrases
         new("TRIGGER {name} ON DATABASE AFTER ,*") { After = ["DdlObject"] },
         new("TRIGGER {name} ON ALL SERVER FOR ,*") { After = ["DdlObject"] },
         new("TRIGGER {name} ON ALL SERVER AFTER ,*") { After = ["DdlObject"] },
+        // DROP 一次可以刪幾個 DDL 觸發程序：名稱清單寫完是 ON DATABASE 或 ALL SERVER，中段的 ,* 走過前面幾個名稱。
+        // CREATE、ALTER 只有一個名稱，共用 DdlObject 那一條探不出清單。
+        new("DROP TRIGGER ,* {name} ON") { Expand = 1 },
+        new("DROP TRIGGER IF EXISTS ,* {name} ON") { Expand = 1 },
 
         // 模組的 WITH 選項：四種模組的選項不同，EXECUTE AS 之後的 CALLER、SELF、OWNER 除了檢視都共用；
-        // 函式的兩個多字選項寫全，中間每一格由它們補出來。
+        // 函式的兩個多字選項寫全，中間每一格由它們補出來。寫完那一項游標處已是 ModuleHeader，字由位置的各個樣板給齊；
+        // 片語只拿純量函式的樣板探，確定比對的話內嵌資料表值函式的 RETURN 就不見了，所以寫全的那一格只加字。
         new("") { After = ModuleOptions },
         new("EXECUTE AS") { After = ["ProcedureOption", "FunctionOption", "TriggerOption"] },
         new("EXEC AS") { After = ["ProcedureOption", "FunctionOption", "TriggerOption"] },
-        new("RETURNS NULL ON NULL INPUT") { After = ["FunctionOption"] },
-        new("CALLED ON NULL INPUT") { After = ["FunctionOption"] },
+        new("RETURNS NULL ON NULL INPUT") { After = ["FunctionOption"], Additive = true },
+        new("CALLED ON NULL INPUT") { After = ["FunctionOption"], Additive = true },
 
         // 本體的 AS：一句的開頭，CLR 模組改寫 EXTERNAL NAME 組件.類別.方法。位置分析把開本體的 AS 前一格判成 ModuleHeader，
         // 拿程序的樣板探；空本體的程序也剖析得過，下一句的開頭被當成下一句扣掉，所以只加字，EXTERNAL 加在語句開頭旁邊。

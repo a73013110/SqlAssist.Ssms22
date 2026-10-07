@@ -99,7 +99,8 @@ internal static class PositionTemplates
             "CREATE VIEW v WITH SCHEMABINDING ",
             "CREATE PROCEDURE p WITH RECOMPILE ",
             "CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING ",
-            "CREATE FUNCTION f () RETURNS TABLE (a int) WITH EXECUTE AS CALLER "),
+            "CREATE FUNCTION f () RETURNS TABLE (a int) WITH EXECUTE AS CALLER ",
+            "CREATE FUNCTION f () RETURNS TABLE WITH SCHEMABINDING "),
         new("FunctionReturns", "CREATE FUNCTION f () "),
 
         // WITH RESULT SETS 的兩層括號：外層每一項是一組資料行定義或 AS OBJECT／TYPE／FOR XML，
