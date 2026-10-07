@@ -170,7 +170,8 @@ internal static class PositionTemplates
         new("IfBodyEnd", "IF 1 = 1 SET NOCOUNT ON "),
 
         // 游標的選項不是關鍵字（LOCAL、FAST_FORWARD 是識別字），由子句片語給；這裡只撈得到 FOR。
-        new("CursorOption", "DECLARE c CURSOR ", "DECLARE c CURSOR LOCAL FAST_FORWARD "),
+        // 名稱寫成片語代入的 t：DECLARE {name} 展開到 CURSOR 時才認得那一格已由這個位置說了。
+        new("CursorOption", "DECLARE t CURSOR ", "DECLARE t CURSOR LOCAL FAST_FORWARD "),
 
         // 序列的選項（START WITH、INCREMENT BY、NO CYCLE）同樣不是關鍵字，也不以逗號分隔；這裡撈得到 AS、NO。
         // ALTER 的選項格是同一個位置，多了 RESTART [WITH]，由片語宣告第三個樣板探。

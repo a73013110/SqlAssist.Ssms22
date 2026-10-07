@@ -631,6 +631,15 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER SEQUENCE dbo.LoanNo NO MINVALUE ", "MAXVALUE", "RESTART")]
     [InlineData("CREATE SEQUENCE dbo.LoanNo MINVALUE 1 MAXVALUE 10 CACHE\nCREATE ", "SEQUENCE")]
     [InlineData("ALTER SEQUENCE dbo.LoanNo NO CYCLE MINVALUE 1\nALTER ", "SEQUENCE")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY GROUPING SETS (", "ROLLUP", "CUBE")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY GROUPING SETS (BranchId, ", "ROLLUP", "CUBE")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY GROUPING SETS ((", "ROLLUP", "CUBE")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY GROUPING SETS ((BranchId), (CopyNo, ", "ROLLUP", "CUBE")]
+    [InlineData("SELECT * FROM CHANGETABLE (VERSION dbo.Loan, (LoanId), (1), ", "FORCESEEK")]
+    [InlineData("SELECT * FROM CHANGETABLE (CHANGES dbo.Loan, @LastVersion, ", "FORCESEEK")]
+    [InlineData("DECLARE LoanCursor ", "INSENSITIVE", "SCROLL", "CURSOR")]
+    [InlineData("DECLARE LoanCursor INSENSITIVE ", "SCROLL", "CURSOR")]
+    [InlineData("DECLARE LoanCursor SCROLL ", "CURSOR")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -750,6 +759,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("WITH Recent AS (SELECT 1 AS a), ", "XMLNAMESPACES")]
     [InlineData("GRANT SELECT ON dbo.Copy TO LibUser, ", "WITH GRANT OPTION")]
     [InlineData("DENY SELECT ON dbo.Copy TO LibUser, ", "CASCADE")]
+    [InlineData("DECLARE @Copy ", "INSENSITIVE")]
+    [InlineData("DECLARE @Copy int, @Loan ", "SCROLL")]
+    [InlineData("SELECT BranchId FROM dbo.Copy GROUP BY GROUPING SETS (ROLLUP (", "CUBE")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));

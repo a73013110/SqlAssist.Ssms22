@@ -119,6 +119,7 @@ public static class SqlCompletionCandidates
         // 定序、語言與時區的名單只有伺服器知道，但那個位置不會因為問不到而空掉：
         // 文法上的字（DATABASE_DEFAULT）與這份指令碼已經寫過的值都不必送出查詢。
         // 關掉「列出資料庫物件與欄位」的人要的是「不要連線」，剩下的正好是這一份。
+        // 指令碼那一份也放著片語收的變數（AT TIME ZONE @tz），見 SqlCompletionPolicy.OffersPhraseVariables。
         if (SqlInstanceList.For(context.Target) is { } instanceList)
         {
             var server = settings.IncludeDatabaseObjects

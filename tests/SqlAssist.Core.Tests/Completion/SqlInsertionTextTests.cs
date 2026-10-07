@@ -227,6 +227,26 @@ public sealed class SqlInsertionTextTests
     }
 
     /// <remarks>
+    /// 自己先打了左方括號也是同一個限定字：<c>[@</c> 之後列得出資料表變數，提交照樣是 <c>[@Loan]</c>。
+    /// 純量變數包起來是叫那個名字的資料行，資料來源的位置包起來是叫那個名字的資料表，兩者都不列。
+    /// </remarks>
+    [Theory]
+    [InlineData(TableVariable + "DECLARE @readerId INT;\r\nSELECT [@| FROM @Loan", "[@Loan]")]
+    [InlineData(TableVariable + "DECLARE @readerId INT;\r\n;SELECT [@|", "[@Loan]")]
+    [InlineData(TableVariable + "DECLARE @readerId INT;\r\nSELECT * FROM @Loan WHERE [@L|", "[@Loan]")]
+    [InlineData(TableVariable + "DECLARE @readerId INT;\r\nSELECT * FROM [@|", null)]
+    public void 方括號裡的資料表變數寫成限定字(string sqlWithCaret, string? expected)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+
+        var listed = SuggestionContextFilter.Filter(context.ScriptSources, context);
+
+        Assert.DoesNotContain(listed, item => item.DisplayText == "@readerId");
+        Assert.Equal(expected, listed.Select(item => SqlInsertionText.Build(item, context, Unqualified)).SingleOrDefault());
+    }
+
+    /// <remarks>
     /// 反過來的一半：整張資料表放得進來的位置只能寫 <c>@Loan</c>，
     /// <c>FROM [@Loan]</c> 指到的是一張叫 <c>@Loan</c> 的資料表。
     /// 模組的引數也在這裡——那可能是資料表值參數。

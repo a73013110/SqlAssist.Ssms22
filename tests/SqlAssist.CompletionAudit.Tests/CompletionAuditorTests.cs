@@ -184,6 +184,18 @@ public sealed class CompletionAuditorTests
         Assert.Equal(truncated, result.Tally.Excluded[AuditExclusion.Truncated]);
     }
 
+    /// <summary><c>dbo.Geo::Cv</c> 的 Cv 是型別的靜態成員，不是同一句 <c>T(Cv)</c> 取的資料行別名。</summary>
+    [Fact]
+    public async Task 雙冒號之後的成員不是指令碼取的名稱()
+    {
+        var result = await AuditAsync(
+            "DECLARE @x xml;\nSELECT T.Cv.value('.', 'int') FROM @x.nodes('/a') AS T(Cv) WHERE dbo.Geo::Cv(1) IS NULL",
+            AuditCatalog.None);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == "Cv");
+        Assert.Equal(0, result.Tally.UnparsedStatements);
+    }
+
     [Fact]
     public async Task UPDATE_的目標是FROM才取的別名_SET的欄位歸截斷盲點()
     {

@@ -31,7 +31,7 @@
 
 - `sp_configure 'default language'`：值是 `langid` 數字，不是名稱。
 - `sp_defaultlanguage` 這類程序引數：位置由 `EXEC` 的參數規則決定，不是前導字。
-- `AT TIME ZONE` 之後的資料行：清單只列名單；`@` 開頭照常走變數。
+- `AT TIME ZONE` 之後的資料行：清單只列名單。變數照片語收不收（`AT TIME ZONE`、`SET LANGUAGE` 收）放進同一份清單：清單空前綴就開，打 `@` 只是篩選。
 - 游標在字串常值裡（`AT TIME ZONE 'Tai`）：與其他字串同一條規則，不補；清單在打完空白時就開了。
 
 ## 指令碼已用值

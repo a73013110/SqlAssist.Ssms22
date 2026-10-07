@@ -439,11 +439,15 @@ public sealed class CompletionAuditor
                 return new Shape(token.Value.ToUpperInvariant(), AuditTokenClass.Word);
             }
 
-            return ClassifyName(token, afterDot ? (index >= 2 ? Tokens[index - 2].Text : string.Empty) : null);
+            // a.b::C 的 C 是型別的靜態成員，OBJECT::p 的 p 是安全性實體：指令碼取的名稱都寫不到 :: 之後。
+            var member = index >= 1 && Tokens[index - 1].IsPunctuation("::");
+
+            return ClassifyName(token, afterDot ? (index >= 2 ? Tokens[index - 2].Text : string.Empty) : null, member);
         }
 
         /// <param name="qualifier">名稱接在點號之後時，點號前的那一段。</param>
-        private Shape ClassifyName(SqlToken token, string? qualifier)
+        /// <param name="member">名稱接在 <c>::</c> 之後：不會是指令碼取的名稱。</param>
+        private Shape ClassifyName(SqlToken token, string? qualifier, bool member = false)
         {
             if (_definitions.IsDefinition(token.Start))
             {
@@ -455,7 +459,7 @@ public sealed class CompletionAuditor
                 return new Shape(token.Text.ToUpperInvariant(), AuditTokenClass.GlobalVariable);
             }
 
-            if (_definitions.IsDefinedBefore(token.Text, token.Start, qualifier))
+            if (!member && _definitions.IsDefinedBefore(token.Text, token.Start, qualifier))
             {
                 // 外層取過同名的，這裡指的卻是內層之後才取的那一個：形狀照舊，只加排除。
                 return _definitions.IsDefinedLater(token.Text, token.Start, qualifier)
@@ -469,7 +473,7 @@ public sealed class CompletionAuditor
                 return Name(known);
             }
 
-            var exclusion = _definitions.IsDefinedLater(token.Text, token.Start) ? AuditExclusion.Truncated : AuditExclusion.Unresolved;
+            var exclusion = !member && _definitions.IsDefinedLater(token.Text, token.Start) ? AuditExclusion.Truncated : AuditExclusion.Unresolved;
             return new Shape("‹name›", exclusion: exclusion, masked: true);
         }
 

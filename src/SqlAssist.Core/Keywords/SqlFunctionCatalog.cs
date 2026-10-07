@@ -39,10 +39,10 @@ public static class SqlFunctionCatalog
     /// </summary>
     /// <remarks>
     /// 同類的 <c>OPENROWSET</c>、<c>OPENXML</c> 是關鍵字，位置由產生器探出；<c>OPENJSON</c>、<c>VECTOR_SEARCH</c>、
-    /// <c>AI_GENERATE_CHUNKS</c>、<c>PREDICT</c> 在 ScriptDom 眼中只是識別字，位置只能寫在這裡。放在運算式位置的話 <c>SELECT OPENJSON(</c> 列得出來、<c>FROM </c> 之後反而沒有。
+    /// <c>AI_GENERATE_CHUNKS</c>、<c>PREDICT</c>、<c>CHANGETABLE</c> 在 ScriptDom 眼中只是識別字，位置只能寫在這裡。放在運算式位置的話 <c>SELECT OPENJSON(</c> 列得出來、<c>FROM </c> 之後反而沒有。
     /// </remarks>
     private static readonly HashSet<string> RowsetFunctions =
-        new(StringComparer.OrdinalIgnoreCase) { "OPENJSON", "VECTOR_SEARCH", "AI_GENERATE_CHUNKS", "PREDICT" };
+        new(StringComparer.OrdinalIgnoreCase) { "OPENJSON", "VECTOR_SEARCH", "AI_GENERATE_CHUNKS", "PREDICT", "CHANGETABLE" };
 
     /// <summary>名稱與簽章；簽章同時當成清單右側的說明。</summary>
     private static readonly (string Name, string Signature)[] Definitions =
@@ -275,6 +275,7 @@ public static class SqlFunctionCatalog
         // 向量與模型
         ("VECTOR_SEARCH", "VECTOR_SEARCH(TABLE = table AS alias, COLUMN = column, SIMILAR_TO = vector, METRIC = 'cosine', TOP_N = n)"),
         ("PREDICT", "PREDICT(MODEL = model, DATA = source AS alias [, RUNTIME = ONNX]) WITH (column type, ...)"),
+        ("CHANGETABLE", "CHANGETABLE({CHANGES table, last_sync_version | VERSION table, (pk_columns), (pk_values)} [, FORCESEEK]) AS alias"),
 
         // 圖形查詢：MATCH 寫在 WHERE，另外兩個只寫在 MATCH 的圖樣裡。
         ("MATCH", "MATCH(node-(edge)->node [AND ...])"),

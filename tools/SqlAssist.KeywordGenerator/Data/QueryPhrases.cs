@@ -11,6 +11,8 @@ internal static class QueryPhrases
 
     private static readonly string[] GroupingItems = ["ROLLUP", "CUBE", "GROUPING SETS"];
 
+    private static readonly string[] GroupingSetItems = ["ROLLUP", "CUBE"];
+
     private static readonly string[] JoinTypes = ["INNER", "LEFT", "RIGHT", "FULL", "LEFT OUTER", "RIGHT OUTER", "FULL OUTER"];
 
     internal static readonly PhraseDeclaration[] Merge =
@@ -49,6 +51,11 @@ internal static class QueryPhrases
         new("CONTAINS (* {value} , {value} ,") { After = ["Predicate"] },
         new("FREETEXT (* {value} , {value} ,") { After = ["Predicate"] },
         new("PREDICT (*") { After = ["DataSource"] },
+        // CHANGETABLE 括號裡先寫 CHANGES 或 VERSION，最後一個選用引數是 FORCESEEK：CHANGES 之後是資料表與版本，
+        // VERSION 之後是資料表、主索引鍵資料行與值。
+        new("CHANGETABLE (") { After = ["DataSource"] },
+        new("CHANGETABLE ( CHANGES {name} , {value} ,") { After = ["DataSource"], Endings = [") AS c"] },
+        new("CHANGETABLE ( VERSION {name} , () , () ,") { After = ["DataSource"], Endings = [") AS c"] },
         new("PREDICT (* MODEL = {value} ,") { After = ["DataSource"], Values = ["DATA"], Closed = true },
         new("PREDICT (* RUNTIME =") { After = ["DataSource"], Items = "MODEL = @m, DATA = t AS d, ", Values = ["ONNX"], Closed = true },
     ];
@@ -81,6 +88,9 @@ internal static class QueryPhrases
         new("DEFAULT {value} FOR") { Lead = "ALTER TABLE t ADD " },
         new("AT TIME") { Lead = "SELECT (a " },
         new("AT TIME") { After = ["OperandTail"] },
+        // 時區是運算式：名單由執行個體名單給，片語只說這一格收不收變數。
+        new("AT TIME ZONE") { Lead = "SELECT (a " },
+        new("AT TIME ZONE") { After = ["OperandTail"] },
 
         // AI_GENERATE_EMBEDDINGS 的來源之後是 USE MODEL 與模型名稱，再來是選用的 PARAMETERS。來源是運算式（{value}
         // 也比對得到資料行）；函式引數裡判不出位置，從呼叫寫起。
@@ -117,6 +127,10 @@ internal static class QueryPhrases
         new("GROUP BY") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"], Values = GroupingItems },
         new("GROUP BY ,* ,") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"], Values = GroupingItems },
         new("GROUP BY ,* GROUPING") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"] },
+        // GROUPING SETS 括號裡的一項也可以是 ROLLUP、CUBE，或再一組括號，那一組裡的項同樣接得了它們。
+        // 那一組的資料行要關兩層括號才寫得完，續尾寫不出來，宣告不封閉。
+        new("GROUP BY ,* GROUPING SETS (*") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"], Values = GroupingSetItems },
+        new("GROUP BY ,* GROUPING SETS (* (*") { After = ["SelectListTail", "TableSourceTail", "ExpressionTail"], Values = GroupingSetItems, Closed = false },
         // 舊寫法 GROUP BY a, b WITH ROLLUP／CUBE：分組項寫完之後的 WITH。
         new("WITH") { After = ["GroupByTail"] },
 

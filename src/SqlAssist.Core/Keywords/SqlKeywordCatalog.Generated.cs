@@ -342,8 +342,8 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.BlockEnd, "BEGIN TRY SELECT 1 END "),
         new(SqlKeywordPosition.BlockEnd, "BEGIN TRY SELECT 1 END TRY BEGIN CATCH SELECT 1 END "),
         new(SqlKeywordPosition.IfBodyEnd, "IF 1 = 1 SET NOCOUNT ON "),
-        new(SqlKeywordPosition.CursorOption, "DECLARE c CURSOR "),
-        new(SqlKeywordPosition.CursorOption, "DECLARE c CURSOR LOCAL FAST_FORWARD "),
+        new(SqlKeywordPosition.CursorOption, "DECLARE t CURSOR "),
+        new(SqlKeywordPosition.CursorOption, "DECLARE t CURSOR LOCAL FAST_FORWARD "),
         new(SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t "),
         new(SqlKeywordPosition.SequenceOption, "CREATE SEQUENCE t START WITH 1 "),
         new(SqlKeywordPosition.SequenceOption, "ALTER SEQUENCE t "),
@@ -7202,7 +7202,7 @@ internal static class SqlKeywordCatalogData
         {
             "DELETE", "INSERT", "UPDATE",
         }),
-        ("", SqlKeywordPosition.CursorOption, "DECLARE c CURSOR ", true, false, false, false, new string[]
+        ("", SqlKeywordPosition.CursorOption, "DECLARE t CURSOR ", true, false, false, false, new string[]
         {
             "DYNAMIC", "FAST_FORWARD", "FOR", "FORWARD_ONLY", "GLOBAL", "KEYSET", "LOCAL",
             "OPTIMISTIC", "READ_ONLY", "SCROLL", "SCROLL_LOCKS", "STATIC", "TYPE_WARNING",
@@ -9049,6 +9049,18 @@ internal static class SqlKeywordCatalogData
         ("PREDICT (*", SqlKeywordPosition.DataSource, "SELECT * FROM PREDICT (", true, false, false, false, new string[]
         {
             "MODEL", "RUNTIME",
+        }),
+        ("CHANGETABLE (", SqlKeywordPosition.DataSource, "SELECT * FROM CHANGETABLE (", true, false, true, false, new string[]
+        {
+            "CHANGES", "VERSION",
+        }),
+        ("CHANGETABLE ( CHANGES {name} , {value} ,", SqlKeywordPosition.DataSource, "SELECT * FROM CHANGETABLE (CHANGES t , 1 , ", true, false, false, false, new string[]
+        {
+            "FORCESEEK",
+        }),
+        ("CHANGETABLE ( VERSION {name} , () , () ,", SqlKeywordPosition.DataSource, "SELECT * FROM CHANGETABLE (VERSION t , (a) , (a) , ", true, false, false, false, new string[]
+        {
+            "FORCESEEK",
         }),
         ("PREDICT (* MODEL = {value} ,", SqlKeywordPosition.DataSource, "SELECT * FROM PREDICT (MODEL = 1 , ", true, false, true, false, new string[]
         {
@@ -11750,6 +11762,18 @@ internal static class SqlKeywordCatalogData
         {
             "SECRET",
         }),
+        ("DECLARE {name}", SqlKeywordPosition.StatementStart, "DECLARE t ", true, false, false, false, new string[]
+        {
+            "CURSOR", "INSENSITIVE", "SCROLL",
+        }),
+        ("DECLARE {name} INSENSITIVE", SqlKeywordPosition.StatementStart, "DECLARE t INSENSITIVE ", true, false, false, false, new string[]
+        {
+            "CURSOR", "INSENSITIVE", "SCROLL",
+        }),
+        ("DECLARE {name} SCROLL", SqlKeywordPosition.StatementStart, "DECLARE t SCROLL ", true, false, false, false, new string[]
+        {
+            "CURSOR", "INSENSITIVE", "SCROLL",
+        }),
         ("DEALLOCATE", SqlKeywordPosition.StatementStart, "DEALLOCATE ", false, true, true, false, new string[]
         {
             "GLOBAL",
@@ -11930,7 +11954,7 @@ internal static class SqlKeywordCatalogData
             "INTERSECT", "JOIN", "LEFT", "OPTION", "ORDER", "OUTER", "PIVOT", "RIGHT",
             "TABLESAMPLE", "UNION", "UNPIVOT", "WHERE", "WINDOW",
         }),
-        ("FOR", SqlKeywordPosition.CursorOption, "DECLARE c CURSOR FOR ", true, false, false, false, new string[]
+        ("FOR", SqlKeywordPosition.CursorOption, "DECLARE t CURSOR FOR ", true, false, false, false, new string[]
         {
             "SELECT", "WITH",
         }),
@@ -11971,6 +11995,12 @@ internal static class SqlKeywordCatalogData
         ("AT TIME", SqlKeywordPosition.Any | SqlKeywordPosition.OperandTail, "SELECT (a AT TIME ", true, false, false, false, new string[]
         {
             "ZONE",
+        }),
+        ("AT TIME ZONE", SqlKeywordPosition.Any | SqlKeywordPosition.OperandTail, "SELECT (a AT TIME ZONE ", false, true, false, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
         }),
         ("AI_GENERATE_EMBEDDINGS (* {value} USE", SqlKeywordPosition.Any, "SELECT AI_GENERATE_EMBEDDINGS (1 USE ", true, false, false, false, new string[]
         {
@@ -12105,6 +12135,18 @@ internal static class SqlKeywordCatalogData
         {
             "COLLATE", "EXCEPT", "FOR", "HAVING", "INTERSECT", "OPTION", "ORDER", "SETS",
             "UNION",
+        }),
+        ("GROUP BY ,* GROUPING SETS (*", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP BY GROUPING SETS (", false, true, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ROLLUP", "CUBE",
+        }),
+        ("GROUP BY ,* GROUPING SETS (* (*", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP BY GROUPING SETS ((", false, false, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL", "SELECT",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ROLLUP", "CUBE", "IDENTITY",
         }),
         ("WITH", SqlKeywordPosition.GroupByTail, "SELECT * FROM t GROUP BY a WITH ", true, false, false, false, new string[]
         {

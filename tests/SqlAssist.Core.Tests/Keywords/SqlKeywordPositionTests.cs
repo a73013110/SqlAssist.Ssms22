@@ -1291,7 +1291,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("UPDATE t SET S", "STOPLIST", false)]
     [InlineData("CREATE TABLE t (N", "NOLOCK", false)]
     [InlineData("SELECT * FROM t CROSS A", "APPLY", true)]
-    [InlineData("DECLARE c C", "CURSOR", true)]
+    [InlineData("SET @c = C", "CURSOR", true)]
     [InlineData("SELECT * FROM t WHERE a = A", "ANY", true)]
     public void 判不出位置的關鍵字只在判不出位置時出現(string textBeforeCaret, string keyword, bool expected)
     {

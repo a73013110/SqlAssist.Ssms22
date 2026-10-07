@@ -2117,6 +2117,24 @@
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/predict-transact-sql"
     },
     {
+      "name": "CHANGETABLE",
+      "kind": "function",
+      "summary": "變更追蹤的資料列集函式：CHANGES 列出版本之後的變更，VERSION 列出一列的版本；寫在 FROM。",
+      "examples": [
+        {
+          "id": "changes",
+          "title": "版本之後的變更",
+          "sql": "SELECT * FROM CHANGETABLE(CHANGES dbo.Copy, @LastVersion) AS c   -- 之後變更過的複本"
+        },
+        {
+          "id": "version",
+          "title": "一列的最新版本",
+          "sql": "SELECT c.SYS_CHANGE_VERSION\nFROM CHANGETABLE(VERSION dbo.Copy, (CopyNo), (1)) AS c"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-functions/changetable-transact-sql"
+    },
+    {
       "name": "MATCH",
       "kind": "function",
       "summary": "圖形查詢的比對條件，只寫在 WHERE；節點與邊緣以 -( )-> 連成圖樣。",

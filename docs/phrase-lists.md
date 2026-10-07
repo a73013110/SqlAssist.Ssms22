@@ -56,7 +56,7 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 
 - 括號清單：CREATE INDEX（含 XML、JSON 索引）與資料表定義裡內嵌索引的 `WITH (…)`，前面還夾著 `INCLUDE (…)` 與篩選 `WHERE`。標頭固定的括號清單
   （`ALTER TABLE t SET (`、`OPENROWSET (`）寫成 `(*` 片語；定義清單裡一項自己的括號清單也是（`CONNECTION (* {name}` 接 `TO`，
-  前一格是 `ColumnDefinition`）。執行期分不出游標在 `(` 還是逗號之後，
+  前一格是 `ColumnDefinition`）；一項本身是一組括號清單的寫兩個（`GROUPING SETS (* (*`）。執行期分不出游標在 `(` 還是逗號之後，
   字取兩者聯集；逗號之後那一項不探關上括號的續尾，否則 `AUTO_CREATE_STATISTICS ON (` 列出括號外的 SET 選項。括號裡是子句的（`WITHIN GROUP (ORDER BY …)`、`WAITFOR (RECEIVE …)`）寫單獨的 `(`：只認緊接的左括號、不取聯集，
   否則子句裡的逗號也比對成清單項，`RECEIVE a, ` 之後只剩子句開頭的字。
 - 選項寫完還要回報位置（模組的 `AS`、觸發程序的 `FOR`）；`EXECUTE AS` 這類多字選項以位置為鍵，掛到共用位置會漏進每一份清單。

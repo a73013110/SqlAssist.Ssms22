@@ -212,7 +212,7 @@ public sealed class SqlInstanceList
     /// 只差 <c>_CI_AS</c> 這種尾巴，模糊比對撈回來的順序沒有意義。同一個名稱只列一次，
     /// 先列的那一級留下。
     /// </remarks>
-    /// <param name="scriptValues">由 <see cref="ScriptValues"/> 收集、放在上下文裡的那一份。</param>
+    /// <param name="scriptValues">由 <see cref="ScriptValues"/> 收集、放在上下文裡的那一份；這一格收變數時也有變數。</param>
     /// <param name="server">伺服器的回答；沒問或問不到時是 <see cref="SqlInstanceListData.Empty"/>。</param>
     public IReadOnlyList<SqlSuggestion> Suggestions(
         IReadOnlyList<SqlSuggestion> scriptValues,

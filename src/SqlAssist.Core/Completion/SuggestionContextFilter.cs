@@ -59,7 +59,7 @@ public static class SuggestionContextFilter
             SqlCompletionPolicy.OffersPhraseVariables(context);
         var typeAs = IsTypeAs(suggestion, context);
 
-        return (!context.Bracketed || IsBracketable(suggestion.Kind)) &&
+        return (!context.Bracketed || IsBracketable(suggestion, context)) &&
                (IsProvenPhraseWord(suggestion) || phraseSnippet || phraseVariable || typeAs ||
                 IsAllowedForTarget(suggestion, context.Target)) &&
                (phraseSnippet || phraseVariable || typeAs || IsAllowedForPosition(suggestion, context)) &&
@@ -85,11 +85,14 @@ public static class SuggestionContextFilter
     /// 使用者自訂函式，<c>[NOLOCK]</c> 不是提示，關鍵字與片段更不用說。
     /// 型別是灰色地帶（<c>[int]</c> 合法），但帶參數的型別插入文字自己帶著左括號，
     /// 包法要另外定義，目前一併不列。
+    /// 資料表變數只在純量位置包得起來：那裡它只能當欄位的限定字，寫法本來就是 <c>[@rows]</c>
+    /// （<see cref="SqlInsertionText.QuoteQualifier"/>）；<c>FROM [@rows]</c> 指的是叫那個名字的資料表。
     /// </remarks>
-    private static bool IsBracketable(SuggestionKind kind)
+    private static bool IsBracketable(SqlSuggestion suggestion, SqlCompletionContext context)
     {
-        return kind switch
+        return suggestion.Kind switch
         {
+            SuggestionKind.Variable => suggestion.Tag is SqlScriptTable && context.ExpectsScalar,
             SuggestionKind.Schema => true,
             SuggestionKind.Table => true,
             SuggestionKind.View => true,
@@ -135,12 +138,15 @@ public static class SuggestionContextFilter
     /// 只看第一個字不夠：觸發程序 <c>FOR</c> 之後接得上 <c>INSERT</c>，卻不是 <c>INSERT INTO</c>；
     /// <c>ALTER TABLE t DROP</c> 之後也不是 <c>DROP TABLE</c>。之後的字把前面的字接上文字再問一次，
     /// 答案與使用者自己一個字一個字打出來時的清單相同。
+    ///
+    /// 執行個體名單那一格的片語只說收不收變數（<c>AT TIME ZONE @tz</c>），片語的字（<c>CASE</c>）不列，以它開頭的片段也不列。
     /// </remarks>
     private static bool StartsWithPhraseWord(SqlSuggestion suggestion, SqlCompletionContext context)
     {
         if (suggestion.Tag is not SqlSnippet snippet ||
             context.ClausePhrase is not { } match ||
-            context.TextBeforeCaret is not { } typed)
+            context.TextBeforeCaret is not { } typed ||
+            SqlInstanceList.For(context.Target) is not null)
         {
             return false;
         }

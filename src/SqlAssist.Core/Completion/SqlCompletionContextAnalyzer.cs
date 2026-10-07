@@ -44,11 +44,14 @@ public static class SqlCompletionContextAnalyzer
 
     private static SqlCompletionContext AnalyzeToken(string textBeforeCaret, int tokenStart)
     {
+        var prefix = SqlIdentifier.UnquoteOpening(textBeforeCaret.Substring(tokenStart));
+
         // 小老鼠開頭的詞元不必看位置，也不必看前導關鍵字：它要的東西只有兩種，
-        // 而兩種都與周圍的文法無關。
-        if (tokenStart < textBeforeCaret.Length && textBeforeCaret[tokenStart] == '@')
+        // 而兩種都與周圍的文法無關。方括號裡的也是：[@rows] 是資料表變數當限定字的寫法
+        // （SqlInsertionText.QuoteQualifier），清單只留得下包得起來的那幾個（SuggestionContextFilter）。
+        if (prefix.Length > 0 && prefix[0] == '@')
         {
-            return AnalyzeVariable(textBeforeCaret, tokenStart);
+            return AnalyzeVariable(textBeforeCaret, tokenStart, prefix);
         }
 
         // 詞法分析只做一次：位置與「這裡是不是型別的位置」問的是同一段文字，
@@ -76,7 +79,6 @@ public static class SqlCompletionContextAnalyzer
 
         var caret = SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken);
         var keywordPosition = caret.Keywords;
-        var prefix = SqlIdentifier.UnquoteOpening(textBeforeCaret.Substring(tokenStart));
         var qualifierPath = ExtractQualifierPath(
             beforeToken,
             out var beforeQualifier,
@@ -139,9 +141,15 @@ public static class SqlCompletionContextAnalyzer
 
         // 名單只有伺服器知道的那幾種（定序、語言、時區）同理；片語認得出 SET LANGUAGE 與
         // AT TIME ZONE，但剖析器在那一格什麼名稱都收，片語給不出字，也就不封閉。
+        // 片語照樣帶著：它說得出這一格收不收變數（AT TIME ZONE @tz），清單空前綴就開，變數要在那時放進去。
         if (SqlInstanceList.TryResolve(textBeforeToken, tokens, out var instanceList))
         {
-            return new SqlCompletionContext(SqlCompletionSlot.Grammar, tokenStart, prefix, instanceList.Target);
+            return new SqlCompletionContext(
+                SqlCompletionSlot.Grammar,
+                tokenStart,
+                prefix,
+                instanceList.Target,
+                clausePhrase: caret.Phrase is { Phrase.IsAdditive: false } ? caret.Phrase : null);
         }
 
         // 型別的位置要排在「這裡不接受任何關鍵字」之前問：CAST(x AS | 在位置分析
@@ -505,10 +513,8 @@ public static class SqlCompletionContextAnalyzer
         return !SqlScriptVariableSuggestions.IsDeclarationSlot(tokens, index);
     }
 
-    private static SqlCompletionContext AnalyzeVariable(string textBeforeCaret, int tokenStart)
+    private static SqlCompletionContext AnalyzeVariable(string textBeforeCaret, int tokenStart, string prefix)
     {
-        var prefix = textBeforeCaret.Substring(tokenStart);
-
         if (prefix.Length >= 2 && prefix[1] == '@')
         {
             return new SqlCompletionContext(

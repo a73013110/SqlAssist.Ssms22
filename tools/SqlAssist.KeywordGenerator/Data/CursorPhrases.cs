@@ -16,6 +16,8 @@ internal static class CursorPhrases
 
     internal static readonly PhraseDeclaration[] Fetch =
     [
+        // ISO 寫法的游標宣告：名稱與 CURSOR 之間是 INSENSITIVE、SCROLL。DECLARE @a 是變數的宣告，名稱格不收它。
+        new("DECLARE {name}") { Expand = 1 },
         new("DEALLOCATE"),
         new("FETCH") { Expand = 2 },
     ];

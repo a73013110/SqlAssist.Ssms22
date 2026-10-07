@@ -680,6 +680,12 @@
     "examples.basic.title": "Basic usage",
     "examples.onnx.title": "ONNX model"
   },
+  "CHANGETABLE": {
+    "summary": "Change-tracked rows since a version, or one row's version",
+    "examples.changes.title": "Changes since a version",
+    "examples.changes.sql": "SELECT * FROM CHANGETABLE(CHANGES dbo.Copy, @LastVersion) AS c   -- Changed copies",
+    "examples.version.title": "Latest version of one row"
+  },
   "MATCH": {
     "summary": "Graph match condition in WHERE; -( )-> links nodes and edges",
     "examples.basic.title": "Basic usage",

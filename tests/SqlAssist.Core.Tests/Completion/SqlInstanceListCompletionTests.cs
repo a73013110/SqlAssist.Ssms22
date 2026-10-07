@@ -164,7 +164,30 @@ public sealed class SqlInstanceListCompletionTests
     {
         var sql = SqlWithCaret.Parse(sqlWithCaret);
 
-        Assert.Empty(SqlCompletionContextAnalyzer.Analyze(sql.Text, sql.Caret).ScriptSources);
+        // 片語收的變數另算，見 收變數的名單位置列變數。
+        Assert.DoesNotContain(
+            SqlCompletionContextAnalyzer.Analyze(sql.Text, sql.Caret).ScriptSources,
+            source => source.Kind != SuggestionKind.Variable);
+    }
+
+    /// <summary>
+    /// 剖析器在 <c>AT TIME ZONE</c>、<c>SET LANGUAGE</c> 之後收變數，清單空前綴就開，變數要在那時放進去；
+    /// <c>COLLATE</c> 與 <c>DEFAULT_LANGUAGE =</c> 不收。
+    /// </summary>
+    [Theory]
+    [InlineData("DECLARE @Zone sysname;\nSELECT l.LoanDate AT TIME ZONE 'UTC' AT TIME ZONE |", true)]
+    [InlineData("DECLARE @Lang sysname;\nSET LANGUAGE |", true)]
+    [InlineData("DECLARE @Lang sysname;\nSELECT r.ReaderName COLLATE |", false)]
+    [InlineData("DECLARE @Lang sysname;\nALTER LOGIN LibReader WITH DEFAULT_LANGUAGE = |", false)]
+    public void 收變數的名單位置列變數(string sqlWithCaret, bool expected)
+    {
+        var sql = SqlWithCaret.Parse(sqlWithCaret);
+        var context = SqlCompletionContextAnalyzer.Analyze(sql.Text, sql.Caret);
+        var list = SqlInstanceList.For(context.Target)!;
+
+        var filtered = SuggestionContextFilter.Filter(list.Suggestions(context.ScriptSources, SqlInstanceListData.Empty), context);
+
+        Assert.Equal(expected, filtered.Any(item => item.Kind == SuggestionKind.Variable));
     }
 
     /// <summary>同一個名稱只列一次，文法上的字已經有的也不再重複。</summary>
