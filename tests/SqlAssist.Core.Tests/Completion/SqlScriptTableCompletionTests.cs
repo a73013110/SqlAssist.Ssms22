@@ -314,6 +314,24 @@ public sealed class SqlScriptTableCompletionTests
         Assert.NotEqual(CompletionTarget.DataSource, Analyze(sqlWithCaret).Target);
     }
 
+    /// <summary>游標宣告的 <c>FOR UPDATE</c> 是選項：之後列 OF，不列資料表。</summary>
+    /// <remarks>
+    /// 同一個 UPDATE 寫在一句開頭才是動詞；當成目標的話，清單換成暫存資料表與資料庫物件，<c>OF</c> 被擠到後面。
+    /// 換行寫的也一樣，FOR 才是那一行的第一個字。
+    /// </remarks>
+    [Theory]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR FOR SELECT CopyNo FROM #Loan FOR UPDATE |")]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR FOR SELECT CopyNo FROM #Loan FOR UPDATE O|")]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR LOCAL FOR SELECT CopyNo FROM #Loan\r\nFOR UPDATE |")]
+    public void 游標的FOR_UPDATE之後是選項不是資料來源(string sqlWithCaret)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(CompletionTarget.ClauseKeyword, context.Target);
+        Assert.Contains("OF", context.ClausePhrase!.Suggestions.Select(item => item.DisplayText));
+        Assert.DoesNotContain(context.ScriptSources, item => item.DisplayText == "#Loan");
+    }
+
     /// <summary>MERGE 的目標寫在 TOP 子句之後，取的別名照樣限定得了欄位。</summary>
     [Fact]
     public void TOP子句之後的MERGE目標別名列得出欄位()
