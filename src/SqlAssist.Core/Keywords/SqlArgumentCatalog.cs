@@ -25,26 +25,28 @@ public static class SqlArgumentCatalog
     /// 只收完整名稱，不收 <c>yy</c>、<c>dd</c> 這些縮寫：縮寫背得起來的人不需要補字，
     /// 而 15 個名稱再乘上兩三種縮寫，清單就從「一眼看完」變成要捲動。
     ///
-    /// 第三欄是 ODBC 簽章裡 <c>extract_field</c> 收不收這個字（<c>{fn EXTRACT(HOUR FROM …)}</c>）：
-    /// 附錄 E 只收六個，是這一份的子集。寫成這一欄而不另立名單，說明與名稱只有這一處。
+    /// 後兩欄是 ODBC 簽章的兩種引數：<c>extract_field</c> 收不收這個字（<c>{fn EXTRACT(HOUR FROM …)}</c>，
+    /// 附錄 E 只收六個），以及 <c>interval</c> 裡對應的寫法（<c>{fn TIMESTAMPADD(SQL_TSI_HOUR, …)}</c>，
+    /// 九個；<c>SQL_TSI_FRAC_SECOND</c> 是十億分之一秒，對到 <c>NANOSECOND</c>）。寫成欄而不另立名單，
+    /// 說明只有這一處。
     /// </remarks>
-    private static readonly (string Name, Func<string> Description, bool ExtractField)[] DatePartDefinitions =
+    private static readonly (string Name, Func<string> Description, bool ExtractField, string? Interval)[] DatePartDefinitions =
     {
-        ("YEAR", () => ArgumentText.DatePartYear, true),
-        ("QUARTER", () => ArgumentText.DatePartQuarter, false),
-        ("MONTH", () => ArgumentText.DatePartMonth, true),
-        ("DAYOFYEAR", () => ArgumentText.DatePartDayofyear, false),
-        ("DAY", () => ArgumentText.DatePartDay, true),
-        ("WEEK", () => ArgumentText.DatePartWeek, false),
-        ("WEEKDAY", () => ArgumentText.DatePartWeekday, false),
-        ("HOUR", () => ArgumentText.DatePartHour, true),
-        ("MINUTE", () => ArgumentText.DatePartMinute, true),
-        ("SECOND", () => ArgumentText.DatePartSecond, true),
-        ("MILLISECOND", () => ArgumentText.DatePartMillisecond, false),
-        ("MICROSECOND", () => ArgumentText.DatePartMicrosecond, false),
-        ("NANOSECOND", () => ArgumentText.DatePartNanosecond, false),
-        ("TZOFFSET", () => ArgumentText.DatePartTzoffset, false),
-        ("ISO_WEEK", () => ArgumentText.DatePartIsoWeek, false)
+        ("YEAR", () => ArgumentText.DatePartYear, true, "SQL_TSI_YEAR"),
+        ("QUARTER", () => ArgumentText.DatePartQuarter, false, "SQL_TSI_QUARTER"),
+        ("MONTH", () => ArgumentText.DatePartMonth, true, "SQL_TSI_MONTH"),
+        ("DAYOFYEAR", () => ArgumentText.DatePartDayofyear, false, null),
+        ("DAY", () => ArgumentText.DatePartDay, true, "SQL_TSI_DAY"),
+        ("WEEK", () => ArgumentText.DatePartWeek, false, "SQL_TSI_WEEK"),
+        ("WEEKDAY", () => ArgumentText.DatePartWeekday, false, null),
+        ("HOUR", () => ArgumentText.DatePartHour, true, "SQL_TSI_HOUR"),
+        ("MINUTE", () => ArgumentText.DatePartMinute, true, "SQL_TSI_MINUTE"),
+        ("SECOND", () => ArgumentText.DatePartSecond, true, "SQL_TSI_SECOND"),
+        ("MILLISECOND", () => ArgumentText.DatePartMillisecond, false, null),
+        ("MICROSECOND", () => ArgumentText.DatePartMicrosecond, false, null),
+        ("NANOSECOND", () => ArgumentText.DatePartNanosecond, false, "SQL_TSI_FRAC_SECOND"),
+        ("TZOFFSET", () => ArgumentText.DatePartTzoffset, false, null),
+        ("ISO_WEEK", () => ArgumentText.DatePartIsoWeek, false, null)
     };
 
     /// <summary>
@@ -213,10 +215,21 @@ public static class SqlArgumentCatalog
     private static readonly HashSet<string> Words = CollectWords();
 
     private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> DatePartCache =
-        new(_ => BuildDateParts(extractFieldsOnly: false));
+        new(_ => BuildDateParts(DatePartList.All));
 
     private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> ExtractFieldCache =
-        new(_ => BuildDateParts(extractFieldsOnly: true));
+        new(_ => BuildDateParts(DatePartList.ExtractField));
+
+    private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> IntervalCache =
+        new(_ => BuildDateParts(DatePartList.Interval));
+
+    /// <summary>日期部分定義表組得出的三份清單。</summary>
+    private enum DatePartList
+    {
+        All,
+        ExtractField,
+        Interval
+    }
 
     private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> TableHintCache =
         new(_ => Build(TableHintDefinitions, SuggestionKind.TableHint));
@@ -232,6 +245,9 @@ public static class SqlArgumentCatalog
 
     /// <summary>ODBC <c>{fn EXTRACT(</c> 第一個引數的建議項：日期部分裡 <c>extract_field</c> 收的那幾個。</summary>
     public static IReadOnlyList<SqlSuggestion> ExtractFields => ExtractFieldCache.Current;
+
+    /// <summary>ODBC <c>{fn TIMESTAMPADD(</c>、<c>{fn TIMESTAMPDIFF(</c> 第一個引數的建議項：日期部分在 <c>interval</c> 裡的寫法。</summary>
+    public static IReadOnlyList<SqlSuggestion> Intervals => IntervalCache.Current;
 
     /// <summary><c>WITH (…)</c> 的資料表提示建議項。</summary>
     public static IReadOnlyList<SqlSuggestion> TableHints => TableHintCache.Current;
@@ -286,7 +302,17 @@ public static class SqlArgumentCatalog
         switch (kind)
         {
             case SqlBuiltInKind.DatePart:
-                return TryFind(DatePartDefinitions, name, out description);
+                foreach (var (candidate, describe, _, _) in DatePartDefinitions)
+                {
+                    if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        description = describe();
+                        return true;
+                    }
+                }
+
+                description = string.Empty;
+                return false;
             case SqlBuiltInKind.TableHint:
                 return TryFind(TableHintDefinitions, name, out description);
             case SqlBuiltInKind.QueryHint:
@@ -335,7 +361,7 @@ public static class SqlArgumentCatalog
     {
         var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (name, _, _) in DatePartDefinitions)
+        foreach (var (name, _, _, _) in DatePartDefinitions)
         {
             words.UnionWith(name.Split(' '));
         }
@@ -353,13 +379,20 @@ public static class SqlArgumentCatalog
         return words;
     }
 
-    private static IReadOnlyList<SqlSuggestion> BuildDateParts(bool extractFieldsOnly)
+    private static IReadOnlyList<SqlSuggestion> BuildDateParts(DatePartList list)
     {
         var suggestions = new List<SqlSuggestion>(DatePartDefinitions.Length);
 
-        foreach (var (name, describe, extractField) in DatePartDefinitions)
+        foreach (var (datePart, describe, extractField, interval) in DatePartDefinitions)
         {
-            if (extractFieldsOnly && !extractField)
+            var name = list switch
+            {
+                DatePartList.ExtractField => extractField ? datePart : null,
+                DatePartList.Interval => interval,
+                _ => datePart
+            };
+
+            if (name is null)
             {
                 continue;
             }

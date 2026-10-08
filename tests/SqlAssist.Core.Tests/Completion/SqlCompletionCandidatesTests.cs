@@ -57,6 +57,16 @@ public sealed class SqlCompletionCandidatesTests
         Assert.Equal(new[] { "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND" }, list.Select(item => item.DisplayText));
     }
 
+    /// <summary>ODBC <c>{fn TIMESTAMPDIFF(</c> 只列 <c>SQL_TSI_</c> 那九個，不列 T-SQL 的日期部分。</summary>
+    [Fact]
+    public async Task ODBC的TIMESTAMPDIFF只列九個間隔()
+    {
+        var list = await GetAsync("SELECT {fn TIMESTAMPDIFF(|", new SqlAssistSettings(), new RecordingMetadata { Throws = true });
+
+        Assert.Equal(9, list.Count);
+        Assert.All(list, item => Assert.StartsWith("SQL_TSI_", item.DisplayText));
+    }
+
     /// <param name="text">整份指令碼；<c>|</c> 是游標。</param>
     private static async Task<IReadOnlyList<SqlSuggestion>> GetAsync(
         string text,

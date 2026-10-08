@@ -38,18 +38,28 @@ public static class SqlArgumentPosition
             return false;
         }
 
-        // DATEADD(|、DATE_BUCKET(|、{fn EXTRACT(| ——只有第一個引數；打過逗號之後那裡要的是數字與日期。
-        // 哪些函式由簽章說，{fn 跳脫裡的只問 ODBC 那一份：附錄 E 的 extract_field 只收日期部分裡的六個。
+        // DATEADD(|、DATE_BUCKET(|、{fn EXTRACT(|、{fn TIMESTAMPADD(| ——只有第一個引數；打過逗號之後那裡要的是數字與日期。
+        // 哪些函式由簽章說，{fn 跳脫裡的只問 ODBC 那一份：附錄 E 的 extract_field 只收日期部分裡的六個，interval 寫成 SQL_TSI_。
         if (tokens[last].IsPunctuation("(") && last >= 1 && IsBareIdentifier(tokens[last - 1]))
         {
             var name = tokens[last - 1].Value;
-            var odbc = IsOdbcCall(tokens, last - 1);
 
-            if (odbc
-                ? SqlArgumentCatalog.OdbcFirstParameterIs(name, "extract_field")
-                : SqlFunctionCatalog.FirstParameterIs(name, "datepart"))
+            if (!IsOdbcCall(tokens, last - 1))
             {
-                target = odbc ? CompletionTarget.ExtractField : CompletionTarget.DatePart;
+                if (SqlFunctionCatalog.FirstParameterIs(name, "datepart"))
+                {
+                    target = CompletionTarget.DatePart;
+                    return true;
+                }
+            }
+            else if (SqlArgumentCatalog.OdbcFirstParameterIs(name, "extract_field"))
+            {
+                target = CompletionTarget.ExtractField;
+                return true;
+            }
+            else if (SqlArgumentCatalog.OdbcFirstParameterIs(name, "interval"))
+            {
+                target = CompletionTarget.Interval;
                 return true;
             }
         }

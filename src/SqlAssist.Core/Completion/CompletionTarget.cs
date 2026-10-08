@@ -128,6 +128,9 @@ public enum CompletionTarget
     /// <summary>ODBC <c>{fn EXTRACT(</c> 的第一個引數：日期部分裡 ODBC 收的那幾個。</summary>
     ExtractField,
 
+    /// <summary>ODBC <c>{fn TIMESTAMPADD(</c>、<c>{fn TIMESTAMPDIFF(</c> 的第一個引數：日期部分的 <c>SQL_TSI_</c> 寫法。</summary>
+    Interval,
+
     /// <summary><c>WITH (</c> 的資料表提示。</summary>
     TableHint,
 

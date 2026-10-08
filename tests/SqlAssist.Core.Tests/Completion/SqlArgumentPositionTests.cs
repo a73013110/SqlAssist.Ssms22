@@ -100,16 +100,39 @@ public sealed class SqlArgumentPositionTests
         Assert.All(SqlArgumentCatalog.ExtractFields, item => Assert.Equal(SuggestionKind.DatePart, item.Kind));
     }
 
+    /// <summary>
+    /// ODBC <c>{fn TIMESTAMPADD(</c>、<c>{fn TIMESTAMPDIFF(</c> 的第一個引數只列附錄 E 的九個 <c>SQL_TSI_</c>，
+    /// 說明借對應的日期部分；<c>SQL_TSI_FRAC_SECOND</c> 是十億分之一秒。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT {fn TIMESTAMPADD(")]
+    [InlineData("SELECT {fn timestampdiff(SQL_TSI_")]
+    public void ODBC的TIMESTAMPADD列出九個間隔(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
+        Assert.Equal(CompletionTarget.Interval, context.Target);
+        Assert.Equal(
+            new[] { "SQL_TSI_YEAR", "SQL_TSI_QUARTER", "SQL_TSI_MONTH", "SQL_TSI_DAY", "SQL_TSI_WEEK", "SQL_TSI_HOUR", "SQL_TSI_MINUTE", "SQL_TSI_SECOND", "SQL_TSI_FRAC_SECOND" },
+            SqlArgumentCatalog.Intervals.Select(item => item.DisplayText));
+        Assert.Equal(
+            SqlArgumentCatalog.DateParts.Single(item => item.DisplayText == "NANOSECOND").Description,
+            SqlArgumentCatalog.Intervals.Single(item => item.DisplayText == "SQL_TSI_FRAC_SECOND").Description);
+    }
+
     /// <summary><c>FROM</c> 之後是日期來源；跳脫裡只問 ODBC 的簽章，T-SQL 的 <c>DATEADD</c> 不在附錄 E。</summary>
     [Theory]
     [InlineData("SELECT {fn EXTRACT(HOUR FROM ")]
     [InlineData("SELECT {fn DATEADD(")]
     [InlineData("SELECT {fn HOUR(")]
+    [InlineData("SELECT {fn TIMESTAMPADD(SQL_TSI_DAY, ")]
     public void ODBC跳脫裡不是日期部分的括號(string textBeforeCaret)
     {
         var target = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Target;
 
         Assert.NotEqual(CompletionTarget.ExtractField, target);
+        Assert.NotEqual(CompletionTarget.Interval, target);
         Assert.NotEqual(CompletionTarget.DatePart, target);
     }
 

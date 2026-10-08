@@ -25,8 +25,8 @@ SELECT {fn |                  → CURRENT_TIME、USER、RIGHT…（ODBC 純量�
 日期部分只在**第一個**引數：打過逗號之後那裡要的是數字與日期。哪些函式由函式目錄的簽章說
 （`DATE_BUCKET(datepart, …)`），不另列名單；只收完整名稱，不收 `yy`、`dd`：收了清單就要捲動。
 提示是一份清單，逗號之後還是提示，`OPTION (TABLE HINT (t, ` 之後也是資料表提示；`INDEX` 提交時補左括號，理由與內建函式相同。
-ODBC 收附錄 E 整份：sql-docs 的表格只列與 T-SQL 不重複的，引擎解譯的是整份。
-`{fn EXTRACT(` 由 ODBC 簽章的 `extract_field` 判，只列附錄 E 的六個日期部分。
+ODBC 收附錄 E 整份：sql-docs 的表格只列與 T-SQL 不重複的，引擎認整份。
+`{fn EXTRACT(`、`TIMESTAMPADD(` 第一個引數問 ODBC 簽章：`extract_field` 列附錄 E 的六個，`interval` 列九個 `SQL_TSI_`。
 
 `CREATE INDEX … WITH (` 列的是索引選項（片語，見[子句片語](completion-phrases.md)）。
 已知會誤判的是 `OPENJSON(…) WITH (col int '$.x')`：也會列出資料表提示。沒有為它再加判斷：
@@ -66,8 +66,8 @@ ODBC 收附錄 E 整份：sql-docs 的表格只列與 T-SQL 不重複的，引�
 另列結構描述、資料庫與連結伺服器，見[限定名稱](qualified-names.md#右對齊猜錯時整條往左挪)。
 
 `USING` 與 `FROM` 收在同一列：MERGE 的來源與 FROM 的來源是同一條文法，
-`SqlKeywordPositionAnalyzer` 與 `SqlScopeAnalyzer` 也這樣歸類。只有這一份漏掉時，
-症狀是 `USING ` 之後完全沒有清單，而使用者看不出它和 `FROM ` 之後有什麼不同。
+`SqlKeywordPositionAnalyzer` 與 `SqlScopeAnalyzer` 也這樣歸類。
+漏掉時 `USING ` 之後沒有清單。
 `FROM`、`INTO` 之後接不接資料來源見[語句的界線](completion-boundaries.md#語句的界線)。資料指標那一格由位置分析的
 `IntroducesCursor` 一條認，位置與目標共用；名稱前的 `GLOBAL` 是修飾字，當成名稱就只剩 `INTO`。
 名稱只在指令碼裡，不查資料庫；宣告的認法（`Parsing/SqlCursorDeclaration`）與 `CursorOption` 共用。
