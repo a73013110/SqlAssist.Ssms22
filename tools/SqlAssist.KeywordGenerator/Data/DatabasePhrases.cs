@@ -120,6 +120,8 @@ internal static class DatabasePhrases
         new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (*"),
         new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (* SECONDARY_ROLE (*"),
         new("ALTER AVAILABILITY GROUP {name} MODIFY REPLICA ON ,* {value} WITH (* PRIMARY_ROLE (*"),
+        // REMOVE 與 ADD 一樣要寫完一個複本才驗，整段是證據。
+        new("ALTER AVAILABILITY GROUP {name} REMOVE REPLICA ON {value}"),
         // FOR DATABASE 的資料庫清單寫完接 REPLICA；中段的 ,* 走過前面幾個資料庫。REPLICA 要寫完一個複本才驗，續尾補上。
         new("CREATE AVAILABILITY GROUP ... DATABASE ,* {name}")
         {

@@ -4232,6 +4232,9 @@ internal static class SqlKeywordCatalogData
         {
             "ALLOW_CONNECTIONS",
         }),
+        ("ALTER AVAILABILITY GROUP {name} REMOVE REPLICA ON {value}", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t REMOVE REPLICA ON 'x' ", true, false, false, true, new string[]
+        {
+        }),
         ("CREATE AVAILABILITY GROUP ... DATABASE ,* {name}", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE t ", true, false, true, false, new string[]
         {
             "REPLICA",
@@ -9113,12 +9116,38 @@ internal static class SqlKeywordCatalogData
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
             "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE",
         }),
+        ("GENERATED ALWAYS AS SUSER_SID END HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SID END HIDDEN ", true, false, false, false, new string[]
+        {
+            "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
+            "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE",
+        }),
+        ("GENERATED ALWAYS AS SUSER_SNAME START HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME START HIDDEN ", true, false, false, false, new string[]
+        {
+            "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
+            "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE",
+        }),
         ("GENERATED ALWAYS AS SUSER_SNAME END HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME END HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
             "PRIMARY", "REFERENCES", "ROWGUIDCOL", "UNIQUE",
         }),
         ("GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
+        }),
+        ("GENERATED ALWAYS AS TRANSACTION_ID END HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS TRANSACTION_ID END HIDDEN ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
+        }),
+        ("GENERATED ALWAYS AS SEQUENCE_NUMBER START HIDDEN", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER START HIDDEN ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
             "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
@@ -13802,6 +13831,14 @@ internal static class SqlKeywordCatalogData
             "HISTOGRAM", "HISTOGRAM_STEPS", "MARK_IN_USE_FOR_REMOVAL", "NO_INFOMSGS",
             "PHYSICAL_ONLY", "STAT_HEADER", "STATS_STREAM", "TABLERESULTS", "TABLOCK",
         }),
+        ("DBCC {name} WITH ,* DENSITY_VECTOR", SqlKeywordPosition.StatementStart, "DBCC t WITH DENSITY_VECTOR ", true, false, false, true, new string[]
+        {
+            "JOIN",
+        }),
+        ("DBCC {name} WITH ,* STAT_HEADER", SqlKeywordPosition.StatementStart, "DBCC t WITH STAT_HEADER ", true, false, false, true, new string[]
+        {
+            "JOIN",
+        }),
         ("DBCC {name} () WITH", SqlKeywordPosition.StatementStart, "DBCC t (a) WITH ", true, false, false, false, new string[]
         {
             "ALL_CONSTRAINTS", "ALL_ERRORMSGS", "ALL_INDEXES", "ALL_LEVELS", "COUNT_ROWS",
@@ -13815,6 +13852,14 @@ internal static class SqlKeywordCatalogData
             "DATA_PURITY", "DENSITY_VECTOR", "ESTIMATEONLY", "EXTENDED_LOGICAL_CHECKS", "FAST",
             "HISTOGRAM", "HISTOGRAM_STEPS", "MARK_IN_USE_FOR_REMOVAL", "NO_INFOMSGS",
             "PHYSICAL_ONLY", "STAT_HEADER", "STATS_STREAM", "TABLERESULTS", "TABLOCK",
+        }),
+        ("DBCC {name} () WITH ,* DENSITY_VECTOR", SqlKeywordPosition.StatementStart, "DBCC t (a) WITH DENSITY_VECTOR ", true, false, false, true, new string[]
+        {
+            "JOIN",
+        }),
+        ("DBCC {name} () WITH ,* STAT_HEADER", SqlKeywordPosition.StatementStart, "DBCC t (a) WITH STAT_HEADER ", true, false, false, true, new string[]
+        {
+            "JOIN",
         }),
         ("RAISERROR () WITH", SqlKeywordPosition.StatementStart, "RAISERROR ('x', 16, 1) WITH ", true, false, false, false, new string[]
         {
@@ -13893,6 +13938,10 @@ internal static class SqlKeywordCatalogData
         ("FOR XML ,* BINARY", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR XML AUTO, BINARY ", true, false, false, false, new string[]
         {
             "BASE64",
+        }),
+        ("FOR XML ,* ELEMENTS", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR XML AUTO, ELEMENTS ", true, false, false, true, new string[]
+        {
+            "ABSENT", "XSINIL",
         }),
         ("FOR JSON", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR JSON ", true, false, false, false, new string[]
         {
@@ -17651,6 +17700,14 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
+        ("ALTER AVAILABILITY GROUP {name} REMOVE", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t REMOVE ", true, false, true, false, new string[]
+        {
+            "DATABASE", "REPLICA ON",
+        }),
+        ("ALTER AVAILABILITY GROUP {name} REMOVE REPLICA", SqlKeywordPosition.StatementStart, "ALTER AVAILABILITY GROUP t REMOVE REPLICA ", true, false, false, false, new string[]
+        {
+            "ON",
+        }),
         ("CREATE AVAILABILITY GROUP ... REPLICA", SqlKeywordPosition.StatementStart, "CREATE AVAILABILITY GROUP t FOR DATABASE d REPLICA ", true, false, false, false, new string[]
         {
             "ON",
@@ -18452,9 +18509,19 @@ internal static class SqlKeywordCatalogData
             "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
             "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "SPARSE", "UNIQUE",
         }),
+        ("GENERATED ALWAYS AS SUSER_SID END", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SID END ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
+            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "SPARSE", "UNIQUE",
+        }),
         ("GENERATED ALWAYS AS SUSER_SNAME", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME ", true, false, false, false, new string[]
         {
             "END", "START",
+        }),
+        ("GENERATED ALWAYS AS SUSER_SNAME START", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME START ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLUMN_SET", "CONSTRAINT", "DEFAULT", "FOREIGN", "HIDDEN", "IDENTITY",
+            "INDEX", "NOT", "NULL", "PRIMARY", "REFERENCES", "ROWGUIDCOL", "SPARSE", "UNIQUE",
         }),
         ("GENERATED ALWAYS AS SUSER_SNAME END", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SUSER_SNAME END ", true, false, false, false, new string[]
         {
@@ -18473,9 +18540,25 @@ internal static class SqlKeywordCatalogData
             "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
             "FILESTREAM_ON",
         }),
+        ("GENERATED ALWAYS AS TRANSACTION_ID END", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS TRANSACTION_ID END ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
+        }),
         ("GENERATED ALWAYS AS SEQUENCE_NUMBER", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER ", true, false, false, false, new string[]
         {
             "END", "START",
+        }),
+        ("GENERATED ALWAYS AS SEQUENCE_NUMBER START", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER START ", true, false, false, false, new string[]
+        {
+            "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
+            "ENCRYPTED WITH", "FOREIGN KEY", "GENERATED ALWAYS AS", "HIDDEN", "IDENTITY",
+            "INDEX", "MASKED WITH", "NOT", "NULL", "PRIMARY KEY", "REFERENCES", "ROWGUIDCOL",
+            "SPARSE", "UNIQUE", "PERSISTED", "FILESTREAM", "AS JSON", "WITH", "ON", "VARYING",
+            "FILESTREAM_ON",
         }),
         ("GENERATED ALWAYS AS SEQUENCE_NUMBER END", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int GENERATED ALWAYS AS SEQUENCE_NUMBER END ", true, false, false, false, new string[]
         {

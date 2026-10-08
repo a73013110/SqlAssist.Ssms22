@@ -14,14 +14,14 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 `FROM t LEFT` 的 `LEFT` 比對成 `FROM ,* {name}` 的主體。主體寫完之後（`TO a, b CASCADE`）寫成 `TO ,* {name}`，第幾個主體都一樣。
 標頭的片語給第一項；逗號之後以每種第一項接逗號探測取聯集（用過的選項剖析器不收第二次），
 探到新字再取第一個往下一項探（`VECTOR_SEARCH` 的引數順序固定）。一種第一項之後就列得出每一種第一項的（剖析器不記用過的項），
-其餘不再探（事件通知有幾百個事件）。
+其餘不探（事件通知有幾百個事件）。
 一項接得了逗號就好，整句寫不寫得完不論；
 值要過剖析器的（`FORMAT_TYPE =`）代入那一格列得出的第一個字，只收特定值的（`METRIC`）由 `Endings` 補。
 剖析器當名稱讀的項（`GROUP BY ,* ,` 的 `ROLLUP`）以 `Values` 補進逗號之後那一格，接在探到的那一項之後驗。
 項的等號之後立成中段清單片語（`… WITH ,* CHECK_POLICY =`）再往下一層：`ON`／`OFF`、`PASSWORD = 'x' HASHED`
 在第幾項都一樣；括號清單（`WITH (* QUEUE_DELAY =`）與 CREATE INDEX 的 `WITH (` 同樣立。沒有字、宣告過這一項、這一項在這份清單
 不合法的不立；等號之後收運算式的不封閉，否則 `SOURCE =` 之後列不出資料行。
-逗號清單的一項寫了第一個字還沒完（接不了逗號）也立一格（`WITH ,* CHANGE_TRACKING` 之後是 `MANUAL`、`AUTO`、`OFF`），扣掉寫完一項之後
+逗號清單的一項寫了第一個字也立一格（`WITH ,* CHANGE_TRACKING` 之後是 `MANUAL`；寫完了可能再接：`ELEMENTS XSINIL`），扣掉寫完一項之後
 接得上的字（`FOR LOGON` 之後的 `AS`）；括號清單由宣告的展開說。以尾巴比對的清單（`ALTER DATABASE {name} SET ,* ,`）的項同樣立，
 否則 `SET DB_CHAINING ON, TRUSTWORTHY ` 之後沒有 `ON`、`OFF`。第一個字是關鍵字的不立，之後寫什麼由位置分析說：
 `GROUP BY a, CASE` 續尾寫不完，會判成封閉、藏掉資料行。第一項那一格（項或項的等號之後）已有展開立的片語時從逗號之後那一格探，

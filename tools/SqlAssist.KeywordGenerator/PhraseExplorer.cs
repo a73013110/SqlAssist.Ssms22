@@ -973,9 +973,9 @@ internal sealed class PhraseExplorer
         }
     }
 
-    // 逗號清單的一項寫了第一個字還沒寫完（CHANGE_TRACKING 之後是 MANUAL、AUTO、OFF）也是一格，立成中段清單的片語（標頭 ,* 項）。
+    // 逗號清單的一項寫了第一個字（CHANGE_TRACKING 之後是 MANUAL、AUTO、OFF）也是一格，立成中段清單的片語（標頭 ,* 項）。
     // 括號清單不必：宣告的展開立的 (* 項在左括號與逗號之後都比對得上。逗號清單的標頭只給第一項，展開又停在固定標頭的清單
-    // （見展開那一段），否則逗號之後那一項的下一個字沒有片語說。接得上逗號的字已寫完一項，不立。寫完一項之後接得上的字
+    // （見展開那一段），否則逗號之後那一項的下一個字沒有片語說。接得上逗號的字也立：寫完了還可能再接（ELEMENTS XSINIL）。寫完一項之後接得上的字
     // （finished 那一格：觸發程序事件之後的 AS）不算這一項的，扣掉；扣完列不出字的（DEFAULT_DATABASE 之後只有等號、
     // FOR LOGON 之後只有 AS）由 step 不立。宣告已寫出這一項的（RESULT SETS）由那一條說。第一項的那一格已有片語時
     // （標頭宣告了展開），從逗號之後那一格探，立在展開的那一條之後。
@@ -994,7 +994,7 @@ internal sealed class PhraseExplorer
                 var slot = written + " ";
                 var itemPattern = listPattern + " " + word;
 
-                if (done.Contains(word) || _prober.FirstRejection(written + ",") > written.Length || Explored(after, itemPattern, 0))
+                if (done.Contains(word) || Explored(after, itemPattern, 0))
                 {
                     continue;
                 }

@@ -221,12 +221,10 @@ internal static class DdlPhrases
         // 時態表：期間資料行（GENERATED ALWAYS AS ROW START）寫在型別之後；PERIOD FOR SYSTEM_TIME
         // 是資料表層級的一項。資料表選項 WITH (…)、ALTER TABLE SET (…) 與 SYSTEM_VERSIONING = ON (…) 是括號清單。
         // AS 之後的 ROW、SUSER_SID、TRANSACTION_ID 這些字剖析器要看到 START／END 才收，逐字探不出來，整段是證據。
-        new("GENERATED ALWAYS AS ROW START HIDDEN") { After = ["ColumnDefinitionTail"] },
-        new("GENERATED ALWAYS AS ROW END HIDDEN") { After = ["ColumnDefinitionTail"] },
-        new("GENERATED ALWAYS AS SUSER_SID START HIDDEN") { After = ["ColumnDefinitionTail"] },
-        new("GENERATED ALWAYS AS SUSER_SNAME END HIDDEN") { After = ["ColumnDefinitionTail"] },
-        new("GENERATED ALWAYS AS TRANSACTION_ID START HIDDEN") { After = ["ColumnDefinitionTail"] },
-        new("GENERATED ALWAYS AS SEQUENCE_NUMBER END HIDDEN") { After = ["ColumnDefinitionTail"] },
+        // 每一種都接得了 START 與 END（ScriptDom 的 GeneratedAlwaysType 兩兩成對），少寫一種，那一種的 HIDDEN 就沒有片語說。
+        .. new[] { "ROW", "SUSER_SID", "SUSER_SNAME", "TRANSACTION_ID", "SEQUENCE_NUMBER" }.SelectMany(kind =>
+            new[] { "START", "END" }.Select(end =>
+                new PhraseDeclaration($"GENERATED ALWAYS AS {kind} {end} HIDDEN") { After = ["ColumnDefinitionTail"] })),
         new("PERIOD FOR SYSTEM_TIME ()") { After = TableItem, Group = "(a, b)" },
         // 資料表選項的 WITH (…) 寫在定義、AS FILETABLE 或儲存段之後，前面那段由 ... 走過；FILETABLE 的選項也在這一份。
         new("CREATE TABLE ... WITH (*") { Gap = "t (a int)" },

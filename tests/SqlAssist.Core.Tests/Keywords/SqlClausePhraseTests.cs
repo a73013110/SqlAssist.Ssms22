@@ -776,6 +776,12 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT * FROM OPENROWSET (BULK 'x', SINGLE_NCLOB, ORDER (CopyNo ASC, BranchId DESC) ", "UNIQUE")]
     [InlineData("IF 1 = 1\nBEGIN\nDROP TRIGGER LibTrg ON DATABASE\n", "END", "SELECT")]
     [InlineData("DROP TRIGGER IF EXISTS LibTrg ON ALL SERVER\n", "SELECT")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int, EndTx bigint GENERATED ALWAYS AS TRANSACTION_ID END ", "HIDDEN", "NOT")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int, StartSeq bigint GENERATED ALWAYS AS SEQUENCE_NUMBER START ", "HIDDEN")]
+    [InlineData("CREATE TABLE dbo.Loan (LoanId int, Who varbinary(85) GENERATED ALWAYS AS SUSER_SID END ", "HIDDEN")]
+    [InlineData("SELECT CopyNo FROM dbo.Copy FOR XML PATH, ELEMENTS ", "ABSENT", "XSINIL")]
+    [InlineData("SELECT CopyNo FROM dbo.Copy FOR XML RAW, TYPE, ELEMENTS ", "ABSENT", "XSINIL")]
+    [InlineData("ALTER AVAILABILITY GROUP LibGroup REMOVE ", "REPLICA ON", "DATABASE")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
