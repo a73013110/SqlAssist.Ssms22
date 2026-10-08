@@ -99,6 +99,8 @@ public static class SqlCompletionCandidates
         {
             case CompletionTarget.DatePart:
                 return SqlArgumentCatalog.DateParts.Concat(PhraseOf(context)).ToArray();
+            case CompletionTarget.ExtractField:
+                return SqlArgumentCatalog.ExtractFields.Concat(PhraseOf(context)).ToArray();
             case CompletionTarget.TableHint:
                 return SqlArgumentCatalog.TableHints.Concat(PhraseOf(context)).ToArray();
             case CompletionTarget.QueryHint:

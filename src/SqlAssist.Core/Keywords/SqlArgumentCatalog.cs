@@ -24,24 +24,27 @@ public static class SqlArgumentCatalog
     /// <remarks>
     /// 只收完整名稱，不收 <c>yy</c>、<c>dd</c> 這些縮寫：縮寫背得起來的人不需要補字，
     /// 而 15 個名稱再乘上兩三種縮寫，清單就從「一眼看完」變成要捲動。
+    ///
+    /// 第三欄是 ODBC 簽章裡 <c>extract_field</c> 收不收這個字（<c>{fn EXTRACT(HOUR FROM …)}</c>）：
+    /// 附錄 E 只收六個，是這一份的子集。寫成這一欄而不另立名單，說明與名稱只有這一處。
     /// </remarks>
-    private static readonly (string Name, Func<string> Description)[] DatePartDefinitions =
+    private static readonly (string Name, Func<string> Description, bool ExtractField)[] DatePartDefinitions =
     {
-        ("YEAR", () => ArgumentText.DatePartYear),
-        ("QUARTER", () => ArgumentText.DatePartQuarter),
-        ("MONTH", () => ArgumentText.DatePartMonth),
-        ("DAYOFYEAR", () => ArgumentText.DatePartDayofyear),
-        ("DAY", () => ArgumentText.DatePartDay),
-        ("WEEK", () => ArgumentText.DatePartWeek),
-        ("WEEKDAY", () => ArgumentText.DatePartWeekday),
-        ("HOUR", () => ArgumentText.DatePartHour),
-        ("MINUTE", () => ArgumentText.DatePartMinute),
-        ("SECOND", () => ArgumentText.DatePartSecond),
-        ("MILLISECOND", () => ArgumentText.DatePartMillisecond),
-        ("MICROSECOND", () => ArgumentText.DatePartMicrosecond),
-        ("NANOSECOND", () => ArgumentText.DatePartNanosecond),
-        ("TZOFFSET", () => ArgumentText.DatePartTzoffset),
-        ("ISO_WEEK", () => ArgumentText.DatePartIsoWeek)
+        ("YEAR", () => ArgumentText.DatePartYear, true),
+        ("QUARTER", () => ArgumentText.DatePartQuarter, false),
+        ("MONTH", () => ArgumentText.DatePartMonth, true),
+        ("DAYOFYEAR", () => ArgumentText.DatePartDayofyear, false),
+        ("DAY", () => ArgumentText.DatePartDay, true),
+        ("WEEK", () => ArgumentText.DatePartWeek, false),
+        ("WEEKDAY", () => ArgumentText.DatePartWeekday, false),
+        ("HOUR", () => ArgumentText.DatePartHour, true),
+        ("MINUTE", () => ArgumentText.DatePartMinute, true),
+        ("SECOND", () => ArgumentText.DatePartSecond, true),
+        ("MILLISECOND", () => ArgumentText.DatePartMillisecond, false),
+        ("MICROSECOND", () => ArgumentText.DatePartMicrosecond, false),
+        ("NANOSECOND", () => ArgumentText.DatePartNanosecond, false),
+        ("TZOFFSET", () => ArgumentText.DatePartTzoffset, false),
+        ("ISO_WEEK", () => ArgumentText.DatePartIsoWeek, false)
     };
 
     /// <summary>
@@ -210,7 +213,10 @@ public static class SqlArgumentCatalog
     private static readonly HashSet<string> Words = CollectWords();
 
     private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> DatePartCache =
-        new(_ => BuildDateParts());
+        new(_ => BuildDateParts(extractFieldsOnly: false));
+
+    private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> ExtractFieldCache =
+        new(_ => BuildDateParts(extractFieldsOnly: true));
 
     private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> TableHintCache =
         new(_ => Build(TableHintDefinitions, SuggestionKind.TableHint));
@@ -223,6 +229,9 @@ public static class SqlArgumentCatalog
 
     /// <summary><c>DATEADD</c> 這一族第一個引數的建議項。</summary>
     public static IReadOnlyList<SqlSuggestion> DateParts => DatePartCache.Current;
+
+    /// <summary>ODBC <c>{fn EXTRACT(</c> 第一個引數的建議項：日期部分裡 <c>extract_field</c> 收的那幾個。</summary>
+    public static IReadOnlyList<SqlSuggestion> ExtractFields => ExtractFieldCache.Current;
 
     /// <summary><c>WITH (…)</c> 的資料表提示建議項。</summary>
     public static IReadOnlyList<SqlSuggestion> TableHints => TableHintCache.Current;
@@ -254,6 +263,11 @@ public static class SqlArgumentCatalog
         signature = string.Empty;
         return false;
     }
+
+    /// <summary>這個 ODBC 純量函式的第一個參數是不是 <paramref name="parameter"/>：簽章寫 <c>EXTRACT(extract_field FROM …)</c>。</summary>
+    /// <remarks>理由同 <see cref="SqlFunctionCatalog.FirstParameterIs(string?, string)"/>：哪些函式的引數是另一份清單只寫在簽章。</remarks>
+    public static bool OdbcFirstParameterIs(string? name, string parameter) =>
+        TryGetOdbcSignature(name, out var signature) && SqlFunctionCatalog.FirstParameterIs(name!, signature, parameter);
 
     /// <summary>
     /// 查出一個提示或日期部分的一行說明；大小寫不敏感。
@@ -297,27 +311,6 @@ public static class SqlArgumentCatalog
     public static bool IsTableHint(string? name) => TryFind(TableHintDefinitions, name, out _);
 
     private static bool TryFind(
-        (string Name, Func<string> Description)[] definitions,
-        string? name,
-        out string description)
-    {
-        if (!string.IsNullOrEmpty(name))
-        {
-            foreach (var (candidate, value) in definitions)
-            {
-                if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
-                {
-                    description = value();
-                    return true;
-                }
-            }
-        }
-
-        description = string.Empty;
-        return false;
-    }
-
-    private static bool TryFind(
         (string Name, Func<string> Description, bool TakesArguments)[] definitions,
         string? name,
         out string description)
@@ -342,7 +335,7 @@ public static class SqlArgumentCatalog
     {
         var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (name, _) in DatePartDefinitions)
+        foreach (var (name, _, _) in DatePartDefinitions)
         {
             words.UnionWith(name.Split(' '));
         }
@@ -360,12 +353,17 @@ public static class SqlArgumentCatalog
         return words;
     }
 
-    private static IReadOnlyList<SqlSuggestion> BuildDateParts()
+    private static IReadOnlyList<SqlSuggestion> BuildDateParts(bool extractFieldsOnly)
     {
         var suggestions = new List<SqlSuggestion>(DatePartDefinitions.Length);
 
-        foreach (var (name, describe) in DatePartDefinitions)
+        foreach (var (name, describe, extractField) in DatePartDefinitions)
         {
+            if (extractFieldsOnly && !extractField)
+            {
+                continue;
+            }
+
             var description = describe();
 
             suggestions.Add(new SqlSuggestion(

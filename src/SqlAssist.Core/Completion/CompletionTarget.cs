@@ -125,6 +125,9 @@ public enum CompletionTarget
     /// <summary><c>DATEADD(</c> 這一族的第一個引數。</summary>
     DatePart,
 
+    /// <summary>ODBC <c>{fn EXTRACT(</c> 的第一個引數：日期部分裡 ODBC 收的那幾個。</summary>
+    ExtractField,
+
     /// <summary><c>WITH (</c> 的資料表提示。</summary>
     TableHint,
 

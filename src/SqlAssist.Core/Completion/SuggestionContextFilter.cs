@@ -274,7 +274,7 @@ public static class SuggestionContextFilter
             // 目標只換掉名稱那一份：關鍵字照那一格的位置與片語過濾。主體的位置列得出 PUBLIC 與擁有者的 SCHEMA，
             // 類別與選項的值之後位置是 None，一個都不列（見 SqlCatalogEntitySlot.Keywords）。
             CompletionTarget.CatalogEntity => kind is SuggestionKind.CatalogEntity or SuggestionKind.Keyword,
-            CompletionTarget.DatePart => kind == SuggestionKind.DatePart,
+            CompletionTarget.DatePart or CompletionTarget.ExtractField => kind == SuggestionKind.DatePart,
             CompletionTarget.TableHint => kind == SuggestionKind.TableHint,
             CompletionTarget.QueryHint => kind == SuggestionKind.QueryHint,
             CompletionTarget.OdbcFunction => kind == SuggestionKind.BuiltInFunction,

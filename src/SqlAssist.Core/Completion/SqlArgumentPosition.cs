@@ -38,14 +38,20 @@ public static class SqlArgumentPosition
             return false;
         }
 
-        // DATEADD(|、DATE_BUCKET(| ——只有第一個引數；打過逗號之後那裡要的是數字與日期。哪些函式由簽章說。
-        if (tokens[last].IsPunctuation("(") &&
-            last >= 1 &&
-            IsBareIdentifier(tokens[last - 1]) &&
-            SqlFunctionCatalog.FirstParameterIs(tokens[last - 1].Value, "datepart"))
+        // DATEADD(|、DATE_BUCKET(|、{fn EXTRACT(| ——只有第一個引數；打過逗號之後那裡要的是數字與日期。
+        // 哪些函式由簽章說，{fn 跳脫裡的只問 ODBC 那一份：附錄 E 的 extract_field 只收日期部分裡的六個。
+        if (tokens[last].IsPunctuation("(") && last >= 1 && IsBareIdentifier(tokens[last - 1]))
         {
-            target = CompletionTarget.DatePart;
-            return true;
+            var name = tokens[last - 1].Value;
+            var odbc = IsOdbcCall(tokens, last - 1);
+
+            if (odbc
+                ? SqlArgumentCatalog.OdbcFirstParameterIs(name, "extract_field")
+                : SqlFunctionCatalog.FirstParameterIs(name, "datepart"))
+            {
+                target = odbc ? CompletionTarget.ExtractField : CompletionTarget.DatePart;
+                return true;
+            }
         }
 
         // {fn | ——ODBC 跳脫只收它自己那一份純量函式。
@@ -91,6 +97,10 @@ public static class SqlArgumentPosition
 
         return false;
     }
+
+    /// <summary><paramref name="name"/> 是 ODBC 跳脫 <c>{fn</c> 裡呼叫的函式名稱。</summary>
+    private static bool IsOdbcCall(IReadOnlyList<SqlToken> tokens, int name) =>
+        name >= 2 && tokens[name - 1].IsKeyword("fn") && tokens[name - 2] is { Kind: SqlTokenKind.Operator, Value: "{" };
 
     private static bool IsBareIdentifier(SqlToken token)
     {

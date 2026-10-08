@@ -83,6 +83,37 @@ public sealed class SqlArgumentPositionTests
     }
 
     /// <summary>
+    /// ODBC <c>{fn EXTRACT(</c> 的第一個引數只列附錄 E 的 <c>extract_field</c>：日期部分裡的六個，
+    /// <c>QUARTER</c>、<c>WEEK</c> 這些 ODBC 不收的不列。位置由 ODBC 簽章說。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT {fn EXTRACT(")]
+    [InlineData("SELECT {FN extract(HO")]
+    [InlineData("SELECT {fn EXTRACT(YEAR FROM DueDate)}, {fn EXTRACT(")]
+    public void ODBC的EXTRACT列出六個欄位(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
+        Assert.Equal(CompletionTarget.ExtractField, context.Target);
+        Assert.Equal(new[] { "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND" }, SqlArgumentCatalog.ExtractFields.Select(item => item.DisplayText));
+        Assert.All(SqlArgumentCatalog.ExtractFields, item => Assert.Equal(SuggestionKind.DatePart, item.Kind));
+    }
+
+    /// <summary><c>FROM</c> 之後是日期來源；跳脫裡只問 ODBC 的簽章，T-SQL 的 <c>DATEADD</c> 不在附錄 E。</summary>
+    [Theory]
+    [InlineData("SELECT {fn EXTRACT(HOUR FROM ")]
+    [InlineData("SELECT {fn DATEADD(")]
+    [InlineData("SELECT {fn HOUR(")]
+    public void ODBC跳脫裡不是日期部分的括號(string textBeforeCaret)
+    {
+        var target = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Target;
+
+        Assert.NotEqual(CompletionTarget.ExtractField, target);
+        Assert.NotEqual(CompletionTarget.DatePart, target);
+    }
+
+    /// <summary>
     /// CTE 的 <c>WITH</c> 後面接的是名稱，中間隔著那個名稱才是左括號；<c>TABLE HINT (</c> 的第一個引數是資料表。
     /// </summary>
     [Theory]

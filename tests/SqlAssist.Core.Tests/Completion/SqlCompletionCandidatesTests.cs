@@ -48,6 +48,15 @@ public sealed class SqlCompletionCandidatesTests
         Assert.Contains(list, item => item.DisplayText == "Name" && item.Kind == SuggestionKind.Column);
     }
 
+    /// <summary>ODBC <c>{fn EXTRACT(</c> 只列附錄 E 的六個欄位，不列 ODBC 不收的日期部分；封閉清單不問資料庫。</summary>
+    [Fact]
+    public async Task ODBC的EXTRACT只列六個欄位()
+    {
+        var list = await GetAsync("SELECT {fn EXTRACT(|", new SqlAssistSettings(), new RecordingMetadata { Throws = true });
+
+        Assert.Equal(new[] { "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND" }, list.Select(item => item.DisplayText));
+    }
+
     /// <param name="text">整份指令碼；<c>|</c> 是游標。</param>
     private static async Task<IReadOnlyList<SqlSuggestion>> GetAsync(
         string text,

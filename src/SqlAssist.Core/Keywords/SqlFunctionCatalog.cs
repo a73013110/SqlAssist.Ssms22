@@ -400,14 +400,13 @@ public static class SqlFunctionCatalog
     /// 哪些函式的引數是另一份清單（日期部分、型別）只寫在簽章：位置判斷各留一份名單的話，
     /// <c>DATE_BUCKET</c> 補進目錄、名單沒補，<c>DATE_BUCKET(</c> 就列不出 <c>WEEK</c>。
     /// </remarks>
-    public static bool FirstParameterIs(string? name, string parameter)
-    {
-        if (!TryGetSignature(name, out var signature))
-        {
-            return false;
-        }
+    public static bool FirstParameterIs(string? name, string parameter) =>
+        TryGetSignature(name, out var signature) && FirstParameterIs(name!, signature, parameter);
 
-        var start = name!.Length + 1;
+    /// <summary><paramref name="signature"/> 這份簽章的第一個參數是不是 <paramref name="parameter"/>；ODBC 那一份也問它。</summary>
+    internal static bool FirstParameterIs(string name, string signature, string parameter)
+    {
+        var start = name.Length + 1;
         var end = start + parameter.Length;
 
         return signature.Length > end &&
