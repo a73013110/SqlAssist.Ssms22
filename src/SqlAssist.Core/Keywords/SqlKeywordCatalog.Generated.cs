@@ -14049,6 +14049,10 @@ internal static class SqlKeywordCatalogData
         {
             "OF", "OPTION",
         }),
+        ("FOR UPDATE OF ,* {name}", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR UPDATE OF t ", true, false, false, true, new string[]
+        {
+            "OPTION",
+        }),
         ("FOR SYSTEM_TIME AS", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME AS ", true, false, false, false, new string[]
         {
             "OF",

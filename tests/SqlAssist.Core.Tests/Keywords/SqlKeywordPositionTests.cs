@@ -847,6 +847,10 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT * FROM t GROUP BY ", SqlKeywordPosition.OrderByColumn)]
     [InlineData("DECLARE c CURSOR FOR SELECT a FROM t FOR UPDATE OF ", SqlKeywordPosition.OrderByColumn)]
 
+    // OF 清單寫完一項是語句結尾，不借 FOR 後面的 UPDATE 當成資料來源尾端。
+    [InlineData("DECLARE c CURSOR FOR SELECT a FROM t FOR UPDATE OF a ", SqlKeywordPosition.StatementStart)]
+    [InlineData("DECLARE c CURSOR FOR SELECT a FROM t x FOR UPDATE OF x.a, [b] ", SqlKeywordPosition.StatementStart)]
+
     // 欄位之後仍然是 ASC／DESC，不是另一個欄位。
     [InlineData("SELECT * FROM t ORDER BY a ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OperandTail)]
 

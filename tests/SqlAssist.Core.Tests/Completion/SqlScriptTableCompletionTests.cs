@@ -355,6 +355,24 @@ public sealed class SqlScriptTableCompletionTests
         Assert.All(context.ScriptSources, item => Assert.Equal(SuggestionKind.Alias, item.Kind));
     }
 
+    /// <summary>OF 清單寫完一項，這一句就寫完了：同一行只接 OPTION，換了行也是下一句的開頭。</summary>
+    /// <remarks>
+    /// 往回借到 FOR 後面的 UPDATE 的話是資料來源尾端，列的是 WHERE、JOIN 這些查詢已經寫過的子句。
+    /// </remarks>
+    [Theory]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR FOR SELECT CopyNo FROM #Loan FOR UPDATE OF CopyNo |", true)]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR FOR SELECT CopyNo FROM #Loan l FOR UPDATE OF l.CopyNo, [ReaderId] O|", true)]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR LOCAL FOR SELECT CopyNo FROM #Loan\r\nFOR UPDATE OF CopyNo\r\n|", false)]
+    public void 游標的FOR_UPDATE_OF清單寫完是語句結尾(string sqlWithCaret, bool sameLine)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(SqlKeywordPosition.StatementStart, context.KeywordPosition);
+        Assert.Equal(sameLine, context.ClausePhrase!.IsCertain);
+        Assert.Equal(new[] { "OPTION" }, context.ClausePhrase.Suggestions.Select(item => item.DisplayText));
+        Assert.DoesNotContain(context.ScriptSources, item => item.Kind == SuggestionKind.ScriptDataSource);
+    }
+
     /// <summary>游標查詢有幾個來源，OF 之後就列幾個來源的資料行；FOR 後面的 UPDATE 不是動詞，OF 不是它的目標。</summary>
     [Fact]
     public void 游標的FOR_UPDATE_OF列查詢每一個來源的資料行()

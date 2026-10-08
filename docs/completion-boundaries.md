@@ -39,7 +39,8 @@
 `DROP TABLE IF`、`THEN UPDATE`）：
 
 - **明確的**：前一格含語句開頭、區塊開頭或區塊的 END——`;`、GO、`BEGIN`、`ELSE`、模組標頭的
-  `AS`、IF 的條件、SET 選項的值、寫完一整句的字（`BREAK`）。
+  `AS`、IF 的條件、SET 選項的值、寫完一整句的字（`BREAK`）、游標查詢 `FOR UPDATE OF` 清單寫完的一項
+  （同一句還接的 `OPTION` 由片語 `FOR UPDATE OF ,* {name}` 給；借到 FOR 後面的 UPDATE 會列出 WHERE、JOIN）。
 - **隱含的**：沒有分號時換行就是界線，但 `WHERE a = 1⏎` 之後是 `AND` 還是下一句的 `SELECT` 詞元分不出來，
   所以**子句已到尾端又換了行**才聯集 `StatementStart`（尾端見 `StatementEndPositions`，含選取清單：
   `SELECT dbo.fn_Fee('')` 不需要 `FROM`；外部索引鍵的參考與動作也是：`REFERENCES u (a) ON DELETE CASCADE⏎`）；前一句判不出位置而寫完一個運算元也算；

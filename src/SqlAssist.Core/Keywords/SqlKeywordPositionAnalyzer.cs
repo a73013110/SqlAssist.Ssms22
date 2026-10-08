@@ -2008,9 +2008,17 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
 
         // 游標查詢 FOR UPDATE OF 之後與清單的逗號之後是一個資料行：OF 沒有對應的位置，逗號往回會借到查詢的 FROM。
+        // 寫完一項這一句就寫完了，與 SET 選項的值同一種結尾；同一句還接得了的 OPTION 由片語給。往回借到 UPDATE 的話是資料來源尾端，
+        // 列的是 WHERE、JOIN。
         if (SqlCursorDeclaration.ListsUpdateColumns(tokens, last))
         {
             return SqlKeywordPosition.OrderByColumn;
+        }
+
+        if (SqlTokenNavigator.IsNamePart(token) &&
+            SqlCursorDeclaration.ListsUpdateColumns(tokens, SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last) - 1))
+        {
+            return SqlKeywordPosition.StatementStart;
         }
 
         // SELECT a, | 與 FROM a, | 都是清單再來一項，位置回到清單的起點。

@@ -69,6 +69,8 @@ internal static class QueryPhrases
         // 查詢寫到 FOR UPDATE 已經完整，展開停在那裡；游標要的 OF 另外探。
         new("FOR") { After = QueryTails, Expand = 1 },
         new("FOR UPDATE") { After = QueryTails },
+        // OF 之後的資料行清單寫完一項，這一句就寫完了，同一句只剩 OPTION；第幾項都一樣。
+        new("FOR UPDATE OF ,* {name}") { After = QueryTails },
         new("FOR SYSTEM_TIME") { After = ["TableSourceTail"], Expand = 1 },
         new("FOR SYSTEM_TIME BETWEEN {value} AND {value}") { After = ["TableSourceTail"] },
         new("FOR SYSTEM_TIME FROM {value} TO {value}") { After = ["TableSourceTail"] },
