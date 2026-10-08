@@ -193,22 +193,24 @@ internal static class QueryPhrases
     // 左括號本身也宣告：ABSENT 不是運算式的字。空呼叫照剖析器收的寫：JSON_ARRAYAGG 不收，只寫 RETURNING JSON 的也不收。
     // JSON_VALUE 的路徑之後只有 RETURNING 與型別（SQL Server 2025），沒有 NULL 的處理；路徑是第二個引數，探測墊第一個。
     // 左括號之後的引數是運算式，資料行寫得進去，只是後面還要寫 : 值，續尾寫不完：宣告不封閉。
+    // 彙總只有一個引數，之後是子句：左括號寫單獨的 (，否則 JSON_ARRAYAGG(a ORDER BY a DESC, b 的逗號比對成下一個引數，
+    // 列的是引數之後的字、沒有 ASC。排序項是 ORDER BY 的逗號清單，第幾項都一樣，項寫完的 ASC、DESC 之後也接 NULL 的處理。
     internal static readonly PhraseDeclaration[] JsonFunctions =
     [
         .. Json("JSON_OBJECT", "{value} : {value}", empty: true),
         .. Json("JSON_ARRAY", "{value}", empty: true),
-        .. Json("JSON_OBJECTAGG", "{value} : {value}", empty: true),
-        .. Json("JSON_ARRAYAGG", "{value}", empty: false),
-        .. Json("JSON_ARRAYAGG", "{value} ORDER BY {value}", empty: false),
+        .. Json("JSON_OBJECTAGG", "{value} : {value}", empty: true, open: "("),
+        .. Json("JSON_ARRAYAGG", "{value}", empty: false, open: "("),
+        .. new[] { "", " ASC", " DESC" }.SelectMany(order => Json("JSON_ARRAYAGG", "{value} ORDER BY ,* {value}" + order, empty: false, open: "(")),
         .. Json("JSON_VALUE", "{value}", empty: false, onNull: false, items: "'x', "),
     ];
 
-    private static IEnumerable<PhraseDeclaration> Json(string function, string argument, bool empty, bool onNull = true, string? items = null) =>
-        (empty ? [$"{function} (*"] : Array.Empty<string>())
-            .Append($"{function} (* {argument}")
-            .Concat(JsonClauses.Where(clause => onNull || !clause.Contains(" ON NULL")).Select(clause => $"{function} (* {argument} {clause}"))
-            .Concat(empty ? JsonClauses.Where(clause => clause.Contains(" ON NULL")).Select(clause => $"{function} (* {clause}") : [])
-            .Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT ", Items = items, Closed = pattern == $"{function} (*" ? false : null });
+    private static IEnumerable<PhraseDeclaration> Json(string function, string argument, bool empty, bool onNull = true, string? items = null, string open = "(*") =>
+        (empty ? [$"{function} {open}"] : Array.Empty<string>())
+            .Append($"{function} {open} {argument}")
+            .Concat(JsonClauses.Where(clause => onNull || !clause.Contains(" ON NULL")).Select(clause => $"{function} {open} {argument} {clause}"))
+            .Concat(empty ? JsonClauses.Where(clause => clause.Contains(" ON NULL")).Select(clause => $"{function} {open} {clause}") : [])
+            .Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT ", Items = items, Closed = pattern == $"{function} {open}" ? false : null });
 
     private static IEnumerable<PhraseDeclaration> RowCounts(string[] patterns) =>
         patterns.Select(pattern => new PhraseDeclaration(pattern) { Lead = "SELECT * FROM t ORDER BY a OFFSET 10 ROWS FETCH " });

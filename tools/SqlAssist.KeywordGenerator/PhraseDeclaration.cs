@@ -184,7 +184,8 @@ public sealed record PhraseDeclaration(string Pattern)
                 yield return "沒有尾巴的片語只能以 After 交代位置：執行期不看前一格的話，它哪裡都成立。";
             }
 
-            if (Pattern.Contains(",*"))
+            // 中段的 ,* 只照尾巴比對（JSON_ARRAYAGG ( {value} ORDER BY ,* {value}），不必問位置分析。
+            if (IsList || IsTailList)
             {
                 yield return $"清單片語「{Pattern}」要以 After 交代位置：位置分析拿標頭認清單，得判得出標頭前一格。";
             }

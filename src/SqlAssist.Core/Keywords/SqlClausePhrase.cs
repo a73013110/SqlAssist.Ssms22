@@ -47,7 +47,7 @@ public sealed class SqlClausePhrase
         EndsStatement = endsStatement;
         Words = words;
         _elements = Parse(pattern);
-        Length = _elements.Count(element => element.Kind != ElementKind.Items);
+        Length = _elements.Count(element => element.Kind is not (ElementKind.Items or ElementKind.Rest));
         _wordSet = new HashSet<string>(Array.ConvertAll(words, FirstWord), StringComparer.OrdinalIgnoreCase);
         _suggestions = new SqlLanguageCache<IReadOnlyList<SqlSuggestion>>(_ => BuildSuggestions());
         Certain = new SqlClausePhraseMatch(this, isCertain: true);
@@ -156,7 +156,9 @@ public sealed class SqlClausePhrase
     /// 零項的片語沒有尾巴，只認游標處的位置（<see cref="After"/>）：「這個位置接得了這些字」。
     /// 游標選項這種會重複的格子（<c>CURSOR LOCAL FAST_FORWARD </c>）尾巴寫不出來，位置寫得出來。
     /// 中段的 <c>,*</c> 是零到多項，自己不算一項：<c>TO ,* {name}</c> 與 <c>TO SCHEMA</c> 一樣長，以字面字結尾的優先；
-    /// <c>FETCH FROM {name}</c> 比 <c>FROM ,* {name}</c> 長。
+    /// <c>FETCH FROM {name}</c> 比 <c>FROM ,* {name}</c> 長。<c>...</c> 也是長度不定的一段，不算一項：
+    /// <c>ALTER ASSEMBLY a DROP </c> 是 <c>ALTER ASSEMBLY {name} DROP</c>（只接 FILE），不是前面已寫完一句、
+    /// DROP 也開得了下一句的 <c>ALTER ASSEMBLY ... DROP</c>。
     /// </remarks>
     internal int Length { get; }
 

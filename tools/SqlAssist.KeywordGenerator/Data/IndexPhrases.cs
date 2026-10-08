@@ -142,9 +142,13 @@ internal static class IndexPhrases
         new("CREATE XML INDEX {name} ON {name} () USING XML INDEX {name} FOR") { Expand = 1 },
         new("CREATE PRIMARY XML INDEX {name} ON {name} ()") { Values = ["WITH"] },
         new("CREATE SELECTIVE XML INDEX {name} ON {name} ()") { Expand = 2 },
+        XmlNamespaces("CREATE SELECTIVE XML INDEX {name} ON {name} ()"),
         .. XmlPaths("FOR (*", "CREATE SELECTIVE XML INDEX t ON t (a) "),
         // ALTER INDEX 改選擇性 XML 索引的路徑：清單一項以 ADD 或 REMOVE 開頭，ADD 之後的路徑定義與 CREATE 相同。
+        // FOR 前面同樣可以夾 WITH XMLNAMESPACES (…)；剖析器要看到 FOR 才收 WITH，整段是證據，WITH、XMLNAMESPACES 補進前面那段。
         new("ALTER INDEX {name} ON {name} FOR (*"),
+        XmlNamespaces("ALTER INDEX {name} ON {name}"),
+        new("ALTER INDEX {name} ON {name} WITH XMLNAMESPACES () FOR (*") { Group = XmlNamespaceList },
         .. XmlPaths("FOR (* ADD", "ALTER INDEX t ON t "),
         new("CREATE JSON INDEX {name} ON {name} ()") { Values = ["WITH"] },
 
@@ -208,6 +212,11 @@ internal static class IndexPhrases
         new("ALTER FULLTEXT STOPLIST {name} ADD {value}") { Endings = [" 1;"] },
         new("ALTER FULLTEXT STOPLIST {name} DROP {value}") { Endings = [" 1;"] },
     ];
+
+    // 選擇性 XML 索引的前置命名空間清單，CREATE 與 ALTER INDEX 共用：之後接路徑清單的 FOR。括號裡要寫成 '前置詞' AS 名稱才剖析得過。
+    private const string XmlNamespaceList = "('x' AS a)";
+
+    private static PhraseDeclaration XmlNamespaces(string head) => new($"{head} WITH XMLNAMESPACES ()") { Group = XmlNamespaceList };
 
     // 選擇性 XML 索引的路徑定義：CREATE 的 FOR (…) 與 ALTER INDEX … FOR (ADD …) 是同一份文法。一項是 名稱 = '路徑' AS SQL 型別
     // 或 AS XQUERY '型別' [MAXLENGTH (n)]，最後可以接 SINGLETON；型別帶長度（nvarchar(20)）的那一格名稱之後是一整組括號。

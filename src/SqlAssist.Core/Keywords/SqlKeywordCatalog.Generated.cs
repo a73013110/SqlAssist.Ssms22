@@ -5007,7 +5007,7 @@ internal static class SqlKeywordCatalogData
         ("ALTER INDEX {name} ON {name}", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t ", true, false, false, false, new string[]
         {
             "ABORT", "DISABLE", "FOR", "PAUSE", "REBUILD", "REORGANIZE", "RESUME", "SET",
-            "WITH",
+            "WITH XMLNAMESPACES",
         }),
         ("INDEX {name} ON {name} ()", SqlKeywordPosition.Any, "CREATE INDEX t ON t (a) ", true, false, false, true, new string[]
         {
@@ -5480,6 +5480,10 @@ internal static class SqlKeywordCatalogData
         ("CREATE SELECTIVE XML INDEX {name} ON {name} () WITH XMLNAMESPACES", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE XML INDEX t ON t (a) WITH XMLNAMESPACES ", true, false, false, false, new string[]
         {
         }),
+        ("CREATE SELECTIVE XML INDEX {name} ON {name} () WITH XMLNAMESPACES ()", SqlKeywordPosition.StatementStart, "CREATE SELECTIVE XML INDEX t ON t (a) WITH XMLNAMESPACES ('x' AS a) ", true, false, false, false, new string[]
+        {
+            "FOR",
+        }),
         ("FOR (* {name} = {value} AS", SqlKeywordPosition.Any, "CREATE SELECTIVE XML INDEX t ON t (a) FOR (t = 'x' AS ", true, false, false, false, new string[]
         {
             "SQL", "XQUERY",
@@ -5535,6 +5539,14 @@ internal static class SqlKeywordCatalogData
             "SINGLETON",
         }),
         ("ALTER INDEX {name} ON {name} FOR (*", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t FOR (", true, false, false, false, new string[]
+        {
+            "ADD", "REMOVE",
+        }),
+        ("ALTER INDEX {name} ON {name} WITH XMLNAMESPACES ()", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t WITH XMLNAMESPACES ('x' AS a) ", true, false, false, false, new string[]
+        {
+            "FOR",
+        }),
+        ("ALTER INDEX {name} ON {name} WITH XMLNAMESPACES () FOR (*", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t WITH XMLNAMESPACES ('x' AS a) FOR (", true, false, false, false, new string[]
         {
             "ADD", "REMOVE",
         }),
@@ -8573,10 +8585,27 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
-        ("ALTER ASSEMBLY {name} DROP FILE ALL", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t DROP FILE ALL ", true, false, false, true, new string[]
+        ("ALTER ASSEMBLY {name} DROP FILE ALL ADD FILE FROM {value}", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t DROP FILE ALL ADD FILE FROM 1 ", true, false, false, true, new string[]
         {
+            "AS", "COLLATE",
         }),
         ("ALTER ASSEMBLY {name} ADD FILE FROM {value}", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t ADD FILE FROM 1 ", true, false, false, true, new string[]
+        {
+            "AS", "COLLATE",
+        }),
+        ("ALTER ASSEMBLY {name} FROM {value} DROP FILE ALL ADD FILE FROM {value}", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 1 DROP FILE ALL ADD FILE FROM 1 ", true, false, false, true, new string[]
+        {
+            "AS", "COLLATE",
+        }),
+        ("ALTER ASSEMBLY {name} FROM {value} ADD FILE FROM {value}", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 1 ADD FILE FROM 1 ", true, false, false, true, new string[]
+        {
+            "AS", "COLLATE",
+        }),
+        ("ALTER ASSEMBLY ... DROP FILE ALL ADD FILE FROM {value}", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 'x' WITH VISIBILITY = ON DROP FILE ALL ADD FILE FROM 1 ", true, false, false, true, new string[]
+        {
+            "AS", "COLLATE",
+        }),
+        ("ALTER ASSEMBLY ... ADD FILE FROM {value}", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 'x' WITH VISIBILITY = ON ADD FILE FROM 1 ", true, false, false, true, new string[]
         {
             "AS", "COLLATE",
         }),
@@ -14725,66 +14754,98 @@ internal static class SqlKeywordCatalogData
         {
             "JSON",
         }),
-        ("JSON_OBJECTAGG (*", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (", false, false, true, false, new string[]
+        ("JSON_OBJECTAGG (", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (", false, false, true, false, new string[]
         {
             "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
             "CURRENT_USER", "DISTINCT", "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF",
             "RIGHT", "ROWGUIDCOL", "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
             "ABSENT",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ", true, false, true, false, new string[]
+        ("JSON_OBJECTAGG ( {value} : {value}", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ", true, false, true, false, new string[]
         {
             "COLLATE", "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( {value} : {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( {value} : {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( {value} : {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_OBJECTAGG (* NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_OBJECTAGG (* ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_ARRAYAGG (* {value}", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ", true, false, true, false, new string[]
+        ("JSON_ARRAYAGG ( {value}", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ", true, false, true, false, new string[]
         {
             "COLLATE", "NULL ON NULL", "ORDER BY", "ABSENT ON NULL", "RETURNING JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 RETURNING ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER BY {value}", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ", true, false, true, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value}", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ", true, false, true, false, new string[]
         {
             "ASC", "COLLATE", "DESC", "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER BY {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER BY {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER BY {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 RETURNING ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ASC", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ASC ", true, false, true, false, new string[]
+        {
+            "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ASC NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ASC NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ASC ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ASC ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ASC RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ASC RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} DESC", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 DESC ", true, false, true, false, new string[]
+        {
+            "NULL ON NULL", "ABSENT ON NULL", "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} DESC NULL ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 DESC NULL ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} DESC ABSENT ON NULL RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 DESC ABSENT ON NULL RETURNING ", true, false, false, false, new string[]
+        {
+            "JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} DESC RETURNING", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 DESC RETURNING ", true, false, false, false, new string[]
         {
             "JSON",
         }),
@@ -17740,6 +17801,10 @@ internal static class SqlKeywordCatalogData
         {
             "FOR",
         }),
+        ("ALTER INDEX {name} ON {name} WITH", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t WITH ", true, false, false, false, new string[]
+        {
+            "XMLNAMESPACES",
+        }),
         ("CREATE JSON", SqlKeywordPosition.StatementStart, "CREATE JSON ", true, false, false, false, new string[]
         {
             "INDEX",
@@ -18064,7 +18129,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER ASSEMBLY {name} FROM {value}", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 1 ", true, false, false, true, new string[]
         {
-            "COLLATE", "WITH",
+            "COLLATE", "WITH", "DROP", "ADD",
         }),
         ("ALTER ASSEMBLY {name} DROP", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t DROP ", true, false, false, false, new string[]
         {
@@ -18074,11 +18139,93 @@ internal static class SqlKeywordCatalogData
         {
             "ALL",
         }),
+        ("ALTER ASSEMBLY {name} DROP FILE ALL", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t DROP FILE ALL ", true, false, false, true, new string[]
+        {
+            "ADD",
+        }),
+        ("ALTER ASSEMBLY {name} DROP FILE ALL ADD", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t DROP FILE ALL ADD ", true, false, false, false, new string[]
+        {
+            "COUNTER", "FILE FROM", "SENSITIVITY",
+        }),
+        ("ALTER ASSEMBLY {name} DROP FILE ALL ADD FILE", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t DROP FILE ALL ADD FILE ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
         ("ALTER ASSEMBLY {name} ADD", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t ADD ", true, false, false, false, new string[]
         {
             "FILE FROM",
         }),
         ("ALTER ASSEMBLY {name} ADD FILE", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t ADD FILE ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
+        ("ALTER ASSEMBLY {name} FROM {value} DROP", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 1 DROP ", true, false, false, false, new string[]
+        {
+            "AGGREGATE", "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "BROKER", "CERTIFICATE",
+            "COLUMN", "CONTRACT", "COUNTER", "CREDENTIAL", "CRYPTOGRAPHIC", "DATABASE",
+            "DEFAULT", "ENDPOINT", "EVENT", "EXTERNAL", "FEDERATION", "FILE", "FULLTEXT",
+            "FUNCTION", "INDEX", "LOGIN", "MASTER", "MESSAGE", "PARTITION", "PROC", "PROCEDURE",
+            "QUEUE", "REMOTE", "RESOURCE", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEARCH",
+            "SECURITY", "SENSITIVITY", "SEQUENCE", "SERVER", "SERVICE", "SIGNATURE",
+            "STATISTICS", "SYMMETRIC", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "USER", "VIEW",
+            "WORKLOAD",
+        }),
+        ("ALTER ASSEMBLY {name} FROM {value} DROP FILE", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 1 DROP FILE ", true, false, false, false, new string[]
+        {
+            "ALL",
+        }),
+        ("ALTER ASSEMBLY {name} FROM {value} DROP FILE ALL", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 1 DROP FILE ALL ", true, false, false, true, new string[]
+        {
+            "ADD",
+        }),
+        ("ALTER ASSEMBLY {name} FROM {value} DROP FILE ALL ADD", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 1 DROP FILE ALL ADD ", true, false, false, false, new string[]
+        {
+            "COUNTER", "FILE FROM", "SENSITIVITY",
+        }),
+        ("ALTER ASSEMBLY {name} FROM {value} DROP FILE ALL ADD FILE", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 1 DROP FILE ALL ADD FILE ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
+        ("ALTER ASSEMBLY {name} FROM {value} ADD", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 1 ADD ", true, false, false, false, new string[]
+        {
+            "COUNTER", "FILE FROM", "SENSITIVITY",
+        }),
+        ("ALTER ASSEMBLY {name} FROM {value} ADD FILE", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 1 ADD FILE ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
+        ("ALTER ASSEMBLY ... DROP", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 'x' WITH VISIBILITY = ON DROP ", true, false, false, false, new string[]
+        {
+            "AGGREGATE", "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "BROKER", "CERTIFICATE",
+            "COLUMN", "CONTRACT", "COUNTER", "CREDENTIAL", "CRYPTOGRAPHIC", "DATABASE",
+            "DEFAULT", "ENDPOINT", "EVENT", "EXTERNAL", "FEDERATION", "FILE", "FULLTEXT",
+            "FUNCTION", "INDEX", "LOGIN", "MASTER", "MESSAGE", "PARTITION", "PROC", "PROCEDURE",
+            "QUEUE", "REMOTE", "RESOURCE", "ROLE", "ROUTE", "RULE", "SCHEMA", "SEARCH",
+            "SECURITY", "SENSITIVITY", "SEQUENCE", "SERVER", "SERVICE", "SIGNATURE",
+            "STATISTICS", "SYMMETRIC", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "USER", "VIEW",
+            "WORKLOAD",
+        }),
+        ("ALTER ASSEMBLY ... DROP FILE", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 'x' WITH VISIBILITY = ON DROP FILE ", true, false, false, false, new string[]
+        {
+            "ALL",
+        }),
+        ("ALTER ASSEMBLY ... DROP FILE ALL", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 'x' WITH VISIBILITY = ON DROP FILE ALL ", true, false, false, true, new string[]
+        {
+            "ADD",
+        }),
+        ("ALTER ASSEMBLY ... DROP FILE ALL ADD", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 'x' WITH VISIBILITY = ON DROP FILE ALL ADD ", true, false, false, false, new string[]
+        {
+            "COUNTER", "FILE FROM", "SENSITIVITY",
+        }),
+        ("ALTER ASSEMBLY ... DROP FILE ALL ADD FILE", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 'x' WITH VISIBILITY = ON DROP FILE ALL ADD FILE ", true, false, false, false, new string[]
+        {
+            "FROM",
+        }),
+        ("ALTER ASSEMBLY ... ADD", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 'x' WITH VISIBILITY = ON ADD ", true, false, false, false, new string[]
+        {
+            "COUNTER", "FILE FROM", "SENSITIVITY",
+        }),
+        ("ALTER ASSEMBLY ... ADD FILE", SqlKeywordPosition.StatementStart, "ALTER ASSEMBLY t FROM 'x' WITH VISIBILITY = ON ADD FILE ", true, false, false, false, new string[]
         {
             "FROM",
         }),
@@ -19181,103 +19328,151 @@ internal static class SqlKeywordCatalogData
         {
             "RETURNING JSON",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( {value} : {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ON ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( {value} : {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ON NULL ", true, false, true, false, new string[]
+        ("JSON_OBJECTAGG ( {value} : {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 NULL ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( {value} : {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ON ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( {value} : {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_OBJECTAGG (* {value} : {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ON NULL ", true, false, true, false, new string[]
+        ("JSON_OBJECTAGG ( {value} : {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (t : 1 ABSENT ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
-        ("JSON_OBJECTAGG (* NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ", true, false, false, false, new string[]
         {
             "COLLATE", "ON NULL",
         }),
-        ("JSON_OBJECTAGG (* NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ON ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( NULL ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_OBJECTAGG (* NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ON NULL ", true, false, true, false, new string[]
+        ("JSON_OBJECTAGG ( NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (NULL ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
-        ("JSON_OBJECTAGG (* ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( ABSENT", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ", true, false, false, false, new string[]
         {
             "COLLATE", "ON NULL",
         }),
-        ("JSON_OBJECTAGG (* ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ON ", true, false, false, false, new string[]
+        ("JSON_OBJECTAGG ( ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_OBJECTAGG (* ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ON NULL ", true, false, true, false, new string[]
+        ("JSON_OBJECTAGG ( ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_OBJECTAGG (ABSENT ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_ARRAYAGG (* {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ON ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_ARRAYAGG (* {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ON NULL ", true, false, true, false, new string[]
+        ("JSON_ARRAYAGG ( {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 NULL ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_ARRAYAGG (* {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ON ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_ARRAYAGG (* {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ON NULL ", true, false, true, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ABSENT ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER ", true, false, false, false, new string[]
         {
             "BY",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER BY {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER BY {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ON ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER BY {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ON NULL ", true, false, true, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 NULL ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER BY {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ", true, false, false, false, new string[]
         {
             "ON NULL",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER BY {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ON ", true, false, false, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ON ", true, false, false, false, new string[]
         {
             "NULL",
         }),
-        ("JSON_ARRAYAGG (* {value} ORDER BY {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ON NULL ", true, false, true, false, new string[]
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ABSENT ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ASC NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ASC NULL ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ASC NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ASC NULL ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ASC NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ASC NULL ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ASC ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ASC ABSENT ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ASC ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ASC ABSENT ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} ASC ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 ASC ABSENT ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} DESC NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 DESC NULL ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} DESC NULL ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 DESC NULL ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} DESC NULL ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 DESC NULL ON NULL ", true, false, true, false, new string[]
+        {
+            "RETURNING JSON",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} DESC ABSENT", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 DESC ABSENT ", true, false, false, false, new string[]
+        {
+            "ON NULL",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} DESC ABSENT ON", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 DESC ABSENT ON ", true, false, false, false, new string[]
+        {
+            "NULL",
+        }),
+        ("JSON_ARRAYAGG ( {value} ORDER BY ,* {value} DESC ABSENT ON NULL", SqlKeywordPosition.Any, "SELECT JSON_ARRAYAGG (1 ORDER BY 1 DESC ABSENT ON NULL ", true, false, true, false, new string[]
         {
             "RETURNING JSON",
         }),

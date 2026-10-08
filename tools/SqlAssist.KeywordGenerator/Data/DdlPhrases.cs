@@ -147,14 +147,17 @@ internal static class DdlPhrases
         // 證據寫到本體的 AS，與上面的 AS 同理只加字。
         new("READONLY AS") { Lead = "CREATE PROCEDURE p @p t ", Additive = true },
         new("DROP ASSEMBLY {name} WITH") { Expand = 1 },
-        // ALTER ASSEMBLY 寫完名稱之後的 DROP FILE、ADD FILE FROM 剖析器要看到整段才收，逐字探只探得到 FROM：
-        // 名稱那一格自己宣告，其餘的字由整段證據補進前面那段。
+        // ALTER ASSEMBLY 的 FROM、WITH、DROP FILE、ADD FILE 依序可選。DROP FILE、ADD FILE FROM 剖析器要看到整段才收，
+        // 逐字探只探得到 FROM：名稱那一格自己宣告，其餘的字由整段證據補進前面那段。
         new("ALTER ASSEMBLY {name}"),
         new("ALTER ASSEMBLY {name} WITH ,*"),
         // 換新版本的 FROM 之後同一份選項（VISIBILITY、PERMISSION_SET、UNCHECKED DATA）。
         new("ALTER ASSEMBLY {name} FROM {value} WITH ,*"),
-        new("ALTER ASSEMBLY {name} DROP FILE ALL"),
-        new("ALTER ASSEMBLY {name} ADD FILE FROM {value}"),
+        // 名稱與 FROM 之後兩格各寫一份證據；WITH 清單寫完幾項之後長度不定，寫成 ...，Gap 墊一項：
+        // 否則 VISIBILITY = ON 之後的 DROP 只當成下一句的開頭、列不出 FILE。前面已是完整的一句，下一句的物件種類照列。
+        .. AssemblyFiles("ALTER ASSEMBLY {name}", gap: null),
+        .. AssemblyFiles("ALTER ASSEMBLY {name} FROM {value}", gap: null),
+        .. AssemblyFiles("ALTER ASSEMBLY ...", gap: "t FROM 'x' WITH VISIBILITY = ON"),
         // CREATE ASSEMBLY 的 WITH 只有 PERMISSION_SET 一項；FROM 可以寫幾個檔案、前面還可以有 AUTHORIZATION。
         new("CREATE ASSEMBLY {name} FROM {value} WITH") { Expand = 1 },
         new("CREATE ASSEMBLY ... WITH") { Gap = "t AUTHORIZATION o FROM 'x', 'y'" },
@@ -164,6 +167,13 @@ internal static class DdlPhrases
         // BEGIN x WITH ( 剖析器要一項寫完才在 x 報錯，續尾把那一項寫完，才分得出 ATOMIC 不是名稱。
         new("ATOMIC WITH (*") { After = ["BlockStart"], Endings = [" TRANSACTION ISOLATION LEVEL = SNAPSHOT)"] },
         new("ATOMIC WITH (* TRANSACTION ISOLATION LEVEL =") { After = ["BlockStart"] },
+    ];
+
+    // ALTER ASSEMBLY 的檔案子句：DROP FILE 寫完之後還接 ADD FILE。
+    private static PhraseDeclaration[] AssemblyFiles(string head, string? gap) =>
+    [
+        new($"{head} DROP FILE ALL ADD FILE FROM {{value}}") { Gap = gap },
+        new($"{head} ADD FILE FROM {{value}}") { Gap = gap },
     ];
 
     internal static readonly PhraseDeclaration[] Tables =
