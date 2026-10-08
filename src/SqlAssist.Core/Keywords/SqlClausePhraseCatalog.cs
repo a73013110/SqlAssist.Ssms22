@@ -118,6 +118,25 @@ public static class SqlClausePhraseCatalog
     }
 
     /// <summary>
+    /// 前 <paramref name="count"/> 個詞元寫到那裡，確定比對到的片語說這一句已經完整。
+    /// </summary>
+    /// <param name="before">位置分析對那一格的回報，不含換行補上的語句開頭。</param>
+    /// <param name="analyzer">呼叫端的位置分析，回答片語前一格的位置與 <c>...</c> 的動詞。</param>
+    /// <remarks>
+    /// 語句開頭的判準拿它認隱含的界線，理由與 <see cref="Continues"/> 相同，只是方向相反：那裡問下一個字是不是還屬於這一句，
+    /// 這裡問這一句是不是可以在這裡結束。只算確定的比對。
+    /// </remarks>
+    internal static bool EndsStatement(
+        IReadOnlyList<SqlToken> tokens,
+        int count,
+        SqlKeywordPosition before,
+        SqlKeywordPositionAnalyzer analyzer)
+    {
+        return Match(tokens, count, onNewLine: false, before, listAnchor: -1, analyzer) is { IsCertain: true } match &&
+            match.Phrase.EndsStatement;
+    }
+
+    /// <summary>
     /// 前 <paramref name="count"/> 個詞元寫到那裡，比對到的片語確定接得上 <paramref name="keyword"/>。
     /// </summary>
     /// <param name="before">位置分析對那一格的回報，不含換行補上的語句開頭。</param>

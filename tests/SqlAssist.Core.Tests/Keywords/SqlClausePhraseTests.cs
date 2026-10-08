@@ -746,6 +746,17 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER SERVICE MASTER KEY WITH ", "OLD_ACCOUNT", "NEW_ACCOUNT")]
     [InlineData("ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'LibSvc', ", "OLD_PASSWORD")]
     [InlineData("ALTER SERVICE MASTER KEY WITH NEW_ACCOUNT = 'LibSvc', ", "NEW_PASSWORD")]
+    [InlineData("ALTER PARTITION SCHEME PsLoan NEXT ", "USED")]
+    [InlineData("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256 ENCRYPTION BY ", "SERVER")]
+    [InlineData("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256\nENCRYPTION BY SERVER ", "CERTIFICATE", "ASYMMETRIC")]
+    [InlineData("RESTORE DATABASE LibArchive\nRESTORE LOG LibArchive FROM ", "DISK", "URL")]
+    [InlineData("ALTER PARTITION SCHEME PsLoan NEXT USED\nALTER PARTITION SCHEME PsLoan NEXT ", "USED")]
+    [InlineData("ALTER PARTITION SCHEME PsLoan NEXT USED\n", "ALTER", "SELECT")]
+    [InlineData("CREATE INDEX IX_Copy ON dbo.Copy (CopyNo) WITH (XML_COMPRESSION = ON ON ", "PARTITIONS")]
+    [InlineData("IF EXISTS (SELECT 1 FROM dbo.Loan) BEGIN\n", "END", "SELECT")]
+    [InlineData("WHILE (1 = 1) BEGIN\n", "END", "BREAK")]
+    [InlineData("MERGE INTO dbo.Loan AS target\nUSING (\n", "SELECT")]
+    [InlineData("MERGE INTO dbo.Loan target USING (", "SELECT")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -980,6 +991,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("END CONVERSATION 10\n", "WITH", "ENABLE")]
     [InlineData("ALTER TABLE dbo.Loan ADD CONSTRAINT FK_Loan_Copy FOREIGN KEY (CopyNo) REFERENCES dbo.Copy (CopyNo) ON DELETE CASCADE\n",
         "ON", "ALTER")]
+    [InlineData("RESTORE DATABASE LibArchive\n", "WITH", "RESTORE")]
+    [InlineData("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256\n", "ENCRYPTION", "ALTER")]
     public void 語句寫完又換行時片語只加字(string textBeforeCaret, string phraseWord, string nextStatementWord)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);

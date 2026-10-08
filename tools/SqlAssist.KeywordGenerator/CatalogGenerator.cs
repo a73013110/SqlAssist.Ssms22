@@ -173,7 +173,7 @@ public static class CatalogGenerator
         var templateArrays = PositionTemplates.All.Select(position => position.Templates).ToArray();
         var reservedSet = new HashSet<string>(reserved, IgnoreCase);
         var canBeName = keywordArray.Select(keyword => !reservedSet.Contains(keyword)).ToArray();
-        var allowed = prober.ClassifyPositions(keywordArray, canBeName, templateArrays, Continuations.Keywords, Continuations.PlainName);
+        var allowed = prober.ClassifyPositions(keywordArray, canBeName, templateArrays, Continuations.Positions, Continuations.PlainName);
         var positions = new Dictionary<string, List<string>>(IgnoreCase);
 
         for (var index = 0; index < keywordArray.Length; index++)

@@ -26,6 +26,11 @@ internal static class Continuations
         "::x TO y",
     ];
 
+    // 第三階段多一條：END 也開始一句（END CONVERSATION）。BEGIN 之後緊接的 END 剖析器當成空區塊的結尾、報錯，
+    // 少了這一條區塊開頭分不到 END，BEGIN⏎END 先寫好區塊再回頭填主體時打不出 END。片語不必：END 由關鍵字目錄列，
+    // 加進片語那一組的話整份片語探測要重算。
+    internal static readonly string[] Positions = [.. Keywords, " CONVERSATION @h"];
+
     // 片語的續尾在第三階段那一組之外多幾條：SET 選項值、選項清單的 = ON、字串與括號的結尾，
     // 以及幾個要多看一個詞元才分得出來的地方（AFTER 後面沒有 INSERT 就是語法錯誤）。
     // 模組選項的名稱要看到本體才驗（寫到檔案結尾為止任何名稱都過），所以函式的兩種本體也在。

@@ -42,8 +42,9 @@
   `AS`、IF 的條件、SET 選項的值、寫完一整句的字（`BREAK`）。
 - **隱含的**：沒有分號時換行就是界線，但 `WHERE a = 1⏎` 之後是 `AND` 還是下一句的 `SELECT` 詞元分不出來，
   所以**子句已到尾端又換了行**才聯集 `StatementStart`（尾端見 `StatementEndPositions`，含選取清單：
-  `SELECT dbo.fn_Fee('')` 不需要 `FROM`；外部索引鍵的參考與動作也是：`REFERENCES u (a) ON DELETE CASCADE⏎`）；前一句判不出位置而寫完一個運算元也算。同一行、括號沒關、
-  名字那一格前面不補。前一句[片語](completion-phrases.md)接得上的字仍屬於前一句
+  `SELECT dbo.fn_Fee('')` 不需要 `FROM`；外部索引鍵的參考與動作也是：`REFERENCES u (a) ON DELETE CASCADE⏎`）；前一句判不出位置而寫完一個運算元也算；
+  確定比對到的[片語](completion-phrases.md)說這一句寫完了（`EndsStatement`：`RESTORE DATABASE d⏎`、`NEXT USED⏎`）也算，位置是選項清單或判不出來都一樣。同一行、括號沒關、
+  名字那一格前面不補。前一句片語接得上的字仍屬於前一句
   （`OFFSET 0 ROWS⏎FETCH`、`ALTER DATABASE d⏎SET`）。
 - `WITH` 只認明確的：CTE 前一句必須以分號結束。
 

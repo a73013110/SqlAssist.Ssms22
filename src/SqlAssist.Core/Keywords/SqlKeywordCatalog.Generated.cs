@@ -77,7 +77,7 @@ internal static class SqlKeywordCatalogData
         new("DOUBLE", SqlKeywordPosition.None),
         new("DROP", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("ELSE", SqlKeywordPosition.CaseBody | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.MergeClause),
-        new("END", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseBody | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
+        new("END", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.FetchTail | SqlKeywordPosition.UpdateSetTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CaseBody | SqlKeywordPosition.ColumnDefinitionTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.SequenceOption | SqlKeywordPosition.MergeClause),
         new("ERRLVL", SqlKeywordPosition.SetTarget),
         new("ESCAPE", SqlKeywordPosition.ExpressionTail),
         new("EXCEPT", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.SelectIntoTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.WindowClauseTail | SqlKeywordPosition.GroupByTail),
@@ -1922,7 +1922,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER PARTITION SCHEME {name}", SqlKeywordPosition.StatementStart, "ALTER PARTITION SCHEME t ", true, false, false, false, new string[]
         {
-            "NEXT",
+            "NEXT USED",
         }),
         ("ALTER PROC", SqlKeywordPosition.StatementStart, "ALTER PROC ", false, false, true, false, new string[]
         {
@@ -9494,6 +9494,9 @@ internal static class SqlKeywordCatalogData
         {
             "RANGE",
         }),
+        ("ALTER PARTITION SCHEME {name} NEXT USED", SqlKeywordPosition.StatementStart, "ALTER PARTITION SCHEME t NEXT USED ", false, false, false, true, new string[]
+        {
+        }),
         ("OPENROWSET (*", SqlKeywordPosition.DataSource, "SELECT * FROM OPENROWSET (", false, true, false, false, new string[]
         {
             "BULK", "CONNECTION", "CREDENTIAL", "OBJECT", "PROVIDER", "SERVER_CREDENTIAL",
@@ -13430,6 +13433,12 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM =", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = ", true, false, false, false, new string[]
         {
             "AES_128", "AES_192", "AES_256", "TRIPLE_DES_3KEY",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = {name} ENCRYPTION BY SERVER CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER CERTIFICATE t ", true, false, false, true, new string[]
+        {
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = {name} ENCRYPTION BY SERVER ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC KEY t ", true, false, false, true, new string[]
+        {
         }),
         ("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE t ", true, false, false, true, new string[]
         {
@@ -18334,6 +18343,10 @@ internal static class SqlKeywordCatalogData
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
+        ("ALTER PARTITION SCHEME {name} NEXT", SqlKeywordPosition.StatementStart, "ALTER PARTITION SCHEME t NEXT ", true, false, false, false, new string[]
+        {
+            "USED",
+        }),
         ("ALTER SERVER AUDIT {name}", SqlKeywordPosition.StatementStart, "ALTER SERVER AUDIT t ", true, false, false, false, new string[]
         {
             "TO", "WHERE", "WITH", "MODIFY", "REMOVE WHERE",
@@ -18870,6 +18883,26 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ", true, false, true, false, new string[]
         {
             "ALGORITHM",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_128 ", true, false, false, true, new string[]
+        {
+            "ENCRYPTION BY SERVER",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = {name} ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_128 ENCRYPTION ", true, false, false, false, new string[]
+        {
+            "BY SERVER",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = {name} ENCRYPTION BY", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_128 ENCRYPTION BY ", true, false, false, false, new string[]
+        {
+            "SERVER",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = {name} ENCRYPTION BY SERVER", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE",
+        }),
+        ("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = {name} ENCRYPTION BY SERVER ASYMMETRIC", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
         }),
         ("ALTER DATABASE ENCRYPTION KEY ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE ENCRYPTION KEY ENCRYPTION ", true, false, false, false, new string[]
         {

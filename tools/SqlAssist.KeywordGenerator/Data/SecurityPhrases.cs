@@ -164,6 +164,20 @@ internal static class SecurityPhrases
         new(head + " ,*"),
     ];
 
+    // 資料庫加密金鑰的演算法與 SERVER 之後的種類，剖析器一律當名稱收：演算法手寫，其餘整段是證據。
+    // 演算法之後接加密者（CREATE 一定要寫，ALTER 的 REGENERATE 可寫可不寫），換行寫的 ENCRYPTION 仍屬於同一句。
+    private static PhraseDeclaration[] DatabaseKeyAlgorithm(string head) =>
+    [
+        new(head + " ALGORITHM =") { Values = ["AES_128", "AES_192", "AES_256", "TRIPLE_DES_3KEY"], Closed = true },
+        .. ServerEncryptors(head + " ALGORITHM = {name}"),
+    ];
+
+    private static PhraseDeclaration[] ServerEncryptors(string head) =>
+    [
+        new(head + " ENCRYPTION BY SERVER CERTIFICATE {name}"),
+        new(head + " ENCRYPTION BY SERVER ASYMMETRIC KEY {name}"),
+    ];
+
     internal static readonly PhraseDeclaration[] Keys =
     [
         // 金鑰與憑證的標頭：種類與名稱由 CREATE、ALTER 的展開給，這裡往下寫加密方式（ENCRYPTION BY 憑證、密碼或
@@ -247,10 +261,7 @@ internal static class SecurityPhrases
         // REGENERATE、FORCE 剖析器也當名稱讀，同樣只有整段是證據。
         new("ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = {value}"),
         new("ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY PASSWORD = {value}"),
-        // 資料庫加密金鑰的 WITH 選項、演算法與 SERVER 之後的種類，剖析器一律當名稱收：演算法手寫，其餘整段是證據。
-        new("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM =") { Values = ["AES_128", "AES_192", "AES_256", "TRIPLE_DES_3KEY"], Closed = true },
-        new("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER CERTIFICATE {name}"),
-        new("CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = {name} ENCRYPTION BY SERVER ASYMMETRIC KEY {name}"),
+        .. DatabaseKeyAlgorithm("CREATE DATABASE ENCRYPTION KEY WITH"),
         // Always Encrypted 的金鑰：資料行主金鑰的 WITH (…)，資料行加密金鑰的值一組一組寫（每把主金鑰一組），
         // ALTER 一次加或刪一組。演算法與加密值是字串與二進位值，不列。
         new("CREATE COLUMN MASTER KEY {name} WITH (*"),
@@ -278,10 +289,9 @@ internal static class SecurityPhrases
         // 認證的 WITH 清單之後的 FOR CRYPTOGRAPHIC PROVIDER（EKM）：清單長度不定，以 ... 跨過，整段是證據。
         new("CREATE CREDENTIAL ... FOR CRYPTOGRAPHIC PROVIDER {name}") { Gap = "t WITH IDENTITY = 'x'" },
 
-        // 資料庫加密金鑰的 ALTER：重新產生（REGENERATE WITH ALGORITHM =）或換加密的憑證、非對稱金鑰；演算法照 CREATE 手寫。
-        new("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM =") { Values = ["AES_128", "AES_192", "AES_256", "TRIPLE_DES_3KEY"], Closed = true },
-        new("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE {name}"),
-        new("ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYMMETRIC KEY {name}"),
+        // 資料庫加密金鑰的 ALTER：重新產生（REGENERATE WITH ALGORITHM =）、換加密的憑證或非對稱金鑰，或兩者一起寫。
+        .. DatabaseKeyAlgorithm("ALTER DATABASE ENCRYPTION KEY REGENERATE WITH"),
+        .. ServerEncryptors("ALTER DATABASE ENCRYPTION KEY"),
 
         // 模組簽章：ADD、DROP [COUNTER] SIGNATURE TO|FROM [類別::]模組 BY 憑證或非對稱金鑰，ADD 的金鑰之後是 WITH PASSWORD 或 SIGNATURE。
         // DROP 的類別由 DROP 的展開列；ADD 不是物件種類的動詞，TO 那一格自己宣告，那一格也可以直接寫模組名稱。

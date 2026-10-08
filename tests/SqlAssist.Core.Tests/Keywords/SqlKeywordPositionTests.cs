@@ -1466,6 +1466,21 @@ public sealed class SqlKeywordPositionTests
         }
     }
 
+    /// <summary>
+    /// 片語說這一句寫完了又換了行：位置是選項清單或判不出來也補上語句開頭，下一句的片語才認得出開頭。
+    /// </summary>
+    [Theory]
+    [InlineData("RESTORE DATABASE LibArchive\n", true)]
+    [InlineData("RESTORE DATABASE LibArchive ", false)]
+    [InlineData("RESTORE LOG LibArchive\n", true)]
+    [InlineData("RESTORE DATABASE LibArchive FROM\n", false)]
+    public void 片語寫完一句又換行時補上語句開頭(string textBeforeToken, bool expected)
+    {
+        var keywords = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords;
+
+        Assert.Equal(expected, keywords != SqlKeywordPosition.Any && (keywords & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None);
+    }
+
     [Theory]
     [InlineData("SELECT dbo.fn_Fee('') ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]
     [InlineData("SELECT dbo.fn_Fee('') /* 同一行 */ ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail | SqlKeywordPosition.OperandTail)]

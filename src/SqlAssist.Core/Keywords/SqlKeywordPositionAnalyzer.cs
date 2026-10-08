@@ -216,6 +216,9 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <summary>判過的語句開頭；同一個詞元會被好幾條往回的路問到。</summary>
     private readonly Dictionary<int, bool> heads = new();
 
+    /// <summary>判過「比對到的片語說這一句寫到這個詞元就完整」的詞元；理由同 <see cref="heads"/>。</summary>
+    private readonly Dictionary<int, bool> phraseEnds = new();
+
     private int nesting;
 
     /// <summary>每個位置還沒關上的左括號，第一次問才算，見 <see cref="FindUnclosedParenthesis"/>。</summary>
@@ -407,7 +410,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <c>ALTER TABLE t ADD a int</c> 寫在括號外，一句就寫完了（括號裡的由 <see cref="AddStatementStartOnNewLine"/> 排除）。
     /// 序列的選項也是：選項不以逗號分隔、全都可以不寫，<c>CREATE SEQUENCE s CACHE⏎CREATE</c> 的第二個 CREATE 是下一句。
     /// 外部索引鍵寫完參考或一個動作（<c>ON DELETE CASCADE</c>、<c>NOT FOR REPLICATION</c>）同理：<c>ALTER TABLE t ADD … REFERENCES u (a)</c>
-    /// 寫在括號外就寫完了一句。
+    /// 寫在括號外就寫完了一句。不在這裡的位置，由片語說這一句寫完了（<see cref="PhraseEndsStatement"/>）。
     /// </remarks>
     private const SqlKeywordPosition StatementEndPositions =
         SqlKeywordPosition.SelectListTail |
@@ -452,9 +455,9 @@ public sealed partial class SqlKeywordPositionAnalyzer
     private SqlKeywordPosition AddStatementStartOnNewLine(SqlKeywordPosition position, int last, int gapEnd)
     {
         if ((position & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None ||
-            (position & StatementEndPositions) == SqlKeywordPosition.None ||
             last < 0 ||
-            !StartsOnNewLine(tokens[last].End, gapEnd, textBeforeToken))
+            !StartsOnNewLine(tokens[last].End, gapEnd, textBeforeToken) ||
+            ((position & StatementEndPositions) == SqlKeywordPosition.None && !PhraseEndsStatement(position, last)))
         {
             return position;
         }
@@ -463,6 +466,25 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return FindUnclosedParenthesis(last) < 0
             ? position | SqlKeywordPosition.StatementStart
             : position;
+    }
+
+    /// <summary>
+    /// 寫到 <paramref name="last"/> 確定比對到的子句片語說這一句已經完整（<see cref="SqlClausePhrase.EndsStatement"/>）。
+    /// </summary>
+    /// <remarks>
+    /// 子句尾端之外，一句也在標頭寫完時結束：<c>RESTORE DATABASE d</c>（只做復原）、<c>ALTER PARTITION SCHEME ps NEXT USED</c>。
+    /// 那一格的位置是選項清單或判不出來，哪些標頭寫得完由產生器以剖析器判定、記在片語上，這裡不另列。
+    /// </remarks>
+    /// <param name="position">位置分析對 <paramref name="last"/> 之後那一格的回報，不含換行補上的語句開頭。</param>
+    private bool PhraseEndsStatement(SqlKeywordPosition position, int last)
+    {
+        if (!phraseEnds.TryGetValue(last, out var ends))
+        {
+            ends = SqlClausePhraseCatalog.EndsStatement(tokens, last + 1, position, this);
+            phraseEnds[last] = ends;
+        }
+
+        return ends;
     }
 
     /// <summary>
@@ -695,6 +717,9 @@ public sealed partial class SqlKeywordPositionAnalyzer
         heads[index] = head;
         return head;
     }
+
+    /// <summary><paramref name="index"/> 是開資料來源的字（<see cref="TableSourceKeywords"/>）：沒加引號的 FROM、JOIN、APPLY、USING。</summary>
+    internal bool OpensTableSource(int index) => IsBareKeyword(index) && TableSourceKeywords.Contains(tokens[index].Value);
 
     /// <summary>這個關鍵字能開始一句。</summary>
     private static bool StartsStatement(SqlToken keyword) => SqlKeywordCatalog.StartsStatement(keyword.Value);

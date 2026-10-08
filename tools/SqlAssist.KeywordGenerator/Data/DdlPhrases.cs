@@ -266,6 +266,9 @@ internal static class DdlPhrases
         new("CREATE PARTITION FUNCTION {name} ()") { Group = "(int)", Expand = 1 },
         new("CREATE PARTITION FUNCTION {name} () AS RANGE") { Group = "(int)", Expand = 2, Endings = [" FOR VALUES (1)"] },
         new("ALTER PARTITION FUNCTION {name} ()") { Group = "()", Expand = 1 },
+        // 資料分割配置的 NEXT USED 之後的檔案群組可省，只寫 NEXT USED 就寫完一句；ALTER 的展開只到名稱之後一層。
+        // 寫到 USED 為止要是片語，否則 NEXT USED 比對成 FETCH 的 NEXT {value}，換行之後列不出下一句。
+        new("ALTER PARTITION SCHEME {name} NEXT USED"),
     ];
 
     internal static readonly PhraseDeclaration[] Sequence =

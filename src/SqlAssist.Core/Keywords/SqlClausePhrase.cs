@@ -212,9 +212,11 @@ public sealed class SqlClausePhrase
 
             // 名稱格收保留字，但不收開始一句的字：WITH CHECK_POLICY = ON⏎CREATE 的 CREATE 是下一句，
             // 當成 ON {name} 的名稱的話，那一格列的是資料行定義的字，CREATE 之後的 LOGIN 就不見了。
-            // 也不收正在宣告的變數：DECLARE @a 是變數的宣告，不是 DECLARE c 這種 ISO 游標的名稱，之後是型別。
+            // 也不收開資料來源的字：位置分析從它之後讀資料來源，MERGE t AS target USING ( 的 USING 當成 TARGET {name} (* 的名稱的話，
+            // 擴充事件的片語封閉了來源的子查詢（其餘子句錨點照收：= ON 的 ON 是值）。也不收正在宣告的變數：DECLARE @a 是變數的宣告，
+            // 不是 DECLARE c 這種 ISO 游標的名稱，之後是型別。
             var before = _elements[element].Kind == ElementKind.Name &&
-                (analyzer.IsStatementHead(index) || DeclaresVariable(tokens, index))
+                (analyzer.IsStatementHead(index) || analyzer.OpensTableSource(index) || DeclaresVariable(tokens, index))
                     ? Element.Mismatch
                     : _elements[element].MatchBackward(tokens, index);
 
