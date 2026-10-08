@@ -605,7 +605,17 @@ public static class SqlBuiltInDocCatalog
         var hovered = head == tokens.Count;
         var before = hovered ? tokens : SqlTokenizer.Tokenize(text, 0, tokens[head].Start);
 
-        if (!SqlArgumentPosition.TryResolve(before, out var target) || !TryGetArgumentKind(target, out var kind))
+        if (!SqlArgumentPosition.TryResolve(before, out var target))
+        {
+            return false;
+        }
+
+        if (hovered && TryGetOdbcDatePartAt(reference, target, out doc, out span))
+        {
+            return true;
+        }
+
+        if (!TryGetArgumentKind(target, out var kind))
         {
             return false;
         }
@@ -615,6 +625,49 @@ public static class SqlBuiltInDocCatalog
             : CollectMultiWordNames(text, tokens[head].Value, tokens[head].End, MaximumHintWords);
         var start = hovered ? reference.Start : tokens[head].Start;
         return TryGetLongest(names, tokens.Count - head, kind, start, out doc, out span);
+    }
+
+    /// <summary>
+    /// ODBC <c>{fn EXTRACT(</c> 與 <c>{fn TIMESTAMPADD(</c> 第一個引數的說明：一行說明借日期部分，對照表只列那一格收的值。
+    /// </summary>
+    /// <remarks>
+    /// 對照表換成那一格的，否則 15 個 datepart 有一半是 ODBC 不收的值；
+    /// 一行說明照名稱向那一格的清單要，否則 <c>SQL_TSI_HOUR</c> 照日期部分查會落空。
+    /// </remarks>
+    private static bool TryGetOdbcDatePartAt(
+        SqlIdentifierReference reference,
+        CompletionTarget target,
+        out SqlBuiltInDoc doc,
+        out SqlTextSpan span)
+    {
+        doc = null!;
+        span = default;
+
+        var (parameter, values) = target switch
+        {
+            CompletionTarget.ExtractField => (SqlArgumentCatalog.ExtractFieldParameter, SqlArgumentCatalog.ExtractFields),
+            CompletionTarget.Interval => (SqlArgumentCatalog.IntervalParameter, SqlArgumentCatalog.Intervals),
+            _ => (string.Empty, Array.Empty<SqlSuggestion>())
+        };
+
+        foreach (var value in values)
+        {
+            if (string.Equals(value.DisplayText, reference.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                doc = new SqlBuiltInDoc(
+                    value.DisplayText,
+                    SqlBuiltInKind.DatePart,
+                    string.Empty,
+                    value.Description,
+                    Array.Empty<SqlBuiltInExample>(),
+                    string.Empty,
+                    new[] { BuildArgumentTable(parameter, values) });
+                span = reference.Span;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsBareWord(SqlToken token) => token.Kind == SqlTokenKind.Identifier && !token.IsQuoted;
@@ -836,7 +889,7 @@ public static class SqlBuiltInDocCatalog
         var entries = new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase);
         var tables = new Dictionary<string, SqlBuiltInReference>(StringComparer.Ordinal)
         {
-            [DatePartTableId] = BuildDatePartTable()
+            [DatePartTableId] = BuildArgumentTable("datepart", SqlArgumentCatalog.DateParts)
         };
 
         var assembly = typeof(SqlBuiltInDocCatalog).GetTypeInfo().Assembly;
@@ -1106,19 +1159,19 @@ public static class SqlBuiltInDocCatalog
         _ => SqlBuiltInKind.Function
     };
 
-    /// <summary>datepart 的名稱與說明只有 <see cref="SqlArgumentCatalog"/> 一份。</summary>
-    private static SqlBuiltInReference BuildDatePartTable()
+    /// <summary>日期部分這幾份對照表的名稱與說明只有 <see cref="SqlArgumentCatalog"/> 一份。</summary>
+    /// <param name="parameter">簽章裡收這份值的參數名，當分頁標題。</param>
+    private static SqlBuiltInReference BuildArgumentTable(string parameter, IReadOnlyList<SqlSuggestion> values)
     {
-        var parts = SqlArgumentCatalog.DateParts;
-        var rows = new List<IReadOnlyList<string>>(parts.Count);
+        var rows = new List<IReadOnlyList<string>>(values.Count);
 
-        foreach (var part in parts)
+        foreach (var value in values)
         {
-            rows.Add(new[] { part.DisplayText, part.Description });
+            rows.Add(new[] { value.DisplayText, value.Description });
         }
 
         return new SqlBuiltInReference(
-            KeywordText.DatePartTableTitle,
+            KeywordText.ArgumentTableTitle(parameter),
             new[] { CommonText.Name, CommonText.Description },
             rows);
     }

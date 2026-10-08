@@ -52,12 +52,12 @@ public static class SqlArgumentPosition
                     return true;
                 }
             }
-            else if (SqlArgumentCatalog.OdbcFirstParameterIs(name, "extract_field"))
+            else if (SqlArgumentCatalog.OdbcFirstParameterIs(name, SqlArgumentCatalog.ExtractFieldParameter))
             {
                 target = CompletionTarget.ExtractField;
                 return true;
             }
-            else if (SqlArgumentCatalog.OdbcFirstParameterIs(name, "interval"))
+            else if (SqlArgumentCatalog.OdbcFirstParameterIs(name, SqlArgumentCatalog.IntervalParameter))
             {
                 target = CompletionTarget.Interval;
                 return true;

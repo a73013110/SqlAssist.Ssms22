@@ -1,6 +1,6 @@
 {
   // 內建名稱說明標題底下那一行種類文字；資料型別要點明「內建」，其餘種類用 SqlKindText。
   "KindDataType": "內建型別",
-  // 內建說明浮動視窗裡 datepart 對照表的分頁標題；datepart 是 T-SQL 參數名，不翻。
-  "DatePartTableTitle": "datepart 名稱"
+  // 內建說明浮動視窗裡日期部分對照表的分頁標題；parameter 是簽章裡的參數名（datepart、extract_field、interval），不翻。
+  "ArgumentTableTitle": "{parameter} 名稱"
 }

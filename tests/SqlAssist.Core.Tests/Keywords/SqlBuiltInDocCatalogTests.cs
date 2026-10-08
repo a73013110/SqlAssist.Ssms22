@@ -359,6 +359,51 @@ public sealed class SqlBuiltInDocCatalogTests
     }
 
     /// <summary>
+    /// ODBC <c>{fn EXTRACT(</c> 與 <c>{fn TIMESTAMPADD(</c> 的第一個引數：一行說明借日期部分，
+    /// 對照表只列那一格收的值，不附 15 個 datepart 的那張。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT {fn EXTRACT(HOUR FROM d)}", 20, "HOUR", "HOUR", "extract_field", 6)]
+    [InlineData("SELECT {fn extract(second FROM d)}", 20, "SECOND", "SECOND", "extract_field", 6)]
+    [InlineData("SELECT {fn TIMESTAMPADD(SQL_TSI_FRAC_SECOND, 1, d)}", 26, "SQL_TSI_FRAC_SECOND", "NANOSECOND", "interval", 9)]
+    [InlineData("SELECT {fn TIMESTAMPDIFF(SQL_TSI_DAY, a, b)}", 27, "SQL_TSI_DAY", "DAY", "interval", 9)]
+    public void ODBC日期部分帶得出那一格的對照表(
+        string text,
+        int position,
+        string name,
+        string datePart,
+        string parameter,
+        int rows)
+    {
+        var reference = SqlIdentifierScanner.FindAt(text, position);
+
+        Assert.NotNull(reference);
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc, out var span));
+        Assert.Equal(name, doc.Name);
+        Assert.Equal(SqlBuiltInKind.DatePart, doc.Kind);
+        Assert.Equal(SqlArgumentCatalog.DateParts.Single(item => item.DisplayText == datePart).Description, doc.Summary);
+        Assert.Equal(reference!.Span, span);
+
+        var table = Assert.Single(doc.References);
+        Assert.Equal(rows, table.Rows.Count);
+        Assert.StartsWith(parameter, table.Title, StringComparison.Ordinal);
+    }
+
+    /// <summary>ODBC 不收的日期部分、離開第一個引數的值都不算。</summary>
+    [Theory]
+    [InlineData("SELECT {fn EXTRACT(QUARTER FROM d)}", 20)]
+    [InlineData("SELECT {fn TIMESTAMPADD(HOUR, 1, d)}", 26)]
+    [InlineData("SELECT {fn TIMESTAMPADD(SQL_TSI_DAY, SQL_TSI_DAY, d)}", 40)]
+    [InlineData("SELECT SQL_TSI_DAY FROM dbo.Loan", 9)]
+    public void ODBC不收的日期部分沒有說明(string text, int position)
+    {
+        var reference = SqlIdentifierScanner.FindAt(text, position);
+
+        Assert.NotNull(reference);
+        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _, out _));
+    }
+
+    /// <summary>
     /// 提示沒有對照表；還沒寫範例的那些只剩一行說明，開了視窗也只有一個標題。
     /// </summary>
     /// <remarks>
@@ -556,6 +601,11 @@ public sealed class SqlBuiltInDocCatalogTests
             Assert.True(SqlBuiltInDocCatalog.TryGet("YEAR", SqlBuiltInKind.DatePart, out var part));
             Assert.Equal("Year", part.Summary);
             Assert.Equal(new[] { "Name", "Description" }, part.References[0].Columns);
+            Assert.Equal("datepart names", part.References[0].Title);
+
+            var text = "SELECT {fn EXTRACT(HOUR FROM d)}";
+            Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, SqlIdentifierScanner.FindAt(text, 20), out var field, out _));
+            Assert.Equal("extract_field names", Assert.Single(field.References).Title);
         }
 
         Assert.Equal("整數（4 位元組）", SqlDataTypeCatalog.All.Single(item => item.DisplayText == "INT").Description);

@@ -211,6 +211,12 @@ public static class SqlArgumentCatalog
         ("CONVERT", "CONVERT(value_exp, data_type)", () => ArgumentText.OdbcConvert)
     };
 
+    /// <summary>ODBC 簽章裡收日期部分的參數：<c>EXTRACT(extract_field FROM …)</c>。</summary>
+    public const string ExtractFieldParameter = "extract_field";
+
+    /// <summary>ODBC 簽章裡收 <c>SQL_TSI_</c> 的參數：<c>TIMESTAMPADD(interval, …)</c>。</summary>
+    public const string IntervalParameter = "interval";
+
     /// <summary>三份封閉清單裡的名稱拆成的字；多字寫法的每一個字都在內。</summary>
     private static readonly HashSet<string> Words = CollectWords();
 
@@ -361,9 +367,14 @@ public static class SqlArgumentCatalog
     {
         var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (name, _, _, _) in DatePartDefinitions)
+        foreach (var (name, _, _, interval) in DatePartDefinitions)
         {
             words.UnionWith(name.Split(' '));
+
+            if (interval is not null)
+            {
+                words.Add(interval);
+            }
         }
 
         foreach (var (name, _, _) in TableHintDefinitions)

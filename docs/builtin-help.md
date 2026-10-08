@@ -83,6 +83,8 @@ https 位址；改過 `docsUrl` 後跑 `tools/Check-DocLinks.ps1`（要網路，
 - **全域變數**靠 `@@`，位置不問。**提示與 datepart** 只在 `WITH (…)`、`OPTION (…)`、
   `DATEADD(` 第一個引數裡才算，問的是 `Core/Completion/SqlArgumentPosition`；這一關排在
   左括號之前，否則 `WITH (INDEX(1))` 的 `INDEX` 會被當成函式呼叫。
+  ODBC `{fn EXTRACT(`、`{fn TIMESTAMPADD(` 的第一個引數也算，一行說明借日期部分，對照表只列那一格收的值
+  （標題是簽章的參數名），否則表上一半是 ODBC 不收的值。
 - **函式與型別**靠左括號，與自動大寫同一條規則（見[函式與型別](completion-builtins.md)）：
   `SELECT year FROM dbo.Loan` 的 `year` 是資料行。有括號先當函式，查不到才退到型別；反過來
   不成立。`CAST(x AS char(10))` 的 `char` 仍會被說成函式，那是位置分析的工作。
