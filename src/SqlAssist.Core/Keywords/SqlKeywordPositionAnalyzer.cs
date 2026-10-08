@@ -2007,6 +2007,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return SqlKeywordPosition.AlterTableAdd;
         }
 
+        // 游標查詢 FOR UPDATE OF 之後與清單的逗號之後是一個資料行：OF 沒有對應的位置，逗號往回會借到查詢的 FROM。
+        if (SqlCursorDeclaration.ListsUpdateColumns(tokens, last))
+        {
+            return SqlKeywordPosition.OrderByColumn;
+        }
+
         // SELECT a, | 與 FROM a, | 都是清單再來一項，位置回到清單的起點。
         // ORDER BY a, | 也一樣：下一項仍然是欄位。
         if (token.IsPunctuation(","))

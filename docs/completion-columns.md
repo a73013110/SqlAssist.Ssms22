@@ -8,8 +8,7 @@
 輸入 `別名.` 或 `資料表名稱.` 時列出該資料來源的欄位，並顯示型別、NULL 與 PK。
 
 別名解析需要看得到游標**後方**的文字：`SELECT u.| FROM dbo.Lib_Reader u` 的 FROM
-子句在游標之後，只看前文永遠解析不出 `u`——而編輯既有查詢正是最常遇到這種情形的
-時候。因此上下文分析改用完整文字加游標位置的多載。
+子句在游標之後，只看前文永遠解析不出 `u`。因此上下文分析改用完整文字加游標位置的多載。
 
 ## 別名指向哪些欄位
 
@@ -18,9 +17,8 @@
 子查詢與 CTE 直接讀它們的選取清單，內層自己又是 `*` 時遞迴下去。
 細節見 [wildcard-expansion.md](wildcard-expansion.md#欄位從哪裡來)。
 
-各寫一份的症狀曾經就在眼前：同一段 SQL 的 `a.*` 按 Tab 展得開，`a.` 卻一個建議
-都沒有——只有萬用字元那一份會往子查詢裡看，另一份遇到衍生資料表就放棄，
-遇到 CTE 名稱則去查一張不存在的表。
+各寫一份的症狀：同一段 SQL 的 `a.*` 按 Tab 展得開，`a.` 卻一個建議都沒有——
+只有萬用字元那一份會往子查詢裡看。
 
 ```sql
 SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
@@ -78,6 +76,9 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 定義指 `CREATE TABLE t (`、`@t [AS] TABLE (`、`CREATE TYPE t AS TABLE (`，資料表與資料行層級的元素都算。那張表
 還不存在（或中繼資料是改之前的樣子），資料行讀同一份括號（`SqlScriptTableCollector.FindDefinition`）：
 括號關上時整份都算，還開著只讀到游標；指回自己的 `REFERENCES t (` 也是這一份。
+
+游標查詢 `FOR UPDATE OF ` 與清單的逗號之後也只寫得出資料行，屬於那句查詢的每一個來源（範圍那一份，
+`SqlCursorDeclaration.ListsUpdateColumns`）；寫得出限定字，別名同列。
 
 不算的位置：`ORDER BY `、`GROUP BY ` 接得了運算式與序號；`EXEC p ` 的位置引數可以直接寫常值，
 `WITH` 也接在那裡（打 `@` 才列參數）。

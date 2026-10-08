@@ -64,7 +64,7 @@ public enum SqlKeywordPosition : long
     GroupByTail = 1 << 23,
 
     /// <summary>
-    /// ORDER BY 或 GROUP BY 要的那個欄位本身，含逗號之後的下一項。
+    /// ORDER BY 或 GROUP BY 要的那個欄位本身，含逗號之後的下一項；游標查詢 <c>FOR UPDATE OF</c> 的資料行也是這一格。
     /// </summary>
     /// <remarks>
     /// 分析器一直知道這裡要的是欄位，卻只回得出 <see cref="Any"/>——列舉裡沒有

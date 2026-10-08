@@ -1,5 +1,6 @@
 using System.Linq;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 using Xunit;
 
@@ -330,6 +331,44 @@ public sealed class SqlScriptTableCompletionTests
         Assert.Equal(CompletionTarget.ClauseKeyword, context.Target);
         Assert.Contains("OF", context.ClausePhrase!.Suggestions.Select(item => item.DisplayText));
         Assert.DoesNotContain(context.ScriptSources, item => item.DisplayText == "#Loan");
+    }
+
+    /// <summary>游標的 <c>FOR UPDATE OF</c> 之後與清單的逗號之後是游標查詢那些來源的資料行。</summary>
+    /// <remarks>
+    /// OF 沒有對應的位置時判成 Any，附加片語的字（READONLY、DIALOG…）全部進場；逗號往回借到查詢的 FROM，清單換成資料表。
+    /// 清單寫得出限定字，別名同列。
+    /// </remarks>
+    [Theory]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR FOR SELECT CopyNo FROM #Loan FOR UPDATE OF |")]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR FOR SELECT CopyNo FROM #Loan FOR UPDATE OF C|")]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR FOR SELECT CopyNo FROM #Loan FOR UPDATE OF CopyNo, |")]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR FOR SELECT CopyNo FROM #Loan l FOR UPDATE OF l.CopyNo, [ReaderId], |")]
+    [InlineData(TemporaryTable + "DECLARE c CURSOR LOCAL FOR SELECT CopyNo FROM #Loan\r\nFOR UPDATE OF CopyNo,\r\n|")]
+    public void 游標的FOR_UPDATE_OF之後是資料行(string sqlWithCaret)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(CompletionTarget.Column, context.Target);
+        Assert.Equal(SqlKeywordPosition.OrderByColumn, context.KeywordPosition);
+        Assert.Null(context.ClausePhrase);
+        Assert.Equal(new[] { "Id", "CopyNo", "ReaderId" }, context.ColumnSources!.SelectMany(source => source.Names));
+        Assert.All(context.ScriptSources, item => Assert.Equal(SuggestionKind.Alias, item.Kind));
+    }
+
+    /// <summary>游標查詢有幾個來源，OF 之後就列幾個來源的資料行；FOR 後面的 UPDATE 不是動詞，OF 不是它的目標。</summary>
+    [Fact]
+    public void 游標的FOR_UPDATE_OF列查詢每一個來源的資料行()
+    {
+        var context = Analyze(TemporaryTable +
+            "DECLARE c CURSOR FOR SELECT l.CopyNo FROM #Loan l JOIN dbo.Copy c ON c.CopyNo = l.CopyNo FOR UPDATE OF |");
+
+        Assert.Equal(CompletionTarget.Column, context.Target);
+        Assert.Equal(
+            new[] { "Id", "CopyNo", "ReaderId", "表 Copy" },
+            context.ColumnSources!.SelectMany(source => source.Kind == SqlColumnSourceKind.Table
+                ? new[] { $"表 {source.Table!.ObjectName}" }
+                : source.Names));
+        Assert.Equal(new[] { "l", "c" }, context.ScriptSources.Select(item => item.DisplayText));
     }
 
     /// <summary>MERGE 的目標寫在 TOP 子句之後，取的別名照樣限定得了欄位。</summary>

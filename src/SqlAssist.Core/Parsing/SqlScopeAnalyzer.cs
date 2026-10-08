@@ -56,13 +56,18 @@ public static class SqlScopeAnalyzer
     /// MERGE、UPDATE 與 DELETE 同理，後面直接是目標，中間可以夾 TOP 子句（<c>MERGE TOP (10) dbo.Loan t USING …</c>、省略 FROM 的
     /// <c>DELETE dbo.Loan WHERE …</c>）；寫了 INTO、FROM 的由它們收。目標是之後 FROM 取的別名時
     /// （<c>DELETE l FROM dbo.Loan l</c>）與 UPDATE 一樣由 <see cref="RemoveAliasReferences"/> 拿掉。
-    /// 聯結提示 <c>INNER MERGE JOIN</c> 後面是 JOIN、MERGE 動作的 <c>THEN DELETE</c> 後面是 WHEN，讀不出名稱，不會多收一個來源。
+    /// 動詞要是一句的開頭（<see cref="SqlStatementBoundaries.FindDmlTarget"/>）：聯結提示 <c>INNER MERGE JOIN</c>、MERGE 動作的
+    /// <c>THEN DELETE</c> 與游標查詢 <c>FOR UPDATE OF CopyNo</c> 的 UPDATE 都不是動詞，後面不收來源——OF 不是一張表。
     /// </remarks>
     private static readonly HashSet<string> SourceKeywords =
         new(StringComparer.OrdinalIgnoreCase)
         {
             "FROM", "JOIN", "APPLY", "INTO", "UPDATE", "DELETE", "MERGE", "USING"
         };
+
+    /// <summary><see cref="SourceKeywords"/> 裡的 DML 動詞：後面是目標，只在一句的開頭才是。</summary>
+    private static bool IsDmlVerb(SqlToken token) =>
+        token.IsKeyword("UPDATE") || token.IsKeyword("DELETE") || token.IsKeyword("MERGE");
 
     /// <summary>
     /// 分析游標所在的查詢範圍。
@@ -486,7 +491,8 @@ public static class SqlScopeAnalyzer
                 token.IsQuoted ||
                 (!SourceKeywords.Contains(token.Value) &&
                     !SqlDdlTarget.IsDataSourceOn(tokens, index)) ||
-                ((token.IsKeyword("FROM") || token.IsKeyword("INTO")) && !boundaries.IntroducesDataSource(index)))
+                ((token.IsKeyword("FROM") || token.IsKeyword("INTO")) && !boundaries.IntroducesDataSource(index)) ||
+                (IsDmlVerb(token) && boundaries.FindDmlTarget(index) != index))
             {
                 index++;
                 continue;

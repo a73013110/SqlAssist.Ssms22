@@ -399,6 +399,15 @@ public static class SqlCompletionContextAnalyzer
                 : ofOwner;
         }
 
+        // 游標查詢 FOR UPDATE OF 的清單寫的是那句查詢來源的資料行：來源可以不只一個，就是範圍裡那一份。
+        // 與指派的左邊同理寫得出限定字（OF c.CopyNo），別名同列。
+        if (context.Target == CompletionTarget.Any &&
+            context.QualifierPath is null &&
+            SqlCursorDeclaration.ListsUpdateColumns(tokens, LastTokenBefore(tokens, context.TokenStart)))
+        {
+            return withScope.AsColumnsOf(withScope.ScopeSources).WithScriptSources(SqlScopeAliasSuggestions.Create(scope, resolver));
+        }
+
         if (context.QualifierPath is null)
         {
             // CTE、暫存資料表、資料表變數與暫存程序只存在於這份指令碼裡，中繼資料查不到它們。
@@ -865,12 +874,7 @@ public static class SqlCompletionContextAnalyzer
     /// <remarks>TOP 子句以右括號結尾，不能照關鍵字那樣從字元往回找詞元的起點。</remarks>
     private static SqlToken? FindDmlTarget(IReadOnlyList<SqlToken> tokens, string textBeforeToken, int end)
     {
-        var index = tokens.Count - 1;
-
-        while (index >= 0 && tokens[index].End > end)
-        {
-            index--;
-        }
+        var index = LastTokenBefore(tokens, end);
 
         return index >= 0 && new SqlStatementBoundaries(textBeforeToken, tokens).FindDmlTarget(index) is var verb and >= 0
             ? tokens[verb]
@@ -892,6 +896,19 @@ public static class SqlCompletionContextAnalyzer
         var index = FindTokenAt(tokens, tokenStart);
 
         return index >= 0 && new SqlStatementBoundaries(textBeforeToken, tokens).IntroducesCursor(index);
+    }
+
+    /// <summary>結束在 <paramref name="position"/> 之前的最後一個詞元；沒有時為 -1。</summary>
+    private static int LastTokenBefore(IReadOnlyList<SqlToken> tokens, int position)
+    {
+        var index = tokens.Count - 1;
+
+        while (index >= 0 && tokens[index].End > position)
+        {
+            index--;
+        }
+
+        return index;
     }
 
     /// <summary>從 <paramref name="start"/> 開始的詞元；文字與詞元對不起來時為 -1。</summary>

@@ -282,6 +282,9 @@ DECLARE @Copies TABLE (CopyNo int PRIMARY KEY)
 
 DECLARE c CURSOR LOCAL FAST_FORWARD FOR SELECT CopyNo FROM dbo.Copy
 
+DECLARE c CURSOR LOCAL FOR SELECT c.CopyNo, l.ReaderId FROM dbo.Copy c JOIN dbo.Loan l ON l.CopyNo = c.CopyNo
+FOR UPDATE OF c.CopyNo, ReaderId
+
 OPEN c
 
 FETCH NEXT FROM c INTO @CopyNo

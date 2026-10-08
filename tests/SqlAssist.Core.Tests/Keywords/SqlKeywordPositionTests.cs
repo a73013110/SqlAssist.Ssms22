@@ -824,6 +824,10 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SET @a = IIF(@a IS NULL, ", SqlKeywordPosition.Any)]
     [InlineData("SELECT * FROM dbo.fn_LoansByCopy(1, ", SqlKeywordPosition.Any)]
     [InlineData("SELECT * FROM t WHERE a IN (SELECT b, ", SqlKeywordPosition.SelectList)]
+
+    // 游標查詢 FOR UPDATE OF 的清單是資料行，逗號之後不借查詢的 FROM。
+    [InlineData("DECLARE c CURSOR FOR SELECT a FROM t FOR UPDATE OF a, ", SqlKeywordPosition.OrderByColumn)]
+    [InlineData("DECLARE c CURSOR FOR SELECT a FROM t x FOR UPDATE OF x.a, [b], ", SqlKeywordPosition.OrderByColumn)]
     public void 逗號回到清單起點(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
@@ -841,6 +845,7 @@ public sealed class SqlKeywordPositionTests
     [Theory]
     [InlineData("SELECT * FROM t ORDER BY ", SqlKeywordPosition.OrderByColumn)]
     [InlineData("SELECT * FROM t GROUP BY ", SqlKeywordPosition.OrderByColumn)]
+    [InlineData("DECLARE c CURSOR FOR SELECT a FROM t FOR UPDATE OF ", SqlKeywordPosition.OrderByColumn)]
 
     // 欄位之後仍然是 ASC／DESC，不是另一個欄位。
     [InlineData("SELECT * FROM t ORDER BY a ", SqlKeywordPosition.OrderByTail | SqlKeywordPosition.OperandTail)]

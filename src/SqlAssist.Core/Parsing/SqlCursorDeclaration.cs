@@ -106,6 +106,38 @@ public static class SqlCursorDeclaration
         return false;
     }
 
+    /// <summary>
+    /// <paramref name="last"/> 之後是游標查詢 <c>FOR UPDATE OF</c> 的一個資料行：<c>OF</c> 本身，或清單一項之後的逗號。
+    /// </summary>
+    /// <remarks>
+    /// 清單裡是游標查詢那些來源的既有資料行，可以寫限定字（<c>OF c.CopyNo</c>）。不認的話 OF 之後判不出位置，
+    /// 每一個附加片語的字都進場；逗號往回借到查詢的 FROM，清單換成資料表。<c>FOR</c> 後面的 UPDATE 不是動詞，
+    /// 範圍分析也不把 OF 讀成它的目標（<see cref="SqlKeywordPositionAnalyzer"/> 的 DML 目標要動詞是一句的開頭）。
+    /// 位置分析與上下文分析的欄位來源都問這一條。
+    /// </remarks>
+    public static bool ListsUpdateColumns(IReadOnlyList<SqlToken> tokens, int last)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        var index = last;
+
+        while (index >= 1 && index < tokens.Count && tokens[index].IsPunctuation(","))
+        {
+            if (!SqlTokenNavigator.IsNamePart(tokens[index - 1]))
+            {
+                return false;
+            }
+
+            index = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, index - 1) - 1;
+        }
+
+        return index >= 2 && index < tokens.Count &&
+            tokens[index].IsKeyword("OF") && tokens[index - 1].IsKeyword("UPDATE") && tokens[index - 2].IsKeyword("FOR");
+    }
+
     /// <summary>這份指令碼宣告的游標與游標變數，依出現順序、不重複。</summary>
     public static IReadOnlyList<string> CollectNames(IReadOnlyList<SqlToken> tokens)
     {
