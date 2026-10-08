@@ -13,9 +13,9 @@
 同一個代價權衡——判定成立時整份清單就換掉，所以只收看得出來的：
 
 ```text
-SELECT DATEADD(|              → DAY、MONTH、YEAR…（15 個日期部分）
-SELECT * FROM dbo.Loan WITH (| → NOLOCK、UPDLOCK、INDEX(…（21 個資料表提示）
-SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 個查詢提示）
+SELECT DATEADD(|              → DAY、MONTH、YEAR…（日期部分）
+SELECT * FROM dbo.Loan WITH (| → NOLOCK、UPDLOCK、INDEX(…（資料表提示）
+SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（查詢提示）
 SELECT {fn |                  → CURRENT_TIME、USER、RIGHT…（ODBC 純量函式）
 ```
 
@@ -24,14 +24,12 @@ SELECT {fn |                  → CURRENT_TIME、USER、RIGHT…（ODBC 純量�
 
 日期部分只在**第一個**引數：打過逗號之後那裡要的是數字與日期。哪些函式由函式目錄的簽章說
 （`DATE_BUCKET(datepart, …)`），不另列名單；只收完整名稱，不收 `yy`、`dd`：收了清單就要捲動。
-提示是一份清單，逗號之後還是提示；`INDEX` 提交時補左括號，理由與內建函式相同。
+提示是一份清單，逗號之後還是提示，`OPTION (TABLE HINT (t, ` 之後也是資料表提示；`INDEX` 提交時補左括號，理由與內建函式相同。
 ODBC 收附錄 E 整份：sql-docs 的表格只列與 T-SQL 不重複的，引擎解譯的是整份。
 
 `CREATE INDEX … WITH (` 列的是索引選項（片語，見[子句片語](completion-phrases.md)）。
 已知會誤判的是 `OPENJSON(…) WITH (col int '$.x')`：也會列出資料表提示。沒有為它再加判斷：
 那裡要的是使用者自己取的資料行名稱，換掉的只是一份同樣不對的清單。
-
-名單只在伺服器上的定序、語言與時區見[執行個體名單](completion-instance-lists.md)。
 
 `SET NOCOUNT ` 之後的 `ON`、`OFF` 不是封閉清單，走關鍵字位置 `SetOptionValue`（名稱不列）：
 識別字的值（`SET DATEFORMAT dmy`）寫完換行還接得了下一句，整份換掉就錯了。規則見

@@ -13,7 +13,7 @@ namespace SqlAssist.Core.Completion;
 /// 清單就換掉，因此只收看得出來的幾種，其餘一律照常。
 ///
 /// 都認得出來，是因為游標前面那個字就把話說完了——
-/// <c>DATEADD(</c>、<c>WITH (</c>、<c>OPTION (</c> 與 ODBC 的 <c>{fn</c>。清單只有伺服器知道的那幾種
+/// <c>DATEADD(</c>、<c>WITH (</c>、<c>OPTION (</c>、<c>TABLE HINT (t,</c> 與 ODBC 的 <c>{fn</c>。清單只有伺服器知道的那幾種
 /// （<c>COLLATE</c>、<c>SET LANGUAGE</c>、<c>AT TIME ZONE</c>）由 <see cref="SqlInstanceList"/> 判斷。
 /// </remarks>
 public static class SqlArgumentPosition
@@ -79,6 +79,13 @@ public static class SqlArgumentPosition
         if (tokens[open - 1].IsKeyword("OPTION"))
         {
             target = CompletionTarget.QueryHint;
+            return true;
+        }
+
+        // OPTION (TABLE HINT (c, | ——第一個引數是資料表或別名，逗號之後每一項都是資料表提示，與 WITH ( 同一份清單。
+        if (tokens[last].IsPunctuation(",") && open >= 2 && tokens[open - 1].IsKeyword("HINT") && tokens[open - 2].IsKeyword("TABLE"))
+        {
+            target = CompletionTarget.TableHint;
             return true;
         }
 

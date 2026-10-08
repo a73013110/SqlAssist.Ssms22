@@ -104,9 +104,22 @@ public sealed class SqlScriptObjectTests
     [Theory]
     [InlineData("DECLARE @readerId INT;\r\nSELECT * FROM |")]
     [InlineData("DECLARE @rows dbo.LoanList;\r\nSELECT * FROM |")]
+    [InlineData("DECLARE @Doc NVARCHAR(MAX);\r\nSELECT @Doc xml FROM |")]
     public void 不是資料表的變數不列出(string sqlWithCaret)
     {
         Assert.Empty(ScriptSources(sqlWithCaret));
+    }
+
+    /// <summary>
+    /// xml 變數在資料來源的位置接 <c>.nodes(…)</c>，認的是宣告的型別；提交只補名字。
+    /// </summary>
+    [Theory]
+    [InlineData("DECLARE @Doc xml = '<a/>'\r\nSELECT T.c.query('.') FROM |", "@Doc")]
+    [InlineData("DECLARE @n INT, @Doc AS XML;\r\nSELECT * FROM |", "@Doc")]
+    [InlineData("CREATE PROCEDURE p @Doc xml AS\r\nSELECT * FROM dbo.Copy JOIN |", "@Doc")]
+    public void FROM之後列出xml變數(string sqlWithCaret, string expected)
+    {
+        Assert.Equal(new[] { expected }, ScriptSources(sqlWithCaret));
     }
 
     /// <summary>

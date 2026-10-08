@@ -6,7 +6,7 @@ using SqlAssist.Core.Parsing;
 namespace SqlAssist.Core.Completion;
 
 /// <summary>
-/// 指令碼自己宣告的物件：資料來源（CTE、暫存資料表、資料表變數）、暫存程序與游標。
+/// 指令碼自己宣告的物件：資料來源（CTE、暫存資料表、資料表變數、xml 變數）、暫存程序與游標。
 /// </summary>
 /// <remarks>
 /// 建議清單的資料庫物件全部來自中繼資料，而中繼資料只看得到目前連線資料庫的
@@ -105,6 +105,20 @@ public static class SqlScriptObjectSuggestions
             {
                 (suggestions ??= new List<SqlSuggestion>()).Add(
                     DataSource(table.Name, SqlKindText.TableVariable, table));
+            }
+        }
+
+        // xml 變數在資料來源的位置接 .nodes(…)（FROM @x.nodes('/a') T(c)），一樣只認宣告。只補名字、不帶點號：
+        // 點號之後沒有方法清單，提交字元打的點號照樣接上去。
+        for (var index = 0; index < tokens.Count; index++)
+        {
+            if (tokens[index].Kind == SqlTokenKind.Variable &&
+                !seen.Contains(tokens[index].Value) &&
+                SqlScriptVariableSuggestions.DeclaredType(tokens, index) is { } type &&
+                type.Equals("xml", StringComparison.OrdinalIgnoreCase) &&
+                seen.Add(tokens[index].Value))
+            {
+                (suggestions ??= new List<SqlSuggestion>()).Add(DataSource(tokens[index].Value, type.ToUpperInvariant()));
             }
         }
 

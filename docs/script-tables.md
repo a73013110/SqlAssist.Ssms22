@@ -67,6 +67,8 @@ DECLARE @rows TABLE (Id INT, CopyNo NVARCHAR(20));
 資料表值參數（`@rows dbo.LoanRows READONLY`）也在名冊裡：`READONLY` 只寫在資料表型別的參數上，憑它就分得出來。
 資料行在型別定義裡，同一份指令碼寫了 `CREATE TYPE … AS TABLE (…)` 才讀得到，否則只有名稱；
 沒有 `READONLY` 的 `DECLARE @t dbo.LoanRows` 分不出型別是資料表還是別名型別，不收。
+宣告成 `xml` 的變數也收：資料來源的位置接得了 `@x.nodes('/a') T(c)`。提交只補名稱，點號之後沒有方法清單，
+由使用者自己打。
 
 三種在清單裡共用同一個圖示（`Ssms22/UI/SqlIcons`），與資料庫資料表分得開：它們
 回答的是同一件事——一張只活在這份文字裡的表，連線一斷就沒了。資料表變數曾經

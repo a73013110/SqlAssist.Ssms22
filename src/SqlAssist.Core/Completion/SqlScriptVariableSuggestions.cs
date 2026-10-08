@@ -206,15 +206,26 @@ public static class SqlScriptVariableSuggestions
     /// </remarks>
     private static string DescribeType(IReadOnlyList<SqlToken> tokens, int index)
     {
-        if (!IsDeclarationSlot(tokens, index) || index + 1 >= tokens.Count)
+        return DeclaredType(tokens, index)?.ToUpperInvariant() ?? SqlKindText.Variable;
+    }
+
+    /// <summary>
+    /// 宣告 <paramref name="index"/> 這個變數時寫的型別名稱（<c>DECLARE @x AS xml</c> 的 <c>xml</c>）；不是宣告的位置就是 null。
+    /// </summary>
+    internal static string? DeclaredType(IReadOnlyList<SqlToken> tokens, int index)
+    {
+        var type = index + 1;
+
+        if (type < tokens.Count && tokens[type].IsKeyword("AS"))
         {
-            return SqlKindText.Variable;
+            type++;
         }
 
-        var next = tokens[index + 1];
-
-        return next.Kind == SqlTokenKind.Identifier && !next.IsQuoted
-            ? next.Value.ToUpperInvariant()
-            : SqlKindText.Variable;
+        return type < tokens.Count &&
+            tokens[type].Kind == SqlTokenKind.Identifier &&
+            !tokens[type].IsQuoted &&
+            IsDeclarationSlot(tokens, index)
+            ? tokens[type].Value
+            : null;
     }
 }

@@ -41,6 +41,8 @@ public sealed class SqlArgumentPositionTests
     [InlineData("SELECT * FROM dbo.Loan WITH (")]
     [InlineData("SELECT * FROM dbo.Loan l WITH (NOLOCK, ")]
     [InlineData("SELECT * FROM dbo.Loan WITH (NOL")]
+    [InlineData("SELECT * FROM dbo.Loan l OPTION (TABLE HINT (l, ")]
+    [InlineData("SELECT * FROM dbo.Loan l OPTION (RECOMPILE, TABLE HINT (l, NOLOCK, INDEX (IX_Loan), FORCE")]
     public void 資料表提示的位置(string textBeforeCaret)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -81,10 +83,11 @@ public sealed class SqlArgumentPositionTests
     }
 
     /// <summary>
-    /// CTE 的 <c>WITH</c> 後面接的是名稱，中間隔著那個名稱才是左括號。
+    /// CTE 的 <c>WITH</c> 後面接的是名稱，中間隔著那個名稱才是左括號；<c>TABLE HINT (</c> 的第一個引數是資料表。
     /// </summary>
     [Theory]
     [InlineData(";WITH CTE_TEST AS (")]
+    [InlineData("SELECT * FROM dbo.Loan l OPTION (TABLE HINT (")]
     [InlineData("SELECT * FROM dbo.Loan WHERE LoanId IN (")]
     [InlineData("SELECT COUNT(")]
     [InlineData("INSERT INTO dbo.Loan (")]
