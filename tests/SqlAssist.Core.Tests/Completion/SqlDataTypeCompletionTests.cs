@@ -55,6 +55,7 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("CREATE SEQUENCE dbo.LoanSeq AS ")]
     [InlineData("CREATE TYPE dbo.Code FROM ")]
     [InlineData("CREATE PARTITION FUNCTION LibRange (")]
+    [InlineData("CREATE PARTITION FUNCTION [LibRange] (")]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch ")]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch varchar(10), CopyCount ")]
     [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE, RESULT SETS ((Branch int), (CopyNo ")]

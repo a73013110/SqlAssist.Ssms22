@@ -62,7 +62,7 @@ SQL Server 2025 才有的 `JSON`、`VECTOR` 同樣照收、不看連線的版本
 ### 看得出來的位置
 
 判定成立時整份清單就只剩型別，關鍵字、片段與資料庫物件一個都不列——那些位置本來
-就沒有別的東西是對的。也因為代價這麼直接（判錯就是那個位置什麼都打不出來），
+就沒有別的東西是對的。也因為代價直接（判錯就是那個位置什麼都打不出來），
 只收看得出來的幾種：
 
 | 寫法 | 怎麼認出來 |
@@ -73,7 +73,7 @@ SQL Server 2025 才有的 `JSON`、`VECTOR` 同樣照收、不看連線的版本
 | `CONVERT(`、`TRY_CONVERT(`、`SELECT IDENTITY(` | 左括號前面是簽章第一個參數為 `type` 的函式；寫在型別之後那一格（`ColumnDefinitionTail`）的 `IDENTITY(1, 1)` 是屬性，不算；`DEFAULT CONVERT (` 是運算式，算 |
 | `CREATE TABLE t (Id `、`DECLARE @t TABLE (Id `、`ALTER TABLE t ADD Id `、`ALTER COLUMN Id `、`WITH RESULT SETS ((Id ` | 名稱前面那一格是資料行定義的開頭（位置分析的 `ColumnDefinition`、`AlterTableAdd`、`ResultSetColumn`，`ALTER COLUMN` 的 `AlterTableColumn`，`DROP COLUMN` 不算）；名稱可加方括號 |
 | `CREATE SEQUENCE s AS `、`CREATE TYPE t FROM ` | 以型別為底的物件，名稱之後的那個字 |
-| `CREATE PARTITION FUNCTION pf (` | 唯一的參數只寫型別、沒有名稱 |
+| `CREATE PARTITION FUNCTION [pf] (` | 唯一的參數只寫型別、沒有名稱 |
 | 選擇性 XML 索引的 `FOR (p = '/a' AS SQL `、`ALTER INDEX … FOR (ADD p = '/a' AS SQL ` | `SQL` 緊接 `AS`，寫在 `FOR (` 開的清單裡；選取清單的別名 `SQL` 不在那種括號裡 |
 
 型別那一組的 `AS` 與「`AS` 之後是型別」同一條判斷，只是把 `AS` 放在還沒寫的那一格問

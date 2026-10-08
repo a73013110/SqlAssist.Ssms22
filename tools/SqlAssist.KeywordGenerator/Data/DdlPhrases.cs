@@ -121,9 +121,15 @@ internal static class DdlPhrases
         new("TRIGGER {name} ON ALL SERVER FOR ,*") { After = ["DdlObject"] },
         new("TRIGGER {name} ON ALL SERVER AFTER ,*") { After = ["DdlObject"] },
         // DROP 一次可以刪幾個 DDL 觸發程序：名稱清單寫完是 ON DATABASE 或 ALL SERVER，中段的 ,* 走過前面幾個名稱。
-        // CREATE、ALTER 只有一個名稱，共用 DdlObject 那一條探不出清單。
-        new("DROP TRIGGER ,* {name} ON") { Expand = 1 },
-        new("DROP TRIGGER IF EXISTS ,* {name} ON") { Expand = 1 },
+        // CREATE、ALTER 只有一個名稱，共用 DdlObject 那一條探不出清單。ON DATABASE、ON ALL SERVER 寫完這一句就完整，
+        // 展開扣掉下一句的開頭沒有字、不立，要宣告：否則一個名稱的那一句比對成 CREATE 共用的 TRIGGER {name} ON DATABASE，
+        // 列 FOR、AFTER，換行也不補語句開頭（IF … BEGIN⏎DROP TRIGGER t ON DATABASE⏎END）。
+        .. new[] { "DROP TRIGGER", "DROP TRIGGER IF EXISTS" }.SelectMany(head => new PhraseDeclaration[]
+        {
+            new($"{head} ,* {{name}} ON") { Expand = 1 },
+            new($"{head} ,* {{name}} ON DATABASE"),
+            new($"{head} ,* {{name}} ON ALL SERVER"),
+        }),
 
         // 模組的 WITH 選項：四種模組的選項不同，EXECUTE AS 之後的 CALLER、SELF、OWNER 除了檢視都共用；
         // 函式的兩個多字選項寫全，中間每一格由它們補出來。寫完那一項游標處已是 ModuleHeader，字由位置的各個樣板給齊；

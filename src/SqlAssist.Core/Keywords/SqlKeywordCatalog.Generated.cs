@@ -8513,6 +8513,12 @@ internal static class SqlKeywordCatalogData
         {
             "SERVER",
         }),
+        ("DROP TRIGGER ,* {name} ON DATABASE", SqlKeywordPosition.StatementStart, "DROP TRIGGER t ON DATABASE ", true, false, false, true, new string[]
+        {
+        }),
+        ("DROP TRIGGER ,* {name} ON ALL SERVER", SqlKeywordPosition.StatementStart, "DROP TRIGGER t ON ALL SERVER ", true, false, false, true, new string[]
+        {
+        }),
         ("DROP TRIGGER IF EXISTS ,* {name} ON", SqlKeywordPosition.StatementStart, "DROP TRIGGER IF EXISTS t ON ", true, false, false, false, new string[]
         {
             "ALL SERVER", "DATABASE",
@@ -8520,6 +8526,12 @@ internal static class SqlKeywordCatalogData
         ("DROP TRIGGER IF EXISTS ,* {name} ON ALL", SqlKeywordPosition.StatementStart, "DROP TRIGGER IF EXISTS t ON ALL ", true, false, false, false, new string[]
         {
             "SERVER",
+        }),
+        ("DROP TRIGGER IF EXISTS ,* {name} ON DATABASE", SqlKeywordPosition.StatementStart, "DROP TRIGGER IF EXISTS t ON DATABASE ", true, false, false, true, new string[]
+        {
+        }),
+        ("DROP TRIGGER IF EXISTS ,* {name} ON ALL SERVER", SqlKeywordPosition.StatementStart, "DROP TRIGGER IF EXISTS t ON ALL SERVER ", true, false, false, true, new string[]
+        {
         }),
         ("", SqlKeywordPosition.ProcedureOption, "CREATE PROCEDURE p WITH ", true, false, false, false, new string[]
         {

@@ -99,10 +99,11 @@ public static class SqlDataTypePosition
         if (token.Kind != SqlTokenKind.Identifier)
         {
             // CONVERT(|、TRY_CONVERT(|、SELECT IDENTITY(| ——第一個參數是型別的函式，由簽章說。
+            // 分割函式的名稱是一個名稱單位，可加方括號（CREATE PARTITION FUNCTION [pf] (|）。
             return token.IsPunctuation("(") &&
                 last >= 1 &&
-                IsBareIdentifier(tokens[last - 1]) &&
-                ((SqlFunctionCatalog.FirstParameterIs(tokens[last - 1].Value, "type") &&
+                ((IsBareIdentifier(tokens[last - 1]) &&
+                        SqlFunctionCatalog.FirstParameterIs(tokens[last - 1].Value, "type") &&
                         !DefinesColumn(tokens, last - 1, textBeforeToken)) ||
                     OpensPartitionFunction(tokens, last));
         }

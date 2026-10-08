@@ -774,6 +774,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE CERTIFICATE LibCert FROM EXECUTABLE FILE = 'x.dll' WITH ", "PRIVATE KEY")]
     [InlineData("CREATE CERTIFICATE LibCert AUTHORIZATION LibOwner FROM FILE = 'x.cer' WITH ", "PRIVATE KEY")]
     [InlineData("SELECT * FROM OPENROWSET (BULK 'x', SINGLE_NCLOB, ORDER (CopyNo ASC, BranchId DESC) ", "UNIQUE")]
+    [InlineData("IF 1 = 1\nBEGIN\nDROP TRIGGER LibTrg ON DATABASE\n", "END", "SELECT")]
+    [InlineData("DROP TRIGGER IF EXISTS LibTrg ON ALL SERVER\n", "SELECT")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -795,6 +797,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("SET LANGUAGE 'us_english', ", "SELECT")]
     [InlineData("ALTER DATABASE Lib ADD FILE (NAME = Lib2), (", "SELECT")]
     [InlineData("SET LANGUAGE ", "OFF")]
+    [InlineData("DROP TRIGGER LibTrg ON DATABASE ", "FOR")]
     [InlineData("SET NOCOUNT ", "READ")]
     [InlineData("SET STATISTICS ", "ON")]
     [InlineData("SET TRANSACTION ISOLATION LEVEL READ ", "SELECT")]
