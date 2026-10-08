@@ -1352,15 +1352,22 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 省略之後那一格與 <c>DELETE FROM </c>、<c>INSERT INTO </c> 是同一個目標；只認寫了那個字的症狀是
     /// <c>DELETE #t</c> 列不出指令碼的暫存資料表。寫了的由 <see cref="IntroducesDataSource"/> 答。
     ///
-    /// 不是一句開頭的同一個字不是動詞：<c>THEN UPDATE</c> 接 SET，權限清單的 INSERT、DELETE 接逗號或 ON，
+    /// 動詞要開始一句 DML：一句的開頭，或可組合 DML 括號的第一個字（<c>FROM (MERGE dbo.Loan AS t …</c>，判準與
+    /// <see cref="SqlTokenNavigator.OpensQuery"/> 相同）。只認一句開頭的症狀是括號裡的 MERGE 收不到目標，
+    /// <c>THEN UPDATE SET </c> 只列來源的別名。
+    /// 不開始一句的同一個字不是動詞：<c>THEN UPDATE</c> 接 SET，權限清單的 INSERT、DELETE 接逗號或 ON，
     /// 安全性原則的 <c>AFTER UPDATE</c> 是作業（<see cref="IsStatementHead"/> 已排除）。
     /// </remarks>
     internal int FindDmlTarget(int last)
     {
         var verb = FindTopClauseOwner(last) is var owner and >= 0 ? owner : last;
 
-        return IsDmlVerb(verb) && IsStatementHead(verb) ? verb : -1;
+        return IsDmlVerb(verb) && (IsStatementHead(verb) || OpensComposableDml(verb)) ? verb : -1;
     }
+
+    /// <summary><paramref name="verb"/> 是可組合 DML 括號（<c>FROM (</c>）的第一個字。</summary>
+    private bool OpensComposableDml(int verb) =>
+        verb >= 1 && tokens[verb - 1].IsPunctuation("(") && SqlTokenNavigator.OpensQuery(tokens, verb - 1);
 
     /// <summary>
     /// <paramref name="last"/> 結束資料表名稱的 <c>FOR</c> 後綴時回傳那個 FOR；否則 -1。

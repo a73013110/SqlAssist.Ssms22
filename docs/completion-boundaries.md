@@ -56,7 +56,7 @@
 
 - **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源，INTO 只有 FETCH 的不接**：`FETCH NEXT FROM c `
   接 `INTO`（`FetchTail`），`RESTORE`（裝置清單）、`REVOKE`、`BULK INSERT`、`COPY INTO` 的 FROM 不接，簽章有 FROM 的函式括號裡（`TRIM('x' FROM s)`、`{fn EXTRACT(HOUR FROM d)}`）之後是運算式，`IS [NOT] DISTINCT FROM` 是比較運算子、也不是子句錨點。位置、目標與範圍分析共用 `IntroducesDataSource`，分岔時 `DISK` 被收成表。
-- **DML 動詞與它的 TOP 子句之後是動詞的目標**，省略 FROM、INTO 也一樣（`FindDmlTarget`）：否則 `DELETE #t`、
-  `INSERT TOP (1) #t` 列不出暫存資料表。範圍分析同樣跳過 TOP，否則 `MERGE TOP (1) t … ON` 列不出 `t`。
-  動詞要是一句的開頭，`THEN UPDATE`、權限清單與安全性原則的 `INSERT`、游標查詢的 `FOR UPDATE` 不算；範圍分析收 UPDATE、DELETE、MERGE
-  的目標也問同一條，否則 `FOR UPDATE OF CopyNo` 多收一張叫 OF 的表。
+- **DML 動詞與它的 TOP 子句之後是動詞的目標**，省略 FROM、INTO 也一樣（`FindDmlTarget`）：否則 `DELETE #t`
+  列不出暫存資料表。動詞要開始一句：一句的開頭或 `FROM (` 之後，`THEN UPDATE`、權限清單與
+  安全性原則的 `INSERT`、游標的 `FOR UPDATE` 不算。範圍分析同樣跳過 TOP、問同一條，否則 `MERGE TOP (1) t … ON`
+  列不出 `t`、`FOR UPDATE OF CopyNo` 多收一張叫 OF 的表、`FROM (MERGE` 的 `SET ` 不列目標別名。

@@ -58,6 +58,7 @@ public sealed class SqlColumnOwnerTests
     [InlineData("MERGE dbo.Loan AS t USING (SELECT 1, 2) AS s (CopyNo, Fee) ON t.CopyNo = s.CopyNo WHEN MATCHED THEN UPDATE SET |", "t", "s")]
     [InlineData("MERGE dbo.Loan AS t USING dbo.Copy AS s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN UPDATE SET t.Fee = s.Fee, |", "t", "s")]
     [InlineData("UPDATE l SET | FROM dbo.Loan l JOIN dbo.Copy c ON c.CopyNo = l.CopyNo", "l", "c")]
+    [InlineData("INSERT INTO dbo.Loan SELECT CopyNo FROM (MERGE dbo.Loan AS t USING dbo.Copy AS s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN UPDATE SET |", "t", "s")]
     public void 指派的左邊另列別名(string sqlWithCaret, params string[] aliases)
     {
         var context = Analyze(sqlWithCaret);

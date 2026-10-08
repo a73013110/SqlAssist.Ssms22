@@ -297,6 +297,7 @@ public sealed class SqlScriptTableCompletionTests
     [InlineData(TemporaryTable + "INSERT TOP (1) #L|", CompletionIntent.Reference)]
     [InlineData(TemporaryTable + "MERGE TOP (1) #L|", CompletionIntent.Reference)]
     [InlineData(TemporaryTable + "IF 1 = 1 DELETE #L|", CompletionIntent.Reference)]
+    [InlineData(TemporaryTable + "SELECT * FROM (DELETE TOP (1) #L|", CompletionIntent.Reference)]
     public void 省略FROM與INTO的目標列得出暫存資料表(string sqlWithCaret, CompletionIntent intent)
     {
         var context = Analyze(sqlWithCaret);
@@ -396,6 +397,15 @@ public sealed class SqlScriptTableCompletionTests
         Assert.Equal(
             new[] { "Id", "CopyNo", "ReaderId" },
             QualifiedColumns(TemporaryTable + "MERGE TOP (1) #Loan AS t USING dbo.Copy AS s ON t.|"));
+    }
+
+    /// <summary>可組合 DML 括號裡的動詞也開始一句 DML，目標進範圍。</summary>
+    [Fact]
+    public void 可組合DML的目標進範圍()
+    {
+        Assert.Equal(
+            new[] { "Id", "CopyNo", "ReaderId" },
+            QualifiedColumns(TemporaryTable + "SELECT * FROM (MERGE #Loan AS t USING dbo.Copy AS s ON t.CopyNo = s.CopyNo WHEN MATCHED THEN UPDATE SET t.|"));
     }
 
     /// <summary>

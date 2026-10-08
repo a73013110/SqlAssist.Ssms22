@@ -144,6 +144,17 @@ MERGE Loan USING (SELECT * FROM Copy) AS s ON Loan.CopyNo = s.CopyNo WHEN MATCHE
 DECLARE @a int = 1, @b int = 2;
 MERGE Loan USING ((SELECT @a, @b) AS s (c1, c2) JOIN Copy ON s.c1 = Copy.CopyNo) ON Loan.CopyNo = s.c2 WHEN MATCHED THEN DELETE;
 
+INSERT INTO dbo.LoanDetail (CopyNo)
+SELECT c.CopyNo FROM (
+    MERGE dbo.Loan AS t
+    USING dbo.Copy AS s ON t.CopyNo = s.CopyNo
+    WHEN MATCHED AND t.ReaderId = 1
+        THEN UPDATE SET t.CopyNo = s.CopyNo
+    WHEN MATCHED THEN DELETE
+    OUTPUT $action, deleted.CopyNo
+) AS c (Act, CopyNo)
+WHERE c.Act = 'UPDATE';
+
 SELECT a.ReaderId FROM (Lib_Reader a JOIN Loan AS b ON a.ReaderId = b.ReaderId)
 
 SELECT r.BranchId FROM Branch r JOIN (Lib_Reader a JOIN Loan b ON a.ReaderId = b.ReaderId) ON r.BranchId = a.BranchId
