@@ -21,12 +21,12 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 項的等號之後立成中段清單片語（`… WITH ,* CHECK_POLICY =`）再往下一層：`ON`／`OFF`、`PASSWORD = 'x' HASHED`
 在第幾項都一樣；括號清單（`WITH (* QUEUE_DELAY =`）與 CREATE INDEX 的 `WITH (` 同樣立。沒有字、宣告過這一項、這一項在這份清單
 不合法的不立；等號之後收運算式的不封閉，否則 `SOURCE =` 之後列不出資料行。
-逗號清單的一項寫了第一個字也立一格（`WITH ,* CHANGE_TRACKING` 之後是 `MANUAL`；寫完了可能再接：`ELEMENTS XSINIL`），扣掉寫完一項之後
-接得上的字（`FOR LOGON` 之後的 `AS`）；括號清單由宣告的展開說。以尾巴比對的清單（`ALTER DATABASE {name} SET ,* ,`）的項同樣立，
-否則 `SET DB_CHAINING ON, TRUSTWORTHY ` 之後沒有 `ON`、`OFF`。第一個字是關鍵字的不立，之後寫什麼由位置分析說：
+逗號清單的一項寫了第一個字也立一格（`WITH ,* CHANGE_TRACKING` 之後是 `MANUAL`），扣掉寫完一項之後
+接得上的字（`FOR LOGON` 之後的 `AS`），再往下到那一項寫完、寫完再一層（`STAT_HEADER JOIN DENSITY_VECTOR`）；括號清單由宣告的展開說。以尾巴比對的清單（`ALTER DATABASE {name} SET ,* ,`）的項同樣立，
+否則 `SET a ON, TRUSTWORTHY ` 之後沒有 `ON`。第一個字是關鍵字的不立，之後寫什麼由位置分析說：
 `GROUP BY a, CASE` 續尾寫不完，會判成封閉、藏掉資料行。第一項那一格（項或項的等號之後）已有展開立的片語時從逗號之後那一格探，
-宣告寫出了這一項的（`RESULT SETS`）不立，否則較長的 `,*` 片語在第一項搶走比對；同清單更深一層的宣告（`,* AUTO_CREATE_STATISTICS ON (*`）不算。
-等號之後收得下一串值的寫成 `= ,* {value}`（`PROCESS AFFINITY CPU = 0, 2 TO 3`）。中段 `,*` 探零項的證據（沒墊 `Gap`），
+宣告寫出了這一項的（`RESULT SETS`）不立，否則較長的 `,*` 片語在第一項搶走比對；從標頭寫起的宣告（`,* AUTO_CREATE_STATISTICS ON (*`、只寫第一項的）不算。
+等號之後收得下一串值的寫成 `= ,* {value}`（`CPU = 0, 2 TO 3`）。中段 `,*` 探零項的證據（沒墊 `Gap`），
 字也補進標頭那一格：`WITH ,* SEARCH PROPERTY LIST` 在第一項同樣寫得出來。
 `Expand` 走到固定標頭清單的標頭（`CREATE SYMMETRIC KEY t WITH`）就停，第一項與項的等號之後由清單立：
 否則展開先佔了探測文字，`,* ALGORITHM =` 不立、逗號之後列不出值。
@@ -42,8 +42,8 @@ GRANT、DENY、REVOKE 的權限也是（`GRANT ,*`），一項的開頭由權限
 標頭裡可省的一段（全文檢索索引的資料行清單、`KEY INDEX k` 之後的 `ON` 目錄）不寫成 `...`：那會失去展開與項的等號之後那一格，
 每一種寫法各宣告一份整段標頭（`FullTextKeyIndexes`），同一組選項由同一個函式宣告（CREATE 的 `WITH ,*`、`WITH (` 與 ALTER 的 `SET`）。
 只接在某一項之後的項（`CHANGE_TRACKING OFF, NO POPULATION`）寫成中段的 `,* NO POPULATION`，`Gap` 墊前一項；括號清單同理以 `Items` 墊。
-中段 `,*` 往回走過的項裡，緊接一整組括號的 `WITH` 是那一項自己的選項（可用性複本 `'a' WITH (…), 'b' WITH (`），
-不是下一句的開頭；游標所在那一組還沒關上的 `WITH (` 照舊是界線。查詢的下一個子句（ORDER BY、`WINDOW`、`FOR`）也是界線，
+中段 `,*` 往回走過的項裡，寫不成 CTE 開頭、也不開另一份清單的 `WITH` 是那一項的選項（`'a' WITH (…), `、`c WITH SIGNATURE = 0x01, `），
+不是界線。查詢的下一個子句（ORDER BY、`WINDOW`、`FOR`）也是界線，
 否則 `GROUP BY a ORDER BY a, ` 比對成 `GROUP BY ,* ,`；選項的值寫得出 `ON`，不能拿整份子句錨點停。
 
 備份對象（`FILE = 'a', FILEGROUP = 'b'`）緊接資料庫名稱，寫成 `BACKUP DATABASE {name} ,*`：標頭以名稱結尾的清單，執行期以名稱當錨點另外比對。

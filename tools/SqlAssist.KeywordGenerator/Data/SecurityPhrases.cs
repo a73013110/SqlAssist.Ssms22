@@ -306,14 +306,23 @@ internal static class SecurityPhrases
         new("ADD COUNTER SIGNATURE TO") { Closed = false },
         new("ADD SIGNATURE TO {name} BY") { Expand = 3 },
         new("ADD COUNTER SIGNATURE TO {name} BY") { Expand = 3 },
-        // 金鑰之後的語句已經完整，WITH 被當成 CTE 的開頭扣掉：整段是證據。
-        new("ADD SIGNATURE TO {name} BY CERTIFICATE {name} WITH PASSWORD = {value}"),
-        new("ADD SIGNATURE TO {name} BY CERTIFICATE {name} WITH SIGNATURE = {value}"),
-        new("ADD SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH PASSWORD = {value}"),
-        new("ADD COUNTER SIGNATURE TO {name} BY CERTIFICATE {name} WITH PASSWORD = {value}"),
-        new("ADD COUNTER SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH PASSWORD = {value}"),
         new("DROP SIGNATURE FROM {name} BY") { Expand = 2 },
         new("DROP COUNTER SIGNATURE FROM {name} BY") { Expand = 2 },
+        // BY 之後是加密方式的逗號清單（CERTIFICATE c WITH SIGNATURE = 0x…, ASYMMETRIC KEY k）。
+        // 金鑰之後的語句已經完整，WITH 被當成 CTE 的開頭扣掉：第一項與逗號之後的項各寫整段證據。逗號之後的墊一項，
+        // 否則探測文字與第一項相同，字補進第一項的那一格。
+        .. new[] { ("BY", (string?)null), ("BY ,*", "CERTIFICATE x,") }.SelectMany(by => new PhraseDeclaration[]
+        {
+            new($"ADD SIGNATURE TO {{name}} {by.Item1} CERTIFICATE {{name}} WITH PASSWORD = {{value}}") { Gap = by.Item2 },
+            new($"ADD SIGNATURE TO {{name}} {by.Item1} CERTIFICATE {{name}} WITH SIGNATURE = {{value}}") { Gap = by.Item2 },
+            new($"ADD SIGNATURE TO {{name}} {by.Item1} ASYMMETRIC KEY {{name}} WITH PASSWORD = {{value}}") { Gap = by.Item2 },
+            new($"ADD COUNTER SIGNATURE TO {{name}} {by.Item1} CERTIFICATE {{name}} WITH PASSWORD = {{value}}") { Gap = by.Item2 },
+            new($"ADD COUNTER SIGNATURE TO {{name}} {by.Item1} ASYMMETRIC KEY {{name}} WITH PASSWORD = {{value}}") { Gap = by.Item2 },
+        }),
+        new("ADD SIGNATURE TO {name} BY ,*"),
+        new("ADD COUNTER SIGNATURE TO {name} BY ,*"),
+        new("DROP SIGNATURE FROM {name} BY ,*"),
+        new("DROP COUNTER SIGNATURE FROM {name} BY ,*"),
 
         // 敏感度分類：TO 之後一到多個資料行（以 ... 跨過），WITH ( 之後是 LABEL、INFORMATION_TYPE、RANK 與它們的 _ID。
         // 剖析器會驗選項與 RANK 的值，但那些字不在候選字裡，探不出來，照它的錯誤訊息手寫。

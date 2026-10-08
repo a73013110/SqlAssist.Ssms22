@@ -719,7 +719,8 @@ internal sealed class PhraseExplorer
 
     private void Add(
         string pattern, string probe, string after, int expand = 0, IReadOnlyList<string>? values = null, bool? closed = null,
-        string[]? borrowed = null, bool child = false, bool step = false, ObjectKinds kinds = ObjectKinds.None, string[]? extraEndings = null)
+        string[]? borrowed = null, bool child = false, bool step = false, ObjectKinds kinds = ObjectKinds.None, string[]? extraEndings = null,
+        bool item = false)
     {
         _progress?.Invoke($"{pattern}（{after}）");
         var key = ProbedPhrase.Key(after, pattern);
@@ -748,7 +749,7 @@ internal sealed class PhraseExplorer
         // 展開到的一格寫到這裡已經完整、扣掉下一句的開頭又不剩字的，這一格沒有片語可說，但展開照走：
         // FETCH ABSOLUTE 本身是名叫 ABSOLUTE 的資料指標，FETCH ABSOLUTE 1 FROM 卻是另一個讀法。
         // 值、名稱與等號那一步也一樣：之後列不出字（PASSWORD = 'x' 之後），立了只是多一條空的片語。
-        var silent = (child && endsStatement || step) && words.Count == 0;
+        var silent = (child && endsStatement || step || item) && words.Count == 0;
 
         AddValues(pattern, probe, words, values, extraEndings);
 
@@ -818,14 +819,15 @@ internal sealed class PhraseExplorer
         // 不算一層，也不連著展開兩個；物件種類的名稱上面已經處理過。
         if (kinds == ObjectKinds.None && pattern.Length > 0 && !OperandEnd.IsMatch(pattern))
         {
-            if (sample != null && !Explored(after, pattern + " {value}", expand))
+            if (sample != null && !Explored(after, pattern + " {value}", Step(probe + sample + " ")))
             {
-                Add(pattern + " {value}", probe + sample + " ", after, expand, child: true, step: true, extraEndings: extraEndings);
+                Add(pattern + " {value}", probe + sample + " ", after, Step(probe + sample + " "), child: true, step: true,
+                    extraEndings: extraEndings, item: item);
             }
 
-            if (takesName && !Explored(after, pattern + " {name}", expand))
+            if (takesName && !Explored(after, pattern + " {name}", Step(probe + "t ")))
             {
-                Add(pattern + " {name}", probe + "t ", after, expand, child: true, step: true, extraEndings: extraEndings);
+                Add(pattern + " {name}", probe + "t ", after, Step(probe + "t "), child: true, step: true, extraEndings: extraEndings, item: item);
             }
         }
 
@@ -836,12 +838,17 @@ internal sealed class PhraseExplorer
         // 以名稱代表往下，探測代入第一個字。也收數值或字串的另外代入它往下：單位（MAXSIZE = 5 MB、UNLIMITED 之後沒有）只有這條路探得到。
         if (pattern.EndsWith(" =", StringComparison.Ordinal))
         {
-            if (words.Count > 0 && !Explored(after, pattern + " {name}", expand - 1))
+            if (words.Count > 0)
             {
                 // 也收運算式的那一格（BEGIN DIALOG … WITH ENCRYPTION = 之後列得出 CASE、COALESCE），第一個字可能只是運算式的開頭，
                 // 代入它探到的是 CASE 之後的字：取寫完一個值的字（接得上逗號、右括號或寫完一句），都沒有才取第一個。
                 var written = words.FirstOrDefault(word => WritesValue(probe + word + " ")) ?? words[0];
-                Add(pattern + " {name}", probe + written + " ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
+
+                if (!Explored(after, pattern + " {name}", Next(probe + written + " ")))
+                {
+                    Add(pattern + " {name}", probe + written + " ", after, Next(probe + written + " "), child: true, step: true,
+                        extraEndings: extraEndings, item: item);
+                }
             }
 
             // 等號之後收得下一串以逗號分隔的值（PROCESS AFFINITY CPU = 0, 2 TO 3）：寫完的那幾個是中段的 ,*，
@@ -850,9 +857,10 @@ internal sealed class PhraseExplorer
                 ? pattern + " ,* {value}"
                 : pattern + " {value}";
 
-            if (sample != null && !Explored(after, valuePattern, expand - 1))
+            if (sample != null && !Explored(after, valuePattern, Next(probe + sample + " ")))
             {
-                Add(valuePattern, probe + sample + " ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
+                Add(valuePattern, probe + sample + " ", after, Next(probe + sample + " "), child: true, step: true, extraEndings: extraEndings,
+                    item: item);
             }
 
             return;
@@ -869,8 +877,8 @@ internal sealed class PhraseExplorer
             // TriggerOption）也不再立：同一件事說兩次。宣告了清單的標頭（CREATE SYMMETRIC KEY t WITH）同理，
             // 第一項與項的等號之後由清單立：展開先立了 WITH ALGORITHM = 的話，那一格的探測文字被它佔走，
             // 清單不立 ,* ALGORITHM =，逗號之後寫的那一項列不出值。
-            if (Explored(after, childPattern, expand - 1) || _positionPhraseProbes.Contains(childProbe) ||
-                _ownedListHeadProbes.Contains(childProbe))
+            if (Explored(after, childPattern, Next(childProbe)) || _positionPhraseProbes.Contains(childProbe) ||
+                _ownedListHeadProbes.Contains(childProbe) || item && ItemWords(pattern).Contains(word, IgnoreCase))
             {
                 continue;
             }
@@ -886,19 +894,35 @@ internal sealed class PhraseExplorer
                 continue;
             }
 
-            Add(childPattern, childProbe, after, expand - 1, borrowed: completes ? nameReading : null, child: true, kinds: kinds,
-                extraEndings: extraEndings);
+            Add(childPattern, childProbe, after, Next(childProbe), borrowed: completes ? nameReading : null, child: true, kinds: kinds,
+                extraEndings: extraEndings, item: item);
 
             // 選項名稱之後的等號與字算同一層：ALGORITHM = 之後的 AES_256、RSA_2048 由剖析器列。
             // 接得了值的格子是運算式，那裡的等號是比較（WHERE CURRENT = 1），不是選項。
             if (kinds == ObjectKinds.None && sample == null &&
                 _prober.FirstRejection(childProbe + "=") > childProbe.Length &&
-                !Explored(after, childPattern + " =", expand - 1))
+                !Explored(after, childPattern + " =", Next(childProbe + "= ")))
             {
-                Add(childPattern + " =", childProbe + "= ", after, expand - 1, child: true, step: true, extraEndings: extraEndings);
+                Add(childPattern + " =", childProbe + "= ", after, Next(childProbe + "= "), child: true, step: true, extraEndings: extraEndings,
+                    item: item);
             }
         }
+
+        // 往下一格的層數；值與名稱那一步不算一層（Step）。清單的一項不數層數：寫完之前一路往下，寫完的那一格再往下一層
+        // （QUERY_STORE CLEAR 之後的 ALL、STAT_HEADER JOIN 之後的 DENSITY_VECTOR），已經寫完又接一個字的不再往下（ELEMENTS XSINIL）。
+        // 宣告的層數管不到清單的第幾項，數層數的話 ASYMMETRIC KEY k WITH 之後的 PASSWORD 要每份清單各調一次。
+        int Next(string next) => item ? ItemBudget(probe, next) : expand - 1;
+
+        int Step(string next) => item ? ItemBudget(probe, next) : expand;
     }
+
+    private int ItemBudget(string probe, string next) => EndsListItem(probe) && EndsListItem(next) ? 0 : 1;
+
+    private bool EndsListItem(string probe) => _prober.FirstRejection(probe + ",") > probe.Length;
+
+    // 清單一項已經寫出的字：同一個字在一項裡再出現（a = 1 AND b = 2 AND）不再往下，否則運算式接得下去的項展不完。
+    private static IEnumerable<string> ItemWords(string pattern) =>
+        pattern.Substring(pattern.LastIndexOf(",*", StringComparison.Ordinal) + 2).Split([' '], StringSplitOptions.RemoveEmptyEntries);
 
     // 手寫值還可以開一組清單（索引鍵之後的 WITH 只接 `(`）：清單項本身由那一格的位置片語列。
     // 宣告的續尾也算（裝置之後的 WITH 要接 STATS 這種備份選項才寫得完）。
@@ -985,6 +1009,7 @@ internal sealed class PhraseExplorer
     {
         var done = new HashSet<string>(IgnoreCase);
         var afterItem = Words(finished, endings);
+        var head = listPattern.Substring(0, listPattern.Length - " ,*".Length);
 
         foreach (var (prefix, words) in slots)
         {
@@ -999,10 +1024,11 @@ internal sealed class PhraseExplorer
                     continue;
                 }
 
-                // 宣告寫出了這一項（RESULT SETS 從 OptionItem 寫起）：第幾項都由那一條說。同一份清單往這一項裡面寫的宣告
-                // （SET ,* AUTO_CREATE_STATISTICS ON (*）不算：它說的是更後面的格子，這一項的下一個字仍由這裡立。
+                // 宣告寫出了這一項（RESULT SETS 從 OptionItem 寫起）：第幾項都由那一條說。從這份清單的標頭寫起的宣告不算：
+                // 往這一項裡面寫的（SET ,* AUTO_CREATE_STATISTICS ON (*）說的是更後面的格子，寫第一項的
+                // （ADD SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH）只說第一項，逗號之後的那一項仍由這裡立。
                 if (_declarations.Any(declared => declared.Probe.StartsWith(slot, StringComparison.OrdinalIgnoreCase) &&
-                    !declared.Pattern.StartsWith(itemPattern + " ", StringComparison.OrdinalIgnoreCase)))
+                    !declared.Pattern.StartsWith(head + " ", StringComparison.OrdinalIgnoreCase)))
                 {
                     done.Add(word);
                     continue;
@@ -1015,7 +1041,7 @@ internal sealed class PhraseExplorer
                 }
 
                 done.Add(word);
-                Add(itemPattern, slot, after, borrowed: afterItem, child: true, step: true, extraEndings: endings);
+                Add(itemPattern, slot, after, expand: 1, borrowed: afterItem, child: true, step: true, extraEndings: endings, item: true);
             }
         }
     }

@@ -3220,6 +3220,22 @@ internal static class SqlKeywordCatalogData
         {
             "FILEGROUP", "PRIMARY",
         }),
+        ("CREATE DATABASE {name} ON ,* FILEGROUP {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t ", true, false, false, false, new string[]
+        {
+            "CONTAINS", "DEFAULT",
+        }),
+        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} CONTAINS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON PRIMARY (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS ", true, false, false, false, new string[]
+        {
+            "FILESTREAM", "MEMORY_OPTIMIZED_DATA",
+        }),
+        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} CONTAINS FILESTREAM", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON PRIMARY (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS FILESTREAM ", true, false, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} CONTAINS MEMORY_OPTIMIZED_DATA", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON PRIMARY (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS MEMORY_OPTIMIZED_DATA ", true, false, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
         ("CREATE DATABASE {name} ON ,* (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (", true, false, false, false, new string[]
         {
             "FILEGROWTH", "FILENAME", "MAXSIZE", "NAME", "NEWNAME", "OFFLINE", "SIZE",
@@ -3314,25 +3330,6 @@ internal static class SqlKeywordCatalogData
             "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
             "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
         }),
-        ("CREATE DATABASE {name} ON ,* FILEGROUP {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t ", true, false, false, false, new string[]
-        {
-            "CONTAINS", "DEFAULT",
-        }),
-        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} CONTAINS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS ", true, false, false, false, new string[]
-        {
-            "FILESTREAM", "MEMORY_OPTIMIZED_DATA",
-        }),
-        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} CONTAINS FILESTREAM", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS FILESTREAM ", true, false, false, false, new string[]
-        {
-            "DEFAULT",
-        }),
-        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} CONTAINS MEMORY_OPTIMIZED_DATA", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS MEMORY_OPTIMIZED_DATA ", true, false, false, false, new string[]
-        {
-            "DEFAULT",
-        }),
-        ("CREATE DATABASE {name} ON ,* FILEGROUP {name} DEFAULT", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x'), FILEGROUP t DEFAULT ", true, false, false, false, new string[]
-        {
-        }),
         ("CREATE DATABASE {name} CONTAINMENT = {name} ON", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON ", true, false, false, false, new string[]
         {
             "PRIMARY",
@@ -3340,6 +3337,22 @@ internal static class SqlKeywordCatalogData
         ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON PRIMARY (NAME = a, FILENAME = 'x'), ", true, false, false, false, new string[]
         {
             "FILEGROUP", "PRIMARY",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t ", true, false, false, false, new string[]
+        {
+            "CONTAINS", "DEFAULT",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} CONTAINS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON PRIMARY (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS ", true, false, false, false, new string[]
+        {
+            "FILESTREAM", "MEMORY_OPTIMIZED_DATA",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} CONTAINS FILESTREAM", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON PRIMARY (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS FILESTREAM ", true, false, false, false, new string[]
+        {
+            "DEFAULT",
+        }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} CONTAINS MEMORY_OPTIMIZED_DATA", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON PRIMARY (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS MEMORY_OPTIMIZED_DATA ", true, false, false, false, new string[]
+        {
+            "DEFAULT",
         }),
         ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* (*", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (", true, false, false, false, new string[]
         {
@@ -3433,25 +3446,6 @@ internal static class SqlKeywordCatalogData
             "DEFAULT_LANGUAGE", "ENABLE_BROKER", "ERROR_BROKER_CONVERSATIONS", "FILESTREAM",
             "LEDGER", "NESTED_TRIGGERS", "NEW_BROKER", "RESTRICTED_USER",
             "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY", "TWO_DIGIT_YEAR_CUTOFF",
-        }),
-        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t ", true, false, false, false, new string[]
-        {
-            "CONTAINS", "DEFAULT",
-        }),
-        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} CONTAINS", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS ", true, false, false, false, new string[]
-        {
-            "FILESTREAM", "MEMORY_OPTIMIZED_DATA",
-        }),
-        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} CONTAINS FILESTREAM", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS FILESTREAM ", true, false, false, false, new string[]
-        {
-            "DEFAULT",
-        }),
-        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} CONTAINS MEMORY_OPTIMIZED_DATA", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t CONTAINS MEMORY_OPTIMIZED_DATA ", true, false, false, false, new string[]
-        {
-            "DEFAULT",
-        }),
-        ("CREATE DATABASE {name} CONTAINMENT = {name} ON ,* FILEGROUP {name} DEFAULT", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ON (NAME = a, FILENAME = 'x'), FILEGROUP t DEFAULT ", true, false, false, false, new string[]
-        {
         }),
         ("CREATE DATABASE {name} ON ,* () AS SNAPSHOT", SqlKeywordPosition.StatementStart, "CREATE DATABASE t ON (NAME = a, FILENAME = 'x') AS SNAPSHOT ", true, false, false, false, new string[]
         {
@@ -3881,6 +3875,10 @@ internal static class SqlKeywordCatalogData
         {
             "OFF", "ON",
         }),
+        ("ALTER DATABASE {name} SET ,* HADR", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, HADR ", true, false, false, false, new string[]
+        {
+            "OFF", "RESUME", "SUSPEND",
+        }),
         ("ALTER DATABASE {name} SET ,* HONOR_BROKER_PRIORITY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, HONOR_BROKER_PRIORITY ", true, false, false, false, new string[]
         {
             "OFF", "ON",
@@ -3906,9 +3904,17 @@ internal static class SqlKeywordCatalogData
             "FAILOVER", "FORCE_SERVICE_ALLOW_DATA_LOSS", "OFF", "RESUME", "SAFETY", "SUSPEND",
             "TIMEOUT",
         }),
+        ("ALTER DATABASE {name} SET ,* PARTNER SAFETY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, PARTNER SAFETY ", true, false, false, false, new string[]
+        {
+            "FULL", "OFF",
+        }),
         ("ALTER DATABASE {name} SET ,* QUERY_STORE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, QUERY_STORE ", true, false, false, false, new string[]
         {
             "CLEAR",
+        }),
+        ("ALTER DATABASE {name} SET ,* QUERY_STORE CLEAR", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, QUERY_STORE CLEAR ", true, false, false, true, new string[]
+        {
+            "ALL",
         }),
         ("ALTER DATABASE {name} SET ,* QUOTED_IDENTIFIER", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, QUOTED_IDENTIFIER ", true, false, false, false, new string[]
         {
@@ -6758,6 +6764,10 @@ internal static class SqlKeywordCatalogData
         {
             "PROPERTY LIST",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
@@ -6856,6 +6866,10 @@ internal static class SqlKeywordCatalogData
         {
             "PROPERTY LIST",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
@@ -6953,6 +6967,10 @@ internal static class SqlKeywordCatalogData
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
         {
             "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
@@ -7055,6 +7073,10 @@ internal static class SqlKeywordCatalogData
         {
             "PROPERTY LIST",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
@@ -7153,6 +7175,10 @@ internal static class SqlKeywordCatalogData
         {
             "PROPERTY LIST",
         }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
+        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
@@ -7250,6 +7276,10 @@ internal static class SqlKeywordCatalogData
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* SEARCH", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH ", true, false, false, false, new string[]
         {
             "PROPERTY LIST",
+        }),
+        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
+        {
+            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
@@ -7610,6 +7640,10 @@ internal static class SqlKeywordCatalogData
             "SNAPSHOTRESTOREPHASE", "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK",
             "STOPBEFOREMARK", "UNLOAD", "VERBOSE",
         }),
+        ("RESTORE DATABASE ... WITH ,* MOVE {value}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE d FROM DISK = 'x' WITH MOVE 'x' ", true, false, false, false, new string[]
+        {
+            "TO",
+        }),
         ("RESTORE DATABASE ... WITH ,* STOPATMARK = {value}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE d FROM DISK = 'x' WITH STOPATMARK = 'x' ", true, false, true, true, new string[]
         {
             "AFTER",
@@ -7641,6 +7675,10 @@ internal static class SqlKeywordCatalogData
             "RESTART", "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT",
             "SNAPSHOTRESTOREPHASE", "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "STOPATMARK",
             "STOPBEFOREMARK", "UNLOAD", "VERBOSE",
+        }),
+        ("RESTORE LOG ... WITH ,* MOVE {value}", SqlKeywordPosition.StatementStart, "RESTORE LOG d FROM DISK = 'x' WITH MOVE 'x' ", true, false, false, false, new string[]
+        {
+            "TO",
         }),
         ("RESTORE LOG ... WITH ,* STOPATMARK = {value}", SqlKeywordPosition.StatementStart, "RESTORE LOG d FROM DISK = 'x' WITH STOPATMARK = 'x' ", true, false, true, true, new string[]
         {
@@ -7707,6 +7745,10 @@ internal static class SqlKeywordCatalogData
             "ALL", "AUTO_DROP", "COLUMNS", "FULLSCAN", "INCREMENTAL", "INDEX", "NORECOMPUTE",
             "PAGECOUNT", "PERSIST_SAMPLE_PERCENT", "RESAMPLE", "ROWCOUNT", "SAMPLE",
             "STATS_STREAM",
+        }),
+        ("UPDATE STATISTICS ... WITH ,* SAMPLE {value}", SqlKeywordPosition.StatementStart, "UPDATE STATISTICS t WITH SAMPLE 1 ", true, false, false, false, new string[]
+        {
+            "PERCENT", "ROWS",
         }),
         ("UPDATE STATISTICS ... WITH ,* AUTO_DROP =", SqlKeywordPosition.StatementStart, "UPDATE STATISTICS t WITH AUTO_DROP = ", true, false, false, false, new string[]
         {
@@ -13651,21 +13693,6 @@ internal static class SqlKeywordCatalogData
         ("ADD COUNTER SIGNATURE TO {name} BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY SYMMETRIC KEY ", false, false, true, false, new string[]
         {
         }),
-        ("ADD SIGNATURE TO {name} BY CERTIFICATE {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
-        {
-        }),
-        ("ADD SIGNATURE TO {name} BY CERTIFICATE {name} WITH SIGNATURE = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE t WITH SIGNATURE = 'x' ", true, false, false, true, new string[]
-        {
-        }),
-        ("ADD SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ASYMMETRIC KEY t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
-        {
-        }),
-        ("ADD COUNTER SIGNATURE TO {name} BY CERTIFICATE {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
-        {
-        }),
-        ("ADD COUNTER SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC KEY t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
-        {
-        }),
         ("DROP SIGNATURE FROM {name} BY", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY ", true, false, false, false, new string[]
         {
             "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
@@ -13713,6 +13740,84 @@ internal static class SqlKeywordCatalogData
         }),
         ("DROP COUNTER SIGNATURE FROM {name} BY SYMMETRIC KEY", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY SYMMETRIC KEY ", false, false, true, false, new string[]
         {
+        }),
+        ("ADD SIGNATURE TO {name} BY CERTIFICATE {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY CERTIFICATE {name} WITH SIGNATURE = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE t WITH SIGNATURE = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ASYMMETRIC KEY t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY CERTIFICATE {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC KEY t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY ,* CERTIFICATE {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE x, CERTIFICATE t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY ,* CERTIFICATE {name} WITH SIGNATURE = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE x, CERTIFICATE t WITH SIGNATURE = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY ,* ASYMMETRIC KEY {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE x, ASYMMETRIC KEY t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ,* CERTIFICATE {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE x, CERTIFICATE t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ,* ASYMMETRIC KEY {name} WITH PASSWORD = {value}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE x, ASYMMETRIC KEY t WITH PASSWORD = 'x' ", true, false, false, true, new string[]
+        {
+        }),
+        ("ADD SIGNATURE TO {name} BY ,*", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("ADD SIGNATURE TO {name} BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ASYMMETRIC KEY x, ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ADD SIGNATURE TO {name} BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY ASYMMETRIC KEY x, SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ,*", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC KEY x, ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC KEY x, SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP SIGNATURE FROM {name} BY ,*", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("DROP SIGNATURE FROM {name} BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY ASYMMETRIC KEY x, ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP SIGNATURE FROM {name} BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "DROP SIGNATURE FROM t BY ASYMMETRIC KEY x, SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name} BY ,*", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY ASYMMETRIC KEY x, ", true, false, false, false, new string[]
+        {
+            "ASYMMETRIC KEY", "CERTIFICATE", "PASSWORD", "SYMMETRIC KEY",
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name} BY ,* ASYMMETRIC", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY ASYMMETRIC KEY x, ASYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP COUNTER SIGNATURE FROM {name} BY ,* SYMMETRIC", SqlKeywordPosition.StatementStart, "DROP COUNTER SIGNATURE FROM t BY ASYMMETRIC KEY x, SYMMETRIC ", true, false, false, false, new string[]
+        {
+            "KEY",
         }),
         ("ADD SENSITIVITY CLASSIFICATION TO ... WITH (*", SqlKeywordPosition.StatementStart, "ADD SENSITIVITY CLASSIFICATION TO t.c WITH (", true, false, true, false, new string[]
         {
@@ -13858,7 +13963,23 @@ internal static class SqlKeywordCatalogData
         {
             "JOIN",
         }),
+        ("DBCC {name} WITH ,* DENSITY_VECTOR JOIN", SqlKeywordPosition.StatementStart, "DBCC t WITH DENSITY_VECTOR JOIN ", true, false, false, false, new string[]
+        {
+            "DENSITY_VECTOR", "STAT_HEADER",
+        }),
+        ("DBCC {name} WITH ,* DENSITY_VECTOR JOIN STAT_HEADER", SqlKeywordPosition.StatementStart, "DBCC t WITH DENSITY_VECTOR JOIN STAT_HEADER ", true, false, false, true, new string[]
+        {
+            "JOIN",
+        }),
         ("DBCC {name} WITH ,* STAT_HEADER", SqlKeywordPosition.StatementStart, "DBCC t WITH STAT_HEADER ", true, false, false, true, new string[]
+        {
+            "JOIN",
+        }),
+        ("DBCC {name} WITH ,* STAT_HEADER JOIN", SqlKeywordPosition.StatementStart, "DBCC t WITH STAT_HEADER JOIN ", true, false, false, false, new string[]
+        {
+            "DENSITY_VECTOR", "STAT_HEADER",
+        }),
+        ("DBCC {name} WITH ,* STAT_HEADER JOIN DENSITY_VECTOR", SqlKeywordPosition.StatementStart, "DBCC t WITH STAT_HEADER JOIN DENSITY_VECTOR ", true, false, false, true, new string[]
         {
             "JOIN",
         }),
@@ -13880,7 +14001,23 @@ internal static class SqlKeywordCatalogData
         {
             "JOIN",
         }),
+        ("DBCC {name} () WITH ,* DENSITY_VECTOR JOIN", SqlKeywordPosition.StatementStart, "DBCC t (a) WITH DENSITY_VECTOR JOIN ", true, false, false, false, new string[]
+        {
+            "DENSITY_VECTOR", "STAT_HEADER",
+        }),
+        ("DBCC {name} () WITH ,* DENSITY_VECTOR JOIN STAT_HEADER", SqlKeywordPosition.StatementStart, "DBCC t (a) WITH DENSITY_VECTOR JOIN STAT_HEADER ", true, false, false, true, new string[]
+        {
+            "JOIN",
+        }),
         ("DBCC {name} () WITH ,* STAT_HEADER", SqlKeywordPosition.StatementStart, "DBCC t (a) WITH STAT_HEADER ", true, false, false, true, new string[]
+        {
+            "JOIN",
+        }),
+        ("DBCC {name} () WITH ,* STAT_HEADER JOIN", SqlKeywordPosition.StatementStart, "DBCC t (a) WITH STAT_HEADER JOIN ", true, false, false, false, new string[]
+        {
+            "DENSITY_VECTOR", "STAT_HEADER",
+        }),
+        ("DBCC {name} () WITH ,* STAT_HEADER JOIN DENSITY_VECTOR", SqlKeywordPosition.StatementStart, "DBCC t (a) WITH STAT_HEADER JOIN DENSITY_VECTOR ", true, false, false, true, new string[]
         {
             "JOIN",
         }),
@@ -14391,6 +14528,10 @@ internal static class SqlKeywordCatalogData
         ("EXECUTE ... WITH ,* RESULT", SqlKeywordPosition.StatementStart, "EXECUTE p WITH RESULT ", true, false, false, false, new string[]
         {
             "SETS",
+        }),
+        ("EXECUTE ... WITH ,* RESULT SETS", SqlKeywordPosition.StatementStart, "EXECUTE p WITH RESULT SETS ", true, false, false, false, new string[]
+        {
+            "NONE", "UNDEFINED",
         }),
         ("RESULT SETS", SqlKeywordPosition.OptionItem, "EXEC p WITH RESULT SETS ", true, false, false, false, new string[]
         {
@@ -17991,49 +18132,25 @@ internal static class SqlKeywordCatalogData
         {
             "INDEX",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
-        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
-        }),
         ("CREATE FULLTEXT INDEX ON {name} KEY INDEX {name} ON () WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
         }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
-        }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON {name} WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON t WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
             "POPULATION",
-        }),
-        ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH ,* SEARCH PROPERTY", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH SEARCH PROPERTY ", true, false, false, false, new string[]
-        {
-            "LIST",
         }),
         ("CREATE FULLTEXT INDEX ON {name} () KEY INDEX {name} ON () WITH (* NO", SqlKeywordPosition.StatementStart, "CREATE FULLTEXT INDEX ON t (a) KEY INDEX t ON (a) WITH (CHANGE_TRACKING OFF, NO ", true, false, false, false, new string[]
         {
@@ -19312,6 +19429,38 @@ internal static class SqlKeywordCatalogData
             "WITH",
         }),
         ("ADD COUNTER SIGNATURE TO {name} BY ASYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY ASYMMETRIC KEY t WITH ", false, false, true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("ADD SIGNATURE TO {name} BY ,* CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE x, CERTIFICATE t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ADD SIGNATURE TO {name} BY ,* CERTIFICATE {name} WITH", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE x, CERTIFICATE t WITH ", false, false, true, false, new string[]
+        {
+            "PASSWORD", "SIGNATURE",
+        }),
+        ("ADD SIGNATURE TO {name} BY ,* ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE x, ASYMMETRIC KEY t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ADD SIGNATURE TO {name} BY ,* ASYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "ADD SIGNATURE TO t BY CERTIFICATE x, ASYMMETRIC KEY t WITH ", false, false, true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ,* CERTIFICATE {name}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE x, CERTIFICATE t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ,* CERTIFICATE {name} WITH", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE x, CERTIFICATE t WITH ", false, false, true, false, new string[]
+        {
+            "PASSWORD",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ,* ASYMMETRIC KEY {name}", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE x, ASYMMETRIC KEY t ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("ADD COUNTER SIGNATURE TO {name} BY ,* ASYMMETRIC KEY {name} WITH", SqlKeywordPosition.StatementStart, "ADD COUNTER SIGNATURE TO t BY CERTIFICATE x, ASYMMETRIC KEY t WITH ", false, false, true, false, new string[]
         {
             "PASSWORD",
         }),

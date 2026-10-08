@@ -1194,14 +1194,25 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <summary>
     /// 這個詞元開始另一個子句或另一句：能開始一句的關鍵字、分號、沒關上的左括號。
     /// </summary>
-    /// <remarks>清單項寫不出這種詞元；子句片語的中段 <c>,*</c> 走過清單項也照這一條，見 <see cref="SqlClausePhrase"/>。</remarks>
+    /// <remarks>
+    /// 清單項寫不出這種詞元；子句片語的中段 <c>,*</c> 走過清單項也照這一條，見 <see cref="SqlClausePhrase"/>。
+    /// WITH 要寫得成 CTE 的開頭或開另一份清單（<c>CREATE DATABASE … WITH TRUSTWORTHY ON, </c>）才算：其餘的是那一項自己的選項
+    /// （簽章 <c>CERTIFICATE c WITH SIGNATURE = 0x01, </c>、可用性複本 <c>'a' WITH (…), </c>），
+    /// 當成界線的話逗號之後那一項認不出是清單的。WITH 之後還沒寫到兩個詞元的說不出來，照舊算。
+    /// </remarks>
     internal bool StartsClauseOfItsOwn(int index)
     {
         var token = tokens[index];
 
         return token.IsPunctuation(";") || token.IsPunctuation("(") ||
-            (token.Kind == SqlTokenKind.Identifier && IsBareKeyword(index) && StartsStatement(token) && !NamesPermission(index));
+            (token.Kind == SqlTokenKind.Identifier && IsBareKeyword(index) && StartsStatement(token) && !NamesPermission(index) &&
+             (!token.IsKeyword("WITH") || CanStartCommonTableExpression(index) || SqlClausePhraseCatalog.OpensList(tokens, index, this)));
     }
+
+    // WITH 名稱 AS、WITH 名稱 (資料行) 與 WITH XMLNAMESPACES (。
+    private bool CanStartCommonTableExpression(int with) =>
+        with + 2 >= tokens.Count ||
+        tokens[with + 1].Kind == SqlTokenKind.Identifier && (tokens[with + 2].IsKeyword("AS") || tokens[with + 2].IsPunctuation("("));
 
     /// <summary>
     /// 這個詞元開始查詢的另一個子句：ORDER BY、GROUP BY 的 <c>BY</c>、<c>WINDOW</c>、<c>FOR</c>。

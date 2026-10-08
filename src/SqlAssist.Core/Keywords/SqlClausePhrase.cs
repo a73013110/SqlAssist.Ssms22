@@ -283,8 +283,8 @@ public sealed class SqlClausePhrase
     /// 清單項裡寫得出的詞元與清單片語的選項同一條規則（<see cref="SqlKeywordPositionAnalyzer.StartsClauseOfItsOwn"/>），
     /// 一整組括號跳過。走不出這一句：<c>WHERE a IN (</c> 往回碰到 WHERE 就停，不會比對到前一句的 ADD FILE。
     /// 也走不出查詢的子句（<see cref="SqlKeywordPositionAnalyzer.StartsQueryClause"/>）：<c>GROUP BY a ORDER BY a, </c> 的逗號是 ORDER BY 的。
-    /// 緊接一整組括號的 WITH 是那一項自己的選項（可用性複本 <c>'a' WITH (…), 'b' WITH (</c>），不是 CTE 的開頭；
-    /// 括號還沒關上的（<c>FROM (…) WITH (</c> 的游標那一組）照舊是界線。
+    /// 寫不成 CTE 開頭的 WITH 是那一項自己的選項（可用性複本 <c>'a' WITH (…), 'b' WITH (</c>），見
+    /// <see cref="SqlKeywordPositionAnalyzer.StartsClauseOfItsOwn"/>；括號還沒關上的（<c>FROM (…) WITH (</c> 的游標那一組）照舊是界線。
     /// </remarks>
     private int MatchItems(IReadOnlyList<SqlToken> tokens, int last, int items, SqlKeywordPositionAnalyzer analyzer)
     {
@@ -319,8 +319,7 @@ public sealed class SqlClausePhrase
             {
                 return -1;
             }
-            else if (!tokens[index].IsPunctuation(",") && analyzer.StartsClauseOfItsOwn(index) &&
-                     !(index < last && tokens[index].IsKeyword("WITH") && tokens[index + 1].IsPunctuation("(")))
+            else if (!tokens[index].IsPunctuation(",") && analyzer.StartsClauseOfItsOwn(index))
             {
                 return -1;
             }
