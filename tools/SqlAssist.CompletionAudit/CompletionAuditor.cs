@@ -420,6 +420,11 @@ public sealed class CompletionAuditor
                 return new Shape(token.Text);
             }
 
+            if (_definitions.IsValueLiteral(token.Start))
+            {
+                return new Shape("‹lit›", exclusion: AuditExclusion.Literal);
+            }
+
             // 觸發程序與 OUTPUT 子句的 inserted／deleted：不是誰取的名字，形狀寫出字面、不遮，自成一群。
             if (!afterDot && _definitions.IsChangeTable(token.Value, token.Start))
             {
@@ -509,6 +514,11 @@ public sealed class CompletionAuditor
 
             if (tokenClass is AuditTokenClass.Word or AuditTokenClass.GlobalVariable)
             {
+                if (_definitions.IsPlaceholderArgument(token.Start))
+                {
+                    return shape.Excluded(AuditExclusion.Placeholder);
+                }
+
                 // 不守大寫慣例的語料靠語法樹分字與名稱；剖析不過的那一句（錯之前也是）不在樹上，
                 // 只有保留字確定是字，INSERT INTO t (Name 的 Name 說不出是欄位還是 NAME。
                 return tokenClass == AuditTokenClass.Word &&

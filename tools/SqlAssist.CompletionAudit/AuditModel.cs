@@ -75,7 +75,10 @@ public enum AuditTokenClass
 /// <summary>本來就不該列的詞元，分類排除、不算漏。</summary>
 public enum AuditExclusion
 {
-    /// <summary>字串與數字常值，以及緊貼數值的字（<c>20MB</c> 的 MB）。</summary>
+    /// <summary>
+    /// 字串與數字常值、緊貼數值的字（<c>20MB</c> 的 MB），以及程序參數預設值與 EXEC 引數寫成識別字的值
+    /// （<c>= false</c>、<c>, true</c>）。
+    /// </summary>
     Literal,
 
     /// <summary>新取的名稱：別名定義、CREATE 目標、宣告。</summary>
@@ -95,7 +98,8 @@ public enum AuditExclusion
 
     /// <summary>
     /// 範例的佔位符（<c>&lt;login_name&gt;</c>、範本的 <c>&lt;Author,,Name&gt;</c>）起到那一句結束：不是 T-SQL，
-    /// 產品把 <c>&lt;</c> 讀成比較運算子，之後的位置都不算數。
+    /// 產品把 <c>&lt;</c> 讀成比較運算子，之後的位置都不算數。日期部分那一格寫的不是日期部分
+    /// （<c>DATENAME(datepart, …)</c>）也是佔位符，只排除那一個詞。
     /// </summary>
     Placeholder,
 

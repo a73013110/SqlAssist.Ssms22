@@ -368,6 +368,47 @@ public sealed class CompletionAuditorTests
     }
 
     [Fact]
+    public async Task GOTO_標籤的定義是新取的名稱()
+    {
+        var result = await AuditAsync("start:\nSELECT 1",AuditCatalog.None);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == "START");
+        Assert.Equal(1, result.Tally.Excluded[AuditExclusion.NewName]);
+    }
+
+    [Theory]
+    [InlineData("CREATE PROCEDURE p @a varchar(20) = false AS SELECT 1", "FALSE")]
+    [InlineData("EXECUTE sp_serveroption 'x', 'rpc out', true", "TRUE")]
+    public async Task 參數預設值與EXEC引數寫成識別字是常值(string sql, string word)
+    {
+        var result = await AuditAsync(sql, AuditCatalog.None);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == word);
+        Assert.Contains(result.Misses, miss => miss.Word == "SELECT" || miss.Word == "EXECUTE");
+    }
+
+    [Theory]
+    [InlineData("SET DEADLOCK_PRIORITY LOW", 3)]
+    [InlineData("SELECT DATEADD(day, 1, 2)", 3)]
+    [InlineData("EXECUTE p @a = DEFAULT", 2)]
+    public async Task 值以外的識別字常值照常稽核(string sql, int words)
+    {
+        var result = await AuditAsync(sql, AuditCatalog.None);
+
+        Assert.Equal(words, result.Tally.Audited[AuditTokenClass.Word]);
+        Assert.False(result.Tally.Excluded.ContainsKey(AuditExclusion.Placeholder));
+    }
+
+    [Fact]
+    public async Task 日期部分那一格不是日期部分_是佔位符()
+    {
+        var result = await AuditAsync("SELECT DATENAME(datepart, 1)", AuditCatalog.None);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == "DATEPART");
+        Assert.Equal(1, result.Tally.Excluded[AuditExclusion.Placeholder]);
+    }
+
+    [Fact]
     public async Task 範例遮掉名稱_常值與註解內容()
     {
         var catalog = new FakeCatalog(("Lib_Reader", AuditTokenClass.Object));

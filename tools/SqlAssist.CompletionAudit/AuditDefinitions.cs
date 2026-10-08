@@ -43,6 +43,8 @@ public sealed class AuditDefinitions
     private readonly HashSet<int> _nameReferences = new();
     private readonly HashSet<int> _notNames = new();
     private readonly HashSet<int> _unparsed = new();
+    private readonly HashSet<int> _valueLiterals = new();
+    private readonly HashSet<int> _placeholderArguments = new();
     private readonly Dictionary<string, List<Visibility>> _scoped = new(StringComparer.Ordinal);
     private readonly List<(TSqlFragment Name, Scope Scope, string? Table)> _pending = new();
     private readonly List<(int Start, int End)> _queries = new();
@@ -127,6 +129,22 @@ public sealed class AuditDefinitions
 
     /// <summary><paramref name="start"/> 起頭的那個名稱是新取的。</summary>
     public bool IsDefinition(int start) => _starts.Contains(start);
+
+    /// <summary>
+    /// <paramref name="start"/> 起頭的詞元是沒加引號的常值：程序參數的預設值（<c>@p varchar(20) = false</c>）與
+    /// EXEC 的引數（<c>EXEC sp_serveroption 'x', 'rpc out', true</c>）寫識別字就是字串。
+    /// </summary>
+    /// <remarks>
+    /// 只認這兩個值的位置：語法樹在別處也用同一種節點，<c>SET DEADLOCK_PRIORITY LOW</c> 的 LOW、
+    /// <c>DATEADD(day, …)</c> 的 day 是清單該列的字。
+    /// </remarks>
+    public bool IsValueLiteral(int start) => _valueLiterals.Contains(start);
+
+    /// <summary>
+    /// <paramref name="start"/> 起頭的詞元站在日期部分的位置上，卻不是日期部分：sql-docs 的 <c>DATENAME(datepart, …)</c>
+    /// 是語法說明的佔位符，DATEPART 碰巧是函式名稱才被當成字。
+    /// </summary>
+    public bool IsPlaceholderArgument(int start) => _placeholderArguments.Contains(start);
 
     /// <summary>
     /// <paramref name="start"/> 起頭的詞元站在名稱的位置上：語法樹上的識別字，型別名稱與函式名稱除外
@@ -865,6 +883,31 @@ public sealed class AuditDefinitions
             if (node.FunctionName is { } name)
             {
                 _owner._notNames.Add(name.StartOffset);
+            }
+
+            // 函式引數寫成識別字的只有日期部分那一格（DATEADD 這一族）。
+            foreach (var parameter in node.Parameters)
+            {
+                if (parameter is IdentifierLiteral { Value: { } value } literal &&
+                    !SqlArgumentCatalog.TryGetDescription(value, SqlBuiltInKind.DatePart, out _))
+                {
+                    _owner._placeholderArguments.Add(literal.StartOffset);
+                }
+            }
+        }
+
+        public override void Visit(ProcedureParameter node) => AddValueLiteral(node.Value);
+
+        public override void Visit(ExecuteParameter node) => AddValueLiteral(node.ParameterValue);
+
+        /// <summary><c>start:</c> 是新取的標籤，與別名定義同一類。</summary>
+        public override void Visit(LabelStatement node) => _owner.Add(node, Scope.None);
+
+        private void AddValueLiteral(ScalarExpression? value)
+        {
+            if (value is IdentifierLiteral { StartOffset: >= 0 } literal)
+            {
+                _owner._valueLiterals.Add(literal.StartOffset);
             }
         }
 

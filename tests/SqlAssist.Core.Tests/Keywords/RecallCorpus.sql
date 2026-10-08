@@ -1227,3 +1227,6 @@ IF 1 = 1
 BEGIN
 DROP TRIGGER LibTrg ON DATABASE
 END
+
+Done:
+EXECUTE sp_serveroption 'LibLink', 'rpc out', true
