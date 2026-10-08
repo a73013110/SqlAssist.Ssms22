@@ -2228,6 +2228,37 @@
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/acos-transact-sql"
     },
     {
+      "name": "APPLOCK_MODE",
+      "kind": "function",
+      "summary": "某個主體在應用程式鎖定資源上持有的鎖定模式，沒有鎖定時是 NoLock。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT APPLOCK_MODE('public', 'LibLoanBatch', 'Session')   -- 'NoLock'"
+        },
+        {
+          "id": "with-getapplock",
+          "title": "搭配 sp_getapplock",
+          "sql": "EXEC sp_getapplock @Resource = 'LibLoanBatch', @LockMode = 'Exclusive', @LockOwner = 'Session'\nSELECT APPLOCK_MODE('public', 'LibLoanBatch', 'Session')   -- 'Exclusive'\nEXEC sp_releaseapplock @Resource = 'LibLoanBatch', @LockOwner = 'Session'"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/applock-mode-transact-sql"
+    },
+    {
+      "name": "APPLOCK_TEST",
+      "kind": "function",
+      "summary": "現在申請這個應用程式鎖定拿不拿得到：1 拿得到、0 拿不到；不會真的鎖住。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT APPLOCK_TEST('public', 'LibLoanBatch', 'Exclusive', 'Session')   -- 1 代表拿得到"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/applock-test-transact-sql"
+    },
+    {
       "name": "APPROX_COUNT_DISTINCT",
       "kind": "function",
       "summary": "近似的相異值個數，誤差約 2%；資料量大時比 COUNT(DISTINCT) 省很多。",
@@ -2252,6 +2283,19 @@
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/asin-transact-sql"
+    },
+    {
+      "name": "ASSEMBLYPROPERTY",
+      "kind": "function",
+      "summary": "查 CLR 組件的屬性，例如 VersionMajor、CLRName、PublicKey。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT ASSEMBLYPROPERTY('Microsoft.SqlServer.Types', 'VersionMajor')   -- 內建的空間型別組件"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/assemblyproperty-transact-sql"
     },
     {
       "name": "ATAN",
@@ -2610,6 +2654,115 @@
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/encryptbypassphrase-transact-sql"
     },
     {
+      "name": "FILEGROUP_ID",
+      "kind": "function",
+      "summary": "檔案群組名稱換成識別碼，PRIMARY 一定是 1。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT FILEGROUP_ID('PRIMARY')   -- 1"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/filegroup-id-transact-sql"
+    },
+    {
+      "name": "FILEGROUP_NAME",
+      "kind": "function",
+      "summary": "檔案群組識別碼換成名稱。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT FILEGROUP_NAME(1)   -- 'PRIMARY'"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/filegroup-name-transact-sql"
+    },
+    {
+      "name": "FILEGROUPPROPERTY",
+      "kind": "function",
+      "summary": "查檔案群組的屬性：IsReadOnly、IsUserDefinedFG、IsDefault。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT FILEGROUPPROPERTY('PRIMARY', 'IsDefault')   -- 1 代表是預設檔案群組"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/filegroupproperty-transact-sql"
+    },
+    {
+      "name": "FILE_ID",
+      "kind": "function",
+      "summary": "邏輯檔名換成目前資料庫裡的檔案識別碼；已淘汰，改用 FILE_IDEX。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT FILE_ID(FILE_NAME(1))   -- 1"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/file-id-transact-sql"
+    },
+    {
+      "name": "FILE_IDEX",
+      "kind": "function",
+      "summary": "邏輯檔名換成目前資料庫裡的檔案識別碼，查不到傳回 NULL。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT FILE_IDEX((SELECT TOP (1) name FROM sys.database_files WHERE type = 1))   -- 記錄檔"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/file-idex-transact-sql"
+    },
+    {
+      "name": "FILE_NAME",
+      "kind": "function",
+      "summary": "檔案識別碼換成目前資料庫裡的邏輯檔名；1 是主要資料檔、2 通常是記錄檔。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT FILE_NAME(1), FILE_NAME(2)   -- 主要資料檔、交易記錄檔"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/file-name-transact-sql"
+    },
+    {
+      "name": "FILEPROPERTY",
+      "kind": "function",
+      "summary": "查目前資料庫裡檔案的屬性；SpaceUsed 是已用的頁數（一頁 8 KB）。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT FILEPROPERTY(FILE_NAME(1), 'SpaceUsed')   -- 主要資料檔已用的頁數"
+        },
+        {
+          "id": "space-per-file",
+          "title": "每個檔案的大小與已用空間",
+          "sql": "SELECT name,\n       size / 128.0 AS SizeMB,\n       FILEPROPERTY(name, 'SpaceUsed') / 128.0 AS UsedMB\nFROM sys.database_files"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/fileproperty-transact-sql"
+    },
+    {
+      "name": "FILEPROPERTYEX",
+      "kind": "function",
+      "summary": "Azure SQL Database 才有：查檔案的儲存屬性，例如 BlobTier、AccountType。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT FILEPROPERTYEX(FILE_NAME(1), 'BlobTier')   -- 用分頁 Blob 的資料庫才有值"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/filepropertyex-transact-sql"
+    },
+    {
       "name": "FORMATMESSAGE",
       "kind": "function",
       "summary": "照樣板填入參數組出字串，類似 RAISERROR 格式化但不會丟出錯誤；印出 % 要寫 %%。",
@@ -2631,6 +2784,32 @@
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/formatmessage-transact-sql"
+    },
+    {
+      "name": "FULLTEXTCATALOGPROPERTY",
+      "kind": "function",
+      "summary": "查全文檢索目錄的屬性，例如 ItemCount、PopulateStatus。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT FULLTEXTCATALOGPROPERTY('LibCatalog', 'ItemCount')   -- 目錄不存在時 NULL"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/fulltextcatalogproperty-transact-sql"
+    },
+    {
+      "name": "FULLTEXTSERVICEPROPERTY",
+      "kind": "function",
+      "summary": "查全文檢索服務的屬性；IsFullTextInstalled 是有沒有安裝。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT FULLTEXTSERVICEPROPERTY('IsFullTextInstalled')   -- 1 代表有安裝"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/fulltextserviceproperty-transact-sql"
     },
     {
       "name": "GREATEST",
@@ -2722,6 +2901,19 @@
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/index-col-transact-sql"
+    },
+    {
+      "name": "INDEXKEY_PROPERTY",
+      "kind": "function",
+      "summary": "查索引鍵資料行的屬性：ColumnId、IsDescending。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT INDEXKEY_PROPERTY(OBJECT_ID('dbo.Loan'), 1, 1, 'IsDescending')   -- 0 是遞增"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/indexkey-property-transact-sql"
     },
     {
       "name": "INDEXPROPERTY",
@@ -2922,6 +3114,19 @@
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/object-schema-name-transact-sql"
+    },
+    {
+      "name": "ORIGINAL_DB_NAME",
+      "kind": "function",
+      "summary": "連線時指定的初始資料庫，之後 USE 換過也不變。",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT ORIGINAL_DB_NAME(), DB_NAME()   -- 登入時的資料庫、目前的資料庫"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/original-db-name-transact-sql"
     },
     {
       "name": "ORIGINAL_LOGIN",

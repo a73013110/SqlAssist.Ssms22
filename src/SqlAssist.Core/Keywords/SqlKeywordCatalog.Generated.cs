@@ -2734,6 +2734,9 @@ internal static class SqlKeywordCatalogData
         ("DROP WORKLOAD GROUP", SqlKeywordPosition.StatementStart, "DROP WORKLOAD GROUP ", false, false, true, false, new string[]
         {
         }),
+        ("UPDATE STATISTICS", SqlKeywordPosition.StatementStart, "UPDATE STATISTICS ", false, false, true, false, new string[]
+        {
+        }),
         ("UPDATE", SqlKeywordPosition.StatementStart, "UPDATE ", false, false, true, false, new string[]
         {
             "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "STATISTICS", "TOP",

@@ -136,6 +136,33 @@ public sealed class CompletionAuditorTests
         Assert.DoesNotContain(result.Misses, miss => miss.Word == "PUBL_CODE");
     }
 
+    /// <summary>
+    /// DML 的目標是 FROM 取的別名：指的是 FROM 那張表，別名本身不算認得的擁有者。
+    /// 那張表寫在看不到的資料庫時，本地同名資料表的欄位不算漏。
+    /// </summary>
+    [Theory]
+    [InlineData("UPDATE r SET Name = @n FROM LibArchive.dbo.Lib_Reader r WHERE PUBL_CODE = 1")]
+    [InlineData("DELETE r FROM LibArchive.dbo.Lib_Reader r WHERE PUBL_CODE = 1")]
+    public async Task 目標是別名而來源在看不到的資料庫_同名欄位不算漏(string sql)
+    {
+        var catalog = new FakeCatalog(("PUBL_CODE", AuditTokenClass.Column), ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync(sql, catalog);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == "PUBL_CODE");
+        Assert.True(result.Tally.Excluded[AuditExclusion.Unresolved] >= 1);
+    }
+
+    [Fact]
+    public async Task 目標是別名而來源認得_欄位照常稽核()
+    {
+        var catalog = new FakeCatalog(("PUBL_CODE", AuditTokenClass.Column), ("Lib_Reader", AuditTokenClass.Object));
+
+        var result = await AuditAsync("UPDATE r SET Name = @n FROM Lib_Reader r WHERE PUBL_CODE = 1", catalog);
+
+        Assert.Contains(result.Misses, miss => miss.TokenClass == AuditTokenClass.Column && miss.Word == "PUBL_CODE");
+    }
+
     [Theory]
     [InlineData("CREATE TABLE Lib_Tag (ReaderId int,\n    PUBL_CODE int,\n    PRIMARY KEY (ReaderId,\n    PUBL_CODE))")]
     [InlineData("CREATE TABLE Lib_Tag (ReaderId int,\n    PUBL_CODE int NOT NULL -- 出版者\n    PRIMARY KEY (ReaderId,\n    PUBL_CODE))")]

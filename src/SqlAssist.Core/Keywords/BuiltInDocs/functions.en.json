@@ -719,6 +719,16 @@
     "summary": "Arccosine, argument in range -1 to 1, returns radians",
     "examples.basic.title": "Basic usage"
   },
+  "APPLOCK_MODE": {
+    "summary": "Lock mode held on an application lock; NoLock if none",
+    "examples.basic.title": "Basic usage",
+    "examples.with-getapplock.title": "With sp_getapplock"
+  },
+  "APPLOCK_TEST": {
+    "summary": "Whether an application lock could be granted; takes no lock",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT APPLOCK_TEST('public', 'LibLoanBatch', 'Exclusive', 'Session')   -- 1 = grantable"
+  },
   "APPROX_COUNT_DISTINCT": {
     "summary": "Distinct count within ~2%; cheaper than COUNT(DISTINCT)",
     "examples.basic.title": "Basic usage",
@@ -727,6 +737,11 @@
   "ASIN": {
     "summary": "Arcsine, argument in range -1 to 1, returns radians",
     "examples.basic.title": "Basic usage"
+  },
+  "ASSEMBLYPROPERTY": {
+    "summary": "CLR assembly property such as VersionMajor, CLRName",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT ASSEMBLYPROPERTY('Microsoft.SqlServer.Types', 'VersionMajor')   -- spatial types"
   },
   "ATAN": {
     "summary": "Arctangent, returns radians",
@@ -853,6 +868,44 @@
     "examples.basic.title": "Basic usage",
     "examples.basic.sql": "SELECT ENCRYPTBYPASSPHRASE('key', 'abc')   -- Different result each execution"
   },
+  "FILEGROUP_ID": {
+    "summary": "Filegroup ID for a filegroup name; PRIMARY is always 1",
+    "examples.basic.title": "Basic usage"
+  },
+  "FILEGROUP_NAME": {
+    "summary": "Filegroup name for a filegroup ID",
+    "examples.basic.title": "Basic usage"
+  },
+  "FILEGROUPPROPERTY": {
+    "summary": "Filegroup property: IsReadOnly, IsUserDefinedFG, IsDefault",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT FILEGROUPPROPERTY('PRIMARY', 'IsDefault')   -- 1 means default filegroup"
+  },
+  "FILE_ID": {
+    "summary": "File ID of a logical file name; deprecated, use FILE_IDEX",
+    "examples.basic.title": "Basic usage"
+  },
+  "FILE_IDEX": {
+    "summary": "File ID of a logical file name; NULL if not found",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT FILE_IDEX((SELECT TOP (1) name FROM sys.database_files WHERE type = 1))   -- log"
+  },
+  "FILE_NAME": {
+    "summary": "Logical file name for a file ID; 1 is the primary data file",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT FILE_NAME(1), FILE_NAME(2)   -- primary data file, log file"
+  },
+  "FILEPROPERTY": {
+    "summary": "File property; SpaceUsed is the number of 8 KB pages used",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT FILEPROPERTY(FILE_NAME(1), 'SpaceUsed')   -- pages used by primary data file",
+    "examples.space-per-file.title": "Size and space used per file"
+  },
+  "FILEPROPERTYEX": {
+    "summary": "Azure SQL Database only: file storage property like BlobTier",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT FILEPROPERTYEX(FILE_NAME(1), 'BlobTier')   -- only for page blob storage"
+  },
   "FORMATMESSAGE": {
     "summary": "Builds a string like RAISERROR's template; %% for literal %",
     "examples.basic.title": "Basic usage",
@@ -861,6 +914,16 @@
     "examples.literal-percent.sql": "SELECT FORMATMESSAGE('Discount 100%%')   -- 'Discount 100%'",
     "examples.multiple-placeholders.title": "Placeholders map by position",
     "examples.multiple-placeholders.sql": "SELECT FORMATMESSAGE('%s borrowed %d', 'Lib_Reader001', 3)"
+  },
+  "FULLTEXTCATALOGPROPERTY": {
+    "summary": "Full-text catalog property such as ItemCount, PopulateStatus",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT FULLTEXTCATALOGPROPERTY('LibCatalog', 'ItemCount')   -- NULL if no such catalog"
+  },
+  "FULLTEXTSERVICEPROPERTY": {
+    "summary": "Full-text service property such as IsFullTextInstalled",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT FULLTEXTSERVICEPROPERTY('IsFullTextInstalled')   -- 1 means installed"
   },
   "GREATEST": {
     "summary": "Greatest value; NULL ignored. SQL Server 2022+",
@@ -893,6 +956,11 @@
     "summary": "Name of column at index key position",
     "examples.basic.title": "Basic usage",
     "examples.basic.sql": "SELECT INDEX_COL('dbo.Loan', 1, 1)   -- First key column of clustered index"
+  },
+  "INDEXKEY_PROPERTY": {
+    "summary": "Index key column property: ColumnId, IsDescending",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT INDEXKEY_PROPERTY(OBJECT_ID('dbo.Loan'), 1, 1, 'IsDescending')   -- 0 = ascending"
   },
   "INDEXPROPERTY": {
     "summary": "Index property such as IsClustered, IsUnique",
@@ -959,6 +1027,11 @@
   "OBJECT_SCHEMA_NAME": {
     "summary": "Schema name from object_id",
     "examples.basic.title": "Basic usage"
+  },
+  "ORIGINAL_DB_NAME": {
+    "summary": "Initial database of the connection; unchanged by USE",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT ORIGINAL_DB_NAME(), DB_NAME()   -- initial database, current database"
   },
   "ORIGINAL_LOGIN": {
     "summary": "Original login before any EXECUTE AS switch",

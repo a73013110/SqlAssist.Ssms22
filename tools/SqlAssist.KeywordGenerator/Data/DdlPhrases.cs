@@ -49,12 +49,14 @@ internal static class DdlPhrases
         // DROP、UPDATE、DELETE、MERGE 之後是名稱的位置，目標過濾把關鍵字全擋掉；
         // IF EXISTS、TOP、INTO 這些字只能由片語給。名稱後面要再寫一段才完整的（UPDATE t SET、
         // MERGE t USING、DROP INDEX i ON t、DROP STATISTICS t.s）探測判成封閉，由人宣告不封閉。
+        // UPDATE STATISTICS 是 UPDATE 那一格的字，不在 Kinds 展開裡；名稱格要有片語，執行期才認得出種類之後是既有的資料表。
         new("CREATE") { Expand = 3, Kinds = ObjectKinds.New },
         new("CREATE OR ALTER") { Expand = 1, Kinds = ObjectKinds.New },
         new("ALTER") { Expand = 3, Kinds = ObjectKinds.Existing },
         new("DROP") { Expand = 3, Kinds = ObjectKinds.Existing },
         new("DROP INDEX") { Closed = false },
         new("DROP STATISTICS") { Closed = false },
+        new("UPDATE STATISTICS") { Closed = false },
         new("UPDATE") { Closed = false },
         new("DELETE"),
         // DELETE 的目標之後是 FROM（聯結來源）、WHERE、OUTPUT；寫完已是完整的一句，資料表提示的 WITH 被當成 CTE 的開頭扣掉，手寫補回。

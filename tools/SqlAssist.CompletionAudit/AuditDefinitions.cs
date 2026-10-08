@@ -1024,8 +1024,13 @@ public sealed class AuditDefinitions
             return aliases.Names.Contains(name);
         }
 
+        /// <remarks>
+        /// 目標是 FROM 取的別名（<c>UPDATE l … FROM Other.dbo.Loan l</c>）時指的就是 FROM 那個來源，不另算一張表：
+        /// 別名在截斷處之前取過，會被當成認得的擁有者，FROM 的表寫在看不到的資料庫時就擋不住同名欄位。
+        /// </remarks>
         private static IEnumerable<TableReference?> WithTarget(TableReference? target, FromClause? from) =>
-            new[] { target }.Concat(from?.TableReferences ?? (IList<TableReference>)Array.Empty<TableReference>());
+            new[] { from is not null && NamesAlias(target, from) ? null : target }
+                .Concat(from?.TableReferences ?? (IList<TableReference>)Array.Empty<TableReference>());
 
         /// <summary>定義裡寫資料行名稱的清單：條件約束、索引與 <c>PERIOD FOR SYSTEM_TIME</c>，資料表與資料行層級都算。</summary>
         private static IEnumerable<IEnumerable<TSqlFragment?>> ElementLists(TableDefinition? definition)

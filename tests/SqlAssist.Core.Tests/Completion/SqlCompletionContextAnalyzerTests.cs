@@ -25,6 +25,8 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("DROP TABLE IF EXISTS dbo.a, LibArchive.dbo.b, ", CompletionTarget.DataSource)]
     [InlineData("DROP VIEW v1, ", CompletionTarget.View)]
     [InlineData("TRUNCATE TABLE ", CompletionTarget.DataSource)]
+    [InlineData("UPDATE STATISTICS ", CompletionTarget.DataSource)]
+    [InlineData("DROP STATISTICS ", CompletionTarget.DataSource)]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS (AS OBJECT ", CompletionTarget.DataSource)]
     [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((CopyNo int), AS TYPE ", CompletionTarget.TableType)]
     [InlineData("DROP TRIGGER IF EXISTS ", CompletionTarget.Trigger)]
@@ -48,6 +50,18 @@ public sealed class SqlCompletionContextAnalyzerTests
 
         Assert.True(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
         Assert.Equal(expected, context.Target);
+    }
+
+    /// <summary>統計資料寫在資料表底下：UPDATE STATISTICS 之後與 FROM 一樣列得出指令碼宣告的暫存資料表。</summary>
+    [Theory]
+    [InlineData("CREATE TABLE #Lib_Tmp (a int)\nUPDATE STATISTICS ")]
+    [InlineData("CREATE TABLE #Lib_Tmp (a int)\nDROP STATISTICS ")]
+    public void 統計資料的資料表那一格列得出暫存資料表(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret, textBeforeCaret.Length);
+
+        Assert.Equal(CompletionTarget.DataSource, context.Target);
+        Assert.Contains(context.ScriptSources, item => item.DisplayText == "#Lib_Tmp");
     }
 
     /// <summary>
@@ -81,6 +95,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("ALTER /* 改 */ PROCEDURE dbo.", CompletionTarget.Procedure, CompletionIntent.AlterDefinition, "ALTER")]
     [InlineData("DROP PROC IF EXISTS dbo.", CompletionTarget.Procedure, CompletionIntent.Reference, "DROP")]
     [InlineData("TRUNCATE TABLE dbo.", CompletionTarget.DataSource, CompletionIntent.Reference, "TRUNCATE")]
+    [InlineData("UPDATE /* 重算 */ STATISTICS dbo.", CompletionTarget.DataSource, CompletionIntent.Reference, "UPDATE")]
     [InlineData("DISABLE TRIGGER dbo.", CompletionTarget.Trigger, CompletionIntent.Reference, "DISABLE")]
     [InlineData("SELECT 1\nDROP /* x */ TABLE LibArchive.dbo.", CompletionTarget.DataSource, CompletionIntent.Reference, "DROP")]
     public void 第一層物件的名稱格由種類推出(

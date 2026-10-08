@@ -29,8 +29,9 @@
 
 同一條規則換一份名冊：種類是 `PROCEDURE`／`PROC`、`FUNCTION`、`VIEW`、`TRIGGER`、`TABLE`、`SEQUENCE`、`SYNONYM`、`TYPE` 時，
 那一格列程序、函式、檢視、觸發程序、資料來源、序列、同義字或資料表型別（`SqlCatalogEntityPosition.ResolveObject`）。
-`TYPE` 只列資料表型別：中繼資料只載入這一種自訂型別。動詞不手寫，認的是產生器的名稱格片語：
-`ALTER`、`DROP` 由 `Kinds` 展開，`TRUNCATE TABLE`、`ENABLE`／`DISABLE TRIGGER`（含 `ALTER TABLE t ENABLE TRIGGER`）另外宣告。
+`TYPE` 只列資料表型別：中繼資料只載入這一種自訂型別。`STATISTICS` 列資料來源：統計資料寫在資料表底下，
+`UPDATE STATISTICS t`、`DROP STATISTICS t.s` 的第一段都是資料表或索引檢視。動詞不手寫，認的是產生器的名稱格片語：
+`ALTER`、`DROP` 由 `Kinds` 展開，`TRUNCATE TABLE`、`UPDATE STATISTICS`、`ENABLE`／`DISABLE TRIGGER`（含 `ALTER TABLE t ENABLE TRIGGER`）另外宣告。
 動詞沒有片語就是在產生器補宣告，不在執行期補一條比對。動詞與種類之間夾註解或換行照樣認得。
 
 - `CREATE OR ALTER` 之後可能是既有的那一個，照 `ALTER` 算；只有 `CREATE` 之後是新名字。

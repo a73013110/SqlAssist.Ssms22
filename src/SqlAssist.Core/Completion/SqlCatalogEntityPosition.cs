@@ -45,6 +45,9 @@ internal static class SqlCatalogEntityPosition
         ["VIEW"] = CompletionTarget.View,
         ["TRIGGER"] = CompletionTarget.Trigger,
         ["TABLE"] = CompletionTarget.DataSource,
+
+        // 統計資料寫在資料表底下：UPDATE STATISTICS t、DROP STATISTICS t.s 的第一段都是資料表或索引檢視。
+        ["STATISTICS"] = CompletionTarget.DataSource,
         ["SEQUENCE"] = CompletionTarget.Sequence,
         ["SYNONYM"] = CompletionTarget.Synonym,
 
