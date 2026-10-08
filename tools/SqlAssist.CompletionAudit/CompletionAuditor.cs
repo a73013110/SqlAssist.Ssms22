@@ -492,6 +492,14 @@ public sealed class CompletionAuditor
         /// </summary>
         private Shape Exclude(int position, Shape shape)
         {
+            var token = Tokens[position];
+
+            // 名稱位置上的佔位符（FROM Table）換成名稱剖析，分類成查不到的名稱；排除的理由要是佔位符。
+            if (_definitions.IsPlaceholder(token.Start))
+            {
+                return shape.Excluded(AuditExclusion.Placeholder);
+            }
+
             if (shape.Class is not { } tokenClass)
             {
                 return shape;
@@ -501,8 +509,6 @@ public sealed class CompletionAuditor
             {
                 return shape.Excluded(AuditExclusion.Placeholder);
             }
-
-            var token = Tokens[position];
 
             if (_definitions.IsUnparsed(token.Start))
             {
@@ -517,11 +523,6 @@ public sealed class CompletionAuditor
 
             if (tokenClass is AuditTokenClass.Word or AuditTokenClass.GlobalVariable)
             {
-                if (_definitions.IsPlaceholderArgument(token.Start))
-                {
-                    return shape.Excluded(AuditExclusion.Placeholder);
-                }
-
                 // 不守大寫慣例的語料靠語法樹分字與名稱；剖析不過的那一句（錯之前也是）不在樹上，
                 // 只有保留字確定是字，INSERT INTO t (Name 的 Name 說不出是欄位還是 NAME。
                 return tokenClass == AuditTokenClass.Word &&

@@ -356,6 +356,18 @@ public sealed class AuditDefinitionsTests
         Assert.False(definitions.IsUnparsed(At(sql, "SELECT", 3)));
     }
 
+    [Fact]
+    public void 資料表的位置寫了保留字是佔位符_那一句照常認()
+    {
+        const string sql = "SELECT 1 FROM Table WHERE 1 = 1\nSELECT a, FROM Loan";
+        var definitions = AuditDefinitions.Collect(sql);
+
+        Assert.True(definitions.IsPlaceholder(At(sql, "Table", 1)));
+        Assert.False(definitions.IsUnparsed(At(sql, "WHERE", 1)));
+        Assert.False(definitions.IsPlaceholder(At(sql, "FROM", 2)));
+        Assert.Equal(1, definitions.UnparsedStatements);
+    }
+
     [Theory]
     [InlineData("SELECT ReaderId FROM Lib_Reader WHERE")]
     [InlineData("IF 1 = 1\nBEGIN\n    SELECT 1 FROM Loan WHERE CopyNo IN (")]

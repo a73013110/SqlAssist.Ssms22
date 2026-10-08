@@ -1637,7 +1637,7 @@ internal static class SqlKeywordCatalogData
         }),
         ("ALTER DATABASE {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ", true, false, false, false, new string[]
         {
-            "ADD", "COLLATE", "MODIFY", "PERFORM_CUTOVER", "REBUILD", "REMOVE", "SET",
+            "ADD", "COLLATE", "MODIFY", "PERFORM_CUTOVER", "REBUILD LOG", "REMOVE", "SET",
         }),
         ("ALTER DATABASE CURRENT", SqlKeywordPosition.StatementStart, "ALTER DATABASE CURRENT ", true, false, false, false, new string[]
         {
@@ -2859,6 +2859,25 @@ internal static class SqlKeywordCatalogData
         }),
         ("DROP AVAILABILITY GROUP {name}", SqlKeywordPosition.StatementStart, "DROP AVAILABILITY GROUP t ", true, false, false, true, new string[]
         {
+        }),
+        ("ALTER DATABASE {name} ADD", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD ", true, false, false, false, new string[]
+        {
+            "FILE", "FILEGROUP", "LOG FILE",
+        }),
+        ("ALTER DATABASE {name} COLLATE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t COLLATE ", false, false, true, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} MODIFY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY ", true, false, false, false, new string[]
+        {
+            "FILE", "FILEGROUP", "NAME",
+        }),
+        ("ALTER DATABASE {name} REBUILD", SqlKeywordPosition.StatementStart, "ALTER DATABASE t REBUILD ", true, false, false, false, new string[]
+        {
+            "LOG",
+        }),
+        ("ALTER DATABASE {name} REMOVE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t REMOVE ", true, false, false, false, new string[]
+        {
+            "FILE", "FILEGROUP",
         }),
         ("ALTER DATABASE {name} SET", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ", true, false, false, false, new string[]
         {
@@ -9519,6 +9538,10 @@ internal static class SqlKeywordCatalogData
         ("CREATE TABLE ... FILESTREAM_ON {name}", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) FILESTREAM_ON t ", true, false, false, true, new string[]
         {
             "FILESTREAM_ON", "TEXTIMAGE_ON", "WITH",
+        }),
+        ("CREATE TABLE ... ON {name} ()", SqlKeywordPosition.StatementStart, "CREATE TABLE t (a int) ON t (a) ", true, false, false, true, new string[]
+        {
+            "FEDERATED", "FILESTREAM_ON", "TEXTIMAGE_ON", "WITH",
         }),
         ("CONNECTION (* {name}", SqlKeywordPosition.ColumnDefinition | SqlKeywordPosition.AlterTableAdd, "CREATE TABLE t (CONNECTION (t ", true, false, false, false, new string[]
         {
@@ -17570,17 +17593,9 @@ internal static class SqlKeywordCatalogData
         {
             "CLEAR", "SET",
         }),
-        ("ALTER DATABASE {name} ADD", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD ", true, false, false, false, new string[]
-        {
-            "FILE", "FILEGROUP", "LOG FILE",
-        }),
         ("ALTER DATABASE {name} ADD LOG", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD LOG ", true, false, false, false, new string[]
         {
             "FILE",
-        }),
-        ("ALTER DATABASE {name} MODIFY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t MODIFY ", true, false, false, false, new string[]
-        {
-            "FILE", "FILEGROUP", "NAME",
         }),
         ("CREATE DATABASE {name} (* SERVICE_OBJECTIVE =", SqlKeywordPosition.StatementStart, "CREATE DATABASE t (SERVICE_OBJECTIVE = ", true, false, false, false, new string[]
         {

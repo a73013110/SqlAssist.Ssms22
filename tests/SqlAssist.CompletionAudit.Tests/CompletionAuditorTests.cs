@@ -417,6 +417,26 @@ public sealed class CompletionAuditorTests
     }
 
     [Fact]
+    public async Task 名稱的位置寫了保留字_只排除那個字()
+    {
+        var result = await AuditAsync("SELECT 1 FROM TABLE WHERE 1 = 1", AuditCatalog.None);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.Word == "TABLE");
+        Assert.Equal(1, result.Tally.Excluded[AuditExclusion.Placeholder]);
+        Assert.Equal(0, result.Tally.UnparsedStatements);
+    }
+
+    [Theory]
+    [InlineData("SELECT 1 FROM OPENJSON('[]')")]
+    [InlineData("SELECT 1 FROM t ORDER")]
+    public async Task 剖析得過或寫到一半的字不是佔位符(string text)
+    {
+        var result = await AuditAsync(text, AuditCatalog.None);
+
+        Assert.False(result.Tally.Excluded.TryGetValue(AuditExclusion.Placeholder, out var count) && count > 0);
+    }
+
+    [Fact]
     public async Task 範例遮掉名稱_常值與註解內容()
     {
         var catalog = new FakeCatalog(("Lib_Reader", AuditTokenClass.Object));

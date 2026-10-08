@@ -87,7 +87,8 @@ internal static class DdlPhrases
         new("CREATE AVAILABILITY GROUP {name}"),
         new("ALTER AVAILABILITY GROUP {name}"),
         new("DROP AVAILABILITY GROUP {name}"),
-        new("ALTER DATABASE {name}"),
+        // 名稱之後的動作（ADD、MODIFY、REMOVE FILE）展開一層，與 ALTER DATABASE CURRENT 同深；ADD、MODIFY 之後更深的標頭另外宣告。
+        new("ALTER DATABASE {name}") { Expand = 1 },
         new("ALTER DATABASE {name} SET") { Expand = 1 },
 
         // 資料庫範圍設定：SCOPED 在剖析器眼中也可以是資料庫名稱，逐字探不出來，整段是證據。
@@ -270,6 +271,8 @@ internal static class DdlPhrases
         new("CREATE TABLE {name} AS FILETABLE") { Values = ["WITH"] },
         .. new[] { "ON", "TEXTIMAGE_ON", "FILESTREAM_ON" }.Select(storage =>
             new PhraseDeclaration($"CREATE TABLE ... {storage} {{name}}") { Gap = "t (a int)", Values = ["WITH"] }),
+        // ON 也可以是資料分割配置與分割資料行（ON ps (a)），之後同樣接 TEXTIMAGE_ON、FILESTREAM_ON 與 WITH。
+        new("CREATE TABLE ... ON {name} ()") { Gap = "t (a int)", Values = ["WITH"] },
         new("CONNECTION (* {name}") { After = TableItem, Endings = [" x))"] },
         new("CONNECTION ()") { After = TableItem, Group = "(a TO b)", Expand = 2 },
 

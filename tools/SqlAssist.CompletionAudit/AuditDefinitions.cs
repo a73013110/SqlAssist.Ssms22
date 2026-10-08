@@ -44,7 +44,7 @@ public sealed class AuditDefinitions
     private readonly HashSet<int> _notNames = new();
     private readonly HashSet<int> _unparsed = new();
     private readonly HashSet<int> _valueLiterals = new();
-    private readonly HashSet<int> _placeholderArguments = new();
+    private readonly HashSet<int> _placeholders = new();
     private readonly Dictionary<string, List<Visibility>> _scoped = new(StringComparer.Ordinal);
     private readonly List<(TSqlFragment Name, Scope Scope, string? Table)> _pending = new();
     private readonly List<(int Start, int End)> _queries = new();
@@ -141,10 +141,11 @@ public sealed class AuditDefinitions
     public bool IsValueLiteral(int start) => _valueLiterals.Contains(start);
 
     /// <summary>
-    /// <paramref name="start"/> 起頭的詞元站在日期部分的位置上，卻不是日期部分：sql-docs 的 <c>DATENAME(datepart, …)</c>
-    /// 是語法說明的佔位符，DATEPART 碰巧是函式名稱才被當成字。
+    /// <paramref name="start"/> 起頭的詞元是語法說明的佔位符，只排除這一個詞：日期部分的位置上寫的不是日期部分
+    /// （sql-docs 的 <c>DATENAME(datepart, …)</c>，DATEPART 碰巧是函式名稱），或名稱的位置上寫了保留字
+    /// （<c>SELECT XmlCol.query('…') FROM Table</c>）。
     /// </summary>
-    public bool IsPlaceholderArgument(int start) => _placeholderArguments.Contains(start);
+    public bool IsPlaceholder(int start) => _placeholders.Contains(start);
 
     /// <summary>
     /// <paramref name="start"/> 起頭的詞元站在名稱的位置上：語法樹上的識別字，型別名稱與函式名稱除外
@@ -430,7 +431,15 @@ public sealed class AuditDefinitions
         {
             fragment = new TSql170Parser(initialQuotedIdentifiers: true).Parse(new StringReader(parsed), out var errors);
 
-            if (errors.Count == 0 || !definitions.SkipStatement(ref parsed, errors.Min(error => error.Offset), tokens, heads))
+            if (errors.Count == 0)
+            {
+                break;
+            }
+
+            var offset = errors.Min(error => error.Offset);
+
+            if (!definitions.SubstitutePlaceholder(ref parsed, offset, tokens) &&
+                !definitions.SkipStatement(ref parsed, offset, tokens, heads))
             {
                 break;
             }
@@ -440,6 +449,51 @@ public sealed class AuditDefinitions
         definitions._nameReferences.ExceptWith(definitions._notNames);
         definitions.Resolve();
         return definitions;
+    }
+
+    /// <summary>
+    /// 錯報在一個字上、那個字換成普通名稱就成了物件名稱的話，它寫在資料表這類物件的位置上（<c>FROM Table</c>）：
+    /// 記成佔位符、換成名稱（位置不變）再剖析，那一句其餘的詞照常稽核。
+    /// </summary>
+    /// <remarks>
+    /// 剖析器把錯報在字上，是那個字在那裡不可能合法；寫到一半的（<c>FROM t ORDER</c>）報在結尾。只認換成名稱之後是物件名稱的：
+    /// <c>SELECT a, FROM t</c> 的 FROM 換成名稱也剖析得過（讀成欄位與別名），那是寫錯，不是佔位符。
+    /// 真的名稱與函式（<c>FROM OPENJSON(…)</c>）剖析得過，不會走到這裡。
+    /// </remarks>
+    private bool SubstitutePlaceholder(ref string parsed, int offset, IReadOnlyList<SqlToken> tokens)
+    {
+        var index = 0;
+
+        while (index < tokens.Count && tokens[index].Start < offset)
+        {
+            index++;
+        }
+
+        if (index == tokens.Count || tokens[index] is not { Start: var start, Kind: SqlTokenKind.Identifier, IsQuoted: false } token ||
+            start != offset || !char.IsLetter(token.Text[0]))
+        {
+            return false;
+        }
+
+        var substituted = parsed.Substring(0, offset) + "t".PadRight(token.Length) + parsed.Substring(token.End);
+        var fragment = new TSql170Parser(initialQuotedIdentifiers: true).Parse(new StringReader(substituted), out var errors);
+        var objectNames = new ObjectNameCollector();
+
+        if (errors.Count > 0 && errors.Min(error => error.Offset) <= offset)
+        {
+            return false;
+        }
+
+        fragment?.Accept(objectNames);
+
+        if (!objectNames.Starts.Contains(offset))
+        {
+            return false;
+        }
+
+        _placeholders.Add(offset);
+        parsed = substituted;
+        return true;
     }
 
     /// <summary>
@@ -831,6 +885,19 @@ public sealed class AuditDefinitions
     }
 
     /// <summary>一段語法樹裡取過的資料來源別名。</summary>
+    private sealed class ObjectNameCollector : TSqlFragmentVisitor
+    {
+        public HashSet<int> Starts { get; } = new();
+
+        public override void Visit(SchemaObjectName node)
+        {
+            foreach (var identifier in node.Identifiers)
+            {
+                Starts.Add(identifier.StartOffset);
+            }
+        }
+    }
+
     private sealed class AliasCollector : TSqlFragmentVisitor
     {
         public HashSet<string> Names { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -891,7 +958,7 @@ public sealed class AuditDefinitions
                 if (parameter is IdentifierLiteral { Value: { } value } literal &&
                     !SqlArgumentCatalog.TryGetDescription(value, SqlBuiltInKind.DatePart, out _))
                 {
-                    _owner._placeholderArguments.Add(literal.StartOffset);
+                    _owner._placeholders.Add(literal.StartOffset);
                 }
             }
         }
