@@ -211,6 +211,9 @@ internal static class DdlPhrases
         new("VARYING") { After = ["ColumnDefinitionTail"], Template = 8 },
         // xml 型別的括號裡是 CONTENT、DOCUMENT 與結構描述集合；型別寫在宣告、參數與資料行定義都一樣，判不出位置，尾巴本身認得出來。
         new("XML (*") { Lead = "DECLARE @x " },
+        // vector 的第二個引數是基底型別：剖析器把那一格當名稱讀（VECTOR(3, foo) 也剖析得過），值只能手寫，
+        // 照 sql-docs 只有 float32（預設）與 float16，封閉。
+        new("VECTOR ( {value} ,") { Lead = "DECLARE @x ", Values = ["float32", "float16"], Closed = true },
         // 資料行層級的索引名稱之後的種類：之後是 WITH (…)、ON；WITH (…) 之後的 FILESTREAM_ON 補進型別之後那一格。
         // 不從 INDEX {name} 展開：那一格接得上整份資料行選項，每個字都會另立一個片語。
         new("INDEX {name}") { After = ["ColumnDefinitionTail"] },

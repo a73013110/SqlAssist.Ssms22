@@ -359,6 +359,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("DECLARE @x xml(", "CONTENT", "DOCUMENT")]
     [InlineData("CREATE TABLE t (Note [xml](", "CONTENT", "DOCUMENT")]
     [InlineData("CREATE PROCEDURE dbo.usp_Renew @Note sys.xml(", "CONTENT")]
+    [InlineData("DECLARE @v VECTOR(3, ", "float32", "float16")]
+    [InlineData("CREATE TABLE dbo.Copy (Embedding [vector](1536,", "float16")]
+    [InlineData("SELECT CAST(@Probe AS Vector(3, ", "float32")]
     [InlineData("CREATE PROCEDURE dbo.usp_Renew @Copies dbo.CopyList ", "READONLY")]
     [InlineData("CREATE FUNCTION dbo.fn_Fee (@Copies dbo.CopyList READONLY, @Loans dbo.LoanList ", "READONLY")]
     [InlineData("CREATE PROCEDURE dbo.usp_Renew @Copies dbo.CopyList READONLY AS ", "SELECT", "EXTERNAL")]
@@ -883,6 +886,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT * FROM t UNPIVOT (v FOR ", "JSON")]
     [InlineData("SELECT TRY_PARSE('x' AS date USING ", "USING")]
     [InlineData("DECLARE @x dbo.xml(", "CONTENT")]
+    [InlineData("DECLARE @v dbo.vector(3, ", "float16")]
+    [InlineData("DECLARE @v VECTOR(", "float16")]
+    [InlineData("SELECT VECTOR_DISTANCE('cosine', @a, ", "float16")]
     [InlineData("SELECT TOP (10) ", "INTO")]
     [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE, ", "DEFAULT_LANGUAGE")]
     [InlineData("SELECT a, ", "CHECK_POLICY")]
@@ -979,6 +985,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER DATABASE Lib SET DB_CHAINING ON, TRUSTWORTHY ", true)]
     [InlineData("CREATE EVENT NOTIFICATION LoanNote ON SERVER FOR QN__DYNAMICS, ", true)]
     [InlineData("ALTER ENDPOINT LibEndpoint STATE = ", true)]
+    [InlineData("DECLARE @v VECTOR(3, ", true)]
     public void 封閉的片語換掉整份清單(string textBeforeCaret, bool closed)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);

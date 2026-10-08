@@ -9110,6 +9110,10 @@ internal static class SqlKeywordCatalogData
         {
             "CONTENT", "DOCUMENT",
         }),
+        ("VECTOR ( {value} ,", SqlKeywordPosition.Any, "DECLARE @x VECTOR (1 , ", true, false, true, false, new string[]
+        {
+            "float32", "float16",
+        }),
         ("INDEX {name}", SqlKeywordPosition.ColumnDefinitionTail, "CREATE TABLE t (a int INDEX t ", true, false, false, false, new string[]
         {
             "CHECK", "COLLATE", "COLUMN_SET FOR ALL_SPARSE_COLUMNS", "CONSTRAINT", "DEFAULT",
