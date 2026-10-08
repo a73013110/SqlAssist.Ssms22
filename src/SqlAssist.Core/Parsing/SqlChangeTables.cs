@@ -143,22 +143,7 @@ internal static class SqlChangeTables
     /// <summary>動詞之後的目標：跳過 <c>TOP (n) [PERCENT]</c> 與 INSERT、MERGE 的 INTO、DELETE 的 FROM。</summary>
     private static SqlTableReference? ReadTarget(IReadOnlyList<SqlToken> tokens, int verb)
     {
-        var index = verb + 1;
-
-        if (index < tokens.Count && tokens[index].IsKeyword("TOP"))
-        {
-            index++;
-
-            if (index < tokens.Count && tokens[index].IsPunctuation("("))
-            {
-                index = SqlTokenNavigator.SkipParenthesised(tokens, index, tokens.Count);
-            }
-
-            if (index < tokens.Count && tokens[index].IsKeyword("PERCENT"))
-            {
-                index++;
-            }
-        }
+        var index = SqlTokenNavigator.SkipDmlTop(tokens, verb + 1, tokens.Count);
 
         if (index < tokens.Count && (tokens[index].IsKeyword("INTO") || tokens[index].IsKeyword("FROM")))
         {

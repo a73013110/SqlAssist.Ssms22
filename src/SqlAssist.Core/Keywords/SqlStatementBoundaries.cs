@@ -60,8 +60,12 @@ internal sealed class SqlStatementBoundaries
     /// <summary><paramref name="keyword"/> 的 FROM 或 INTO 後面接資料來源，由它所屬的動詞決定。</summary>
     public bool IntroducesDataSource(int keyword) => analyzer.IntroducesDataSource(Map(keyword));
 
-    /// <summary><paramref name="index"/> 的 INSERT、UPDATE、DELETE 是安全性原則 AFTER、BEFORE 之後的作業，不是動詞。</summary>
-    public bool NamesBlockOperation(int index) => analyzer.NamesBlockOperation(Map(index));
+    /// <summary><paramref name="last"/> 之後是 DML 動詞省略 FROM、INTO 的目標時回傳那個動詞；否則 -1。</summary>
+    public int FindDmlTarget(int last)
+    {
+        var verb = analyzer.FindDmlTarget(Map(last));
+        return verb > operand ? verb - 1 : verb;
+    }
 
     /// <summary><paramref name="from"/> 的 FROM 是 <c>FETCH … FROM</c>，後面是游標名稱。</summary>
     public bool IntroducesCursor(int from) => analyzer.IntroducesCursor(Map(from));

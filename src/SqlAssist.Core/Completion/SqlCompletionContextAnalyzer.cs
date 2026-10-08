@@ -604,17 +604,9 @@ public static class SqlCompletionContextAnalyzer
         CompletionTarget statementTarget,
         SqlExecutedModule? executedModule)
     {
-        // FROM、JOIN、INTO、UPDATE、MERGE、USING 與 APPLY，以及 EXEC 的引數。
+        // FROM、JOIN、INTO、USING、APPLY 與 DML 動詞的目標（DELETE @rows、INSERT @rows 省略了 FROM、INTO），以及 EXEC 的引數。
         if (statementTarget is CompletionTarget.DataSource or CompletionTarget.TableFunction ||
             executedModule is not null)
-        {
-            return false;
-        }
-
-        // DELETE @rows 與 INSERT @rows 省略了 FROM／INTO。DetermineTarget 不認這兩個字
-        // 單獨出現：一般位置裡它們後面要列的是 FROM、INTO 這些關鍵字，不是資料表。
-        if (tokens.Count > 0 &&
-            (tokens[tokens.Count - 1].IsKeyword("DELETE") || tokens[tokens.Count - 1].IsKeyword("INSERT")))
         {
             return false;
         }
@@ -747,7 +739,12 @@ public static class SqlCompletionContextAnalyzer
 
         // INSERT INTO 之後選一張資料表，要的幾乎不會是「只把名稱補上」——那句話還沒寫完。
         // 光看 INTO 分不出來：SELECT … INTO #tmp 的 INTO 後面是一個還不存在的新名稱，
-        // 展開成 INSERT 骨架會蓋掉他正在取的名字。所以認的是 INSERT INTO 這兩個字。
+        // 展開成 INSERT 骨架會蓋掉他正在取的名字。所以認的是 INSERT [INTO]。
+        //
+        // MERGE 與 INSERT 同一條理由，而且更成立：那句話還沒寫完，
+        // 而 MERGE 是三個子句都要逐欄重打的語句。INTO 兩種都可以省略（INSERT dbo.T、MERGE dbo.T AS t），
+        // 兩種寫法都要認——漏掉哪一種都是那個寫法安靜地退化成只補名稱。
+        // 這一條必須排在下面單獨的 INTO 之前，否則 INSERT INTO 會被那一條接走。
         intent = CompletionIntent.InsertStatement;
 
         if (EndsWithKeywords(text, "INSERT", "INTO", out keywordStart))
@@ -755,15 +752,22 @@ public static class SqlCompletionContextAnalyzer
             return CompletionTarget.DataSource;
         }
 
-        // MERGE 與 INSERT 同一條理由，而且更成立：那句話還沒寫完，
-        // 而 MERGE 是三個子句都要逐欄重打的語句。INTO 可以省略（MERGE dbo.T AS t），
-        // 兩種寫法都要認——漏掉哪一種都是那個寫法安靜地退化成只補名稱。
-        // 這一條必須排在下面單獨的 INTO 之前，否則 MERGE INTO 會被那一條接走。
         intent = CompletionIntent.MergeStatement;
 
-        if (EndsWithKeywords(text, "MERGE", "INTO", out keywordStart) ||
-            EndsWithKeyword(text, "MERGE", out keywordStart))
+        if (EndsWithKeywords(text, "MERGE", "INTO", out keywordStart))
         {
+            return CompletionTarget.DataSource;
+        }
+
+        // 動詞或它的 TOP 子句之後是動詞的目標，DELETE、INSERT、MERGE 省略了 FROM、INTO 也一樣
+        // （判準見 SqlStatementBoundaries.FindDmlTarget）。夾著 TOP 的不展開：骨架從動詞寫起，會蓋掉那個 TOP。
+        if (FindDmlTarget(tokens, textBeforeToken, text.Length) is { } verb)
+        {
+            intent = verb.End != text.Length ? CompletionIntent.Reference
+                : verb.IsKeyword("INSERT") ? CompletionIntent.InsertStatement
+                : verb.IsKeyword("MERGE") ? CompletionIntent.MergeStatement
+                : CompletionIntent.Reference;
+            keywordStart = verb.Start;
             return CompletionTarget.DataSource;
         }
 
@@ -836,9 +840,7 @@ public static class SqlCompletionContextAnalyzer
             return into ? CompletionTarget.Variable : CompletionTarget.Any;
         }
 
-        // 安全性原則的 AFTER UPDATE 是作業，不是 UPDATE 的目標。
         if (EndsWithKeyword(text, "JOIN", out keywordStart) ||
-            (EndsWithKeyword(text, "UPDATE", out keywordStart) && !NamesBlockOperation(tokens, textBeforeToken, keywordStart)) ||
             EndsWithKeyword(text, "USING", out keywordStart))
         {
             return CompletionTarget.DataSource;
@@ -857,12 +859,22 @@ public static class SqlCompletionContextAnalyzer
         return index < 0 || new SqlStatementBoundaries(textBeforeToken, tokens).IntroducesDataSource(index);
     }
 
-    /// <summary>從 <paramref name="keywordStart"/> 開始的 UPDATE 是安全性原則的作業。</summary>
-    private static bool NamesBlockOperation(IReadOnlyList<SqlToken> tokens, string textBeforeToken, int keywordStart)
+    /// <summary>
+    /// 結束在 <paramref name="end"/> 之前的最後一個詞元之後是 DML 動詞的目標時回傳那個動詞。
+    /// </summary>
+    /// <remarks>TOP 子句以右括號結尾，不能照關鍵字那樣從字元往回找詞元的起點。</remarks>
+    private static SqlToken? FindDmlTarget(IReadOnlyList<SqlToken> tokens, string textBeforeToken, int end)
     {
-        var index = FindTokenAt(tokens, keywordStart);
+        var index = tokens.Count - 1;
 
-        return index >= 0 && new SqlStatementBoundaries(textBeforeToken, tokens).NamesBlockOperation(index);
+        while (index >= 0 && tokens[index].End > end)
+        {
+            index--;
+        }
+
+        return index >= 0 && new SqlStatementBoundaries(textBeforeToken, tokens).FindDmlTarget(index) is var verb and >= 0
+            ? tokens[verb]
+            : null;
     }
 
     /// <summary>從 <paramref name="keywordStart"/> 開始的關鍵字是一句的開頭。</summary>

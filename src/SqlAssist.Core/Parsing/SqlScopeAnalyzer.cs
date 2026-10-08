@@ -53,7 +53,7 @@ public static class SqlScopeAnalyzer
 
     /// <summary>會在後面接資料來源的關鍵字。</summary>
     /// <remarks>
-    /// MERGE、UPDATE 與 DELETE 同理，後面直接是目標（<c>MERGE dbo.Loan t USING …</c>、省略 FROM 的
+    /// MERGE、UPDATE 與 DELETE 同理，後面直接是目標，中間可以夾 TOP 子句（<c>MERGE TOP (10) dbo.Loan t USING …</c>、省略 FROM 的
     /// <c>DELETE dbo.Loan WHERE …</c>）；寫了 INTO、FROM 的由它們收。目標是之後 FROM 取的別名時
     /// （<c>DELETE l FROM dbo.Loan l</c>）與 UPDATE 一樣由 <see cref="RemoveAliasReferences"/> 拿掉。
     /// 聯結提示 <c>INNER MERGE JOIN</c> 後面是 JOIN、MERGE 動作的 <c>THEN DELETE</c> 後面是 WHEN，讀不出名稱，不會多收一個來源。
@@ -495,7 +495,9 @@ public static class SqlScopeAnalyzer
             // FROM 與 INTO 後面可以是逗號分隔的清單，JOIN／APPLY／USING 只接一個。
             var allowsList = token.IsKeyword("FROM") || token.IsKeyword("INTO");
             var collects = !selectInto || !token.IsKeyword("INTO");
-            index++;
+
+            // UPDATE、DELETE、MERGE 的目標寫在 TOP 子句之後（MERGE TOP (10) dbo.Loan t）；其餘的字後面不會是 TOP。
+            index = SqlTokenNavigator.SkipDmlTop(tokens, index + 1, end);
 
             while (index < end)
             {

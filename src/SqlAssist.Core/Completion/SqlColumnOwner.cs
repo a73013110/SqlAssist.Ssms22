@@ -337,18 +337,7 @@ internal static class SqlColumnOwner
                 continue;
             }
 
-            var target = index + 1;
-
-            if (target < then && tokens[target].IsKeyword("TOP") &&
-                target + 1 < then && tokens[target + 1].IsPunctuation("("))
-            {
-                target = SqlTokenNavigator.SkipParenthesised(tokens, target + 1, then);
-
-                if (target < then && tokens[target].IsKeyword("PERCENT"))
-                {
-                    target++;
-                }
-            }
+            var target = SqlTokenNavigator.SkipDmlTop(tokens, index + 1, then);
 
             if (target < then && tokens[target].IsKeyword("INTO"))
             {

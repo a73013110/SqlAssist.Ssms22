@@ -259,7 +259,9 @@ public sealed class SqlScriptTableCompletionTests
     /// </remarks>
     [Theory]
     [InlineData(TemporaryTable + "INSERT INTO #L|", "#Loan", CompletionIntent.InsertStatement)]
+    [InlineData(TemporaryTable + "INSERT #L|", "#Loan", CompletionIntent.InsertStatement)]
     [InlineData(TemporaryTable + "MERGE INTO #L|", "#Loan", CompletionIntent.MergeStatement)]
+    [InlineData(TemporaryTable + "MERGE #L|", "#Loan", CompletionIntent.MergeStatement)]
     public void 暫存資料表帶得出展開整句所需的資料(
         string sqlWithCaret,
         string name,
@@ -280,6 +282,48 @@ public sealed class SqlScriptTableCompletionTests
     }
 
     /// <summary>
+    /// DML 動詞省略 FROM、INTO 的目標與寫了的同一格：暫存資料表照樣列得出來。
+    /// </summary>
+    /// <remarks>
+    /// 只認寫了 FROM 的症狀是 <c>DELETE #Loan</c> 只能整個名稱自己打。夾著 TOP 子句的不展開整句：
+    /// 骨架從動詞寫起，會蓋掉那個 TOP。
+    /// </remarks>
+    [Theory]
+    [InlineData(TemporaryTable + "DELETE #L|", CompletionIntent.Reference)]
+    [InlineData(TemporaryTable + "DELETE TOP (1) #L|", CompletionIntent.Reference)]
+    [InlineData(TemporaryTable + "DELETE TOP (10) PERCENT #L|", CompletionIntent.Reference)]
+    [InlineData(TemporaryTable + "UPDATE TOP (1) #L|", CompletionIntent.Reference)]
+    [InlineData(TemporaryTable + "INSERT TOP (1) #L|", CompletionIntent.Reference)]
+    [InlineData(TemporaryTable + "MERGE TOP (1) #L|", CompletionIntent.Reference)]
+    [InlineData(TemporaryTable + "IF 1 = 1 DELETE #L|", CompletionIntent.Reference)]
+    public void 省略FROM與INTO的目標列得出暫存資料表(string sqlWithCaret, CompletionIntent intent)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(CompletionTarget.DataSource, context.Target);
+        Assert.Equal(intent, context.Intent);
+        Assert.Single(context.ScriptSources, item => item.DisplayText == "#Loan");
+    }
+
+    /// <summary>不是一句開頭的 DML 字不是動詞，後面不是它的目標。</summary>
+    [Theory]
+    [InlineData(TemporaryTable + "MERGE #Loan AS t USING #Loan AS s ON t.Id = s.Id WHEN MATCHED THEN UPDATE |")]
+    [InlineData(TemporaryTable + "GRANT INSERT, DELETE |")]
+    public void 不是一句開頭的DML字之後不是資料來源(string sqlWithCaret)
+    {
+        Assert.NotEqual(CompletionTarget.DataSource, Analyze(sqlWithCaret).Target);
+    }
+
+    /// <summary>MERGE 的目標寫在 TOP 子句之後，取的別名照樣限定得了欄位。</summary>
+    [Fact]
+    public void TOP子句之後的MERGE目標別名列得出欄位()
+    {
+        Assert.Equal(
+            new[] { "Id", "CopyNo", "ReaderId" },
+            QualifiedColumns(TemporaryTable + "MERGE TOP (1) #Loan AS t USING dbo.Copy AS s ON t.|"));
+    }
+
+    /// <summary>
     /// 資料表變數走的是變數那條路，一樣要展開成整句。
     /// </summary>
     /// <remarks>
@@ -288,6 +332,7 @@ public sealed class SqlScriptTableCompletionTests
     /// </remarks>
     [Theory]
     [InlineData(TableVariable + "INSERT INTO @L|", CompletionIntent.InsertStatement)]
+    [InlineData(TableVariable + "INSERT @L|", CompletionIntent.InsertStatement)]
     [InlineData(TableVariable + "MERGE INTO @L|", CompletionIntent.MergeStatement)]
     public void 資料表變數帶得出展開整句所需的資料(string sqlWithCaret, CompletionIntent intent)
     {

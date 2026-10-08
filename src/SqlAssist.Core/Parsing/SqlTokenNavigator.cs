@@ -389,6 +389,22 @@ public static class SqlTokenNavigator
             : index;
     }
 
+    /// <summary>
+    /// 跳過 DML 動詞之後的 <c>TOP (n) [PERCENT]</c>，停在目標（或 INTO、FROM）上；沒有 TOP 子句就原地。
+    /// </summary>
+    /// <remarks>DML 的 TOP 只寫得出括號那一種，沒有 WITH TIES。</remarks>
+    public static int SkipDmlTop(IReadOnlyList<SqlToken> tokens, int index, int end)
+    {
+        if (index + 1 >= end || !tokens[index].IsKeyword("TOP") || !tokens[index + 1].IsPunctuation("("))
+        {
+            return index;
+        }
+
+        index = SkipParenthesised(tokens, index + 1, end);
+
+        return index < end && tokens[index].IsKeyword("PERCENT") ? index + 1 : index;
+    }
+
     /// <summary>從左括號跳到對應的右括號之後；配不起來時停在 <paramref name="end"/>。</summary>
     public static int SkipParenthesised(IReadOnlyList<SqlToken> tokens, int index, int end)
     {

@@ -1344,6 +1344,25 @@ public sealed partial class SqlKeywordPositionAnalyzer
         tokens[index].IsKeyword("DELETE") || tokens[index].IsKeyword("MERGE");
 
     /// <summary>
+    /// <paramref name="last"/> 之後是 DML 動詞的目標時回傳那個動詞；否則 -1。
+    /// </summary>
+    /// <remarks>
+    /// 目標緊接在開始一句的動詞或它的 <c>TOP (n) [PERCENT]</c> 之後：<c>UPDATE </c>、<c>DELETE </c>、
+    /// <c>INSERT </c>、<c>MERGE TOP (10) </c>。DELETE 的 FROM 與 INSERT、MERGE 的 INTO 可以省略，
+    /// 省略之後那一格與 <c>DELETE FROM </c>、<c>INSERT INTO </c> 是同一個目標；只認寫了那個字的症狀是
+    /// <c>DELETE #t</c> 列不出指令碼的暫存資料表。寫了的由 <see cref="IntroducesDataSource"/> 答。
+    ///
+    /// 不是一句開頭的同一個字不是動詞：<c>THEN UPDATE</c> 接 SET，權限清單的 INSERT、DELETE 接逗號或 ON，
+    /// 安全性原則的 <c>AFTER UPDATE</c> 是作業（<see cref="IsStatementHead"/> 已排除）。
+    /// </remarks>
+    internal int FindDmlTarget(int last)
+    {
+        var verb = FindTopClauseOwner(last) is var owner and >= 0 ? owner : last;
+
+        return IsDmlVerb(verb) && IsStatementHead(verb) ? verb : -1;
+    }
+
+    /// <summary>
     /// <paramref name="last"/> 結束資料表名稱的 <c>FOR</c> 後綴時回傳那個 FOR；否則 -1。
     /// </summary>
     /// <remarks>

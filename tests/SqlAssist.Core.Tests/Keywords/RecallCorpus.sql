@@ -117,6 +117,14 @@ DELETE dbo.Loan OUTPUT deleted.CopyNo
 
 DELETE dbo.Loan OUTPUT deleted.CopyNo AS OldCopyNo INTO @Changes WHERE ReaderId = 2
 
+CREATE TABLE #LoanQueue (CopyNo INT, ReaderId INT)
+DELETE #LoanQueue WHERE CopyNo = 1
+DELETE TOP (1) #LoanQueue
+INSERT #LoanQueue (CopyNo) VALUES (1)
+INSERT TOP (1) #LoanQueue (CopyNo) SELECT CopyNo FROM #LoanQueue
+UPDATE TOP (1) #LoanQueue SET ReaderId = 2
+MERGE TOP (1) #LoanQueue AS q USING dbo.Copy AS c ON q.CopyNo = c.CopyNo WHEN MATCHED THEN DELETE;
+
 DELETE dbo.Loan OUTPUT deleted.CopyNo, COMPRESS(deleted.CopyNo) AS Packed
 
 DELETE l FROM dbo.Loan l JOIN dbo.Copy c ON c.CopyNo = l.CopyNo
