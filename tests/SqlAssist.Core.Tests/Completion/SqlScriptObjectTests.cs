@@ -88,6 +88,8 @@ public sealed class SqlScriptObjectTests
         "CREATE FUNCTION f () RETURNS @out TABLE (a int) AS BEGIN\r\nSELECT * FROM |",
         "@out")]
     [InlineData("CREATE PROCEDURE p @rows dbo.LoanList READONLY AS\r\nSELECT * FROM |", "@rows")]
+    [InlineData("CREATE TYPE dbo.LoanList AS TABLE (CopyNo INT)\r\nGO\r\nDECLARE @rows AS dbo.LoanList;\r\nSELECT * FROM |", "@rows")]
+    [InlineData("CREATE TYPE dbo.LoanList AS TABLE (CopyNo INT)\r\nGO\r\nDECLARE @rows AS dbo.LoanList;\r\nINSERT INTO |", "@rows")]
     public void FROM之後列出資料表變數(string sqlWithCaret, string expected)
     {
         Assert.Equal(new[] { expected }, ScriptSources(sqlWithCaret));

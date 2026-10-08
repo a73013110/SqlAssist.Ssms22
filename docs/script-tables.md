@@ -66,7 +66,7 @@ DECLARE @rows TABLE (Id INT, CopyNo NVARCHAR(20));
 換到[變數](completion-variables.md)那份清單去找。
 資料表值參數（`@rows dbo.LoanRows READONLY`）也在名冊裡：`READONLY` 只寫在資料表型別的參數上，憑它就分得出來。
 資料行在型別定義裡，同一份指令碼寫了 `CREATE TYPE … AS TABLE (…)` 才讀得到，否則只有名稱；
-沒有 `READONLY` 的 `DECLARE @t dbo.LoanRows` 分不出型別是資料表還是別名型別，不收。
+沒有 `READONLY` 的 `DECLARE @t dbo.LoanRows` 只在同一份指令碼定義了那個資料表型別時收（`FROM`、`INSERT INTO` 都列），否則分不出是資料表還是別名型別。
 宣告成 `xml` 的變數也收：資料來源的位置接得了 `@x.nodes('/a') T(c)`。提交只補名稱，點號之後沒有方法清單，
 由使用者自己打。
 

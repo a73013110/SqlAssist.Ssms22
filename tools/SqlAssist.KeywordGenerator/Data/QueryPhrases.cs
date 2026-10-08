@@ -98,6 +98,8 @@ internal static class QueryPhrases
         // 也比對得到資料行）；函式引數裡判不出位置，從呼叫寫起。
         new("AI_GENERATE_EMBEDDINGS (* {value} USE") { Lead = "SELECT " },
         new("AI_GENERATE_EMBEDDINGS (* {value} USE MODEL {name}") { Lead = "SELECT " },
+        // PARAMETERS 之後是一個運算式（JSON 的請求參數）：片語說那一格收值，位置分析把 PARAMETERS 讀成別名也不算數。
+        new("AI_GENERATE_EMBEDDINGS (* {value} USE MODEL {name} PARAMETERS") { Lead = "SELECT " },
 
         // PARSE、TRY_PARSE 的型別之後是 USING 文化特性：型別是名稱，Lead 片語以名稱結尾的一段不立，另外宣告。
         new("PARSE (* {value} AS {name}") { Lead = "SELECT " },

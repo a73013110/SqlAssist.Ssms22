@@ -28,6 +28,9 @@
 當成 `ON {name}` 的名稱的話 `LOGIN` 就不見了；不收開資料來源的字（`OpensTableSource`）：`MERGE t AS target USING (` 當成擴充事件的
 `TARGET {name} (*` 就封閉了子查詢，其餘子句錨點照收（`= ON` 的 ON 是值）；也不收正在宣告的變數，`DECLARE @a` 不是 ISO 游標的 `DECLARE {name}`。
 
+片語以一個字結尾、確定又不封閉，位置分析卻把那個字讀成寫完的運算元時，位置改成運算式的開頭：
+`AI_GENERATE_EMBEDDINGS(x USE MODEL m PARAMETERS ` 的 PARAMETERS 不是關鍵字，讀成 m 的別名的話函式一個都列不出來。
+
 帶 `After` 的片語再問 `SqlKeywordPositionAnalyzer.PositionBefore`：前一格判得出而且對得上
 才算，區塊開頭視同語句開頭（`BEGIN SET`），換行補上的語句開頭只給真的開頭（`UPDATE t⏎SET` 不是）。前一格判不出位置（`Any`）時比對結果是**可能**
 （`SqlClausePhraseMatch.IsCertain` 為否）：片語的字加進整份關鍵字，同名的目錄字讓給片語，

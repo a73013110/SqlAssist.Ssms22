@@ -782,6 +782,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT CopyNo FROM dbo.Copy FOR XML PATH, ELEMENTS ", "ABSENT", "XSINIL")]
     [InlineData("SELECT CopyNo FROM dbo.Copy FOR XML RAW, TYPE, ELEMENTS ", "ABSENT", "XSINIL")]
     [InlineData("ALTER AVAILABILITY GROUP LibGroup REMOVE ", "REPLICA ON", "DATABASE")]
+    [InlineData("SELECT AI_GENERATE_EMBEDDINGS(N'x' USE MODEL LibModel PARAMETERS ", "TRY_CONVERT", "JSON_OBJECT", "CASE")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);

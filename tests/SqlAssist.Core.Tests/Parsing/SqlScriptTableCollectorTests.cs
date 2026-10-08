@@ -225,4 +225,25 @@ public sealed class SqlScriptTableCollectorTests
         Assert.Empty(Collect("@t TABLE (a int) CREATE PROCEDURE p @rows LoanRows READONLY AS SELECT 1", "@rows").ColumnNames);
         Assert.Empty(SqlScriptTableCollector.Collect(SqlTokenizer.Tokenize("DECLARE @rows dbo.LoanRows")));
     }
+
+    /// <summary>沒有 READONLY 的宣告：同一份指令碼寫了 CREATE TYPE … AS TABLE 時分得出是資料表型別。</summary>
+    [Theory]
+    [InlineData("DECLARE @rows AS LoanRows;")]
+    [InlineData("DECLARE @days INT, @rows dbo.LoanRows")]
+    public void 宣告成指令碼定義的資料表型別的變數讀型別定義的資料行(string declaration)
+    {
+        var sql = "CREATE TYPE dbo.LoanRows AS TABLE (CopyNo NVARCHAR(20), ReaderId INT)\nGO\n" + declaration + "\nINSERT INTO @rows";
+
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, Collect(sql, "@rows").ColumnNames);
+        Assert.False(SqlScriptTableCollector.Collect(SqlTokenizer.Tokenize(sql)).ContainsKey("@days"));
+    }
+
+    /// <summary>型別名稱以外的寫法不算宣告：選取清單的別名碰巧與型別同名。</summary>
+    [Fact]
+    public void 資料表型別同名的別名不是宣告()
+    {
+        const string sql = "CREATE TYPE LoanRows AS TABLE (CopyNo INT)\nSELECT @a AS LoanRows";
+
+        Assert.False(SqlScriptTableCollector.Collect(SqlTokenizer.Tokenize(sql)).ContainsKey("@a"));
+    }
 }

@@ -128,7 +128,10 @@ public sealed class CompletionAuditor
     }
 
     /// <summary>以 <c>GO</c> 切開的批次：起點與長度。</summary>
-    /// <remarks>產品分析的是整份編輯器文字，但 <c>GO</c> 之後的範圍、變數與暫存資料表都重新開始，逐批問的答案相同。</remarks>
+    /// <remarks>
+    /// 判定逐批做：<c>GO</c> 之後的範圍、變數與暫存資料表都重新開始。問清單時游標前的文字仍是整段，與編輯器相同：
+    /// 前一批的 <c>CREATE TYPE … AS TABLE</c> 讓這一批的 <c>DECLARE @t AS 型別</c> 認得出是資料表變數。
+    /// </remarks>
     private static IEnumerable<(int Start, int Length)> Batches(string text)
     {
         var start = 0;
@@ -346,7 +349,7 @@ public sealed class CompletionAuditor
             }
 
             var token = Tokens[index];
-            var prefix = _text.Substring(0, token.Start);
+            var prefix = _fragment.Text.Substring(0, _offset + token.Start);
             var typed = FirstTyped(token);
             // 與建議來源同一個多載：單一參數那一支只給按鍵路徑判斷要不要參與，不做範圍分析。
             var opened = SqlCompletionContextAnalyzer.Analyze(prefix, prefix.Length);

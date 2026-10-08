@@ -289,9 +289,24 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 ? analyzer.FindPhraseListAnchor(tokens.Count - 1)
                 : -1;
         var phrase = SqlClausePhraseCatalog.Match(analyzer, tokens, textBeforeToken, caret.Keywords, listAnchor);
+        var keywords = OpensOperand(phrase, caret.Keywords) ? SqlKeywordPosition.Any : caret.Keywords;
 
-        return new SqlCaretPosition(caret.Keywords, caret.Slot, phrase, analyzer.StartsBatch(), caret.NewNameQualifier);
+        return new SqlCaretPosition(keywords, caret.Slot, phrase, analyzer.StartsBatch(), caret.NewNameQualifier);
     }
+
+    /// <summary>
+    /// 片語以一個字結尾、那一格不封閉，位置分析卻把那個字讀成寫完的運算元：那裡是運算式的開頭。
+    /// </summary>
+    /// <remarks>
+    /// 不是關鍵字的片語字在位置分析眼中是名稱：<c>AI_GENERATE_EMBEDDINGS(x USE MODEL m PARAMETERS </c> 的 PARAMETERS
+    /// 讀成 m 的別名，位置成了運算元之後，函式一個都列不出來。片語是更靠近游標的答案，由它改正。
+    /// 不看名稱格（<see cref="SqlClausePhrase.TakesName"/>）：剖析器在那一格不收常值、收函式，產生器判成名稱格；
+    /// 真的名稱格落在運算式裡時，多列的只是函式。
+    /// </remarks>
+    private static bool OpensOperand(SqlClausePhraseMatch? phrase, SqlKeywordPosition keywords) =>
+        phrase is { IsCertain: true, IsClosed: false, Phrase.LastWord: { Length: > 0 } word } &&
+        (char.IsLetter(word[0]) || word[0] == '_') &&
+        (keywords & SqlKeywordPosition.OperandTail) != SqlKeywordPosition.None;
 
     /// <summary>同一個批次裡游標前面還沒有任何詞元。</summary>
     /// <remarks>

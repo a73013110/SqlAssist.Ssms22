@@ -90,9 +90,13 @@ public static class SqlScriptTableCollector
             index = listEnd;
         }
 
+        // 資料表型別的名單只在遇到沒有 READONLY 的宣告時才讀一次：每按一鍵都走這裡，多數指令碼一份都沒有。
+        HashSet<string>? tableTypes = null;
+        bool IsTableType(string typeName) => (tableTypes ??= TableTypeNames(tokens)).Contains(typeName);
+
         for (var index = 0; index < tokens.Count; index++)
         {
-            if (ReadTableParameter(tokens, index, out var typeName, out var readOnly) is not { } name)
+            if (ReadTableParameter(tokens, index, IsTableType, out var typeName, out var end) is not { } name)
             {
                 continue;
             }
@@ -103,28 +107,30 @@ public static class SqlScriptTableCollector
             {
                 result.Add(
                     name,
-                    new SqlScriptTable(name, () => ReadTypeColumns(tokens, typeName), tokens[index].Start, tokens[readOnly].End));
+                    new SqlScriptTable(name, () => ReadTypeColumns(tokens, typeName), tokens[index].Start, tokens[end].End));
             }
 
-            index = readOnly;
+            index = end;
         }
 
         return result ?? NoTables;
     }
 
     /// <summary>
-    /// <paramref name="index"/> 是資料表值參數（<c>@rows dbo.LoanRows READONLY</c>）時傳回參數名稱。
+    /// <paramref name="index"/> 是資料表值參數（<c>@rows dbo.LoanRows READONLY</c>）或宣告成資料表型別的變數時傳回名稱。
     /// </summary>
     /// <remarks>
-    /// <c>READONLY</c> 只寫在資料表型別的參數上，憑它就分得出不是純量；<c>DECLARE @t dbo.LoanRows</c> 沒有它，
-    /// 只看文字分不出型別是資料表還是別名型別，不收。少了這一條的症狀是程序裡 <c>FROM </c> 之後列不出自己的參數。
+    /// <c>READONLY</c> 只寫在資料表型別的參數上，憑它就分得出不是純量。<c>DECLARE @t dbo.LoanRows</c> 沒有它，
+    /// 只看文字分不出型別是資料表還是別名型別；同一份指令碼寫了 <c>CREATE TYPE LoanRows AS TABLE (…)</c> 時分得出來，收。
+    /// 少了這一條的症狀是程序裡 <c>FROM </c> 之後列不出自己的參數，<c>INSERT INTO </c> 之後列不出宣告的變數。
     /// </remarks>
     /// <param name="typeName">型別名稱的最後一段。</param>
-    /// <param name="readOnly"><c>READONLY</c> 的位置。</param>
-    private static string? ReadTableParameter(IReadOnlyList<SqlToken> tokens, int index, out string typeName, out int readOnly)
+    /// <param name="end">宣告的最後一個詞元：<c>READONLY</c> 或型別名稱。</param>
+    private static string? ReadTableParameter(
+        IReadOnlyList<SqlToken> tokens, int index, Func<string, bool> isTableType, out string typeName, out int end)
     {
         typeName = string.Empty;
-        readOnly = -1;
+        end = -1;
 
         if (tokens[index].Kind != SqlTokenKind.Variable)
         {
@@ -139,15 +145,27 @@ public static class SqlScriptTableCollector
             last += 2;
         }
 
-        if (last + 1 >= tokens.Count ||
-            tokens[type].Kind != SqlTokenKind.Identifier ||
-            !tokens[last + 1].IsKeyword("READONLY"))
+        if (type >= tokens.Count || tokens[type].Kind != SqlTokenKind.Identifier)
+        {
+            return null;
+        }
+
+        if (last + 1 < tokens.Count && tokens[last + 1].IsKeyword("READONLY"))
+        {
+            end = last + 1;
+        }
+        else if (index >= 1 &&
+            (tokens[index - 1].IsKeyword("DECLARE") || tokens[index - 1].IsPunctuation(",")) &&
+            isTableType(tokens[last].Value))
+        {
+            end = last;
+        }
+        else
         {
             return null;
         }
 
         typeName = tokens[last].Value;
-        readOnly = last + 1;
         return tokens[index].Value;
     }
 
@@ -157,26 +175,48 @@ public static class SqlScriptTableCollector
     /// <remarks>型別在資料庫裡的那一份要問中繼資料，這裡讀不到，只留名稱。</remarks>
     private static IReadOnlyList<SqlScriptColumn> ReadTypeColumns(IReadOnlyList<SqlToken> tokens, string typeName)
     {
+        var open = FindTypeDefinition(tokens, typeName);
+        var close = open < 0 ? -1 : SqlTokenNavigator.FindClosingParenthesis(tokens, open, tokens.Count);
+
+        return close >= 0 ? ReadColumns(tokens, open + 1, close) : Array.Empty<SqlScriptColumn>();
+    }
+
+    /// <summary>指令碼自己寫的 <c>CREATE TYPE … AS TABLE (</c> 裡 <paramref name="typeName"/> 那一份的左括號；沒有時是 -1。</summary>
+    private static int FindTypeDefinition(IReadOnlyList<SqlToken> tokens, string typeName)
+    {
         for (var open = 0; open < tokens.Count; open++)
         {
-            if (FindDefinitionName(tokens, open) is not { } name ||
-                name.Start < 1 ||
-                !tokens[name.Start - 1].IsKeyword("TYPE") ||
-                !string.Equals(tokens[name.End - 1].Value, typeName, StringComparison.OrdinalIgnoreCase))
+            if (TypeDefinitionName(tokens, open) is { } name &&
+                string.Equals(name, typeName, StringComparison.OrdinalIgnoreCase))
             {
-                continue;
-            }
-
-            var close = SqlTokenNavigator.FindClosingParenthesis(tokens, open, tokens.Count);
-
-            if (close >= 0)
-            {
-                return ReadColumns(tokens, open + 1, close);
+                return open;
             }
         }
 
-        return Array.Empty<SqlScriptColumn>();
+        return -1;
     }
+
+    /// <summary>指令碼自己寫的 <c>CREATE TYPE … AS TABLE (…)</c> 定義了哪些型別（名稱的最後一段）。</summary>
+    private static HashSet<string> TableTypeNames(IReadOnlyList<SqlToken> tokens)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var open = 0; open < tokens.Count; open++)
+        {
+            if (TypeDefinitionName(tokens, open) is { } name)
+            {
+                names.Add(name);
+            }
+        }
+
+        return names;
+    }
+
+    /// <summary><paramref name="open"/> 是 <c>CREATE TYPE … AS TABLE (</c> 的左括號時，型別名稱的最後一段。</summary>
+    private static string? TypeDefinitionName(IReadOnlyList<SqlToken> tokens, int open) =>
+        FindDefinitionName(tokens, open) is { } name && name.Start >= 1 && tokens[name.Start - 1].IsKeyword("TYPE")
+            ? tokens[name.End - 1].Value
+            : null;
 
     /// <summary>
     /// 游標所在的資料表定義（<see cref="FindDefinitionName"/>）定義的是 <paramref name="target"/> 時，那份定義寫出來的資料行；

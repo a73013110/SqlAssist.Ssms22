@@ -400,6 +400,14 @@ public sealed class CompletionAuditorTests
     }
 
     [Fact]
+    public async Task 問清單時游標前是整段文字_前一批的資料表型別認得出來()
+    {
+        var result = await AuditAsync("CREATE TYPE LoanRows AS TABLE (CopyNo int)\nGO\nDECLARE @Rows AS LoanRows\nINSERT INTO @Rows", AuditCatalog.None);
+
+        Assert.DoesNotContain(result.Misses, miss => miss.TokenClass == AuditTokenClass.ScriptName);
+    }
+
+    [Fact]
     public async Task 日期部分那一格不是日期部分_是佔位符()
     {
         var result = await AuditAsync("SELECT DATENAME(datepart, 1)", AuditCatalog.None);

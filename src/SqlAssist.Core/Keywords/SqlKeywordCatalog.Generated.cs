@@ -13975,6 +13975,12 @@ internal static class SqlKeywordCatalogData
         {
             "PARAMETERS",
         }),
+        ("AI_GENERATE_EMBEDDINGS (* {value} USE MODEL {name} PARAMETERS", SqlKeywordPosition.Any, "SELECT AI_GENERATE_EMBEDDINGS (1 USE MODEL t PARAMETERS ", false, true, true, false, new string[]
+        {
+            "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "IDENTITYCOL", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT", "ROWGUIDCOL",
+            "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER",
+        }),
         ("PARSE (* {value} AS {name}", SqlKeywordPosition.Any, "SELECT PARSE (1 AS t ", true, false, false, false, new string[]
         {
             "USING",
