@@ -767,6 +767,13 @@ public sealed class SqlClausePhraseTests
     [InlineData("WHILE (1 = 1) BEGIN\n", "END", "BREAK")]
     [InlineData("MERGE INTO dbo.Loan AS target\nUSING (\n", "SELECT")]
     [InlineData("MERGE INTO dbo.Loan target USING (", "SELECT")]
+    [InlineData("ALTER DATABASE Lib SET TWO_DIGIT_YEAR_CUTOFF = 2000, CONTAINMENT = ", "NONE", "PARTIAL")]
+    [InlineData("ALTER DATABASE Lib SET ANSI_NULLS ON, DELAYED_DURABILITY = ", "ALLOWED", "FORCED")]
+    [InlineData("CREATE DATABASE Lib CONTAINMENT = PARTIAL ", "ON", "WITH", "COLLATE")]
+    [InlineData("CREATE CERTIFICATE LibCert FROM EXECUTABLE FILE = 'x.dll' ", "WITH")]
+    [InlineData("CREATE CERTIFICATE LibCert FROM EXECUTABLE FILE = 'x.dll' WITH ", "PRIVATE KEY")]
+    [InlineData("CREATE CERTIFICATE LibCert AUTHORIZATION LibOwner FROM FILE = 'x.cer' WITH ", "PRIVATE KEY")]
+    [InlineData("SELECT * FROM OPENROWSET (BULK 'x', SINGLE_NCLOB, ORDER (CopyNo ASC, BranchId DESC) ", "UNIQUE")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);

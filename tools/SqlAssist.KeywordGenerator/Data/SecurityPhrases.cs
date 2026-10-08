@@ -178,6 +178,13 @@ internal static class SecurityPhrases
         new(head + " ENCRYPTION BY SERVER ASYMMETRIC KEY {name}"),
     ];
 
+    // 憑證從檔案載入：sql-docs 寫 [EXECUTABLE] FILE = …，擁有者寫在名稱之後。靜態欄位依宣告順序初始化，寫在 Keys 前面。
+    private static readonly string[] CertificateFiles =
+    [
+        .. new[] { "", " AUTHORIZATION {name}" }.SelectMany(owner => new[] { "FILE", "EXECUTABLE FILE" }
+            .Select(file => $"CREATE CERTIFICATE {{name}}{owner} FROM {file} = {{value}}")),
+    ];
+
     internal static readonly PhraseDeclaration[] Keys =
     [
         // 金鑰與憑證的標頭：種類與名稱由 CREATE、ALTER 的展開給，這裡往下寫加密方式（ENCRYPTION BY 憑證、密碼或
@@ -227,11 +234,11 @@ internal static class SecurityPhrases
         new("RESTORE MASTER KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value} ENCRYPTION BY PASSWORD = {value}"),
         new("RESTORE SERVICE {name} KEY FROM FILE = {value} DECRYPTION BY PASSWORD = {value}"),
         new("BACKUP CERTIFICATE {name} TO FILE = {value}") { Expand = 2 },
-        new("CREATE CERTIFICATE {name} FROM FILE = {value}") { Expand = 2 },
+        .. CertificateFiles.Select(file => new PhraseDeclaration(file) { Expand = 2 }),
         new("ALTER CERTIFICATE {name}") { Expand = 2 },
         new("ALTER ASYMMETRIC KEY {name}") { Expand = 2 },
         new("BACKUP CERTIFICATE {name} TO FILE = {value} WITH PRIVATE KEY"),
-        new("CREATE CERTIFICATE {name} FROM FILE = {value} WITH PRIVATE KEY"),
+        .. CertificateFiles.Select(file => new PhraseDeclaration(file + " WITH PRIVATE KEY")),
         new("ALTER CERTIFICATE {name} WITH PRIVATE KEY"),
         new("PRIVATE KEY (*") { Lead = "ALTER CERTIFICATE t WITH ", Closed = false },
         new("PRIVATE KEY (* ENCRYPTION") { Lead = "ALTER CERTIFICATE t WITH ", Items = "FILE = 'x', " },

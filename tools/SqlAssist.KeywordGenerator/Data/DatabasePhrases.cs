@@ -8,6 +8,9 @@ internal static class DatabasePhrases
     // 檔案規格的探測文字：剖析器要 FILEGROUP、LOG ON 前面先寫過一組。
     private const string FileSpec = "(NAME = a, FILENAME = 'x')";
 
+    // 靜態欄位依宣告順序初始化，要寫在用到它的清單前面。
+    private static readonly string[] CreateDatabaseHeads = ["CREATE DATABASE {name}", "CREATE DATABASE {name} CONTAINMENT = {name}"];
+
     internal static readonly PhraseDeclaration[] Files =
     [
         // 檔案規格一組一組寫下去（ON (…), (…), FILEGROUP g (…) LOG ON (…)），中段的 ,* 走過前面幾組，第幾組的括號裡都是同一份項。
@@ -15,8 +18,7 @@ internal static class DatabasePhrases
         // 一組寫完之後是 LOG、COLLATE、FOR ATTACH 與 WITH。整句已經完整，WITH 也是 CTE 的開頭被扣掉了，手寫補回。
         // SSMS 產生的指令碼在名稱與 ON 之間寫 CONTAINMENT = NONE：標頭有兩種寫法，各宣告一份。
         new("CREATE DATABASE {name} CONTAINMENT ="),
-        .. CreateDatabase("CREATE DATABASE {name} ON"),
-        .. CreateDatabase("CREATE DATABASE {name} CONTAINMENT = {name} ON"),
+        .. CreateDatabaseHeads.SelectMany(head => CreateDatabase(head + " ON")),
         // 資料庫快照集：檔案規格之後是 AS SNAPSHOT OF 來源資料庫。SNAPSHOT 剖析器要讀到 OF 才收，寫到 SNAPSHOT 的整段是證據。
         new("CREATE DATABASE {name} ON ,* () AS SNAPSHOT") { Group = FileSpec },
 
@@ -25,7 +27,7 @@ internal static class DatabasePhrases
         // 名稱寫完整句已經完整，WITH 也是 CTE 的開頭被扣掉了，手寫補回，續尾寫一個選項驗它。
         // FILESTREAM 之後的括號與 NON_TRANSACTED_ACCESS 的值共用續尾寫不完，由 Endings 補。
         // PERSISTENT_LOG_BUFFER = ON (DIRECTORY_NAME = …) 剖析器還不認得。
-        new("CREATE DATABASE {name}") { Values = ["WITH"], Endings = [" TRUSTWORTHY ON"] },
+        .. CreateDatabaseHeads.Select(head => new PhraseDeclaration(head) { Values = ["WITH"], Endings = [" TRUSTWORTHY ON"] }),
         new("CREATE DATABASE ... WITH ,*") { Gap = "t COLLATE Latin1_General_CI_AS", Endings = [FileStreamOptions] },
         FileStream("CREATE DATABASE ... WITH ,*", "t COLLATE Latin1_General_CI_AS"),
 

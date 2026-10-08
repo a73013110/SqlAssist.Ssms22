@@ -3438,6 +3438,10 @@ internal static class SqlKeywordCatalogData
         {
             "OF",
         }),
+        ("CREATE DATABASE {name} CONTAINMENT = {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ", true, false, false, true, new string[]
+        {
+            "AS", "COLLATE", "FOR", "LOG", "ON", "WITH",
+        }),
         ("CREATE DATABASE ... WITH", SqlKeywordPosition.StatementStart, "CREATE DATABASE t COLLATE Latin1_General_CI_AS WITH ", true, false, false, false, new string[]
         {
             "CATALOG_COLLATION", "DATA_RETENTION", "DB_CHAINING", "DEFAULT_FULLTEXT_LANGUAGE",
@@ -3930,6 +3934,30 @@ internal static class SqlKeywordCatalogData
         ("ALTER DATABASE {name} SET ,* TARGET_RECOVERY_TIME = {value}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TARGET_RECOVERY_TIME = 1 ", true, false, false, false, new string[]
         {
             "MINUTES", "SECONDS",
+        }),
+        ("ALTER DATABASE {name} SET ,* AUTOMATIC_TUNING =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, AUTOMATIC_TUNING = ", true, false, false, false, new string[]
+        {
+            "AUTO", "CUSTOM", "INHERIT",
+        }),
+        ("ALTER DATABASE {name} SET ,* CONTAINMENT =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, CONTAINMENT = ", true, false, false, false, new string[]
+        {
+            "NONE", "PARTIAL",
+        }),
+        ("ALTER DATABASE {name} SET ,* DELAYED_DURABILITY =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, DELAYED_DURABILITY = ", true, false, false, false, new string[]
+        {
+            "ALLOWED", "DISABLED", "FORCED",
+        }),
+        ("ALTER DATABASE {name} SET ,* MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* NESTED_TRIGGERS =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, NESTED_TRIGGERS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET ,* TRANSFORM_NOISE_WORDS =", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY = ON, TRANSFORM_NOISE_WORDS = ", true, false, false, false, new string[]
+        {
+            "OFF", "ON",
         }),
         ("ALTER DATABASE {name} SET ,* AUTO_CREATE_STATISTICS ON (*", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTO_CREATE_STATISTICS ON (", true, false, true, false, new string[]
         {
@@ -9543,6 +9571,10 @@ internal static class SqlKeywordCatalogData
         {
             "ASC", "DESC",
         }),
+        ("OPENROWSET (* ORDER ()", SqlKeywordPosition.DataSource, "SELECT * FROM OPENROWSET (BULK 'x', FORMATFILE = 'f', ORDER (a) ", true, false, false, false, new string[]
+        {
+            "UNIQUE",
+        }),
         ("VECTOR_SEARCH (*", SqlKeywordPosition.DataSource, "SELECT * FROM VECTOR_SEARCH (", true, false, false, false, new string[]
         {
             "TABLE", "COLUMN", "SIMILAR_TO", "METRIC", "TOP_N",
@@ -12942,6 +12974,18 @@ internal static class SqlKeywordCatalogData
         {
             "WITH",
         }),
+        ("CREATE CERTIFICATE {name} FROM EXECUTABLE FILE = {value}", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM EXECUTABLE FILE = 'x' ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM FILE = {value}", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM FILE = 'x' ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM EXECUTABLE FILE = {value}", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM EXECUTABLE FILE = 'x' ", true, false, false, true, new string[]
+        {
+            "WITH",
+        }),
         ("ALTER CERTIFICATE {name} REMOVE", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE t REMOVE ", true, false, false, false, new string[]
         {
             "PRIVATE KEY",
@@ -12977,6 +13021,15 @@ internal static class SqlKeywordCatalogData
         {
         }),
         ("CREATE CERTIFICATE {name} FROM FILE = {value} WITH PRIVATE KEY", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM FILE = 'x' WITH PRIVATE KEY ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} FROM EXECUTABLE FILE = {value} WITH PRIVATE KEY", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM EXECUTABLE FILE = 'x' WITH PRIVATE KEY ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM FILE = {value} WITH PRIVATE KEY", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM FILE = 'x' WITH PRIVATE KEY ", true, false, false, false, new string[]
+        {
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM EXECUTABLE FILE = {value} WITH PRIVATE KEY", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM EXECUTABLE FILE = 'x' WITH PRIVATE KEY ", true, false, false, false, new string[]
         {
         }),
         ("ALTER CERTIFICATE {name} WITH PRIVATE KEY", SqlKeywordPosition.StatementStart, "ALTER CERTIFICATE t WITH PRIVATE KEY ", true, false, false, false, new string[]
@@ -17450,10 +17503,6 @@ internal static class SqlKeywordCatalogData
         {
             "CLEAR", "SET",
         }),
-        ("CREATE DATABASE {name} CONTAINMENT = {name}", SqlKeywordPosition.StatementStart, "CREATE DATABASE t CONTAINMENT = NONE ", true, false, false, true, new string[]
-        {
-            "AS", "COLLATE", "FOR", "LOG", "ON",
-        }),
         ("ALTER DATABASE {name} ADD", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ADD ", true, false, false, false, new string[]
         {
             "FILE", "FILEGROUP", "LOG FILE",
@@ -18839,6 +18888,30 @@ internal static class SqlKeywordCatalogData
             "PRIVATE KEY",
         }),
         ("CREATE CERTIFICATE {name} FROM FILE = {value} WITH PRIVATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM FILE = 'x' WITH PRIVATE ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE CERTIFICATE {name} FROM EXECUTABLE FILE = {value} WITH", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM EXECUTABLE FILE = 'x' WITH ", true, false, true, false, new string[]
+        {
+            "PRIVATE KEY",
+        }),
+        ("CREATE CERTIFICATE {name} FROM EXECUTABLE FILE = {value} WITH PRIVATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t FROM EXECUTABLE FILE = 'x' WITH PRIVATE ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM FILE = {value} WITH", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM FILE = 'x' WITH ", true, false, true, false, new string[]
+        {
+            "PRIVATE KEY",
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM FILE = {value} WITH PRIVATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM FILE = 'x' WITH PRIVATE ", true, false, false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM EXECUTABLE FILE = {value} WITH", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM EXECUTABLE FILE = 'x' WITH ", true, false, true, false, new string[]
+        {
+            "PRIVATE KEY",
+        }),
+        ("CREATE CERTIFICATE {name} AUTHORIZATION {name} FROM EXECUTABLE FILE = {value} WITH PRIVATE", SqlKeywordPosition.StatementStart, "CREATE CERTIFICATE t AUTHORIZATION t FROM EXECUTABLE FILE = 'x' WITH PRIVATE ", true, false, false, false, new string[]
         {
             "KEY",
         }),

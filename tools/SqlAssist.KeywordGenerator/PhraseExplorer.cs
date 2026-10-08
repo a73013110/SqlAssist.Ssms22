@@ -1036,19 +1036,31 @@ internal sealed class PhraseExplorer
             {
                 var written = prefix + word;
                 var slot = written + " = ";
+                var itemPattern = (listPattern.Length > 0 ? listPattern + " " : string.Empty) + word + " =";
 
                 if (done.Contains(word) || _prober.FirstRejection(slot) <= (written + " ").Length)
                 {
                     continue;
                 }
 
-                // 探測文字相同就是同一格（見 AddEvidence）：別的宣告已經立了那一格，不另立一個互相搶比對
-                // （展開不走進固定標頭的清單，見展開那一段）。括號清單的一項寫在哪裡都是同一條尾巴：
-                // 等號那一格沒有字、只立了值之後那一格的，以及以 Lead 宣告、哪一份清單都比對得上的那一項
-                // （WITH (* DATA_COMPRESSION =、WITH (* MAX_DURATION = {value}）也算說了。
-                if (Phrases.WithProbe(slot).Any() || openList && (Phrases.AnyProbeStartingWith(slot) || LeadItem(listPattern, prefix, word)))
+                // 括號清單的一項寫在哪裡都是同一條尾巴：別的宣告已經立了那一格、等號那一格沒有字只立了值之後那一格的，
+                // 以及以 Lead 宣告、哪一份清單都比對得上的那一項（WITH (* DATA_COMPRESSION =、WITH (* MAX_DURATION = {value}）都算說了。
+                if (openList && (Phrases.AnyProbeStartingWith(slot) || LeadItem(listPattern, prefix, word)))
                 {
                     done.Add(word);
+                    continue;
+                }
+
+                // 探測文字相同就是同一格（見 AddEvidence），不另立一個互相搶比對：宣告了這一項（WITH ,* STOPLIST =）就由它說。
+                // 第一項那一格已由標頭的展開立了（ALTER DATABASE t SET CONTAINMENT =）時同 AddItemWords 改從逗號之後那一格探：
+                // 展開立的那一條只比得上第一項，否則 SET ANSI_NULLS ON, CONTAINMENT = 之後列不出值。
+                if (Phrases.WithProbe(slot).Any())
+                {
+                    if (Phrases.WithProbe(slot).Any(phrase => phrase.Pattern.Equals(itemPattern, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        done.Add(word);
+                    }
+
                     continue;
                 }
 
@@ -1064,7 +1076,6 @@ internal sealed class PhraseExplorer
                 }
 
                 done.Add(word);
-                var itemPattern = (listPattern.Length > 0 ? listPattern + " " : string.Empty) + word + " =";
 
                 // 收值的那一格是運算式（AI_GENERATE_CHUNKS(SOURCE = d) 寫的是資料行）：列得出的字之外名稱也寫得進去，不封閉。
                 // 照整句寫不寫得完判的話，後面還有必填的項就判成封閉。

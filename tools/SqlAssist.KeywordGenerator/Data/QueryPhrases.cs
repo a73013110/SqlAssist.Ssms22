@@ -31,8 +31,10 @@ internal static class QueryPhrases
     internal static readonly PhraseDeclaration[] Rowsets =
     [
         new("OPENROWSET (*") { After = ["DataSource"] },
-        // BULK 的 ORDER 是資料檔的排序：一項是資料行，之後是 ASC、DESC。ORDER 只能寫在資料檔之後，探測墊 BULK 與格式檔。
+        // BULK 的 ORDER 是資料檔的排序：一項是資料行，之後是 ASC、DESC；括號之後的 UNIQUE 說排序鍵不重複。
+        // ORDER 只能寫在資料檔之後，探測墊 BULK 與格式檔。
         new("OPENROWSET (* ORDER (* {name}") { After = ["DataSource"], Items = "BULK 'x', FORMATFILE = 'f', " },
+        new("OPENROWSET (* ORDER ()") { After = ["DataSource"], Items = "BULK 'x', FORMATFILE = 'f', " },
         // VECTOR_SEARCH 的具名引數順序固定（TABLE、COLUMN、SIMILAR_TO、METRIC、TOP_N），清單一項一項往下探。
         // METRIC 只收距離的名稱，共用續尾寫不完那一項就探不到後面的 TOP_N。
         new("VECTOR_SEARCH (*") { After = ["DataSource"], Endings = [" = 'cosine'"] },
