@@ -52,6 +52,8 @@ internal sealed class SqlDatabaseTabGroupProvider : IFileGroupProvider
         registrar.RegisterProvider(
             new Guid(ProviderGuidString),
             () => Task.FromResult<IFileGroupProvider>(new SqlDatabaseTabGroupProvider(package)));
+
+        await SqlDatabaseTabChoiceMemory.StartAsync(package).ConfigureAwait(false);
     }
 
     public async Task<int?> GetFileGroupIdAsync(string filePath, IVsHierarchy hierarchy, uint itemId, CancellationToken token)

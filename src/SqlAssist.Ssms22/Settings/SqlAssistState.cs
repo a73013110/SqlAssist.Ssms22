@@ -28,6 +28,7 @@ internal static class SqlAssistState
     private const string SearchMatchStateProperty = "SearchMatchState";
     private const string SqlMemoryMatchStateProperty = "SqlMemoryMatchState";
     private const string DatabaseTabGroupsProperty = "DatabaseTabGroups";
+    private const string TabsColoredByDatabaseProperty = "TabsColoredByDatabase";
 
     private static WritableSettingsStore? _store;
     private static bool _resolved;
@@ -117,6 +118,13 @@ internal static class SqlAssistState
     {
         get => Read(DatabaseTabGroupsProperty);
         set => Write(DatabaseTabGroupsProperty, value);
+    }
+
+    /// <summary>使用者在殼層的著色方式選單選了「資料庫」；殼層自己記不住，見 <c>SqlDatabaseTabChoiceMemory</c>。</summary>
+    public static bool TabsColoredByDatabase
+    {
+        get => Read(TabsColoredByDatabaseProperty) == "1";
+        set => Write(TabsColoredByDatabaseProperty, value ? "1" : "0");
     }
 
     private static string Read(string property)
