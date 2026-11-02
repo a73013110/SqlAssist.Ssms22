@@ -1,4 +1,5 @@
 {
+  "DatabaseTabGroupProviderName": "Database",
   "BlocksEnabledTitle": "Enable T-SQL block matching highlights",
   "BlocksEnabledDescription": "Highlights matching start and end keywords. Also off when the SqlAssist master switch is off.",
   "BlocksKeywordHighlightTitle": "Highlight matching endpoints",

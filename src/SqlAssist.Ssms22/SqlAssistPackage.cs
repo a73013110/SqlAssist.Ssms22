@@ -36,6 +36,9 @@ namespace SqlAssist.Ssms22;
 // 從浮動預覽移過來的結構：與另外兩個工具窗同一側，照著寫查詢時表結構就在旁邊。
 [ProvideToolWindow(typeof(SqlStructureToolWindow), Style = VsDockStyle.Linked,
     Orientation = ToolWindowOrientation.Right, Window = "DocumentWell", DockedWidth = 520, Width = 520)]
+// 殼層在建立「文件索引標籤著色方式」子選單時讀這份註冊，所以選單項目不必等套件載入。
+[ProvideFileGroupProvider(SqlDatabaseTabGroupProvider.ProviderGuidString, PackageGuidString,
+    "@DatabaseTabGroupProviderName", FileGroupProviderPersistenceScope.PerUser, "sqlassist-database")]
 [Guid(PackageGuidString)]
 public sealed class SqlAssistPackage : AsyncPackage
 {
@@ -72,6 +75,8 @@ public sealed class SqlAssistPackage : AsyncPackage
             SqlAssistSettingsStore.Initialize(this);
             PreviewWindowState.Initialize(this);
             SqlAssistState.Initialize(this);
+            await SqlAssistPlatformGuard.RunAsync("註冊依資料庫的頁籤著色",
+                () => SqlDatabaseTabGroupProvider.RegisterAsync(this)).ConfigureAwait(true);
 
             var commandService = await GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
 

@@ -3,5 +3,7 @@
   "QueryEditorServiceUnavailable": "取不到 SSMS 的查詢視窗服務，無法開啟新視窗。",
   "NoConnectionToReuse": "目前的查詢視窗沒有連線，無法沿用連線開啟新視窗。",
   "WindowNotCreated": "SSMS 沒有建立出新的查詢視窗。",
-  "EditorUnavailable": "已開啟新的查詢視窗，但取不到它的編輯器，定義沒有寫入。"
+  "EditorUnavailable": "已開啟新的查詢視窗，但取不到它的編輯器，定義沒有寫入。",
+  // 頁籤工具提示的最後一行；connection 是「伺服器 · 資料庫」。
+  "DatabaseTabTooltip": "這個索引標籤使用此色彩，因為它連線到 {connection}"
 }

@@ -120,7 +120,7 @@ internal static class SqlEditorConnectionWatcher
     /// MEF 的補全元件也不等 <c>AsyncPackage</c>，所以接線跟著服務走而不是跟著
     /// 套件初始化走——接晚了的症狀是使用者開 SSMS 之後的第一次換資料庫沒有人收到。
     /// </remarks>
-    private static void EnsureSubscribed(IServiceProvider serviceProvider)
+    public static void EnsureSubscribed(IServiceProvider serviceProvider)
     {
         lock (SyncRoot)
         {

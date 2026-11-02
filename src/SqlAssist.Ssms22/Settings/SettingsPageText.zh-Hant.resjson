@@ -1,6 +1,8 @@
 {
   // SSMS 設定頁上的文字：Title 是設定或頁面名稱，Description 是底下的說明，Item 是下拉選項。
   // 說明裡用「」引用的設定或頁面，英文要與那一項 Title 的譯文一字不差。
+  // 殼層「文件索引標籤著色方式」子選單上的項目，由 ProvideFileGroupProvider 引用。
+  "DatabaseTabGroupProviderName": "資料庫",
   "BlocksEnabledTitle": "啟用 T-SQL 區塊配對高亮",
   "BlocksEnabledDescription": "在起訖關鍵字上標示配對。SqlAssist 總開關關閉時也會停用。",
   "BlocksKeywordHighlightTitle": "配對端點高亮",

@@ -27,6 +27,7 @@ internal static class SqlAssistState
     private const string SqlMemoryCaptureNoticeProperty = "SqlMemoryCaptureNotice";
     private const string SearchMatchStateProperty = "SearchMatchState";
     private const string SqlMemoryMatchStateProperty = "SqlMemoryMatchState";
+    private const string DatabaseTabGroupsProperty = "DatabaseTabGroups";
 
     private static WritableSettingsStore? _store;
     private static bool _resolved;
@@ -108,6 +109,14 @@ internal static class SqlAssistState
     {
         get => Read(SqlMemoryMatchStateProperty);
         set => Write(SqlMemoryMatchStateProperty, value);
+    }
+
+    /// <summary>頁籤依資料庫著色發過的分組；格式是 <c>SqlDatabaseTabGroups.Format</c>，沒有記錄時是空字串。</summary>
+    /// <remarks>記不住的症狀是重開 SSMS 後資料庫換色，不是功能停擺。</remarks>
+    public static string DatabaseTabGroups
+    {
+        get => Read(DatabaseTabGroupsProperty);
+        set => Write(DatabaseTabGroupsProperty, value);
     }
 
     private static string Read(string property)

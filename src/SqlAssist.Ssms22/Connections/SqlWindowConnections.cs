@@ -62,10 +62,17 @@ internal static class SqlWindowConnections
         var view = ActiveSqlEditor.Current;
         if (view is null) return null;
         var moniker = SqlCompletionServices.GetMetadataService(view, services).EditorMoniker;
-        if (string.IsNullOrEmpty(moniker) || services.GetService(typeof(SSqlEditorService)) is not ISqlEditorService editorService)
-            return null;
         // 手動動作需要最新值，不能把尚未收到連線事件當作已斷線；也不沿用其他視窗的連線。
-        return Describe(editorService.GetConnectionForSpecificQueryEditor(moniker));
+        return string.IsNullOrEmpty(moniker) ? null : ReadWindow(moniker!);
+    }
+
+    /// <summary>直接問指定的查詢視窗，不做資料庫 I/O；不是查詢視窗或沒有連線的文件回 null。</summary>
+    public static SqlConnectionLabel? ReadWindow(string moniker)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        return Package.GetGlobalService(typeof(SSqlEditorService)) is ISqlEditorService editorService
+            ? Describe(editorService.GetConnectionForSpecificQueryEditor(moniker))
+            : null;
     }
 
     /// <summary>視窗關掉之後不必再留；識別碼會被 SSMS 重複使用。</summary>

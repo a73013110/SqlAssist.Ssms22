@@ -17,7 +17,7 @@
   （SQLTXT001–011），不在執行期退回來源語言。
 - 不用 resx：衛星組件要靠 VSIX 探測路徑與隔離 AppDomain 各自載入，載不到只會安靜退回；
   產生器把所有語言編進同一個組件，參數個數由編譯器檢查。
-- 唯一例外是設定頁：註冊檔只能寫 `@鍵;{packageGuid}`，由 SSMS 查套件組件的資源。文字照樣寫在
+- 唯一例外是設定頁與頁籤著色方式的選單項目：註冊只能寫 `@鍵`，由 SSMS 查套件組件的資源。文字照樣寫在
   `Ssms22/Settings/SettingsPageText.<語言>.resjson`、照同一流程翻譯；檔案標 `SqlAssistTextResourceOnly`，
   產生器照 SQLTXT 規則驗證但不產生類別。`SettingsPageText.targets` 在建置時把英文編成中性資源
   、其餘語言編成衛星組件（在 Deploy 白名單裡，缺了只會安靜退回英文）；引用不存在的鍵是 SQLSET006。

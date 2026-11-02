@@ -43,6 +43,14 @@ internal static class RegistrationManifest
     /// </summary>
     public static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Texts = LoadTexts();
 
+    /// <summary>
+    /// 套件屬性引用的資源鍵（例如頁籤著色方式的選單項目）；殼層同樣照 "@鍵" 查資源，
+    /// 寫錯時選單把它原樣畫出來。
+    /// </summary>
+    public static IEnumerable<string> PackageAttributeKeys() =>
+        Regex.Matches(ReadOutputFile("SqlAssistPackage.cs"), "\"@(?<key>[A-Za-z0-9]+)\"")
+            .Select(match => match.Groups["key"].Value);
+
     /// <summary>整份文件；<c>enableWhen</c> 之類的結構性檢查直接看原始 JSON。</summary>
     public static JsonDocument Open()
     {

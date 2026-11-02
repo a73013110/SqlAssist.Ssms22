@@ -81,7 +81,7 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged, ISqlCheckableRow
         ? SqlMemoryUiText.FavoriteDetail(Time.ToLocalTime(), TagText(item.Favorite))
         : $"{TimeSummary} · {(History!.RevisionId is null ? SqlMemoryUiText.UnsavedDraftLabel : IsExecuted ? ExecutionText(History.ExecutionCount) : SqlMemoryUiText.DraftLabel)} · {ConnectionText(History.Connection)}";
     private static string ExecutionText(int count) => count > 1 ? SqlMemoryUiText.ExecutedCount(SqlText.Number(count)) : SqlMemoryUiText.ExecutedLabel;
-    private static string ConnectionText(SqlConnectionLabel? context) => context is null ? SqlMemoryUiText.NoConnectionInfo : $"{context.Server} · {context.Database}";
+    private static string ConnectionText(SqlConnectionLabel? context) => context?.DisplayName ?? SqlMemoryUiText.NoConnectionInfo;
     private static string TagText(SqlFavorite favorite) => favorite.Server is null && favorite.Database is null
         ? SqlMemoryUiText.UntaggedConnection
         : $"{favorite.Server ?? SqlMemoryUiText.AnyServerLabel} · {favorite.Database ?? SqlMemoryUiText.AnyDatabaseLabel}";

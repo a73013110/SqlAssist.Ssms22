@@ -36,6 +36,8 @@ public sealed class SqlAssistRegistrationTextTests
             .OfType<string>()
             .ToHashSet(StringComparer.Ordinal);
 
+        referenced.UnionWith(RegistrationManifest.PackageAttributeKeys());
+
         foreach (var language in SqlLanguage.All)
         {
             var keys = RegistrationManifest.Texts[language.Name].Keys.ToHashSet(StringComparer.Ordinal);

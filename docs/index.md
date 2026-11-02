@@ -28,7 +28,7 @@
 |搜尋完整度、進度、停止、索引通知|[完整度](search-coverage.md)|
 |移至定義、物件總管選取、節點 URN|[結果導航](search-navigation.md)|
 |Ctrl＋點擊、底線連結、滑鼠手勢|[點擊導覽](click-navigation.md)|
-|命中高亮、目前那一處、上下一個|[命中高亮](search-highlight.md)|
+|命中高亮、上下一個|[命中高亮](search-highlight.md)|
 |文字標記底色、端點配色|[文字標記](text-marks.md)|
 |搜尋範圍、伺服器、資料庫清單|[範圍](search-scope.md)|
 |建議清單、排名、列尾標記、IntelliSense|[補全](completion.md)|
@@ -50,12 +50,12 @@
 |子句回溯、語句界線|[子句邊界](completion-boundaries.md)|
 |不開清單、軟選、別名、物件過濾|[名稱位置](completion-name-slots.md)|
 |內建函式、資料型別目錄|[函式與型別](completion-builtins.md)|
-|用途、範例、style、datepart、系統程序與語句說明|[內建說明](builtin-help.md)|
+|範例、style、datepart、系統程序與語句說明|[內建說明](builtin-help.md)|
 |函式簽章、第幾個引數、提示不回來|[參數提示](parameter-hint.md)|
 |全域變數、模組參數|[變數](completion-variables.md)|
 |內容與接續建議|[片段](snippets.md)|
 |Tab Stop、Tab／Enter、欄位建議|[片段導航](snippet-navigation.md)|
-|包住選取範圍、`$surround$`|[片段包夾](snippet-surround.md)／[按鍵](popup-keys.md)|
+|包住選取範圍、`$surround$`|[片段包夾](snippet-surround.md)|
 |Popup 按鍵、`ShellKeyCapture`|[按鍵交還](popup-keys.md)|
 |使用者 override、合併、存檔|[片段存放](snippet-storage.md)|
 |SELECT *、Wildcards、Tab 展開|[星號展開](wildcard-expansion.md)|
@@ -73,6 +73,7 @@
 |ResultGrid 命令、JSON、欄位剖析、字面值|[結果格線](result-grid.md)／[格線輸出](result-grid-generation.md)|
 |enableWhen、enum 相容|[設定](settings.md)／[入口](settings-entries.md)／[設定結構](settings-schema.md)|
 |分層載入|[中繼資料](metadata.md)／[跨資料庫](metadata-cross-db.md)|
+|頁籤顏色|[頁籤著色](tab-colors.md)|
 |USE、連結伺服器、OPENQUERY、舊版、權限|[連線](metadata-connection.md)／[遠端](metadata-remote.md)／[相容](metadata-compatibility.md)|
 |介面語言、翻譯、`.resjson`、SQLTXT|[在地化](localization.md)／[術語表](localization-glossary.md)|
 |建置／測試、UTF-8／LF／BOM|[開發](development.md)／[編碼](text-encoding.md)|

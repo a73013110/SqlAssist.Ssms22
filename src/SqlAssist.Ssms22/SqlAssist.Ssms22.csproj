@@ -136,6 +136,11 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.Shell.ViewManager.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- 文件頁籤著色的提供者介面（FileColor）；頁籤依資料庫著色掛在這裡。 -->
+    <Reference Include="Microsoft.VisualStudio.Shell.UI.Internal">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.Shell.UI.Internal.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!-- Fluent 主題的公開語意色；由 SSMS 提供，不把殼層組件包進 VSIX。 -->
     <Reference Include="Microsoft.VisualStudio.Shell.Styles">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.Shell.Styles.dll</HintPath>
