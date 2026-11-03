@@ -112,8 +112,9 @@ public sealed class SqlSchemaTable
 /// </remarks>
 public sealed class SqlSchemaDocument
 {
-    private SqlSchemaDocument(string serverName, string databaseName, DateTime exportedAt, IReadOnlyList<SqlSchemaTable> tables)
+    private SqlSchemaDocument(string serverName, string databaseName, DateTime exportedAt, bool includesRows, IReadOnlyList<SqlSchemaTable> tables)
     {
+        IncludesRows = includesRows;
         ServerName = serverName;
         DatabaseName = databaseName;
         ExportedAt = exportedAt;
@@ -127,6 +128,9 @@ public sealed class SqlSchemaDocument
     public DateTime ExportedAt { get; }
 
     public IReadOnlyList<SqlSchemaTable> Tables { get; }
+
+    /// <summary>有沒有資料列數；沒有時總覽不出那一欄。</summary>
+    public bool IncludesRows { get; }
 
     /// <summary>總覽那一行淡色的脈絡。</summary>
     public string Meta => SchemaExportText.Meta(ServerName, DatabaseName,
@@ -165,7 +169,7 @@ public sealed class SqlSchemaDocument
             tables.Add(new SqlSchemaTable(item, currentDescription(item.Target, item.Description), details.RowsOf(item.ObjectId), columns));
         }
 
-        return new SqlSchemaDocument(serverName ?? string.Empty, databaseName ?? string.Empty, exportedAt, tables);
+        return new SqlSchemaDocument(serverName ?? string.Empty, databaseName ?? string.Empty, exportedAt, details.IncludesRows, tables);
     }
 
     /// <summary>副檔名（含點）。</summary>

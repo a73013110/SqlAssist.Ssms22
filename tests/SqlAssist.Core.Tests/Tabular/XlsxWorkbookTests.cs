@@ -124,6 +124,120 @@ public sealed class XlsxWorkbookTests
         Assert.Equal("ab", parts["xl/worksheets/sheet1.xml"].Descendants(Main + "t").Single().Value);
     }
 
+    /// <summary>
+    /// 文件版面：關掉格線、頁籤上色、列高、開檔游標與橫向一頁寬的列印；第 0 個格式不帶框線——
+    /// Excel 拿它畫整頁沒寫到的格子；沒有 12 以下的字級。
+    /// </summary>
+    [Fact]
+    public void 文件版面()
+    {
+        var workbook = new XlsxWorkbook();
+        var sheet = workbook.AddSheet("總覽");
+        sheet.ShowGridLines = false;
+        sheet.TabColor = "FF0066CC";
+        sheet.PrintLandscapeFitWidth = true;
+        sheet.FrozenRows = 4;
+        sheet.SelectedCell = (5, 2);
+        sheet.SetHeight(1, 34);
+        sheet.SetHeight(3, 8);
+        sheet.SetText(1, 1, "Library", XlsxStyle.Title);
+        sheet.SetText(5, 2, null);
+        sheet.SetText(5, 3, "讀者");
+
+        var parts = Save(workbook, null);
+        var root = parts["xl/worksheets/sheet1.xml"].Root!;
+
+        Assert.Equal(new[] { "sheetPr", "sheetViews", "sheetData", "pageMargins", "pageSetup" },
+            root.Elements().Select(element => element.Name.LocalName).ToArray());
+        Assert.Equal("FF0066CC", (string)root.Descendants(Main + "tabColor").Single().Attribute("rgb")!);
+        var view = root.Descendants(Main + "sheetView").Single();
+        Assert.Equal("0", (string)view.Attribute("showGridLines")!);
+        var selection = view.Element(Main + "selection")!;
+        Assert.Equal("bottomLeft", (string)selection.Attribute("pane")!);
+        Assert.Equal("B5", (string)selection.Attribute("activeCell")!);
+        Assert.Equal("landscape", (string)root.Element(Main + "pageSetup")!.Attribute("orientation")!);
+
+        var rows = root.Descendants(Main + "row").ToDictionary(row => (string)row.Attribute("r")!);
+        Assert.Equal("34", (string)rows["1"].Attribute("ht")!);
+        Assert.Empty(rows["3"].Elements());
+        Assert.Equal(new[] { "C5" }, rows["5"].Elements().Select(cell => (string)cell.Attribute("r")!).ToArray());
+
+        var styles = parts["xl/styles.xml"];
+        var formats = styles.Descendants(Main + "cellXfs").Single().Elements().ToArray();
+        Assert.Equal(Enum.GetValues(typeof(XlsxStyle)).Length + 1, formats.Length);
+        Assert.Equal("0", (string)formats[0].Attribute("borderId")!);
+        Assert.Equal("0", (string)formats[(int)XlsxStyle.Text + 1].Attribute("borderId")!);
+        Assert.NotEqual("0", (string)formats[(int)XlsxStyle.HeaderCenter + 1].Attribute("borderId")!);
+
+        var sizes = styles.Descendants(Main + "sz").Select(size => double.Parse((string)size.Attribute("val")!)).ToArray();
+        Assert.All(sizes, size => Assert.True(size >= 12));
+    }
+
+    /// <summary>
+    /// 隔列淡底是條件式格式：範圍從表身第一列到最後一列，公式數第一欄看得見的列（篩選後仍交替），
+    /// 寫在自動篩選與連結之間；一列都沒有時不寫。
+    /// </summary>
+    [Fact]
+    public void 隔列淡底()
+    {
+        var workbook = new XlsxWorkbook();
+        var sheet = workbook.AddSheet("Loan");
+        var other = workbook.AddSheet("Empty");
+        sheet.SetLink(1, 1, "← 總覽", other, XlsxStyle.Navigation);
+        sheet.SetFilter(4, 1, 9, 3);
+        sheet.SetBanding(5, 9, 3);
+        other.SetBanding(5, 4, 3);
+
+        var parts = Save(workbook, null);
+        var root = parts["xl/worksheets/sheet1.xml"].Root!;
+        Assert.Equal(new[] { "sheetViews", "sheetData", "autoFilter", "conditionalFormatting", "hyperlinks" },
+            root.Elements().Select(element => element.Name.LocalName).ToArray());
+
+        var band = root.Element(Main + "conditionalFormatting")!;
+        Assert.Equal("A5:C9", (string)band.Attribute("sqref")!);
+        Assert.Equal("MOD(SUBTOTAL(3,$A$5:$A5),2)=0", band.Descendants(Main + "formula").Single().Value);
+        Assert.Equal("0", (string)band.Element(Main + "cfRule")!.Attribute("dxfId")!);
+        Assert.Single(parts["xl/styles.xml"].Descendants(Main + "dxf"));
+
+        Assert.Empty(parts["xl/worksheets/sheet2.xml"].Descendants(Main + "conditionalFormatting"));
+    }
+
+    /// <summary>
+    /// 欄寬照表格裡的內容估（全形字算兩格，表頭多算篩選鈕），標題這種往右延伸的不算；夾在上下限之間。
+    /// 列高照換行的格子估行數，換行字元另起一行。
+    /// </summary>
+    [Fact]
+    public void 欄寬與列高照內容估()
+    {
+        var workbook = new XlsxWorkbook();
+        var sheet = workbook.AddSheet("Loan");
+        sheet.SetText(1, 2, "一個很長很長很長很長很長很長很長很長很長的標題", XlsxStyle.Title);
+        sheet.SetText(4, 2, "NULL", XlsxStyle.HeaderCenter);
+        sheet.SetText(4, 3, "描述", XlsxStyle.Header);
+        sheet.SetText(5, 2, "✓", XlsxStyle.Center);
+        sheet.SetText(5, 3, "讀者編號\n見讀者主檔");
+        sheet.SetText(6, 3, new string('借', 40));
+        sheet.SetFilter(4, 1, 6, 3);
+        sheet.FitWidth(2, 6, 30);
+        sheet.FitWidth(3, 10, 20);
+        sheet.FitWidth(4, 7, 16);
+        sheet.FitHeights(5, 6, 16.5, 9);
+
+        var root = Save(workbook, null)["xl/worksheets/sheet1.xml"].Root!;
+        var widths = root.Descendants(Main + "col").ToDictionary(col => (string)col.Attribute("min")!, col => (string)col.Attribute("width")!);
+        Assert.Equal("8", widths["2"]);
+        Assert.Equal("20", widths["3"]);
+        Assert.Equal("7", widths["4"]);
+
+        var heights = root.Descendants(Main + "row").ToDictionary(row => (string)row.Attribute("r")!, row => (string?)row.Attribute("ht"));
+        Assert.Equal("42", heights["5"]);
+        Assert.Equal("91.5", heights["6"]);
+
+        Assert.Equal(8, XlsxCell.DisplayWidth("讀者編號\nab"));
+        Assert.Equal(2, XlsxCell.DisplayWidth("😀"));
+        Assert.Equal(3, XlsxCell.LineCount("abcdefghij\n", 5));
+    }
+
     [Theory]
     [InlineData(1, "A")]
     [InlineData(26, "Z")]

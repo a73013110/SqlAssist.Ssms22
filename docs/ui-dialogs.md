@@ -21,6 +21,7 @@
 | `CreateSection` | 淡色小標與內容間距 8、分段之間 16，第一段不留上緣 |
 | `CreateCardSection` | 由多個獨立區塊組成的頁面（用量分頁）：小標在卡片外並對齊卡片內文字，內距 `CardPadding`；對話框表單不用 |
 | `CreateOptionGroup`／`CreateOptionRow` | 一塊表面裝一組選項；整列可點，標題＋一行淡色說明，右側放只屬於該選項的附屬設定；核取方塊或單選鈕（單選整列點下去是選它） |
+| `CreateChoiceTile` | 並排互斥的選項卡（例如檔案格式）：圖示、標題、說明，選到的換強調色外框與底並打勾 |
 | `CreateDialogFooter` | 單一頁尾，見下節 |
 | `CreateDangerButton` | 主要動作本身是破壞性時使用：語意色淡底與配對前景 |
 

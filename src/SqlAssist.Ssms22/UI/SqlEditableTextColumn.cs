@@ -11,13 +11,16 @@ namespace SqlAssist.Ssms22.UI;
 
 /// <summary>
 /// 看得出「可以直接改」的文字欄：停駐或選到這一列時那一格浮出一圈欄位外框與一顆鉛筆，
-/// 編輯時換成強調色外框，確認之後那一格淡出一抹強調底。
+/// 編輯時同一個框原地亮成強調色，確認之後那一格淡出一抹強調底。
 /// </summary>
 /// <remarks>
 /// 資料格的文字欄平常與唯讀欄長得一模一樣，使用者不會想到要在上面按 F2。只在停駐與選取時才提示：
 /// 一整欄常駐的外框是成排框線，正是 <c>ui-guidelines</c> 不要的那一種。提示的節奏照列操作的揭露
 /// （<see cref="SqlAssistChrome.RowActionRevealDuration"/>：淡入＋6 DIP 滑入），確認後的那一抹與變更記號的
-/// 彈出是狀態回饋，不超過 400 ms，走 <see cref="UIElement.RenderTransform"/> 與透明度，不改版面尺寸。
+/// 彈出是狀態回饋，不超過 400 ms，走 <see cref="UIElement.RenderTransform"/>、透明度與筆刷，不改版面尺寸。
+///
+/// 編輯中的輸入欄與顯示時的欄位外框是<b>同一個矩形</b>、文字落在同一個位置：進入編輯只是那一圈框換色，
+/// 不是換成另一個東西。縮放浮上來的那一版在寬的說明欄上一開始窄了二十幾 DIP，讀起來像輸入框變窄。
 ///
 /// 「值換了」只認同一列上的變化：資料格捲動時元件會換一列重用（recycling），換列那一次不是編輯，
 /// 不能播；別的列更新而重新通知同一個值時也不播。三種動畫都受全域動畫設定控制，關掉時提示照樣出現、
@@ -28,13 +31,27 @@ internal sealed class SqlEditableTextColumn : DataGridTextColumn
     /// <summary>確認之後那一抹強調底淡出的長度；狀態回饋這一級的上限是 400 ms。</summary>
     public static readonly TimeSpan CommitWashDuration = TimeSpan.FromMilliseconds(400);
 
-    /// <summary>進入編輯時欄位從這個比例放大到 1；比內容表面的 0.96 更收斂，只是一格。</summary>
-    internal const double EditScaleFrom = 0.97;
-
-    /// <summary>進入編輯的那一下；與列操作的揭露同一級。</summary>
+    /// <summary>進入編輯時外框從選取色轉成強調色的那一下；與列操作的揭露同一級。</summary>
     internal static readonly TimeSpan EditEnterDuration = TimeSpan.FromMilliseconds(160);
 
-    private const double GlyphSize = 20;
+    /// <summary>欄位外框離格子邊緣的距離；顯示與編輯共用，兩者才是同一個矩形。</summary>
+    private static readonly Thickness FieldMargin = new(3, 1, 3, 1);
+
+    /// <summary>
+    /// 編輯時文字離外框的距離：顯示時文字離外框 10（<see cref="SqlAssistChrome.CreateCellTextStyle"/> 的外距），
+    /// 輸入框的文字視圖自己左右各再留 2，所以內距是 8——進入編輯時文字不跳。
+    /// </summary>
+    private static readonly Thickness EditorPadding = new(8, 0, 8, 0);
+
+    /// <summary>
+    /// 鉛筆按鈕的寬與高：圖示 14，左右內距 2、上下 1，外框 1——高 18 放得進最小列高（字級 12 時 23）
+    /// 扣掉欄位外距與外框的那 19。圖示照預設的 16 時內容比按鈕大，右緣與下緣各被裁掉一截。
+    /// </summary>
+    private const double GlyphWidth = 20;
+
+    private const double GlyphHeight = 18;
+
+    private const double GlyphIconSize = 14;
 
     /// <summary>剛在這一欄確認、值也真的換了的那一列；它的顯示元件重建時播那一抹。</summary>
     private object? _committedItem;
@@ -68,7 +85,12 @@ internal sealed class SqlEditableTextColumn : DataGridTextColumn
         var wash = new Border { Opacity = 0, IsHitTestVisible = false, CornerRadius = new CornerRadius(SqlAssistChrome.InnerRadius - 1) }
             .WithTheme(Border.BackgroundProperty, ThemeBrush.AccentBackground);
 
+        // 鉛筆有自己的一欄，文字在它左邊截斷：疊在文字上的那一版，長說明的尾巴會被鉛筆蓋住，
+        // 而鉛筆自己貼著格子右緣被裁掉一截。那一欄一直留著，停駐時浮出鉛筆不會讓文字換行或跳動。
         var layers = new Grid();
+        layers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        layers.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumnSpan(wash, 2);
         layers.Children.Add(wash);
         layers.Children.Add(text);
         if (HintPath is not null) layers.Children.Add(CreateHint(HintPath));
@@ -76,6 +98,7 @@ internal sealed class SqlEditableTextColumn : DataGridTextColumn
 
         var edit = CreateEditGlyph(motion);
         edit.Click += (_, _) => SqlAssistPlatformGuard.Run("從鉛筆開始編輯儲存格", () => BeginEdit(cell));
+        Grid.SetColumn(edit, 1);
         layers.Children.Add(edit);
 
         var field = new Border
@@ -83,7 +106,7 @@ internal sealed class SqlEditableTextColumn : DataGridTextColumn
             Child = layers,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(SqlAssistChrome.InnerRadius),
-            Margin = new Thickness(3, 2, 3, 2),
+            Margin = FieldMargin,
             Cursor = Cursors.IBeam,
             Style = CreateFieldStyle(),
             SnapsToDevicePixels = true,
@@ -125,7 +148,8 @@ internal sealed class SqlEditableTextColumn : DataGridTextColumn
     protected override FrameworkElement GenerateEditingElement(DataGridCell cell, object dataItem)
     {
         var box = (TextBox)base.GenerateEditingElement(cell, dataItem);
-        box.Margin = new Thickness(2, 1, 2, 1);
+        box.Margin = FieldMargin;
+        box.Padding = EditorPadding;
         box.Loaded += (_, _) => PlayEditEnter(box);
         return box;
     }
@@ -201,9 +225,14 @@ internal sealed class SqlEditableTextColumn : DataGridTextColumn
     private Button CreateEditGlyph(bool motion)
     {
         var button = SqlAssistChrome.CreateIconButton(SqlIcon.Edit, EditLabel);
-        button.MinWidth = GlyphSize; button.MinHeight = GlyphSize; button.Width = GlyphSize; button.Height = GlyphSize;
-        button.Padding = new Thickness(2);
-        button.Margin = new Thickness(0, 0, 2, 0);
+        if (button.Content is FrameworkElement icon)
+        {
+            icon.Width = GlyphIconSize; icon.Height = GlyphIconSize;
+        }
+
+        button.MinWidth = GlyphWidth; button.MinHeight = GlyphHeight; button.Width = GlyphWidth; button.Height = GlyphHeight;
+        button.Padding = new Thickness(2, 1, 2, 1);
+        button.Margin = new Thickness(4, 0, 2, 0);
         button.Focusable = false;
         button.HorizontalAlignment = HorizontalAlignment.Right;
         button.VerticalAlignment = VerticalAlignment.Center;
@@ -267,23 +296,27 @@ internal sealed class SqlEditableTextColumn : DataGridTextColumn
     }
 
     /// <summary>
-    /// 進入編輯：欄位從 <see cref="EditScaleFrom"/> 放大、從半透明浮上來，強調色外框隨焦點出現。
+    /// 進入編輯：外框從選取時的顏色轉成強調色，形狀與位置都不動。
     /// </summary>
-    private static void PlayEditEnter(FrameworkElement box)
+    /// <remarks>
+    /// 動的是樣板裡那一圈框的區域值，播完清掉，交還樣板的焦點觸發——主題切換與失焦照常生效。
+    /// 取不到兩個主題色時不播，框直接是強調色。
+    /// </remarks>
+    private static void PlayEditEnter(TextBox box)
     {
         if (!SqlAssistChrome.MotionEnabled) return;
+        if (box.Template?.FindName(SqlAssistChrome.TextFieldPart, box) is not Border field) return;
+        if (box.TryFindResource(ThemeBrush.Border) is not SolidColorBrush from ||
+            box.TryFindResource(ThemeBrush.AccentBorder) is not SolidColorBrush to) return;
 
-        var scale = new ScaleTransform(EditScaleFrom, EditScaleFrom);
-        box.RenderTransformOrigin = new Point(0.5, 0.5);
-        box.RenderTransform = scale;
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var grow = new DoubleAnimation(EditScaleFrom, 1, EditEnterDuration) { EasingFunction = ease, FillBehavior = FillBehavior.Stop };
-        scale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
-        scale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
-        box.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.6, 1, EditEnterDuration)
+        var brush = new SolidColorBrush(from.Color);
+        field.BorderBrush = brush;
+        var fade = new ColorAnimation(from.Color, to.Color, EditEnterDuration)
         {
-            EasingFunction = ease, FillBehavior = FillBehavior.Stop
-        });
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        fade.Completed += (_, _) => field.ClearValue(Border.BorderBrushProperty);
+        brush.BeginAnimation(SolidColorBrush.ColorProperty, fade);
     }
 }
 

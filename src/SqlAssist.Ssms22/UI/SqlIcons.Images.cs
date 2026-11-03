@@ -99,7 +99,11 @@ internal static partial class SqlIcons
         SqlIcon.Index => KnownMonikers.ClusteredIndex,
         SqlIcon.ForeignKey => KnownMonikers.ForeignKey,
         SqlIcon.Script => KnownMonikers.Script,
-        SqlIcon.Reference => KnownMonikers.Dictionary
+        SqlIcon.Reference => KnownMonikers.Dictionary,
+        SqlIcon.Export => KnownMonikers.Export,
+        // 匯出格式的那兩張卡：看圖就認得出是哪一種檔案，與檔案總管裡的那一顆同一種形狀。
+        SqlIcon.Spreadsheet => KnownMonikers.OfficeExcel2013,
+        SqlIcon.Markdown => KnownMonikers.MarkdownFile
     };
 #pragma warning restore CS8524
 
@@ -112,7 +116,11 @@ internal static partial class SqlIcons
     private static FrameworkElement? CreateImage(ImageMoniker moniker) =>
         SqlAssistPlatformGuard.Probe<FrameworkElement?>("原生圖示", () =>
         {
-            var image = new CrispImage { Width = 16, Height = 16, Moniker = moniker };
+            // 影像跟著插槽的尺寸走：寫死 16 的那一版，插槽縮成 12、14 時影像不縮，右緣與下緣被裁掉；
+            // 放大成 24、32 時影像仍是 16，縮在中間一小顆。
+            var image = new CrispImage { Moniker = moniker };
+            image.SetBinding(FrameworkElement.WidthProperty, SlotSize(nameof(FrameworkElement.Width)));
+            image.SetBinding(FrameworkElement.HeightProperty, SlotSize(nameof(FrameworkElement.Height)));
             // ImageThemingUtilities 會從承載 CrispImage 的表面讀背景；透明 Host
             // 只提供這個主題上下文，不畫自己的底色或切斷膠囊。
             var host = new Border { Background = Brushes.Transparent, Child = image };
@@ -125,6 +133,13 @@ internal static partial class SqlIcons
             host.SetBinding(ImageThemingUtilities.ImageBackgroundColorProperty, background);
             return host;
         }, null);
+
+    /// <summary>承載它的 <see cref="SqlIconImage"/> 的寬或高；不在插槽裡時照預設的 16。</summary>
+    private static Binding SlotSize(string path) => new(path)
+    {
+        RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(SqlIconImage), 1),
+        FallbackValue = 16d,
+    };
 
     private sealed class ImageBackgroundConverter : IMultiValueConverter
     {

@@ -47,6 +47,6 @@ Ssms22 接線層見[平台共用元件](shared-components-platform.md)，SQL Mem
 | Snippet 展開／欄位／縮排 | `Core/Snippets/SqlSnippetExpansion.cs`、`SqlSnippetIndentation.cs` |
 | 片段在預覽顯示的文字 | `Core/Snippets/SqlSnippetPreview.cs` |
 | 表格文字：TSV（Excel 引號規則，寫與讀）與 CF_HTML 表格，同一趟寫完 | `Core/Tabular/SqlTabularText.cs`（欄位定義留在各功能） |
-| 最小的 .xlsx 寫入：行內字串、固定樣式、凍結、自動篩選、頁內連結、頁名規則 | `Core/Tabular/XlsxWorkbook.cs`（版面留在各功能） |
+| 最小的 .xlsx 寫入：行內字串、固定樣式、凍結、自動篩選、隔列淡底、依內容估欄寬列高、頁內連結、頁名規則、格線／頁籤色／列印 | `Core/Tabular/XlsxWorkbook.cs`（版面留在各功能） |
 | 清單頁尾的狀態（筆數、部分結果、續頁、說明的語氣）與分頁世代 | `Core/Lists/SqlListFooter.cs`、`PagedLoadState.cs` |
 | 區塊色彩 | [唯一實作](block-colors.md) |

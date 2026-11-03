@@ -90,5 +90,14 @@ internal enum SqlIcon
     Script,
 
     /// <summary>內建名稱的對照表（例如 <c>CONVERT</c> 的 style）。</summary>
-    Reference
+    Reference,
+
+    /// <summary>把東西匯出成檔案（資料字典的結構描述）。</summary>
+    Export,
+
+    /// <summary>試算表檔案（.xlsx）。</summary>
+    Spreadsheet,
+
+    /// <summary>Markdown 文件（.md）。</summary>
+    Markdown
 }

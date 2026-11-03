@@ -10,39 +10,70 @@ using System.Xml;
 
 namespace SqlAssist.Core.Tabular;
 
-/// <summary>儲存格的外觀；一份活頁簿只有這幾種，樣式表照這個順序寫。</summary>
+/// <summary>
+/// 儲存格的外觀；一份活頁簿只有這幾種，樣式表照這個順序寫。
+/// </summary>
+/// <remarks>
+/// 表身的幾種（文字、連結、數字、置中、等寬、序號）不畫框線：列與列靠 <see cref="XlsxSheet.SetBanding"/>
+/// 隔列的淡底分開，框線只剩表頭下緣那一條。表身以外的（標題、脈絡、說明、導覽）不算進欄寬與列高的估算。
+/// </remarks>
 public enum XlsxStyle
 {
-    /// <summary>一般文字，靠上對齊並換行。</summary>
+    /// <summary>表身的一般文字：垂直置中、換行、左邊內縮一格。</summary>
     Text,
 
-    /// <summary>每一頁最上面那一行：粗體、大一級。</summary>
+    /// <summary>每一頁最上面那一行：半粗、大字。</summary>
     Title,
 
     /// <summary>淡色的一行脈絡（範圍、筆數、時間）；不換行，長了往右邊的空格延伸。</summary>
     Dim,
 
-    /// <summary>表頭：粗體、淡底、底線。</summary>
+    /// <summary>表頭：半粗、下緣一條深色細線，靠左內縮。</summary>
     Header,
 
-    /// <summary>跳到另一頁的連結：連結色加底線。</summary>
+    /// <summary>表身裡跳到另一頁的連結：連結色，不加底線。</summary>
     Link,
 
-    /// <summary>整數，千分位。</summary>
+    /// <summary>整數，千分位，置中——表頭右側是篩選鈕，靠右的數字會與它擠在一起。</summary>
     Number,
 
-    /// <summary>置中的記號（✓）。</summary>
+    /// <summary>置中的記號（✓、鍵）。</summary>
     Center,
 
     /// <summary>等寬字：型別、預設值與計算式這些照抄 SQL 的內容。</summary>
     Code,
 
     /// <summary>不換行的一般文字：標題下那一行說明，長了往右邊的空格延伸，不被第一欄的欄寬折成一條。</summary>
-    Plain
+    Plain,
+
+    /// <summary>序號：最淡的灰、置中；是列的位置，不是資料，不該搶眼。</summary>
+    Ordinal,
+
+    /// <summary>表外的導覽連結（每一頁左上角的「← 總覽」）：連結色。</summary>
+    Navigation,
+
+    /// <summary>置中的表頭：放在序號、記號與數字這幾欄上，與底下的值對齊。</summary>
+    HeaderCenter
+}
+
+/// <summary>各種外觀在估算欄寬與列高時的角色。</summary>
+internal static class XlsxStyles
+{
+    /// <summary>表格裡的格子；標題、脈絡、說明與導覽往右延伸，不撐欄寬。</summary>
+    public static bool InTable(XlsxStyle style) =>
+        style is not (XlsxStyle.Title or XlsxStyle.Dim or XlsxStyle.Plain or XlsxStyle.Navigation);
+
+    /// <summary>會換行的那幾種；列高照它們估。</summary>
+    public static bool Wraps(XlsxStyle style) => style is XlsxStyle.Text or XlsxStyle.Code;
+
+    /// <summary>左邊內縮一格的那幾種；估寬時多算那一格。</summary>
+    public static bool Indents(XlsxStyle style) =>
+        style is XlsxStyle.Text or XlsxStyle.Code or XlsxStyle.Header or XlsxStyle.Link;
 }
 
 /// <summary>
-/// 最小的 Office Open XML 活頁簿寫入器：文字、整數、頁內連結、凍結表頭、自動篩選與欄寬。
+/// 最小的 Office Open XML 活頁簿寫入器：文字、整數、頁內連結、凍結表頭、自動篩選、隔列淡底、
+/// 依內容估的欄寬與列高、格線、頁籤色、開檔游標與列印版面。
 /// </summary>
 /// <remarks>
 /// 不拉第三方套件：要的只是「一張表一頁，表頭凍結可篩選」，整份格式寫起來是幾個固定的 XML 部件。
@@ -212,9 +243,39 @@ public sealed class XlsxWorkbook
         writer.WriteEndElement();
     }
 
+    /// <summary>內文字型；Windows 都有，中文由系統的字型連結補上微軟正黑體。</summary>
+    private const string BodyFont = "Segoe UI";
+
+    /// <summary>標題與表頭；同一個字族的半粗，比 Excel 的粗體細緻。</summary>
+    private const string HeadingFont = "Segoe UI Semibold";
+
+    private const string CodeFont = "Consolas";
+
+    /// <summary>字：近黑而不是純黑。</summary>
+    private const string Ink = "FF1D1D1F";
+
+    /// <summary>脈絡那一行的中灰。</summary>
+    private const string Secondary = "FF6E6E73";
+
+    /// <summary>序號的淡灰；列的位置，不是資料。</summary>
+    private const string Tertiary = "FFAEAEB2";
+
+    private const string LinkBlue = "FF0066CC";
+
+    private const string CodeInk = "FF3A3A3C";
+
+    /// <summary>隔列淡底；與表頭的深色下緣一起，是整張表僅有的兩種分隔。</summary>
+    private const string BandFill = "FFF5F5F7";
+
     /// <summary>
-    /// 樣式表：字型、填色與框線各幾種，<c>cellXfs</c> 的順序就是 <see cref="XlsxStyle"/> 的順序。
+    /// 樣式表：字型、框線與格式各幾種；<c>cellXfs</c> 第 0 個是空白格的預設，之後照 <see cref="XlsxStyle"/> 的順序；
+    /// 隔列淡底是 <c>dxfs</c> 的第 0 個，由條件式格式套上。
     /// </summary>
+    /// <remarks>
+    /// 字級：內文、表頭、脈絡與程式碼都是 12，標題 20——沒有 10、11，螢幕上讀描述不必放大。
+    /// 色票只有一組中性灰加一個連結藍；框線只剩表頭下緣那一條，列與列靠隔列的淡底分開，
+    /// 不畫列間線——淡底加橫線是兩種分隔疊在一起，讀起來比沒有更亂。
+    /// </remarks>
     private static void WriteStyles(XmlWriter writer)
     {
         writer.WriteStartElement("styleSheet", MainNamespace);
@@ -227,37 +288,31 @@ public sealed class XlsxWorkbook
         writer.WriteEndElement();
         writer.WriteEndElement();
 
-        // 0 一般、1 標題、2 淡色、3 粗體、4 連結、5 等寬。
+        // 0 內文、1 標題、2 脈絡、3 表頭、4 連結、5 等寬、6 序號。
         writer.WriteStartElement("fonts");
-        writer.WriteAttributeString("count", "6");
-        Font(writer, size: 11);
-        Font(writer, size: 14, bold: true);
-        Font(writer, size: 10, color: "FF6B7280");
-        Font(writer, size: 11, bold: true);
-        Font(writer, size: 11, color: "FF0563C1", underline: true);
-        Font(writer, size: 10, name: "Consolas");
+        writer.WriteAttributeString("count", "7");
+        Font(writer, 12, BodyFont, Ink);
+        Font(writer, 20, HeadingFont, Ink);
+        Font(writer, 12, BodyFont, Secondary);
+        Font(writer, 12, HeadingFont, Ink);
+        Font(writer, 12, BodyFont, LinkBlue);
+        Font(writer, 12, CodeFont, CodeInk);
+        Font(writer, 12, BodyFont, Tertiary);
         writer.WriteEndElement();
 
-        // 0、1 是 Excel 保留的兩個；2 是表頭的淡底。
+        // 0、1 是 Excel 保留的兩個；儲存格本身不填色，隔列淡底在 dxfs。
         writer.WriteStartElement("fills");
-        writer.WriteAttributeString("count", "3");
+        writer.WriteAttributeString("count", "2");
         Fill(writer, "none", null);
         Fill(writer, "gray125", null);
-        Fill(writer, "solid", "FFF3F4F6");
         writer.WriteEndElement();
 
+        // 0 無、1 表頭下緣。
         writer.WriteStartElement("borders");
         writer.WriteAttributeString("count", "2");
         writer.WriteStartElement("border");
         writer.WriteEndElement();
-        writer.WriteStartElement("border");
-        writer.WriteStartElement("bottom");
-        writer.WriteAttributeString("style", "thin");
-        writer.WriteStartElement("color");
-        writer.WriteAttributeString("rgb", "FFD0D7DE");
-        writer.WriteEndElement();
-        writer.WriteEndElement();
-        writer.WriteEndElement();
+        BottomBorder(writer, Ink);
         writer.WriteEndElement();
 
         writer.WriteStartElement("cellStyleXfs");
@@ -271,16 +326,21 @@ public sealed class XlsxWorkbook
         writer.WriteEndElement();
 
         writer.WriteStartElement("cellXfs");
-        writer.WriteAttributeString("count", "9");
-        CellFormat(writer, font: 0, wrap: true);                    // Text
-        CellFormat(writer, font: 1, wrap: false);                   // Title
-        CellFormat(writer, font: 2, wrap: false);                   // Dim
-        CellFormat(writer, font: 3, wrap: false, fill: 2, border: 1); // Header
-        CellFormat(writer, font: 4, wrap: false);                   // Link
-        CellFormat(writer, font: 0, wrap: false, numberFormat: 164); // Number
-        CellFormat(writer, font: 0, wrap: false, center: true);     // Center
-        CellFormat(writer, font: 5, wrap: true);                    // Code
-        CellFormat(writer, font: 0, wrap: false);                   // Plain
+        writer.WriteAttributeString("count", (Enum.GetValues(typeof(XlsxStyle)).Length + 1).ToString(CultureInfo.InvariantCulture));
+        // 第 0 個是沒寫到的格子用的：Excel 拿它畫整頁空白，帶了框線就是滿頁橫線。樣式從 1 起算。
+        CellFormat(writer, font: 0, wrap: false);
+        CellFormat(writer, font: 0, wrap: true, indent: true);                               // Text
+        CellFormat(writer, font: 1, wrap: false);                                            // Title
+        CellFormat(writer, font: 2, wrap: false);                                            // Dim
+        CellFormat(writer, font: 3, wrap: false, border: 1, indent: true);                   // Header
+        CellFormat(writer, font: 4, wrap: false, indent: true);                              // Link
+        CellFormat(writer, font: 0, wrap: false, numberFormat: 164, horizontal: "center");   // Number
+        CellFormat(writer, font: 0, wrap: false, horizontal: "center");                      // Center
+        CellFormat(writer, font: 5, wrap: true, indent: true);                               // Code
+        CellFormat(writer, font: 0, wrap: false);                                            // Plain
+        CellFormat(writer, font: 6, wrap: false, horizontal: "center");                      // Ordinal
+        CellFormat(writer, font: 4, wrap: false);                                            // Navigation
+        CellFormat(writer, font: 3, wrap: false, border: 1, horizontal: "center");           // HeaderCenter
         writer.WriteEndElement();
 
         writer.WriteStartElement("cellStyles");
@@ -292,23 +352,48 @@ public sealed class XlsxWorkbook
         writer.WriteEndElement();
         writer.WriteEndElement();
 
+        // 條件式格式的填色：實心填色在 dxf 裡讀的是 bgColor，fgColor 一起寫給其他讀取端。
+        writer.WriteStartElement("dxfs");
+        writer.WriteAttributeString("count", "1");
+        writer.WriteStartElement("dxf");
+        writer.WriteStartElement("fill");
+        writer.WriteStartElement("patternFill");
+        writer.WriteAttributeString("patternType", "solid");
+        writer.WriteStartElement("fgColor");
+        writer.WriteAttributeString("rgb", BandFill);
+        writer.WriteEndElement();
+        writer.WriteStartElement("bgColor");
+        writer.WriteAttributeString("rgb", BandFill);
+        writer.WriteEndElement();
+        writer.WriteEndElement();
+        writer.WriteEndElement();
+        writer.WriteEndElement();
+        writer.WriteEndElement();
+
         writer.WriteEndElement();
     }
 
-    private static void Font(XmlWriter writer, double size, bool bold = false, string? color = null, bool underline = false, string name = "Calibri")
+    private static void BottomBorder(XmlWriter writer, string color)
+    {
+        writer.WriteStartElement("border");
+        writer.WriteStartElement("bottom");
+        writer.WriteAttributeString("style", "thin");
+        writer.WriteStartElement("color");
+        writer.WriteAttributeString("rgb", color);
+        writer.WriteEndElement();
+        writer.WriteEndElement();
+        writer.WriteEndElement();
+    }
+
+    private static void Font(XmlWriter writer, double size, string name, string color)
     {
         writer.WriteStartElement("font");
-        if (bold) writer.WriteElementString("b", null);
-        if (underline) writer.WriteElementString("u", null);
         writer.WriteStartElement("sz");
         writer.WriteAttributeString("val", size.ToString(CultureInfo.InvariantCulture));
         writer.WriteEndElement();
-        if (color is not null)
-        {
-            writer.WriteStartElement("color");
-            writer.WriteAttributeString("rgb", color);
-            writer.WriteEndElement();
-        }
+        writer.WriteStartElement("color");
+        writer.WriteAttributeString("rgb", color);
+        writer.WriteEndElement();
 
         writer.WriteStartElement("name");
         writer.WriteAttributeString("val", name);
@@ -332,7 +417,9 @@ public sealed class XlsxWorkbook
         writer.WriteEndElement();
     }
 
-    private static void CellFormat(XmlWriter writer, int font, bool wrap, int fill = 0, int border = 0, int numberFormat = 0, bool center = false)
+    /// <param name="indent">左邊內縮一格：Excel 沒有儲存格內距，文字貼著框線讀起來擠。</param>
+    private static void CellFormat(XmlWriter writer, int font, bool wrap, int fill = 0, int border = 0, int numberFormat = 0,
+        string? horizontal = null, bool indent = false, string vertical = "center")
     {
         writer.WriteStartElement("xf");
         writer.WriteAttributeString("numFmtId", numberFormat.ToString(CultureInfo.InvariantCulture));
@@ -346,8 +433,17 @@ public sealed class XlsxWorkbook
         if (border != 0) writer.WriteAttributeString("applyBorder", "1");
         writer.WriteAttributeString("applyAlignment", "1");
         writer.WriteStartElement("alignment");
-        writer.WriteAttributeString("vertical", "top");
-        if (center) writer.WriteAttributeString("horizontal", "center");
+        if (indent)
+        {
+            writer.WriteAttributeString("horizontal", "left");
+            writer.WriteAttributeString("indent", "1");
+        }
+        else if (horizontal is not null)
+        {
+            writer.WriteAttributeString("horizontal", horizontal);
+        }
+
+        writer.WriteAttributeString("vertical", vertical);
         if (wrap) writer.WriteAttributeString("wrapText", "1");
         writer.WriteEndElement();
         writer.WriteEndElement();
@@ -359,6 +455,7 @@ public sealed class XlsxSheet
 {
     private readonly SortedDictionary<int, SortedDictionary<int, XlsxCell>> _rows = new();
     private readonly SortedDictionary<int, double> _widths = new();
+    private readonly SortedDictionary<int, double> _heights = new();
 
     internal XlsxSheet(string name)
     {
@@ -370,6 +467,23 @@ public sealed class XlsxSheet
 
     /// <summary>凍結在上面的列數；0 是不凍結。</summary>
     public int FrozenRows { get; set; }
+
+    /// <summary>顯示格線；關掉時只剩樣式自己畫的框線。</summary>
+    public bool ShowGridLines { get; set; } = true;
+
+    /// <summary>頁籤的顏色（<c>AARRGGBB</c>）；null 是 Excel 的預設。</summary>
+    public string? TabColor { get; set; }
+
+    /// <summary>列印成橫向、寬度縮成一頁：欄位多的表直印時會被切成好幾頁。</summary>
+    public bool PrintLandscapeFitWidth { get; set; }
+
+    /// <summary>列高，以點為單位；沒設的列由 Excel 依內容決定（換行的說明自己長高）。</summary>
+    public void SetHeight(int row, double points)
+    {
+        if (row < 1) throw new ArgumentOutOfRangeException(nameof(row));
+        if (points <= 0) throw new ArgumentOutOfRangeException(nameof(points));
+        _heights[row] = points;
+    }
 
     /// <summary>自動篩選的範圍（列、欄都從 1 數）；null 是不篩選。</summary>
     public (int FirstRow, int FirstColumn, int LastRow, int LastColumn)? FilterRange { get; private set; }
@@ -392,10 +506,11 @@ public sealed class XlsxSheet
         Put(row, column, XlsxCell.ForNumber(value, style));
 
     /// <summary>寫一個跳到另一頁 A1 的連結。</summary>
-    public void SetLink(int row, int column, string text, XlsxSheet target)
+    /// <param name="style">表身裡是 <see cref="XlsxStyle.Link"/>，表外的導覽是 <see cref="XlsxStyle.Navigation"/>。</param>
+    public void SetLink(int row, int column, string text, XlsxSheet target, XlsxStyle style = XlsxStyle.Link)
     {
         if (target is null) throw new ArgumentNullException(nameof(target));
-        Put(row, column, XlsxCell.ForLink(text, XlsxSheetNames.Quote(target.Name) + "!A1"));
+        Put(row, column, XlsxCell.ForLink(text, XlsxSheetNames.Quote(target.Name) + "!A1", style));
     }
 
     public void SetFilter(int firstRow, int firstColumn, int lastRow, int lastColumn)
@@ -403,6 +518,85 @@ public sealed class XlsxSheet
         if (firstRow < 1 || firstColumn < 1 || lastRow < firstRow || lastColumn < firstColumn) throw new ArgumentOutOfRangeException(nameof(lastRow));
         FilterRange = (firstRow, firstColumn, lastRow, lastColumn);
     }
+
+    /// <summary>隔列淡底的範圍（從第一欄起）；null 是不上底色。</summary>
+    public (int FirstRow, int LastRow, int LastColumn)? Banding { get; private set; }
+
+    /// <summary>
+    /// 從 <paramref name="firstRow"/> 到 <paramref name="lastRow"/>，第 2、4、6…列上淡底；一列都沒有時不上。
+    /// </summary>
+    /// <remarks>
+    /// 寫成條件式格式而不是每一格填色：填色跟著格子走，使用者一排序或篩選，條紋就亂了。
+    /// 公式數的是第一欄到這一列為止<b>看得見</b>的非空格（<c>SUBTOTAL(3, …)</c>），篩掉的列不算，
+    /// 所以篩選後仍是一列白一列灰——第一欄因此每一列都要有值（序號）。
+    /// </remarks>
+    public void SetBanding(int firstRow, int lastRow, int lastColumn)
+    {
+        if (firstRow < 1 || lastColumn < 1) throw new ArgumentOutOfRangeException(nameof(firstRow));
+        Banding = lastRow < firstRow ? null : (firstRow, lastRow, lastColumn);
+    }
+
+    /// <summary>打開這一頁時游標停的那一格；null 是 A1。</summary>
+    public (int Row, int Column)? SelectedCell { get; set; }
+
+    /// <summary>
+    /// 照這一欄表格裡的內容定欄寬，夾在 <paramref name="min"/> 與 <paramref name="max"/> 之間。
+    /// </summary>
+    /// <remarks>
+    /// 空著的欄縮到表頭那麼寬，最右邊那一欄長描述才進得了第一個畫面。標題、脈絡與導覽往右延伸，不算。
+    /// 估的是字元寬：全形字算兩格，內縮與篩選鈕另加；寧可寬一點，也不要把短值折成兩行。
+    /// </remarks>
+    public void FitWidth(int column, double min, double max)
+    {
+        var widest = 0d;
+        foreach (var row in _rows)
+        {
+            if (!row.Value.TryGetValue(column, out var cell) || !XlsxStyles.InTable(cell.Style)) continue;
+            var width = XlsxCell.DisplayWidth(cell.DisplayText) + CellPadding;
+            if (XlsxStyles.Indents(cell.Style)) width += IndentWidth;
+            if (FilterRange is { } range && range.FirstRow == row.Key) width += FilterButtonWidth;
+            if (width > widest) widest = width;
+        }
+
+        SetWidth(column, Math.Min(max, Math.Max(min, widest)));
+    }
+
+    /// <summary>
+    /// 從 <paramref name="firstRow"/> 到 <paramref name="lastRow"/>，照換行的格子估每一列的行數定列高。
+    /// </summary>
+    /// <remarks>
+    /// Excel 自己長高的列只夠塞下字，一列一列貼在一起；每一列上下留白讀起來才鬆。
+    /// 列高寫死之後 Excel 不再自己長，所以行數照欄寬估、寧多勿少，描述才不會被切掉一截。
+    /// 欄寬要先定好（<see cref="FitWidth"/>）。
+    /// </remarks>
+    public void FitHeights(int firstRow, int lastRow, double lineHeight, double padding)
+    {
+        for (var row = firstRow; row <= lastRow; row++)
+        {
+            if (!_rows.TryGetValue(row, out var cells)) continue;
+            var lines = 1;
+            foreach (var cell in cells)
+            {
+                if (!XlsxStyles.Wraps(cell.Value.Style)) continue;
+                var usable = (_widths.TryGetValue(cell.Key, out var width) ? width : DefaultWidth) - IndentWidth - CellPadding;
+                lines = Math.Max(lines, XlsxCell.LineCount(cell.Value.Text, usable));
+            }
+
+            SetHeight(row, lines * lineHeight + padding);
+        }
+    }
+
+    /// <summary>Excel 沒設欄寬時的寬。</summary>
+    private const double DefaultWidth = 8.43;
+
+    /// <summary>格子左右的留白（字元寬）。</summary>
+    private const double CellPadding = 1.5;
+
+    /// <summary>內縮一格的寬。</summary>
+    private const double IndentWidth = 1.5;
+
+    /// <summary>表頭右側篩選鈕佔的寬。</summary>
+    private const double FilterButtonWidth = 2.5;
 
     private void Put(int row, int column, XlsxCell cell)
     {
@@ -412,14 +606,38 @@ public sealed class XlsxSheet
         cells[column] = cell;
     }
 
-    /// <remarks>部件裡的子元素順序是結構描述規定的：sheetViews → cols → sheetData → autoFilter → hyperlinks。</remarks>
+    /// <remarks>
+    /// 部件裡的子元素順序是結構描述規定的：sheetPr → sheetViews → cols → sheetData → autoFilter
+    /// → conditionalFormatting → hyperlinks → pageMargins → pageSetup。
+    /// </remarks>
     internal void Write(XmlWriter writer)
     {
         const string main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
         writer.WriteStartElement("worksheet", main);
 
+        if (TabColor is not null || PrintLandscapeFitWidth)
+        {
+            writer.WriteStartElement("sheetPr", main);
+            if (TabColor is not null)
+            {
+                writer.WriteStartElement("tabColor", main);
+                writer.WriteAttributeString("rgb", TabColor);
+                writer.WriteEndElement();
+            }
+
+            if (PrintLandscapeFitWidth)
+            {
+                writer.WriteStartElement("pageSetUpPr", main);
+                writer.WriteAttributeString("fitToPage", "1");
+                writer.WriteEndElement();
+            }
+
+            writer.WriteEndElement();
+        }
+
         writer.WriteStartElement("sheetViews", main);
         writer.WriteStartElement("sheetView", main);
+        if (!ShowGridLines) writer.WriteAttributeString("showGridLines", "0");
         writer.WriteAttributeString("workbookViewId", "0");
         if (FrozenRows > 0)
         {
@@ -428,6 +646,16 @@ public sealed class XlsxSheet
             writer.WriteAttributeString("topLeftCell", XlsxCell.Reference(FrozenRows + 1, 1));
             writer.WriteAttributeString("activePane", "bottomLeft");
             writer.WriteAttributeString("state", "frozen");
+            writer.WriteEndElement();
+        }
+
+        if (SelectedCell is { } selected)
+        {
+            var cell = XlsxCell.Reference(selected.Row, selected.Column);
+            writer.WriteStartElement("selection", main);
+            if (FrozenRows > 0) writer.WriteAttributeString("pane", "bottomLeft");
+            writer.WriteAttributeString("activeCell", cell);
+            writer.WriteAttributeString("sqref", cell);
             writer.WriteEndElement();
         }
 
@@ -453,15 +681,26 @@ public sealed class XlsxSheet
 
         var links = new List<(string Reference, string Location, string Display)>();
         writer.WriteStartElement("sheetData", main);
-        foreach (var row in _rows)
+        var rows = new SortedSet<int>(_rows.Keys);
+        rows.UnionWith(_heights.Keys);
+        foreach (var index in rows)
         {
             writer.WriteStartElement("row", main);
-            writer.WriteAttributeString("r", row.Key.ToString(CultureInfo.InvariantCulture));
-            foreach (var cell in row.Value)
+            writer.WriteAttributeString("r", index.ToString(CultureInfo.InvariantCulture));
+            if (_heights.TryGetValue(index, out var height))
             {
-                var reference = XlsxCell.Reference(row.Key, cell.Key);
-                cell.Value.Write(writer, reference);
-                if (cell.Value.Location is { } location) links.Add((reference, location, cell.Value.Text));
+                writer.WriteAttributeString("ht", height.ToString("0.##", CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("customHeight", "1");
+            }
+
+            if (_rows.TryGetValue(index, out var cells))
+            {
+                foreach (var cell in cells)
+                {
+                    var reference = XlsxCell.Reference(index, cell.Key);
+                    cell.Value.Write(writer, reference);
+                    if (cell.Value.Location is { } location) links.Add((reference, location, cell.Value.Text));
+                }
             }
 
             writer.WriteEndElement();
@@ -473,6 +712,20 @@ public sealed class XlsxSheet
         {
             writer.WriteStartElement("autoFilter", main);
             writer.WriteAttributeString("ref", XlsxCell.Reference(range.FirstRow, range.FirstColumn) + ":" + XlsxCell.Reference(range.LastRow, range.LastColumn));
+            writer.WriteEndElement();
+        }
+
+        if (Banding is { } band)
+        {
+            var first = band.FirstRow.ToString(CultureInfo.InvariantCulture);
+            writer.WriteStartElement("conditionalFormatting", main);
+            writer.WriteAttributeString("sqref", XlsxCell.Reference(band.FirstRow, 1) + ":" + XlsxCell.Reference(band.LastRow, band.LastColumn));
+            writer.WriteStartElement("cfRule", main);
+            writer.WriteAttributeString("type", "expression");
+            writer.WriteAttributeString("dxfId", "0");
+            writer.WriteAttributeString("priority", "1");
+            writer.WriteElementString("formula", main, "MOD(SUBTOTAL(3,$A$" + first + ":$A" + first + "),2)=0");
+            writer.WriteEndElement();
             writer.WriteEndElement();
         }
 
@@ -488,6 +741,25 @@ public sealed class XlsxSheet
                 writer.WriteEndElement();
             }
 
+            writer.WriteEndElement();
+        }
+
+        if (PrintLandscapeFitWidth)
+        {
+            writer.WriteStartElement("pageMargins", main);
+            writer.WriteAttributeString("left", "0.5");
+            writer.WriteAttributeString("right", "0.5");
+            writer.WriteAttributeString("top", "0.6");
+            writer.WriteAttributeString("bottom", "0.6");
+            writer.WriteAttributeString("header", "0.3");
+            writer.WriteAttributeString("footer", "0.3");
+            writer.WriteEndElement();
+
+            // 寬度一頁、高度不限：fitToHeight 寫 0，長表照樣往下分頁，不會被縮成一頁讀不到。
+            writer.WriteStartElement("pageSetup", main);
+            writer.WriteAttributeString("orientation", "landscape");
+            writer.WriteAttributeString("fitToWidth", "1");
+            writer.WriteAttributeString("fitToHeight", "0");
             writer.WriteEndElement();
         }
 
@@ -519,20 +791,23 @@ internal sealed class XlsxCell
 
     public static XlsxCell ForNumber(long value, XlsxStyle style) => new("", value, style, null);
 
-    public static XlsxCell ForLink(string text, string location) => new(text, null, XlsxStyle.Link, location);
+    public static XlsxCell ForLink(string text, string location, XlsxStyle style) => new(text, null, style, location);
+
+    /// <summary>畫面上看到的字：數字照千分位寫。</summary>
+    public string DisplayText => _number is { } number ? number.ToString("#,##0", CultureInfo.InvariantCulture) : Text;
 
     public void Write(XmlWriter writer, string reference)
     {
         const string main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
         writer.WriteStartElement("c", main);
         writer.WriteAttributeString("r", reference);
-        if (Style != XlsxStyle.Text) writer.WriteAttributeString("s", ((int)Style).ToString(CultureInfo.InvariantCulture));
+        writer.WriteAttributeString("s", ((int)Style + 1).ToString(CultureInfo.InvariantCulture));
 
         if (_number is { } number)
         {
             writer.WriteElementString("v", main, number.ToString(CultureInfo.InvariantCulture));
         }
-        else
+        else if (Text.Length > 0)
         {
             writer.WriteAttributeString("t", "inlineStr");
             writer.WriteStartElement("is", main);
@@ -545,6 +820,49 @@ internal sealed class XlsxCell
 
         writer.WriteEndElement();
     }
+
+    /// <summary>
+    /// 最長那一行佔幾個字元寬：全形字（中日韓、全形標點）與補充平面的字算 2，其他算 1。
+    /// </summary>
+    /// <remarks>
+    /// 欄寬的單位是預設字型的數字寬；比例字型的拉丁字母多半比數字窄，全形字約是它的兩倍。
+    /// 只拿來估欄寬與列高，寧寬勿窄。
+    /// </remarks>
+    public static double DisplayWidth(string text)
+    {
+        double widest = 0, current = 0;
+        foreach (var c in text)
+        {
+            if (c == '\n')
+            {
+                widest = Math.Max(widest, current);
+                current = 0;
+                continue;
+            }
+
+            if (char.IsLowSurrogate(c)) continue;
+            current += char.IsHighSurrogate(c) || IsWide(c) ? 2 : 1;
+        }
+
+        return Math.Max(widest, current);
+    }
+
+    /// <summary>在 <paramref name="width"/> 字元寬的欄裡，<paramref name="text"/> 折成幾行。</summary>
+    public static int LineCount(string text, double width)
+    {
+        var usable = Math.Max(1, width);
+        var lines = 0;
+        foreach (var line in text.Split('\n'))
+        {
+            lines += Math.Max(1, (int)Math.Ceiling(DisplayWidth(line) / usable));
+        }
+
+        return lines;
+    }
+
+    private static bool IsWide(char c) =>
+        (c >= 0x1100 && c <= 0x115F) || (c >= 0x2E80 && c <= 0xA4CF) || (c >= 0xAC00 && c <= 0xD7A3) ||
+        (c >= 0xF900 && c <= 0xFAFF) || (c >= 0xFE30 && c <= 0xFE4F) || (c >= 0xFF00 && c <= 0xFF60) || (c >= 0xFFE0 && c <= 0xFFE6);
 
     /// <summary>A1 樣式的位址；列、欄都從 1 數。</summary>
     public static string Reference(int row, int column) => ColumnName(column) + row.ToString(CultureInfo.InvariantCulture);

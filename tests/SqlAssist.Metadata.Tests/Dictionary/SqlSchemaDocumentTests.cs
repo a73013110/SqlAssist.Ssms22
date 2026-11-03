@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Xml.Linq;
 using SqlAssist.Metadata.Dictionary;
 using Xunit;
 
@@ -29,6 +30,7 @@ public sealed class SqlSchemaDocumentTests
         Assert.Null(details.DefaultOf(2, 2));
         Assert.Equal("([LoanNo]*(10))", details.ComputedOf(3, 2));
         Assert.Equal("dbo.Lib_Reader.ReaderNo, arc.Lib_Reader.ReaderNo", details.ReferenceOf(2, 2));
+        Assert.True(details.IncludesRows);
         Assert.Equal(1200, details.RowsOf(1));
         Assert.Equal(0, details.RowsOf(3));
         Assert.Null(details.RowsOf(4));
@@ -105,6 +107,13 @@ public sealed class SqlSchemaDocumentTests
         Assert.Equal(new[] { "dbo.Lib_Reader", "Loan", "LoanDetail", "LoanByReader", "arc.Lib_Reader" },
             workbook.Sheets.Skip(1).Select(sheet => sheet.Name).ToArray());
 
+        // 有描述的那一頁表頭在第 6 列；沒有描述的不留空白列，表頭上移一列。表身隔列淡底，游標停在第一筆的名稱。
+        var loan = workbook.Sheets.Single(sheet => sheet.Name == "Loan");
+        Assert.Equal(6, loan.FrozenRows);
+        Assert.Equal((7, 2), loan.SelectedCell);
+        Assert.Equal((7, 9, 9), loan.Banding);
+        Assert.Equal(5, workbook.Sheets.Last().FrozenRows);
+
         var written = new List<int>();
         using var output = new MemoryStream();
         document.Write(SqlSchemaExportFormat.Excel, output, written.Add, CancellationToken.None);
@@ -115,11 +124,47 @@ public sealed class SqlSchemaDocumentTests
         Assert.Equal(6, archive.Entries.Count(entry => entry.FullName.StartsWith("xl/worksheets/", StringComparison.Ordinal)));
     }
 
+    /// <summary>
+    /// 沒勾資料列數時只有三段結果：細節說沒讀，文件的列數都是 null，總覽少一欄而不是多一欄空白。
+    /// </summary>
+    [Fact]
+    public void 不讀資料列數時總覽少一欄()
+    {
+        using var set = Details();
+        set.Tables.Remove("rows");
+        using var reader = set.CreateDataReader();
+        var details = SqlSchemaDetails.Read(reader, CancellationToken.None);
+
+        Assert.False(details.IncludesRows);
+        Assert.Equal("(getdate())", details.DefaultOf(2, 3));
+
+        var document = SqlSchemaDocument.Build("LIBSQL01", "Library", LibraryDictionary.Create().Objects,
+            LibraryDictionary.Loaded, details, ExportedAt);
+        Assert.False(document.IncludesRows);
+        Assert.All(document.Tables, table => Assert.Null(table.Rows));
+
+        Assert.Equal(6, OverviewHeaders(document));
+        Assert.Equal(7, OverviewHeaders(Build(LibraryDictionary.Create().Objects)));
+    }
+
     [Theory]
     [InlineData(SqlSchemaExportFormat.Excel, ".xlsx")]
     [InlineData(SqlSchemaExportFormat.Markdown, ".md")]
     public void 副檔名(SqlSchemaExportFormat format, string extension) =>
         Assert.Equal(extension, SqlSchemaDocument.ExtensionOf(format));
+
+    /// <summary>總覽表頭那一列有幾欄。</summary>
+    private static int OverviewHeaders(SqlSchemaDocument document)
+    {
+        using var output = new MemoryStream();
+        document.Write(SqlSchemaExportFormat.Excel, output, null, CancellationToken.None);
+        output.Position = 0;
+        using var archive = new ZipArchive(output, ZipArchiveMode.Read);
+        using var stream = archive.GetEntry("xl/worksheets/sheet1.xml")!.Open();
+        XNamespace main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        return XDocument.Load(stream).Descendants(main + "row")
+            .Single(row => (string)row.Attribute("r")! == "4").Elements(main + "c").Count();
+    }
 
     private static SqlSchemaDocument Build(IEnumerable<SqlDictionaryObject> objects)
     {

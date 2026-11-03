@@ -744,13 +744,17 @@ internal static partial class SqlAssistChrome
     /// </remarks>
     public static ControlTemplate CreateTextBoxTemplate() => CreateTextBoxTemplate(typeof(TextBox));
 
+    /// <summary>輸入欄樣板裡那一圈外框的名稱；要動外框顏色的呼叫端（例如進入編輯的那一下）照名稱取。</summary>
+    [System.ComponentModel.Localizable(false)]
+    public const string TextFieldPart = "field";
+
     /// <param name="targetType">
     /// 套用樣板的控制項型別。<see cref="RichTextBox"/> 與 <see cref="TextBox"/> 的外框
     /// 完全相同，但 <c>ControlTemplate</c> 的 TargetType 必須對得上，否則套不上去。
     /// </param>
     public static ControlTemplate CreateTextBoxTemplate(Type targetType)
     {
-        var field = new FrameworkElementFactory(typeof(Border)) { Name = "field" };
+        var field = new FrameworkElementFactory(typeof(Border)) { Name = TextFieldPart };
         field.SetBinding(Border.BackgroundProperty, TemplatedParent(nameof(Control.Background)));
         field.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
         field.SetValue(Border.BorderThicknessProperty, new Thickness(1));
@@ -774,14 +778,14 @@ internal static partial class SqlAssistChrome
 
         AddTrigger(
             template, UIElement.IsMouseOverProperty,
-            Border.BorderBrushProperty, ThemeBrush.Border, "field");
+            Border.BorderBrushProperty, ThemeBrush.Border, TextFieldPart);
 
         AddTrigger(
             template, UIElement.IsKeyboardFocusWithinProperty,
-            Border.BorderBrushProperty, ThemeBrush.AccentBorder, "field");
+            Border.BorderBrushProperty, ThemeBrush.AccentBorder, TextFieldPart);
 
         var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
-        disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5, "field"));
+        disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5, TextFieldPart));
         template.Triggers.Add(disabled);
 
         return template;

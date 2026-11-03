@@ -17,10 +17,14 @@ namespace SqlAssist.Metadata.Dictionary;
 /// 匯出哪幾張表由呼叫端挑——一百張表就一百輪的那一版，比整份讀回來在記憶體裡挑慢得多。
 ///
 /// 沒有 <c>VIEW DEFINITION</c> 時 <c>definition</c> 讀回來是 NULL，那一格就空著，整份照樣匯出。
+///
+/// 資料列數要使用者勾了才讀（<see cref="RowsQuery"/>）：<c>sys.partitions</c> 在分割多、資料表多的資料庫上
+/// 要掃上萬列，而多數人匯出結構描述是要給人看欄位，不是看量。沒讀時 <see cref="IncludesRows"/> 是 false，
+/// 文件就整欄不出，而不是一欄空白。
 /// </remarks>
 public sealed class SqlSchemaDetails
 {
-    /// <summary>四段一起送；欄位順序見各段。</summary>
+    /// <summary>預設值、計算式與外部索引鍵三段一起送；欄位順序見各段。</summary>
     public const string Query = @"
 SELECT dc.parent_object_id, dc.parent_column_id, dc.definition
 FROM sys.default_constraints AS dc
@@ -38,8 +42,10 @@ INNER JOIN sys.objects AS po ON po.object_id = fkc.parent_object_id
 INNER JOIN sys.objects AS ro ON ro.object_id = fkc.referenced_object_id
 INNER JOIN sys.schemas AS rs ON rs.schema_id = ro.schema_id
 INNER JOIN sys.columns AS rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
-WHERE po.is_ms_shipped = 0;
+WHERE po.is_ms_shipped = 0;";
 
+    /// <summary>要資料列數時接在 <see cref="Query"/> 後面的第四段：堆積或叢集索引那一層的估計列數。</summary>
+    public const string RowsQuery = @"
 SELECT p.object_id, SUM(p.rows)
 FROM sys.partitions AS p
 INNER JOIN sys.objects AS o ON o.object_id = p.object_id
@@ -52,6 +58,9 @@ GROUP BY p.object_id;";
     private readonly Dictionary<(int, int), string> _computed = new();
     private readonly Dictionary<(int, int), string> _references = new();
     private readonly Dictionary<int, long> _rows = new();
+
+    /// <summary>有沒有讀資料列數；沒讀時文件不出那一欄。</summary>
+    public bool IncludesRows { get; private set; }
 
     /// <summary>什麼都沒有的一份；讀不到細節時匯出照樣進行，那幾欄留空。</summary>
     public static SqlSchemaDetails Empty { get; } = new();
@@ -66,7 +75,8 @@ GROUP BY p.object_id;";
     public long? RowsOf(int objectId) => _rows.TryGetValue(objectId, out var value) ? value : null;
 
     /// <summary>讀一份；資料庫說不行時回 null，失敗照字典的規矩記一筆。</summary>
-    public static SqlSchemaDetails? TryLoad(ISqlConnectionSource connectionSource, CancellationToken cancellationToken,
+    /// <param name="includeRows">連資料列數一起讀（多一段 <see cref="RowsQuery"/>）。</param>
+    public static SqlSchemaDetails? TryLoad(ISqlConnectionSource connectionSource, bool includeRows, CancellationToken cancellationToken,
         int commandTimeoutSeconds = DefaultCommandTimeoutSeconds)
     {
         if (connectionSource is null) throw new ArgumentNullException(nameof(connectionSource));
@@ -75,7 +85,7 @@ GROUP BY p.object_id;";
         {
             using var connection = connectionSource.OpenConnection();
             using var command = connection.CreateCommand();
-            command.CommandText = Query;
+            command.CommandText = includeRows ? Query + RowsQuery : Query;
             command.CommandTimeout = commandTimeoutSeconds;
 
             using var cancel = cancellationToken.Register(command.Cancel);
@@ -93,7 +103,7 @@ GROUP BY p.object_id;";
         }
     }
 
-    /// <summary>讀四段結果；與連線無關的那一半，測試用假資料列餵得進來。</summary>
+    /// <summary>讀三段或四段結果；有第四段就是有資料列數。與連線無關的那一半，測試用假資料列餵得進來。</summary>
     public static SqlSchemaDetails Read(IDataReader reader, CancellationToken cancellationToken)
     {
         if (reader is null) throw new ArgumentNullException(nameof(reader));
@@ -116,6 +126,7 @@ GROUP BY p.object_id;";
 
         if (reader.NextResult())
         {
+            details.IncludesRows = true;
             while (reader.Read())
             {
                 cancellationToken.ThrowIfCancellationRequested();

@@ -14,7 +14,7 @@
   // {suffix} 是名稱最後一個駝峰詞（例如 User），{column} {type} 是拿來比較的那個資料行與它的型別。
   "InconsistentColumnTypeMessage": "與同樣以 {suffix} 結尾的 {column} {type} 型別不同；比較時的隱含轉換會讓索引用不上。",
   "EnumWithoutCheckTitle": "列舉語意的資料行沒有 CHECK 條件約束",
-  "EnumWithoutCheckMessage": "說明列出了有哪幾個值，卻沒有 CHECK 條件約束把定義域寫進資料庫。",
+  "EnumWithoutCheckMessage": "描述列出了有哪幾個值，卻沒有 CHECK 條件約束把定義域寫進資料庫。",
   "MissingForeignKeyTitle": "名稱像外來鍵卻沒有外來鍵",
   "MissingForeignKeyMessage": "名稱看起來指向另一張資料表，卻沒有外來鍵擋住孤兒資料。",
   "LegacyDateTimeTitle": "datetime 建議改用 datetime2",

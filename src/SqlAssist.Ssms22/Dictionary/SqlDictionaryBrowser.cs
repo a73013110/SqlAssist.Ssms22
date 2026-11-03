@@ -70,7 +70,7 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
     private readonly SqlProgressStrip _progress = new(DictionaryText.ExportStop);
     private readonly TextBlock _detailSummary = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _summary = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
-    private readonly Button _export = SqlAssistChrome.CreateButton(DictionaryText.Export, SqlAssistChrome.DefaultMetrics);
+    private readonly Button _export = SqlAssistChrome.CreateButton(DictionaryText.ExportButton, SqlAssistChrome.DefaultMetrics);
     private readonly Button _revert = SqlAssistChrome.CreateButton(DictionaryText.Revert, SqlAssistChrome.DefaultMetrics);
     private readonly Button _apply = SqlAssistChrome.CreateButton(DictionaryText.Apply, SqlAssistChrome.DefaultMetrics, primary: true);
     private readonly DispatcherTimer _filterTimer;
@@ -302,6 +302,9 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
     /// <summary>頁尾：左邊匯出（附屬動作），中間數量與還沒套用的變更，右邊復原與套用（主要動作）。</summary>
     private DockPanel CreateFooter()
     {
+        // 圖示加字，不寫「匯出…」：刪節號擺在頁尾那一顆沒有外框的按鈕上，讀起來像字被截斷。
+        _export.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Export, DictionaryText.ExportButton);
+        AutomationProperties.SetName(_export, DictionaryText.ExportButton);
         _export.ToolTip = DictionaryText.ExportToolTip;
         _export.Click += (_, _) => Run(() => Export(preferSelected: false));
         _revert.ToolTip = DictionaryText.RevertToolTip;
@@ -813,7 +816,7 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         var matching = _model.MatchingObjects().Select(row => row.Object).ToList();
         var server = _scope.Selection.ServerName ?? "";
 
-        var window = new SqlSchemaExportWindow(DictionaryText.ExportSummary(server, dictionary.DatabaseName),
+        var window = new SqlSchemaExportWindow(server, dictionary.DatabaseName,
             (selected.Count, matching.Count, dictionary.Objects.Count), _model.Edits.Count, preferSelected);
         if (window.Ask() is not { } options) return;
 
@@ -904,7 +907,7 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         {
             await Task.Run(() =>
             {
-                var details = SqlSchemaDetails.TryLoad(source, token);
+                var details = SqlSchemaDetails.TryLoad(source, options.IncludeRows, token);
                 detailsMissing = details is null;
                 var document = SqlSchemaDocument.Build(server, database, objects,
                     (target, original) => descriptions.TryGetValue(target, out var value) ? value : original,

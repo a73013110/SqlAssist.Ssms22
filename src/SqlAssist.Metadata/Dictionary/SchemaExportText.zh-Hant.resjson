@@ -10,9 +10,9 @@
   "HeaderNumber": "#",
   "HeaderTable": "資料表",
   "HeaderKind": "類型",
-  "HeaderDescription": "說明",
+  "HeaderDescription": "描述",
   "HeaderColumns": "資料行",
-  "HeaderDescribed": "已說明",
+  "HeaderDescribed": "已填描述",
   "HeaderRows": "資料列",
   "HeaderColumn": "資料行",
   "HeaderType": "型別",
@@ -24,8 +24,8 @@
   // ── 值 ──
   "KindTable": "資料表",
   "KindView": "檢視",
-  "TableMeta": "{kind} · {columns:N0} 個資料行 · {described:N0} 個已說明",
-  "TableMetaRows": "{kind} · {columns:N0} 個資料行 · {described:N0} 個已說明 · 約 {rows:N0} 列",
+  "TableMeta": "{kind} · {columns:N0} 個資料行 · {described:N0} 個已填描述",
+  "TableMetaRows": "{kind} · {columns:N0} 個資料行 · {described:N0} 個已填描述 · 約 {rows:N0} 列",
   "Identity": "識別",
   // {definition} 是計算資料行的運算式，原樣不翻。
   "Computed": "計算：{definition}",

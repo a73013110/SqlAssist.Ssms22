@@ -5,6 +5,8 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
+using System.Windows.Media;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -199,5 +201,79 @@ internal static partial class SqlAssistChrome
             e.Handled = true;
         };
         return row;
+    }
+
+    /// <summary>
+    /// 選項卡：一組並排、互斥的選擇（例如匯出格式），每張是圖示、標題與一兩行說明，選到的那一張換強調色外框與底。
+    /// </summary>
+    /// <remarks>
+    /// 給「選的是一種東西」而不是「開一個設定」的那一題：檔案格式看圖示就認得，並排比一列一列的單選鈕
+    /// 一眼看得完。選取與焦點只換筆刷、不改外框厚度，切換時版面不跳；右上角的勾讓不靠顏色也讀得出哪一張。
+    /// 鍵盤與朗讀照單選鈕：方向鍵在同一組裡移動，自動化名稱是標題。
+    /// </remarks>
+    public static RadioButton CreateChoiceTile(RadioButton box, SqlIcon icon, string title, string description)
+    {
+        var glyph = CreateIcon(icon);
+        glyph.Width = 32; glyph.Height = 32;
+        glyph.HorizontalAlignment = HorizontalAlignment.Left;
+
+        var check = CreateIcon(SqlIcon.Done);
+        check.HorizontalAlignment = HorizontalAlignment.Right;
+        check.VerticalAlignment = VerticalAlignment.Top;
+        check.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(ToggleButton.IsChecked))
+        {
+            Source = box, Converter = new BooleanToVisibilityConverter()
+        });
+
+        var top = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+        top.Children.Add(glyph);
+        top.Children.Add(check);
+
+        var content = new StackPanel();
+        content.Children.Add(top);
+        content.Children.Add(new TextBlock
+        {
+            Text = title, FontFamily = InterfaceFont, FontSize = DefaultMetrics.Body, FontWeight = FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground));
+        var detail = CreateStatusText(DefaultMetrics);
+        detail.Text = description; detail.TextWrapping = TextWrapping.Wrap; detail.TextTrimming = TextTrimming.None;
+        detail.Margin = new Thickness(0, 3, 0, 0);
+        content.Children.Add(detail);
+
+        box.Content = content;
+        box.Template = CreateChoiceTileTemplate();
+        box.FocusVisualStyle = null;
+        box.Cursor = System.Windows.Input.Cursors.Hand;
+        AutomationProperties.SetName(box, title);
+        AutomationProperties.SetHelpText(box, description);
+        return box;
+    }
+
+    private static ControlTemplate CreateChoiceTileTemplate()
+    {
+        var tile = new FrameworkElementFactory(typeof(Border)) { Name = "tile" };
+        tile.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius + 3));
+        tile.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        tile.SetValue(Border.PaddingProperty, new Thickness(14, 12, 12, 14));
+        tile.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+        tile.SetResourceReference(Border.BackgroundProperty, ThemeBrush.ListBackground);
+        tile.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
+        tile.AppendChild(new FrameworkElementFactory(typeof(ContentPresenter)));
+
+        var template = new ControlTemplate(typeof(RadioButton)) { VisualTree = tile };
+        AddTrigger(template, UIElement.IsMouseOverProperty, Border.BorderBrushProperty, ThemeBrush.Border, "tile");
+        AddTrigger(template, UIElement.IsKeyboardFocusedProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "tile");
+
+        // 選取寫在停駐與焦點之後：同時成立時，後宣告的那一個才是畫出來的那一種。
+        var isChecked = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
+        isChecked.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.AccentBackground, "tile"));
+        isChecked.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, ThemeBrush.AccentBorder, "tile"));
+        template.Triggers.Add(isChecked);
+
+        var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
+        disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5, "tile"));
+        template.Triggers.Add(disabled);
+        return template;
     }
 }
