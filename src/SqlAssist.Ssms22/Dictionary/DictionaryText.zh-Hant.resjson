@@ -1,7 +1,7 @@
 {
   // 資料字典工具窗、套用對話框與通知訊息的文字。
   // ── 工具窗 ──
-  "Caption": "資料字典",
+  "Caption": "SQL Dictionary",
   "OpenFailed": "開啟資料字典失敗",
   "ToolWindowMissing": "SSMS 未建立資料字典工具窗。",
   "DatabaseOptionDescription": "讀取這個資料庫的資料表、檢視與資料行說明。",
@@ -13,18 +13,16 @@
   "FilterName": "過濾資料表或資料行名稱",
   "FilterToolTip": "比對資料表與資料行名稱；空白或逗號分開的幾個字任一命中就算。打資料行名稱就能比對各資料表裡同名資料行的型別與說明。",
   "Conditions": "條件",
-  "ConditionsMatchGroup": "比對名稱",
-  "MatchObjects": "資料表名稱",
-  "MatchObjectsToolTip": "名稱命中的資料表整張列出。",
-  "MatchColumns": "資料行名稱",
-  "MatchColumnsToolTip": "只列名稱命中的資料行。",
+  "MatchNameDescription": "資料表名稱命中時整張列出。",
+  "MatchColumnDescription": "只列名稱命中的資料行。",
   "ConditionsShowGroup": "只看",
   "OnlyMissing": "缺少說明",
   "OnlyMissingToolTip": "只列還沒有說明的資料行。",
   "OnlyInconsistent": "同名卻不一致",
   "OnlyInconsistentToolTip": "只列同名資料行之間型別或說明不一樣的那幾個。",
-  "ExcludeViews": "不含檢視",
-  "ExcludeViewsToolTip": "只看資料表；檢視的說明多半照抄來源資料表。",
+  "ConditionsObjectsGroup": "物件",
+  "IncludeViews": "含檢視",
+  "IncludeViewsToolTip": "連同檢視一起列出；檢視的資料行多半是資料表的投影，說明也該寫在資料表上，預設不列。",
   "ConditionCount": "{count:N0} 個條件",
   "Refresh": "重新整理：重新讀取這個資料庫的說明；別人改過或剛建好資料表之後用它。",
   // ── 清單 ──
@@ -41,6 +39,9 @@
   "ColumnsName": "資料行清單",
   "ObjectsName": "資料表清單",
   "ChangedToolTip": "還沒套用的變更",
+  "DescriptionHeaderToolTip": "可以直接改：按兩下、F2 或直接打字；Enter 確認、Esc 取消，Ctrl+V 貼上試算表。",
+  "DescriptionPlaceholder": "加上說明…",
+  "EditDescription": "編輯說明（F2）",
   // {described} 是有說明的資料行數，{total} 是資料行總數。
   "Coverage": "{described:N0}/{total:N0}",
   "PrimaryKeyTrait": "主索引鍵",
@@ -62,10 +63,12 @@
   // ── 主從 ──
   "DetailTitle": "資料行",
   "ExpandDetail": "展開資料行",
-  "ExpandDetailToolTip": "在右邊列出選定資料表的資料行與說明",
+  "ExpandDetailToolTip": "在下方列出選定資料表的資料行與說明",
   "CollapseDetail": "收合資料行",
   "CollapseDetailToolTip": "收起資料行，主清單佔滿整個工具窗",
   "DetailStrip": "資料行",
+  // 明細抬頭上的那一句；{name} 是 schema.name，{count} 是選了幾張。
+  "SelectedObjects": "已選 {count:N0} 張資料表 · 顯示 {name}",
   // ── 頁尾 ──
   "Counts": "{objects:N0} 張資料表 · {columns:N0} 個資料行",
   "CountsWithChanges": "{objects:N0} 張資料表 · {columns:N0} 個資料行 · {changes:N0} 項變更未套用",
@@ -74,6 +77,9 @@
   "Apply": "套用",
   "ApplyToolTip": "預覽指令碼，確認後在一個交易裡寫回伺服器",
   "ApplyTooLong": "有說明超過 {max:N0} 個字元，改短之後才能套用",
+  "Export": "匯出…",
+  "ExportToolTip": "把資料表的結構與說明匯出成 Excel 活頁簿或 Markdown",
+  "ExportSelected": "匯出所選資料表…",
   // ── 狀態 ──
   "ChooseServer": "選擇伺服器",
   "ChooseServerDetail": "資料字典一次看一台伺服器上的一個資料庫。",
@@ -100,6 +106,35 @@
   "OpenInQueryWindow": "在查詢視窗開啟",
   "Execute": "執行",
   "ScriptName": "說明變更指令碼",
+  // ── 匯出 ──
+  "ExportTitle": "匯出結構描述",
+  // {database} 是資料庫名稱，{server} 是伺服器名稱。
+  "ExportSummary": "{server} · {database}",
+  "ExportScopeSection": "範圍",
+  "ExportScopeSelected": "所選的資料表",
+  "ExportScopeSelectedDescription": "{count:N0} 張；在清單上按 Ctrl 或 Shift 多選，Ctrl+A 全選。",
+  "ExportScopeMatching": "清單上的資料表",
+  "ExportScopeMatchingDescription": "{count:N0} 張，符合目前的過濾與條件。",
+  "ExportScopeAll": "整個資料庫",
+  "ExportScopeAllDescription": "{count:N0} 張資料表與檢視。",
+  "ExportFormatSection": "格式",
+  "ExportExcel": "Excel 活頁簿（.xlsx）",
+  "ExportExcelDescription": "一頁總覽加每張資料表一頁，互相連結，表頭凍結可篩選。",
+  "ExportMarkdown": "Markdown（.md）",
+  "ExportMarkdownDescription": "一份文件：目錄加每張資料表一節，放得進 Git 或 Wiki。",
+  "ExportOpenAfter": "匯出後開啟檔案",
+  "ExportOpenAfterDescription": "用這種檔案的預設程式打開。",
+  // {count} 是還沒套用的說明變更數。
+  "ExportPendingInfo": "有 {count:N0} 項說明變更還沒套用；匯出的是畫面上的說明。要與伺服器一致，先套用再匯出。",
+  "ExportButton": "匯出",
+  "ExportExcelFilter": "Excel 活頁簿 (*.xlsx)|*.xlsx",
+  "ExportMarkdownFilter": "Markdown (*.md)|*.md",
+  "ExportStop": "停止匯出",
+  "ExportReading": "讀取預設值、外部索引鍵與資料列數…",
+  // {index}/{total} 是寫到第幾張，{name} 是那一張的 schema.name。
+  "ExportWriting": "寫入 {index:N0}/{total:N0} · {name}",
+  "ExportDone": "已匯出 {count:N0} 張資料表",
+  "ExportDetailsMissing": "已匯出 {count:N0} 張資料表；讀不到預設值與外部索引鍵，那幾欄留空。",
   // ── 通知訊息 ──
   "Applied": "已寫回 {count:N0} 項說明",
   "Conflicted": "{count:N0} 項說明在伺服器上已被改過，這一次沒有寫入；已換上伺服器現在的值，確認後再套用一次。",

@@ -15,6 +15,8 @@
 | 過濾面板、摘要與可換行的工具列篩選 | `Ssms22/UI/SqlFilterFlyout.cs`、`SqlFilterSummary.cs`、`SqlAssistChrome.Filters.cs`、`SqlFilterBar.cs` |
 | 輸入框與右緣動作的第一列 | `Ssms22/UI/SqlInputRow.cs` |
 | 搜尋框、工具列開關樣式與比對開關（寫回 `TextMatchOptions` 不發變更） | `Ssms22/UI/SqlAssistChrome.Search.cs`、`SqlMatchToggles.cs` |
+| 比對位置的分段開關（旗標列舉、至少亮一段、程式設定不發變更） | `Ssms22/UI/SqlFlagSegments.cs`；SQL Search 的那一組在 `SqlSearchTargets.CreateSegments` |
+| 資料格裡看得出可以改的文字欄（外框、鉛筆、空白提示、進入與確認動畫）與變更記號欄 | `Ssms22/UI/SqlEditableTextColumn.cs` |
 | 套用查詢視窗連線的按鈕與用詞 | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateEditorConnectionButton`、`SqlEditorConnectionText.cs` |
 | Chevron、圖示按鈕／開關、兩級分隔線、工具列；卡片樣式與進退場 | `Ssms22/UI/SqlAssistChrome.Buttons.cs`、`SqlAssistChrome.Cards.cs` |
 | 卡片清單的鍵盤、滑鼠、續頁與頁尾 | `Ssms22/UI/SqlCardList.cs`、頁尾 `SqlListPager.cs` |

@@ -146,6 +146,8 @@
   "PastingDescriptionsDone": "已貼上說明",
   "RunningDictionaryAction": "執行資料字典操作",
   "RunningDictionaryActionDone": "已執行資料字典操作",
+  "ExportingSchema": "匯出結構描述",
+  "ExportingSchemaDone": "已匯出結構描述",
   // 依保留規則回收舊紀錄。
   "MaintainingSqlMemory": "維護 SQL Memory",
   "MaintainingSqlMemoryDone": "已維護 SQL Memory",

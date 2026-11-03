@@ -17,12 +17,13 @@ New-Item -ItemType Directory -Path $directory -Force | Out-Null
 [xml]$commands = Get-Content -LiteralPath $source -Raw -Encoding utf8
 $namespaces = [System.Xml.XmlNamespaceManager]::new($commands.NameTable)
 $namespaces.AddNamespace('ct', 'http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable')
-# 工具列上的三顆工具窗入口。每一顆都要有名稱、主題圖示與工具列位置——缺哪一樣都不會
+# 工具列上的四顆工具窗入口。每一顆都要有名稱、主題圖示與工具列位置——缺哪一樣都不會
 # 有編譯錯誤，症狀是工具列上少一顆按鈕，或多一顆只有圖示認不出來的按鈕。
 $toolbarEntries = @(
     @('cmdidShowSqlHistory', 'History'),
     @('cmdidShowSqlFavorites', 'Favorites'),
-    @('cmdidShowSqlSearch', 'Search')
+    @('cmdidShowSqlSearch', 'Search'),
+    @('cmdidShowDataDictionary', 'Dictionary')
 )
 foreach ($entry in $toolbarEntries) {
     $button = $commands.SelectSingleNode('//ct:Button[@id="' + $entry[0] + '"]', $namespaces)

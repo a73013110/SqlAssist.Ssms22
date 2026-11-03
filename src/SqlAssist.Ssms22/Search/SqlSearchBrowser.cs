@@ -87,7 +87,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly SearchEta _eta = new();
     private readonly Stopwatch _runClock = new();
     private readonly SqlMatchToggles _matchToggles = new();
-    private readonly SqlSearchSegments _segments = new();
+    private readonly SqlFlagSegments<SearchTargets> _segments = SqlSearchTargets.CreateSegments();
     private readonly SqlFilterFlyout _kinds = new(CommonText.Kind, SqlIcon.Filter);
     private readonly SqlCardSelection<SqlSearchRow, string> _selection;
     private readonly SqlSelectionBar _selectionBar;

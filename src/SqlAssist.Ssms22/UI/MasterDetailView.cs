@@ -60,7 +60,10 @@ internal sealed class MasterDetailView : Grid
     private const double OrientationHysteresis = 32;
 
     /// <summary>上下分割時的兩段比例；轉向後換回來仍是使用者拖過的那一份。</summary>
-    /// <remarks>清單多分一點：上下分割時 Preview 吃的是整個寬度，矮一點仍讀得完一行 SQL。</remarks>
+    /// <remarks>
+    /// 預設清單多分一點：上下分割時 Preview 吃的是整個寬度，矮一點仍讀得完一行 SQL。
+    /// 呼叫端可以換預設（建構式的 <c>stackedRatio</c>）。
+    /// </remarks>
     private GridLength _masterHeight = new(3, GridUnitType.Star);
     private GridLength _detailHeight = new(2, GridUnitType.Star);
 
@@ -90,12 +93,23 @@ internal sealed class MasterDetailView : Grid
     /// </param>
     /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
     /// <param name="labels">明細那一塊叫什麼；null 是 SQL 預覽。</param>
+    /// <param name="stackedRatio">
+    /// 上下分割時清單與明細的預設比例；null 是清單 3：明細 2。明細才是主要工作區的（資料字典改的是
+    /// 資料行說明）給明細多一點。
+    /// </param>
     public MasterDetailView(UIElement master, UIElement detail, FrameworkElement? summary = null,
-        double? sideBySideWidth = null, bool? motion = null, MasterDetailLabels? labels = null)
+        double? sideBySideWidth = null, bool? motion = null, MasterDetailLabels? labels = null,
+        (double Master, double Detail)? stackedRatio = null)
     {
         // 字在建構時取：換語言時工具窗整份重建，見 SqlLanguageSwitch。
         _labels = labels ?? MasterDetailLabels.Preview;
         if (sideBySideWidth is <= 0) throw new ArgumentOutOfRangeException(nameof(sideBySideWidth));
+        if (stackedRatio is { } ratio)
+        {
+            if (ratio.Master <= 0 || ratio.Detail <= 0) throw new ArgumentOutOfRangeException(nameof(stackedRatio));
+            _masterHeight = new GridLength(ratio.Master, GridUnitType.Star);
+            _detailHeight = new GridLength(ratio.Detail, GridUnitType.Star);
+        }
 
         _master = master;
         _detail = detail;

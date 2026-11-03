@@ -29,6 +29,9 @@ public enum SqlDictionaryMatchTargets
 /// 打資料行名稱時明細只剩那幾個，兩種檢視看到的是同一組資料行。各寫一套的症狀是同一個過濾字
 /// 在兩種檢視裡數出不同的筆數。
 ///
+/// 預設不含檢視：檢視的資料行多半是資料表那幾個的投影，說明也該寫在資料表上；列進來只是讓同名比較
+/// 多出一堆「不一致」，而要改的那一句不在它們身上。要看再打開。
+///
 /// 字面比對而不是模糊比對：這個過濾是拿來找「同名或相近名稱的資料行」比型別與說明，
 /// 模糊比對讓 <c>no</c> 命中每一個散落著 n 與 o 的名稱，比較就失去意義。
 /// 以空白或逗號分開的幾個字任一命中就算（<c>ReaderNo, ReaderId</c> 一起比）。
@@ -45,7 +48,7 @@ public sealed class SqlDictionaryFilter
         SqlDictionaryMatchTargets targets = SqlDictionaryMatchTargets.Both,
         bool onlyMissingDescriptions = false,
         bool onlyInconsistent = false,
-        bool includeViews = true)
+        bool includeViews = false)
     {
         Text = text?.Trim() ?? string.Empty;
         Options = options;
@@ -63,7 +66,8 @@ public sealed class SqlDictionaryFilter
         _matchers = matchers;
     }
 
-    public static SqlDictionaryFilter None { get; } = new();
+    /// <summary>剛打開時的過濾：沒有過濾字、不限資料行、不含檢視。</summary>
+    public static SqlDictionaryFilter Default { get; } = new();
 
     public string Text { get; }
 
@@ -78,8 +82,8 @@ public sealed class SqlDictionaryFilter
 
     public bool IncludeViews { get; }
 
-    /// <summary>沒有任何條件：每一列都留著。</summary>
-    public bool IsEmpty => _matchers.Count == 0 && !OnlyMissingDescriptions && !OnlyInconsistent && IncludeViews;
+    /// <summary>資料行這一層有沒有條件；沒有時留下的物件整張列出，不必逐一比對。</summary>
+    private bool HasColumnConditions => _matchers.Count > 0 || OnlyMissingDescriptions || OnlyInconsistent;
 
     /// <summary>過濾字有沒有命中這個物件的名稱；有勾資料表時才算。</summary>
     public bool MatchesObjectName(SqlDictionaryObject item)
@@ -134,7 +138,7 @@ public sealed class SqlDictionaryFilter
         if (groups is null) throw new ArgumentNullException(nameof(groups));
 
         if (!Includes(item)) return Array.Empty<SqlDictionaryColumn>();
-        if (IsEmpty) return item.Columns;
+        if (!HasColumnConditions) return item.Columns;
 
         var objectNameMatched = _matchers.Count > 0 && MatchesObjectName(item);
         List<SqlDictionaryColumn>? matched = null;

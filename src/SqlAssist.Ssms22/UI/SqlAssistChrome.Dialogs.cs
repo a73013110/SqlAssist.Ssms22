@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -139,15 +141,20 @@ internal static partial class SqlAssistChrome
     }
 
     /// <summary>
-    /// 選項列：核取方塊、標題與一行淡色說明；整列都能點，右側可放附屬控制項。
+    /// 選項列：核取方塊或單選鈕、標題與一行淡色說明；整列都能點，右側可放附屬控制項。
     /// </summary>
     /// <remarks>
-    /// 說明放進核取方塊的內容，點說明文字也會切換，鍵盤焦點與自動化名稱仍落在核取方塊本身。
-    /// 說明只有一行，被省略時從 Tooltip 讀完整內容。
+    /// 說明放進按鈕的內容，點說明文字也會切換，鍵盤焦點與自動化名稱仍落在按鈕本身。
+    /// 說明只有一行，被省略時從 Tooltip 讀完整內容。單選鈕整列點下去是選它，不是切換：
+    /// 已經選了的那一列再點一次仍是選著。
     /// </remarks>
+    /// <param name="box"><see cref="CheckBox"/> 或 <see cref="RadioButton"/>；樣板照種類換。</param>
     /// <param name="accessory">只屬於這個選項的附屬設定；呼叫端依勾選狀態決定是否啟用。</param>
-    public static Border CreateOptionRow(CheckBox box, string title, string description, FrameworkElement? accessory = null)
+    [Localizable(false)]
+    public static Border CreateOptionRow(ToggleButton box, string title, string description, FrameworkElement? accessory = null)
     {
+        if (box is not CheckBox and not RadioButton) throw new ArgumentException("選項列只收核取方塊或單選鈕。", nameof(box));
+
         var text = new StackPanel();
         text.Children.Add(new TextBlock
         {
@@ -157,7 +164,7 @@ internal static partial class SqlAssistChrome
         detail.Text = description; detail.Margin = new Thickness(0, 1, 0, 0);
         text.Children.Add(detail);
         box.Content = text;
-        box.Template = CreateCheckBoxTemplate();
+        box.Template = box is RadioButton ? CreateRadioTemplate() : CreateCheckBoxTemplate();
         box.FontFamily = InterfaceFont; box.FontSize = DefaultMetrics.Body;
         box.VerticalAlignment = VerticalAlignment.Center;
         box.FocusVisualStyle = null;
@@ -188,7 +195,7 @@ internal static partial class SqlAssistChrome
         {
             if (e.Handled || !box.IsEnabled) return;
             if (accessory is not null && e.OriginalSource is DependencyObject source && accessory.IsAncestorOf(source)) return;
-            box.IsChecked = box.IsChecked != true;
+            box.IsChecked = box is RadioButton || box.IsChecked != true;
             e.Handled = true;
         };
         return row;

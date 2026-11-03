@@ -53,7 +53,7 @@ internal sealed class SqlDictionaryBrowserModel
 
     public SqlColumnNameGroups Groups { get; private set; } = SqlColumnNameGroups.Empty;
 
-    public SqlDictionaryFilter Filter { get; set; } = SqlDictionaryFilter.None;
+    public SqlDictionaryFilter Filter { get; set; } = SqlDictionaryFilter.Default;
 
     public SqlDictionaryView View { get; set; } = SqlDictionaryView.Tables;
 

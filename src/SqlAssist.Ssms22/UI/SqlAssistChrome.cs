@@ -1242,17 +1242,19 @@ internal static partial class SqlAssistChrome
     }
 
     /// <summary>
-    /// 編輯中的儲存格。
+    /// 編輯中的儲存格：與輸入欄位同一個圓角外框，焦點在裡面時換成強調色。
     /// </summary>
     /// <remarks>
     /// 沒有這一份，按下去編輯的那一格會換成內建樣式的輸入欄——白底黑字，
-    /// 在深色主題裡就是一格突然亮起來的白。
+    /// 在深色主題裡就是一格突然亮起來的白。外框沿用 <see cref="CreateTextBoxTemplate()"/>：
+    /// 沒有外框的那一版看起來與唯讀格只差一條插入點，使用者分不出自己是不是正在改。
     /// </remarks>
     public static Style CreateCellEditorStyle()
     {
         var style = CreateTextFieldStyle(typeof(TextBox));
-        style.Setters.Add(new Setter(Control.BorderThicknessProperty, default(Thickness)));
-        style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 0, 8, 0)));
+        style.Setters.Add(new Setter(Control.TemplateProperty, CreateTextBoxTemplate()));
+        style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
+        style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(7, 0, 7, 0)));
         style.Setters.Add(new Setter(
             Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
         return style;

@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -10,6 +13,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
@@ -17,6 +21,7 @@ using SqlAssist.Core.Notifications;
 using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Dictionary;
 using SqlAssist.Metadata.Formatting;
+using SqlAssist.Metadata.Querying;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.UI;
@@ -33,6 +38,9 @@ namespace SqlAssist.Ssms22.Dictionary;
 ///
 /// 寫回只有一條路：套用 → 預覽整份指令碼 → 執行（一個交易、先比對再寫）。預覽裡可以改成拿到查詢視窗
 /// 自己執行；兩條路收尾都一樣是重新載入，伺服器上已經是那一句的就不再算變更。
+///
+/// 匯出結構描述（Excel 或 Markdown）在背景跑，進度在清單上方那一條（<see cref="SqlProgressStrip"/>，與 SQL Search
+/// 同一份）：讀細節那一段還不知道分母，寫檔那一段一張表推一格，可以中途停止。
 /// </remarks>
 internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
 {
@@ -44,14 +52,25 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
     private readonly TextBox _filter = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly SqlMatchToggles _matchToggles = new();
     private readonly SqlPillSelector _views = new(DictionaryText.ViewTables, DictionaryText.ViewColumns);
+    private readonly SqlFlagSegments<SqlDictionaryMatchTargets> _targets = new(SearchControlText.Targets, new[]
+    {
+        new SqlFlagSegment<SqlDictionaryMatchTargets>(SqlDictionaryMatchTargets.Objects, CommonText.Name,
+            SearchControlText.TargetToolTip(CommonText.Name, DictionaryText.MatchNameDescription)),
+        new SqlFlagSegment<SqlDictionaryMatchTargets>(SqlDictionaryMatchTargets.Columns, SqlKindText.Column,
+            SearchControlText.TargetToolTip(SqlKindText.Column, DictionaryText.MatchColumnDescription)),
+    });
     private readonly SqlFilterFlyout _conditions = new(DictionaryText.Conditions, SqlIcon.Filter);
     private readonly Button _refresh = SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, DictionaryText.Refresh);
     private readonly DataGrid _objects;
+    private readonly DataGridColumn _kindColumn;
     private readonly DataGrid _detail;
     private readonly DataGrid _columns;
     private readonly MasterDetailView _tablesView;
     private readonly SqlStateSurface _surface;
+    private readonly SqlProgressStrip _progress = new(DictionaryText.ExportStop);
+    private readonly TextBlock _detailSummary = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _summary = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
+    private readonly Button _export = SqlAssistChrome.CreateButton(DictionaryText.Export, SqlAssistChrome.DefaultMetrics);
     private readonly Button _revert = SqlAssistChrome.CreateButton(DictionaryText.Revert, SqlAssistChrome.DefaultMetrics);
     private readonly Button _apply = SqlAssistChrome.CreateButton(DictionaryText.Apply, SqlAssistChrome.DefaultMetrics, primary: true);
     private readonly DispatcherTimer _filterTimer;
@@ -59,10 +78,11 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
     private IReadOnlyList<SqlDictionaryColumnRow> _detailRows = Array.Empty<SqlDictionaryColumnRow>();
     private IReadOnlyList<SqlDictionaryColumnRow> _columnRows = Array.Empty<SqlDictionaryColumnRow>();
     private CancellationTokenSource _load = new();
-    private SqlDictionaryMatchTargets _matchTargets = SqlDictionaryMatchTargets.None;
+    private CancellationTokenSource? _exporting;
+    private int _exportGeneration;
     private bool _onlyMissing;
     private bool _onlyInconsistent;
-    private bool _excludeViews;
+    private bool _includeViews;
     private string _databaseKey = "";
     private bool _loading;
     private bool _failed;
@@ -90,7 +110,7 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
         MinWidth = 300;
 
-        _objects = CreateObjectGrid();
+        _objects = CreateObjectGrid(out _kindColumn);
         _detail = CreateColumnGrid(showOwner: false, DictionaryText.ColumnsName);
         _columns = CreateColumnGrid(showOwner: true, DictionaryText.ColumnsName);
 
@@ -100,13 +120,22 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         DockPanel.SetDock(toolbar, Dock.Top);
         root.Children.Add(toolbar);
 
+        // 匯出的進度貼在清單上方：清單照樣可以看、可以改，停止一直看得見。
+        _progress.Margin = new Thickness(0, 0, 0, SqlAssistChrome.Spacing.Group);
+        _progress.StopRequested += (_, _) => _exporting?.Cancel();
+        DockPanel.SetDock(_progress, Dock.Top);
+        root.Children.Add(_progress);
+
         var footer = CreateFooter();
         DockPanel.SetDock(footer, Dock.Bottom);
         root.Children.Add(footer);
 
-        _tablesView = new MasterDetailView(_objects, _detail, labels: new MasterDetailLabels(
+        // 永遠上下分割：兩邊都是多欄的表，左右並排時兩張都窄到說明欄只剩幾個字。
+        // 明細多分一點——要改的多半是資料行說明，主清單只要看得到附近幾張表。抬頭寫出明細是哪一張。
+        _tablesView = new MasterDetailView(_objects, _detail, _detailSummary, labels: new MasterDetailLabels(
             DictionaryText.DetailTitle, DictionaryText.ExpandDetail, DictionaryText.ExpandDetailToolTip,
-            DictionaryText.CollapseDetail, DictionaryText.CollapseDetailToolTip, DictionaryText.DetailStrip));
+            DictionaryText.CollapseDetail, DictionaryText.CollapseDetailToolTip, DictionaryText.DetailStrip),
+            stackedRatio: (2, 3));
         var views = new Grid();
         views.Children.Add(_tablesView);
         views.Children.Add(_columns);
@@ -154,6 +183,7 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         _disposed = true;
         _model.EditsChanged -= OnEditsChanged;
         _filterTimer.Stop();
+        _exporting?.Cancel();
         _load.Cancel();
         _load.Dispose();
         _scope.Dispose();
@@ -164,7 +194,9 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
     /// </summary>
     /// <remarks>
     /// 檢視是常駐的膠囊而不是下拉：兩種檢視來回切是比較同名資料行的主要動作。
-    /// 條件收在一顆下拉裡：五個勾選攤開會佔掉一整列，而它們大部分時間都沒勾。
+    /// 比對位置（名稱／資料行）是常駐的分段開關，與 SQL Search 的比對位置同一份元件與說法：
+    /// 只找資料表或只找資料行是打字時隨手切的，藏進下拉每次多兩下。
+    /// 其餘條件收在一顆下拉裡：它們大部分時間都沒勾。
     /// </remarks>
     private SqlScopeToolbar CreateToolbar()
     {
@@ -193,6 +225,7 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
             _filterTimer.Start();
         });
         _matchToggles.Changed += (_, _) => Run(FilterChanged);
+        _targets.ValueChanged += (_, _) => Run(FilterChanged);
         _refresh.Click += (_, _) => Run(() =>
         {
             _scope.Refresh();
@@ -204,21 +237,23 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
             new SqlInputRow(bar, _refresh),
             new[]
             {
-                _scope.Controls.ToArray(), new FrameworkElement[] { _views }, new FrameworkElement[] { _conditions },
+                _scope.Controls.ToArray(), new FrameworkElement[] { _views }, new FrameworkElement[] { _targets },
+                new FrameworkElement[] { _conditions },
             });
     }
 
     private void OnEditsChanged(object? sender, EventArgs args) =>
         SqlAssistPlatformGuard.Run("更新資料字典頁尾", UpdateFooter);
 
-    /// <summary>接手的模型帶著過濾條件時，工具列照它擺回去；都勾等於都沒勾，擺成沒勾。</summary>
+    /// <summary>接手的模型帶著過濾條件時，工具列照它擺回去。</summary>
     private void RestoreFilter()
     {
         var filter = _model.Filter;
-        _matchTargets = filter.Targets == SqlDictionaryMatchTargets.Both ? SqlDictionaryMatchTargets.None : filter.Targets;
+        _targets.Value = filter.Targets;
         _onlyMissing = filter.OnlyMissingDescriptions;
         _onlyInconsistent = filter.OnlyInconsistent;
-        _excludeViews = !filter.IncludeViews;
+        _includeViews = filter.IncludeViews;
+        _kindColumn.Visibility = _includeViews ? Visibility.Visible : Visibility.Collapsed;
         _matchToggles.Options = filter.Options;
         _filter.Text = filter.Text;
         _filterTimer.Stop();
@@ -226,7 +261,7 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         UpdateConditionSummary();
     }
 
-    /// <summary>條件下拉：比對哪一種名稱、只看哪幾種資料行；沒勾就是不限。</summary>
+    /// <summary>條件下拉：只看哪幾種資料行、要不要連檢視一起列。</summary>
     private void FillConditions()
     {
         SqlFilterOption Option(string label, string toolTip, bool selected, Action<bool> set) =>
@@ -239,33 +274,24 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
 
         _conditions.SetOptions(new[]
         {
-            new SqlFilterGroup(DictionaryText.ConditionsMatchGroup, new[]
-            {
-                Option(DictionaryText.MatchObjects, DictionaryText.MatchObjectsToolTip,
-                    _matchTargets.HasFlag(SqlDictionaryMatchTargets.Objects), value => SetTarget(SqlDictionaryMatchTargets.Objects, value)),
-                Option(DictionaryText.MatchColumns, DictionaryText.MatchColumnsToolTip,
-                    _matchTargets.HasFlag(SqlDictionaryMatchTargets.Columns), value => SetTarget(SqlDictionaryMatchTargets.Columns, value)),
-            }),
             new SqlFilterGroup(DictionaryText.ConditionsShowGroup, new[]
             {
                 Option(DictionaryText.OnlyMissing, DictionaryText.OnlyMissingToolTip, _onlyMissing, value => _onlyMissing = value),
                 Option(DictionaryText.OnlyInconsistent, DictionaryText.OnlyInconsistentToolTip, _onlyInconsistent, value => _onlyInconsistent = value),
-                Option(DictionaryText.ExcludeViews, DictionaryText.ExcludeViewsToolTip, _excludeViews, value => _excludeViews = value),
+            }),
+            new SqlFilterGroup(DictionaryText.ConditionsObjectsGroup, new[]
+            {
+                Option(DictionaryText.IncludeViews, DictionaryText.IncludeViewsToolTip, _includeViews, value => _includeViews = value),
             }),
         });
     }
 
-    private void SetTarget(SqlDictionaryMatchTargets target, bool selected) =>
-        _matchTargets = selected ? _matchTargets | target : _matchTargets & ~target;
-
     private void UpdateConditionSummary()
     {
         var labels = new List<string>();
-        if (_matchTargets.HasFlag(SqlDictionaryMatchTargets.Objects)) labels.Add(DictionaryText.MatchObjects);
-        if (_matchTargets.HasFlag(SqlDictionaryMatchTargets.Columns)) labels.Add(DictionaryText.MatchColumns);
         if (_onlyMissing) labels.Add(DictionaryText.OnlyMissing);
         if (_onlyInconsistent) labels.Add(DictionaryText.OnlyInconsistent);
-        if (_excludeViews) labels.Add(DictionaryText.ExcludeViews);
+        if (_includeViews) labels.Add(DictionaryText.IncludeViews);
 
         _conditions.UpdateSummary(
             labels.Count switch { 0 => "", 1 => labels[0], _ => DictionaryText.ConditionCount(labels.Count) },
@@ -273,25 +299,28 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         _conditions.HasSelection = labels.Count > 0;
     }
 
-    /// <summary>頁尾：左邊數量與還沒套用的變更，右邊復原與套用（主要動作）。</summary>
+    /// <summary>頁尾：左邊匯出（附屬動作），中間數量與還沒套用的變更，右邊復原與套用（主要動作）。</summary>
     private DockPanel CreateFooter()
     {
+        _export.ToolTip = DictionaryText.ExportToolTip;
+        _export.Click += (_, _) => Run(() => Export(preferSelected: false));
         _revert.ToolTip = DictionaryText.RevertToolTip;
         _revert.Click += (_, _) => Run(_model.RevertAll);
         _apply.Click += (_, _) => _ = RunAsync(ApplyAsync);
 
-        var footer = SqlAssistChrome.CreateDialogFooter(_summary, _revert, _apply);
+        var footer = SqlAssistChrome.CreateDialogFooter(new[] { _export }, _summary, _revert, _apply);
         footer.Margin = new Thickness(0, SqlAssistChrome.Spacing.Group, 0, 0);
         UpdateFooter();
         return footer;
     }
 
-    private DataGrid CreateObjectGrid()
+    /// <param name="kind">種類那一欄；不含檢視時（預設）每一列都是資料表，那一欄收起來。</param>
+    private DataGrid CreateObjectGrid(out DataGridColumn kind)
     {
         var grid = CreateGrid(DictionaryText.ObjectsName);
         grid.Columns.Add(MarkColumn());
-        grid.Columns.Add(TextColumn(DictionaryText.ObjectHeader, nameof(SqlDictionaryObjectRow.Name), 180));
-        grid.Columns.Add(TextColumn(CommonText.Kind, nameof(SqlDictionaryObjectRow.Kind), 70));
+        grid.Columns.Add(TextColumn(DictionaryText.ObjectHeader, nameof(SqlDictionaryObjectRow.Name), 200));
+        grid.Columns.Add(kind = TextColumn(CommonText.Kind, nameof(SqlDictionaryObjectRow.Kind), 70));
         grid.Columns.Add(TextColumn(DictionaryText.CoverageHeader, nameof(SqlDictionaryObjectRow.Coverage), 70,
             headerToolTip: DictionaryText.CoverageHeaderToolTip, alignment: TextAlignment.Right));
         grid.Columns.Add(DescriptionColumn(DictionaryText.TableDescription, suggestion: false));
@@ -301,8 +330,13 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         var revert = MenuItem(DictionaryText.RevertSelected, () =>
             _model.Revert(SelectedObjects().SelectMany(row => row.Object.Columns.Select(row.Object.TargetOf).Prepend(row.Target))));
         var copy = MenuItem(DictionaryText.CopyNames, () => CopyNames(SelectedObjects().Select(row => row.Target)));
-        grid.ContextMenu = CreateMenu(revert, copy);
-        grid.ContextMenu.Opened += (_, _) => revert.IsEnabled = SelectedObjects().Any(row => row.HasChanges);
+        var export = MenuItem(DictionaryText.ExportSelected, () => Export(preferSelected: true), DictionaryText.ExportToolTip);
+        grid.ContextMenu = CreateMenu(revert, copy, export);
+        grid.ContextMenu.Opened += (_, _) =>
+        {
+            revert.IsEnabled = SelectedObjects().Any(row => row.HasChanges);
+            export.IsEnabled = _exporting is null;
+        };
         grid.PreviewKeyDown += (_, e) => Run(() =>
         {
             if (e.Key != Key.Delete || IsEditing(grid)) return;
@@ -384,22 +418,9 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
             Width = new DataGridLength(width),
         };
 
-    /// <summary>還沒套用的記號；強調色，一眼看得出這一頁哪幾格動過。</summary>
-    private static DataGridTextColumn MarkColumn()
-    {
-        var style = new Style(typeof(TextBlock), SqlAssistChrome.CreateCellTextStyle(TextAlignment.Center));
-        style.Setters.Add(ThemeResourceSet.Setter(TextBlock.ForegroundProperty, ThemeBrush.LinkForeground));
-        style.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, DictionaryText.ChangedToolTip));
-        style.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(0)));
-        return new DataGridTextColumn
-        {
-            Binding = new Binding(nameof(SqlDictionaryColumnRow.ChangeMark)) { Mode = BindingMode.OneWay },
-            IsReadOnly = true,
-            ElementStyle = style,
-            Width = new DataGridLength(20),
-            CanUserResize = false,
-        };
-    }
+    /// <summary>還沒套用的記號；強調色，一眼看得出這一頁哪幾格動過，出現的那一下彈一次。</summary>
+    private static DataGridColumn MarkColumn() =>
+        new SqlChangeMarkColumn(nameof(SqlDictionaryColumnRow.ChangeMark), DictionaryText.ChangedToolTip);
 
     /// <summary>同名那一格：不一致時換警示色，停留時列出型別與每一種寫法。</summary>
     private static DataGridTextColumn SameNameColumn()
@@ -420,20 +441,26 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         };
     }
 
+    /// <summary>
+    /// 說明欄：看得出可以直接改（停駐浮出外框與鉛筆、空著時寫「加上說明…」），編輯與確認各有一下回饋；
+    /// 資料行的說明空著而同名的寫法一致時，淡色斜體列出可以照抄的那一句。
+    /// </summary>
+    /// <remarks>抬頭帶一顆鉛筆，停留時說怎麼改：第一次打開的人看抬頭就知道這一欄不是唯讀的。</remarks>
     private static DataGridTextColumn DescriptionColumn(string header, bool suggestion)
     {
-        var hint = new Style(typeof(TextBlock), SqlAssistChrome.CreateCellTextStyle());
-        hint.Setters.Add(ThemeResourceSet.Setter(TextBlock.ForegroundProperty, ThemeBrush.DimForeground));
-        hint.Setters.Add(new Setter(TextBlock.FontStyleProperty, FontStyles.Italic));
-        hint.Setters.Add(new Setter(UIElement.IsHitTestVisibleProperty, false));
+        var icon = SqlAssistChrome.CreateIcon(SqlIcon.Edit);
+        icon.Width = 12; icon.Height = 12; icon.Margin = new Thickness(6, 0, 0, 0); icon.Opacity = 0.7;
+        var title = new StackPanel { Orientation = Orientation.Horizontal, ToolTip = DictionaryText.DescriptionHeaderToolTip };
+        title.Children.Add(new TextBlock { Text = header, VerticalAlignment = VerticalAlignment.Center });
+        title.Children.Add(icon);
+        AutomationProperties.SetName(title, header);
 
-        return new SqlDescriptionColumn
+        return new SqlEditableTextColumn(nameof(SqlDictionaryColumnRow.Description))
         {
-            Header = header,
-            Binding = new Binding(nameof(SqlDictionaryColumnRow.Description)) { Mode = BindingMode.TwoWay },
-            ElementStyle = SqlAssistChrome.CreateCellTextStyle(),
-            EditingElementStyle = SqlAssistChrome.CreateCellEditorStyle(),
-            HintStyle = suggestion ? hint : null,
+            Header = title,
+            HintPath = suggestion ? nameof(SqlDictionaryColumnRow.Suggestion) : null,
+            Placeholder = DictionaryText.DescriptionPlaceholder,
+            EditLabel = DictionaryText.EditDescription,
             Width = new DataGridLength(1, DataGridLengthUnitType.Star),
             MinWidth = 160,
         };
@@ -526,8 +553,9 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
 
     private void FilterChanged()
     {
-        _model.Filter = new SqlDictionaryFilter(_filter.Text, _matchToggles.Options, _matchTargets,
-            _onlyMissing, _onlyInconsistent, includeViews: !_excludeViews);
+        _model.Filter = new SqlDictionaryFilter(_filter.Text, _matchToggles.Options, _targets.Value,
+            _onlyMissing, _onlyInconsistent, includeViews: _includeViews);
+        _kindColumn.Visibility = _includeViews ? Visibility.Visible : Visibility.Collapsed;
         Render();
     }
 
@@ -564,12 +592,33 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         UpdateFooter();
     }
 
+    /// <summary>
+    /// 明細是目前那一張的資料行；抬頭寫出是哪一張與它的說明，多選時寫選了幾張、顯示的是哪一張。
+    /// </summary>
+    /// <remarks>
+    /// 多選（通常是要匯出）時明細跟著目前的那一列（鍵盤停的那一列），而不是第一個選到的：
+    /// Shift＋方向鍵往下選時，明細跟著游標走才對得上眼睛看的地方。
+    /// </remarks>
     private void RenderDetail()
     {
-        _detailRows = _objects.SelectedItem is SqlDictionaryObjectRow row
-            ? _model.ColumnsOf(row.Object)
-            : Array.Empty<SqlDictionaryColumnRow>();
+        var row = _objects.CurrentItem as SqlDictionaryObjectRow;
+        if (row is null || !_objects.SelectedItems.Contains(row)) row = _objects.SelectedItem as SqlDictionaryObjectRow;
+
+        _detailRows = row is null ? Array.Empty<SqlDictionaryColumnRow>() : _model.ColumnsOf(row.Object);
         _detail.ItemsSource = _detailRows;
+
+        var count = _objects.SelectedItems.Count;
+        _detailSummary.Text = row is null ? ""
+            : count > 1 ? DictionaryText.SelectedObjects(count, row.Name)
+            : row.Description.Length == 0 ? row.Name
+            : row.Name + CommonText.ListSeparator + FirstLine(row.Description);
+        _detailSummary.ToolTip = row is null ? null : row.Description.Length == 0 ? row.Name : row.Name + "\n" + row.Description;
+    }
+
+    private static string FirstLine(string text)
+    {
+        var end = text.IndexOfAny(new[] { '\r', '\n' });
+        return end < 0 ? text : text.Substring(0, end) + "…";
     }
 
     private void UpdateFooter()
@@ -578,6 +627,7 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
         _summary.Text = dictionary is null ? "" : _model.FooterSummary(dictionary.Objects.Count, dictionary.ColumnCount);
 
         var edits = _model.Edits;
+        _export.IsEnabled = dictionary is not null && _exporting is null;
         _revert.IsEnabled = edits.Count > 0 && !_applying;
         _apply.IsEnabled = edits.Count > 0 && !edits.HasTooLong && !_applying && dictionary is not null;
         _apply.ToolTip = edits.HasTooLong ? DictionaryText.ApplyTooLong(SqlDescriptionValue.MaxLength) : DictionaryText.ApplyToolTip;
@@ -751,27 +801,212 @@ internal sealed class SqlDictionaryBrowser : UserControl, IDisposable
     }
 
     /// <summary>
-    /// 說明欄：一般的文字欄，空著而同名的寫法一致時，淡色斜體列出可以照抄的那一句。
+    /// 匯出結構描述：問範圍與格式、選存檔位置，然後在背景讀細節、寫檔。
+    /// </summary>
+    /// <param name="preferSelected">從主清單右鍵「匯出所選資料表」進來：只選一張也預設匯出那一張。</param>
+    private void Export(bool preferSelected)
+    {
+        var dictionary = _model.Dictionary;
+        if (dictionary is null || _exporting is not null) return;
+
+        var selected = SelectedForExport(dictionary);
+        var matching = _model.MatchingObjects().Select(row => row.Object).ToList();
+        var server = _scope.Selection.ServerName ?? "";
+
+        var window = new SqlSchemaExportWindow(DictionaryText.ExportSummary(server, dictionary.DatabaseName),
+            (selected.Count, matching.Count, dictionary.Objects.Count), _model.Edits.Count, preferSelected);
+        if (window.Ask() is not { } options) return;
+
+        var objects = options.Scope switch
+        {
+            SqlSchemaExportScope.Selected => selected,
+            SqlSchemaExportScope.Matching => matching,
+            _ => dictionary.Objects,
+        };
+        if (objects.Count == 0 || AskExportPath(dictionary.DatabaseName, options.Format) is not { } path) return;
+        if (_scope.ResolveDatabaseCatalog(_scope.Observe()) is not { } catalog)
+        {
+            Notify(NotificationCatalog.ExportingSchema, NotificationStatus.Failed, message: DictionaryText.LoadFailed);
+            return;
+        }
+
+        _ = RunAsync(() => ExportAsync(catalog.ConnectionSource, server, dictionary.DatabaseName, objects, options, path));
+    }
+
+    /// <summary>選定的那幾張，照字典的順序；資料字典檢視裡選的是資料行，算它們所屬的那幾張。</summary>
+    private IReadOnlyList<SqlDictionaryObject> SelectedForExport(SqlDataDictionary dictionary)
+    {
+        var chosen = new HashSet<SqlDictionaryObject>(_model.View == SqlDictionaryView.Tables
+            ? SelectedObjects().Select(row => row.Object)
+            : _columns.SelectedItems.OfType<SqlDictionaryColumnRow>().Select(row => row.Owner));
+        return dictionary.Objects.Where(chosen.Contains).ToList();
+    }
+
+    /// <summary>這一次 SSMS 執行期間上一次存到的資料夾；下一次從那裡開始。</summary>
+    private static string? _exportFolder;
+
+    /// <summary>存檔位置；同名檔案由原生對話框確認覆寫。</summary>
+    private string? AskExportPath(string database, SqlSchemaExportFormat format)
+    {
+        var extension = SqlSchemaDocument.ExtensionOf(format);
+        var name = new string(database.Select(c => Array.IndexOf(Path.GetInvalidFileNameChars(), c) >= 0 ? '_' : c).ToArray());
+        var dialog = new SaveFileDialog
+        {
+            Title = DictionaryText.ExportTitle,
+            FileName = name + "_Schema_" + DateTime.Now.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture) + extension,
+            DefaultExt = extension,
+            Filter = format == SqlSchemaExportFormat.Markdown ? DictionaryText.ExportMarkdownFilter : DictionaryText.ExportExcelFilter,
+            OverwritePrompt = true,
+            AddExtension = true,
+            InitialDirectory = _exportFolder ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        };
+        if (dialog.ShowDialog(SsmsWindows.OwnerOf(this)) != true) return null;
+
+        _exportFolder = Path.GetDirectoryName(dialog.FileName);
+        return dialog.FileName;
+    }
+
+    /// <summary>
+    /// 背景讀細節、組文件、寫進暫存檔，寫完才換成使用者選的那個檔名。
     /// </summary>
     /// <remarks>
-    /// 只換顯示那一半：編輯、確認與 Esc 取消照 <see cref="DataGridTextColumn"/> 原本的規則。
-    /// 建議疊在原本的文字上而不是換掉它：它不是值，複製這一格不該帶走它。
+    /// 說明在進背景之前照畫面上的那一份拍下來：編輯只在 UI 執行緒上改，背景讀到一半被改掉的話，
+    /// 同一份檔案裡前後兩張表會是兩個時間點的說明。
+    ///
+    /// 先寫暫存檔：停止、失敗或目的檔被 Excel 開著時，使用者原本的那一份不會被寫壞成半份。
+    /// 讀不到細節（沒有權限）時照樣匯出，那幾欄留空、通知降級說清楚，而不是整個不給。
     /// </remarks>
-    private sealed class SqlDescriptionColumn : DataGridTextColumn
+    private async Task ExportAsync(ISqlConnectionSource source, string server, string database,
+        IReadOnlyList<SqlDictionaryObject> objects, SqlSchemaExportOptions options, string path)
     {
-        public Style? HintStyle { get; set; }
+        var descriptions = SnapshotDescriptions(objects);
+        using var export = new CancellationTokenSource();
+        var token = export.Token;
+        var generation = ++_exportGeneration;
+        _exporting = export;
+        UpdateFooter();
 
-        protected override FrameworkElement GenerateElement(DataGridCell cell, object dataItem)
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.ExportingSchema,
+            NotificationKind.Dictionary, NotificationOrigin.User, NotificationLevel.Info, database);
+        _progress.Show(DictionaryText.ExportReading, null);
+
+        IProgress<int> written = new Progress<int>(count =>
         {
-            var text = base.GenerateElement(cell, dataItem);
-            if (HintStyle is null) return text;
+            if (token.IsCancellationRequested || generation != _exportGeneration) return;
+            // count 是已經寫完幾張；字上寫的是正在寫的那一張。
+            var index = Math.Min(count, objects.Count - 1);
+            _progress.Show(DictionaryText.ExportWriting(index + 1, objects.Count, objects[index].DisplayName), (double)count / objects.Count);
+        });
 
-            var hint = new TextBlock { Style = HintStyle };
-            hint.SetBinding(TextBlock.TextProperty, new Binding(nameof(SqlDictionaryColumnRow.Suggestion)) { Mode = BindingMode.OneWay });
-            var layers = new Grid();
-            layers.Children.Add(text);
-            layers.Children.Add(hint);
-            return layers;
+        var temporary = path + ".tmp";
+        var detailsMissing = false;
+        try
+        {
+            await Task.Run(() =>
+            {
+                var details = SqlSchemaDetails.TryLoad(source, token);
+                detailsMissing = details is null;
+                var document = SqlSchemaDocument.Build(server, database, objects,
+                    (target, original) => descriptions.TryGetValue(target, out var value) ? value : original,
+                    details ?? SqlSchemaDetails.Empty, DateTime.Now);
+
+                written.Report(0);
+                using (var stream = File.Create(temporary))
+                {
+                    document.Write(options.Format, stream, written.Report, token);
+                }
+
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(temporary, path);
+            }, token).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            notification.Cancel();
+            EndExport(generation, temporary, hold: false);
+            return;
+        }
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
+        {
+            notification.Fail();
+            Notify(NotificationCatalog.ExportingSchema, NotificationStatus.Failed, database, failure.Message);
+            EndExport(generation, temporary, hold: false);
+            return;
+        }
+        catch
+        {
+            EndExport(generation, temporary, hold: false);
+            throw;
+        }
+
+        var done = detailsMissing ? DictionaryText.ExportDetailsMissing(objects.Count) : DictionaryText.ExportDone(objects.Count);
+        if (detailsMissing) notification.Degrade();
+        notification.Report(done);
+        _progress.Show(done, 1);
+        EndExport(generation, temporary, hold: true);
+        if (options.OpenAfter) OpenExported(path, database);
+    }
+
+    /// <summary>畫面上的說明（含還沒套用的編輯），照目標拍一份。</summary>
+    private Dictionary<SqlDescriptionTarget, string> SnapshotDescriptions(IEnumerable<SqlDictionaryObject> objects)
+    {
+        var descriptions = new Dictionary<SqlDescriptionTarget, string>();
+        foreach (var item in objects)
+        {
+            descriptions[item.Target] = _model.Edits.Current(item.Target, item.Description);
+            foreach (var column in item.Columns)
+            {
+                var target = item.TargetOf(column);
+                descriptions[target] = _model.Edits.Current(target, column.Description);
+            }
+        }
+
+        return descriptions;
+    }
+
+    /// <summary>
+    /// 收尾：丟掉還在的暫存檔，放開匯出按鈕；成功時那一條停在「已匯出」一下再收起。
+    /// </summary>
+    /// <remarks>停留與選取工具列「動作完成」同一個長度；這中間又開始下一輪的話，收起的是下一輪的事，這裡不碰。</remarks>
+    private void EndExport(int generation, string temporary, bool hold)
+    {
+        try
+        {
+            if (File.Exists(temporary)) File.Delete(temporary);
+        }
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
+        {
+            SqlAssistDiagnostics.WriteAlways("刪除匯出暫存檔失敗：" + failure.Message);
+        }
+
+        _exporting = null;
+        if (_disposed) return;
+        UpdateFooter();
+
+        if (!hold)
+        {
+            _progress.Hide();
+            return;
+        }
+
+        _ = RunAsync(async () =>
+        {
+            await Task.Delay(SqlAssistChrome.SelectionDoneHold).ConfigureAwait(true);
+            if (!_disposed && generation == _exportGeneration && _exporting is null) _progress.Hide();
+        });
+    }
+
+    /// <summary>用這種檔案的預設程式打開；沒有關聯的程式時送失敗通知，檔案已經存好了。</summary>
+    private void OpenExported(string path, string database)
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception failure) when (failure is Win32Exception or InvalidOperationException or FileNotFoundException)
+        {
+            Notify(NotificationCatalog.ExportingSchema, NotificationStatus.Failed, database, failure.Message);
         }
     }
+
 }

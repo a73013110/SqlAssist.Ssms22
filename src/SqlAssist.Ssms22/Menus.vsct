@@ -170,10 +170,11 @@
       <!-- 與 Search 同一群：兩個都是看伺服器上的物件；同樣沒有鍵繫結，理由見 CommandIds.ShowDataDictionary。 -->
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowDataDictionary" priority="0x0085" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSearchGroup" />
-        <Icon guid="ImageCatalogGuid" id="Table" />
+        <Icon guid="ImageCatalogGuid" id="Dictionary" />
         <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>IconAndText</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
-        <Strings><ButtonText>Data Dictionary</ButtonText><CanonicalName>SqlAssist.ShowDataDictionary</CanonicalName><LocCanonicalName>SqlAssist.ShowDataDictionary</LocCanonicalName></Strings>
+        <Strings><ButtonText>Dictionary</ButtonText><CanonicalName>SqlAssist.ShowDataDictionary</CanonicalName><LocCanonicalName>SqlAssist.ShowDataDictionary</LocCanonicalName></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0082" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
@@ -503,6 +504,10 @@
       （IconIsMoniker ＋ IconAndText），別名命令是留給需要換圖示的入口。
     -->
     <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowSqlSearch" priority="0x0120">
+      <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" />
+    </CommandPlacement>
+    <!-- Dictionary 緊接在 Search 右邊：同樣看伺服器上的物件，選單上也是同一群的下一顆。 -->
+    <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowDataDictionary" priority="0x0130">
       <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" />
     </CommandPlacement>
   </CommandPlacements>

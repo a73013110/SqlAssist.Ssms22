@@ -1,0 +1,33 @@
+{
+  // 匯出結構描述的活頁簿與 Markdown 文件裡的字；資料庫、伺服器與物件名稱原樣不翻。
+  // ── 總覽 ──
+  "OverviewSheet": "總覽",
+  "Title": "{database} 結構描述",
+  // {time} 是 yyyy-MM-dd HH:mm 的匯出時間。
+  "Meta": "{server} · {database} · 匯出於 {time} · {count:N0} 張資料表",
+  "BackToOverview": "← 總覽",
+  // ── 表頭 ──
+  "HeaderNumber": "#",
+  "HeaderTable": "資料表",
+  "HeaderKind": "類型",
+  "HeaderDescription": "說明",
+  "HeaderColumns": "資料行",
+  "HeaderDescribed": "已說明",
+  "HeaderRows": "資料列",
+  "HeaderColumn": "資料行",
+  "HeaderType": "型別",
+  "HeaderNullable": "NULL",
+  "HeaderKey": "鍵",
+  "HeaderDefault": "預設值",
+  "HeaderTraits": "特性",
+  "HeaderReference": "參照",
+  // ── 值 ──
+  "KindTable": "資料表",
+  "KindView": "檢視",
+  "TableMeta": "{kind} · {columns:N0} 個資料行 · {described:N0} 個已說明",
+  "TableMetaRows": "{kind} · {columns:N0} 個資料行 · {described:N0} 個已說明 · 約 {rows:N0} 列",
+  "Identity": "識別",
+  // {definition} 是計算資料行的運算式，原樣不翻。
+  "Computed": "計算：{definition}",
+  "Contents": "目錄"
+}

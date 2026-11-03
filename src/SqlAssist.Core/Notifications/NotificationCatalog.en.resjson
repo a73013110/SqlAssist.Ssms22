@@ -128,6 +128,8 @@
   "PastingDescriptionsDone": "Pasted descriptions",
   "RunningDictionaryAction": "Running data dictionary operation",
   "RunningDictionaryActionDone": "Ran data dictionary operation",
+  "ExportingSchema": "Exporting schema",
+  "ExportingSchemaDone": "Exported schema",
   "MaintainingSqlMemory": "Maintaining SQL Memory",
   "MaintainingSqlMemoryDone": "Maintained SQL Memory",
   "RebuildingSqlMemory": "Rebuilding SQL Memory database",

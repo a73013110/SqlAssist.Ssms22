@@ -41,4 +41,18 @@ internal static class SqlSearchTargets
         SearchMatchTarget.Column => SearchControlText.TargetColumnDescription,
         _ => throw new ArgumentOutOfRangeException(nameof(target), target, "沒有這個比對位置的說明。")
     };
+
+    /// <summary>工具列上的比對位置開關；三段照 <see cref="Order"/> 排，對應 <see cref="SearchQuery.Targets"/>。</summary>
+    public static SqlFlagSegments<SearchTargets> CreateSegments()
+    {
+        var segments = new List<SqlFlagSegment<SearchTargets>>();
+        foreach (var target in Order)
+        {
+            var label = LabelFor(target);
+            segments.Add(new SqlFlagSegment<SearchTargets>(
+                target.ToFlag(), label, SearchControlText.TargetToolTip(label, DescriptionFor(target))));
+        }
+
+        return new SqlFlagSegments<SearchTargets>(SearchControlText.Targets, segments);
+    }
 }

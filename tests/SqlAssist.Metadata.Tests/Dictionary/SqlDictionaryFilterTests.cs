@@ -20,20 +20,23 @@ public sealed class SqlDictionaryFilterTests
             .Where(entry => entry.columns.Count > 0)
             .ToDictionary(entry => entry.item.DisplayName, entry => entry.columns.Select(column => column.Name).ToArray());
 
+    /// <summary>剛打開時不含檢視；打開「含檢視」之後才列出來。</summary>
     [Fact]
-    public void 沒有條件時每一列都留著()
+    public void 預設不含檢視_其餘每一列都留著()
     {
-        var result = Apply(SqlDictionaryFilter.None);
+        var result = Apply(SqlDictionaryFilter.Default);
 
-        Assert.Equal(4, result.Count);
+        Assert.Equal(3, result.Count);
+        Assert.DoesNotContain("rpt.LoanByReader", result.Keys);
         Assert.Equal(new[] { "LoanNo", "ReaderNo", "LoanDate" }, result["dbo.Loan"]);
+        Assert.Equal(4, Apply(new SqlDictionaryFilter(includeViews: true)).Count);
     }
 
     /// <summary>打資料行名稱：主清單只剩有那個資料行的物件，明細只剩那幾個；不分大小寫。</summary>
     [Fact]
     public void 資料行名稱命中只留那幾個資料行()
     {
-        var result = Apply(new SqlDictionaryFilter("readerno"));
+        var result = Apply(new SqlDictionaryFilter("readerno", includeViews: true));
 
         Assert.Equal(new[] { "dbo.Lib_Reader", "dbo.Loan", "rpt.LoanByReader" }, result.Keys);
         Assert.Equal(new[] { "ReaderNo" }, result["dbo.Loan"]);
@@ -65,7 +68,7 @@ public sealed class SqlDictionaryFilterTests
     }
 
     [Fact]
-    public void 只看沒說明_只看不一致_不含檢視()
+    public void 只看沒說明_只看不一致()
     {
         var missing = Apply(new SqlDictionaryFilter(onlyMissingDescriptions: true));
         Assert.Equal(new[] { "LoanNo", "ReaderNo" }, missing["dbo.Loan"]);
@@ -73,7 +76,5 @@ public sealed class SqlDictionaryFilterTests
 
         var inconsistent = Apply(new SqlDictionaryFilter(onlyInconsistent: true));
         Assert.All(inconsistent.Values, names => Assert.All(names, name => Assert.Equal("readerno", name.ToLowerInvariant())));
-
-        Assert.DoesNotContain("rpt.LoanByReader", Apply(new SqlDictionaryFilter(includeViews: false)).Keys);
     }
 }

@@ -68,7 +68,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlTabHeader.cs" Link="Product\UI\SqlTabHeader.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchList.cs" Link="Product\UI\SqlSearchList.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchTargets.cs" Link="Product\UI\SqlSearchTargets.cs" />
-    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchFilters.cs" Link="Product\UI\SqlSearchFilters.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFlagSegments.cs" Link="Product\UI\SqlFlagSegments.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlStack.cs" Link="Product\UI\SqlStack.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFilterFlyout.cs" Link="Product\UI\SqlFilterFlyout.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFilterSummary.cs" Link="Product\UI\SqlFilterSummary.cs" />

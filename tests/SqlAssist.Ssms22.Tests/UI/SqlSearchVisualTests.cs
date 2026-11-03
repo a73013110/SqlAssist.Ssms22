@@ -100,7 +100,7 @@ public sealed class SqlSearchVisualTests
     {
         WpfTest.Run(() =>
         {
-            var segments = new SqlSearchSegments();
+            var segments = SqlSearchTargets.CreateSegments();
             var changes = 0;
             segments.ValueChanged += (_, _) => changes++;
 
@@ -121,6 +121,11 @@ public sealed class SqlSearchVisualTests
             toggles[0].IsChecked = false;
             Assert.Equal(SearchTargets.Name, segments.Value);
             Assert.True(toggles[0].IsChecked);
+            Assert.Equal(2, changes);
+
+            // 程式設定是把畫面擺回去（還原記住的狀態），不當成使用者的變更送出。
+            segments.Value = SearchTargets.Text;
+            Assert.Equal(new bool?[] { false, true, false }, toggles.Select(toggle => toggle.IsChecked).ToArray());
             Assert.Equal(2, changes);
         });
     }
@@ -263,7 +268,7 @@ public sealed class SqlSearchVisualTests
                 SqlIcon.Search,
                 SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
                 SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋"));
-            var segments = new SqlSearchSegments();
+            var segments = SqlSearchTargets.CreateSegments();
             var kinds = new SqlFilterFlyout("種類", SqlIcon.Filter);
             var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
             var sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
@@ -341,7 +346,7 @@ public sealed class SqlSearchVisualTests
                     SqlIcon.Search,
                     SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
                     SqlAssistChrome.CreateIconButton(SqlIcon.Clear, CommonText.ClearSearch));
-                var segments = new SqlSearchSegments();
+                var segments = SqlSearchTargets.CreateSegments();
                 var server = new SqlFilterFlyout(SqlKindText.Server, SqlIcon.Server, SqlFilterMode.Single);
                 var databases = new SqlFilterFlyout(SqlKindText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple);
                 var kinds = new SqlFilterFlyout(CommonText.Kind, SqlIcon.Filter);
@@ -855,7 +860,7 @@ public sealed class SqlSearchVisualTests
                 SqlIcon.Search,
                 SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
                 SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋"));
-            var segments = new SqlSearchSegments();
+            var segments = SqlSearchTargets.CreateSegments();
             var server = new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.Single);
             var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
             var kinds = new SqlFilterFlyout("種類", SqlIcon.Filter);

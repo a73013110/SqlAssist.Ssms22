@@ -1,0 +1,33 @@
+{
+  // Text in the exported schema workbook and Markdown document; database, server and object names stay as they are.
+  // ── Overview ──
+  "OverviewSheet": "Overview",
+  "Title": "{database} schema",
+  // {time} is the export time as yyyy-MM-dd HH:mm.
+  "Meta": "{server} · {database} · Exported {time} · {count:N0} tables",
+  "BackToOverview": "← Overview",
+  // ── Headers ──
+  "HeaderNumber": "#",
+  "HeaderTable": "Table",
+  "HeaderKind": "Kind",
+  "HeaderDescription": "Description",
+  "HeaderColumns": "Columns",
+  "HeaderDescribed": "Described",
+  "HeaderRows": "Rows",
+  "HeaderColumn": "Column",
+  "HeaderType": "Type",
+  "HeaderNullable": "NULL",
+  "HeaderKey": "Key",
+  "HeaderDefault": "Default",
+  "HeaderTraits": "Traits",
+  "HeaderReference": "References",
+  // ── Values ──
+  "KindTable": "Table",
+  "KindView": "View",
+  "TableMeta": "{kind} · {columns:N0} columns · {described:N0} described",
+  "TableMetaRows": "{kind} · {columns:N0} columns · {described:N0} described · about {rows:N0} rows",
+  "Identity": "Identity",
+  // {definition} is the computed column expression, kept as is.
+  "Computed": "Computed: {definition}",
+  "Contents": "Contents"
+}
