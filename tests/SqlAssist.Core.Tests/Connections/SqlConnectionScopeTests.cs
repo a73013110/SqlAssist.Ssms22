@@ -70,6 +70,24 @@ public sealed class SqlConnectionScopeTests
         Assert.Empty(scope.Databases);
     }
 
+    /// <summary>資料庫單選（資料字典）：與單選的伺服器同一條規則，空名單是「還沒選」。</summary>
+    [Fact]
+    public void SingleDatabaseIsReplacedAndCannotBeUnchecked()
+    {
+        var scope = new SqlConnectionScope(multipleServers: false, StringComparer.OrdinalIgnoreCase, multipleDatabases: false);
+        scope.SetServerSelected("LibraryServer", true);
+
+        Assert.True(scope.SetDatabaseSelected("Library", true));
+        Assert.False(scope.SetDatabaseSelected("LIBRARY", true));
+        Assert.False(scope.SetDatabaseSelected("Library", false));
+
+        Assert.True(scope.SetDatabaseSelected("LibArchive", true));
+        Assert.Equal(new[] { "LibArchive" }, scope.Databases);
+
+        Assert.True(scope.ClearDatabases());
+        Assert.Empty(scope.Databases);
+    }
+
     [Fact]
     public void ApplyingAConnectionReplacesBothFilters()
     {

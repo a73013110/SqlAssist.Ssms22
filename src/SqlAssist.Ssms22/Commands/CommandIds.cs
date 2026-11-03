@@ -108,6 +108,13 @@ internal static class CommandIds
     /// </remarks>
     public const int ShowSqlSearch = 0x021B;
 
+    /// <summary>開啟資料字典工具窗。</summary>
+    /// <remarks>
+    /// 與 <see cref="ShowSqlSearch"/> 同樣刻意沒有鍵繫結、永遠可用，理由相同；命令名稱是
+    /// <c>SqlAssist.ShowDataDictionary</c>。
+    /// </remarks>
+    public const int ShowDataDictionary = 0x021D;
+
     /// <summary>
     /// 結果格線的內部探測，只在「詳細記錄」打開時出現。
     /// </summary>

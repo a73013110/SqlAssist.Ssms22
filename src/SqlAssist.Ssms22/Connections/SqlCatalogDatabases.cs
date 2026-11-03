@@ -5,21 +5,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Querying;
-using SqlAssist.Metadata.Search;
 
-namespace SqlAssist.Ssms22.Search;
+namespace SqlAssist.Ssms22.Connections;
 
 /// <summary>
-/// 搜尋範圍那顆下拉要列哪幾個資料庫；問一次、留一份。
+/// 範圍列的資料庫下拉要列哪幾個資料庫；問一次、留一份。
 /// </summary>
 /// <remarks>
-/// 清單走 <see cref="SqlCatalogSearchDatabases.TryList"/>，不讀
+/// 清單走 <see cref="SqlServerDatabases.TryList"/>，不讀
 /// <see cref="SqlMetadataCatalog.CachedSnapshot"/>：那一份是補全在按鍵路徑上載入的，
 /// 選物件總管上一台伺服器時它從頭到尾是空的——症狀是使用者選了伺服器，資料庫下拉
 /// 一個選項都沒有，而那台上明明有幾十個庫。
 ///
 /// <b>禁止</b>在沒有人打開下拉時先問：一條輕查詢仍然是一條連線，而且十個查詢視窗
-/// 各開一次等於十輪。這一支不建任何索引；範圍是「全部」時要搜哪幾個由 provider 每一輪
+/// 各開一次等於十輪。這一支不建任何索引；SQL Search 範圍是「全部」時要搜哪幾個由 provider 每一輪
 /// 自己問，不讀這一份。
 ///
 /// 只留<b>目前這條連線</b>那一份。換一台再換回來要多付一條查詢，而照鍵留好幾份的
@@ -27,11 +26,11 @@ namespace SqlAssist.Ssms22.Search;
 ///
 /// 連線來源只在呼叫的那一刻從目錄上取，不留欄位：所有權在
 /// <see cref="SqlMetadataCatalogRegistry"/>，留著的症狀是之後每一輪都以
-/// <see cref="ObjectDisposedException"/> 收場（見 <see cref="SqlSearchCatalogs"/>）。
+/// <see cref="ObjectDisposedException"/> 收場（見 <see cref="SqlCatalogSelection"/>）。
 ///
-/// 除了 <see cref="SqlCatalogSearchDatabases.TryList"/> 本身，其餘都只在 UI 執行緒上跑。
+/// 除了 <see cref="SqlServerDatabases.TryList"/> 本身，其餘都只在 UI 執行緒上跑。
 /// </remarks>
-internal sealed class SqlSearchScopeDatabases : IDisposable
+internal sealed class SqlCatalogDatabases : IDisposable
 {
     /// <summary>
     /// 取清單用的那條查詢；測試換掉它就不必真的連資料庫。
@@ -40,23 +39,23 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
     /// 留這個接縫而不是讓測試自己造一台伺服器：這個型別要驗的是「問幾次、換連線怎麼算、
     /// 問不到留哪一份」，那幾條與伺服器回什麼無關。
     /// </remarks>
-    private readonly Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlCatalogSearchDatabase>?> _list;
+    private readonly Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlServerDatabase>?> _list;
 
     private readonly CancellationTokenSource _cancellation = new();
 
     private string _key = "";
-    private IReadOnlyList<SqlCatalogSearchDatabase> _items = Array.Empty<SqlCatalogSearchDatabase>();
-    private Task<IReadOnlyList<SqlCatalogSearchDatabase>?>? _loading;
+    private IReadOnlyList<SqlServerDatabase> _items = Array.Empty<SqlServerDatabase>();
+    private Task<IReadOnlyList<SqlServerDatabase>?>? _loading;
     private bool _loaded;
     private bool _unavailable;
     private bool _disposed;
 
-    internal SqlSearchScopeDatabases(
-        Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlCatalogSearchDatabase>?>? list = null) =>
-        _list = list ?? ((source, token) => SqlCatalogSearchDatabases.TryList(source, token));
+    internal SqlCatalogDatabases(
+        Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlServerDatabase>?>? list = null) =>
+        _list = list ?? ((source, token) => SqlServerDatabases.TryList(source, token));
 
     /// <summary>手上已經有的那一份；還沒問過或換了連線時是空的。</summary>
-    public IReadOnlyList<SqlCatalogSearchDatabase> Items => _items;
+    public IReadOnlyList<SqlServerDatabase> Items => _items;
 
     /// <summary>這條連線的清單已經問到了；問不到不算，下一次展開要再試。</summary>
     public bool IsLoaded => _loaded;
@@ -86,7 +85,7 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
     private void Reset()
     {
         Invalidate();
-        _items = Array.Empty<SqlCatalogSearchDatabase>();
+        _items = Array.Empty<SqlServerDatabase>();
     }
 
     /// <summary>
@@ -121,7 +120,7 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
     /// 問不到時<b>留著上一份</b>並把 <see cref="IsUnavailable"/> 舉起來：清空等於說
     /// 「這台伺服器上一個都進不去」，而那與「這一次問不到」是兩件事。
     /// </remarks>
-    public async Task<IReadOnlyList<SqlCatalogSearchDatabase>> EnsureAsync(SqlMetadataCatalog? catalog)
+    public async Task<IReadOnlyList<SqlServerDatabase>> EnsureAsync(SqlMetadataCatalog? catalog)
     {
         if (_disposed || catalog is null) return _items;
 
@@ -154,7 +153,7 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
         if (databases is not null)
         {
             // 下拉只列進得去的：勾一個離線或沒有權限的資料庫只會得到一句「讀不到」。
-            // 進不去的那幾個由「全部」那一輪列進完整度，不在這裡消失。
+            // 進不去的那幾個由 SQL Search「全部」那一輪列進完整度，不在這裡消失。
             _items = databases.Where(database => database.IsAccessible).ToArray();
             _loaded = true;
         }

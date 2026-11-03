@@ -14,7 +14,7 @@ namespace SqlAssist.Metadata.Search;
 ///
 /// <see cref="ServerName"/> 是<b>連線字串裡</b>的伺服器名稱，與物件總管節點的
 /// <c>ServerName</c>、查詢視窗連線的伺服器同一種寫法；比對規則只有接線層的
-/// <c>SqlSearchCatalogs.IsSameServer</c> 一份，這個型別不自己比、也不正規化。
+/// <c>SqlCatalogSelection.IsSameServer</c> 一份，這個型別不自己比、也不正規化。
 /// 它<b>不是</b> <c>SERVERPROPERTY('ServerName')</c>：具名執行個體與別名連線上兩者不同，
 /// 拿伺服器自報的名字去樹上找，找不到任何一台。
 ///

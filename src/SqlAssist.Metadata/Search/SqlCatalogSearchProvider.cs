@@ -37,7 +37,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     private readonly ISqlConnectionSource _connectionSource;
     private readonly SqlSearchOrigin _origin;
     private readonly SqlCatalogSearchIndexCache _indexCache;
-    private readonly Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlCatalogSearchDatabase>?> _listDatabases;
+    private readonly Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlServerDatabase>?> _listDatabases;
     private readonly Func<ISqlConnectionSource, SearchQuery, CancellationToken, SqlCatalogServerTextMatches?> _findOnServer;
 
     /// <param name="origin">
@@ -58,13 +58,13 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         ISqlConnectionSource connectionSource,
         SqlSearchOrigin origin,
         SqlCatalogSearchIndexCache? indexCache = null,
-        Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlCatalogSearchDatabase>?>? listDatabases = null,
+        Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlServerDatabase>?>? listDatabases = null,
         Func<ISqlConnectionSource, SearchQuery, CancellationToken, SqlCatalogServerTextMatches?>? findOnServer = null)
     {
         _connectionSource = connectionSource ?? throw new ArgumentNullException(nameof(connectionSource));
         _origin = origin ?? throw new ArgumentNullException(nameof(origin));
         _indexCache = indexCache ?? new SqlCatalogSearchIndexCache();
-        _listDatabases = listDatabases ?? ((source, token) => SqlCatalogSearchDatabases.TryList(source, token));
+        _listDatabases = listDatabases ?? ((source, token) => SqlServerDatabases.TryList(source, token));
         _findOnServer = findOnServer ?? ((source, query, token) => SqlCatalogServerTextSearch.TryFind(source, query, token));
         Categories = SqlCatalogSearchCategories.Create(ProviderId);
     }
@@ -102,7 +102,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     /// 這一輪要搜哪幾個資料庫；每一個都先宣告成目標，讀不到的當場說出結局。
     /// </summary>
     /// <remarks>
-    /// 沒有指名就是<b>全部</b>：這台伺服器上看得到的每一個（<see cref="SqlCatalogSearchDatabases.TryList"/>）。
+    /// 沒有指名就是<b>全部</b>：這台伺服器上看得到的每一個（<see cref="SqlServerDatabases.TryList"/>）。
     /// 進不去的（離線、還原中、沒有權限）也宣告成目標並說讀不到：直接略過的話，畫面會說
     /// 「已完整搜尋 38 個資料庫」，而使用者以為那是全部。清單問不到時照實說一句，<b>不</b>退回
     /// 只搜連線那一個——那一份答案看起來完全正常，只是少了使用者以為有搜的其他資料庫。
@@ -121,7 +121,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
 
         if (scope.Servers.Count > 0) return resolved;
 
-        IReadOnlyList<SqlCatalogSearchDatabase> databases;
+        IReadOnlyList<SqlServerDatabase> databases;
 
         if (scope.Databases.Count == 0)
         {
@@ -140,8 +140,8 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         }
         else
         {
-            var named = new List<SqlCatalogSearchDatabase>(scope.Databases.Count);
-            foreach (var name in scope.Databases) if (name.Length != 0) named.Add(new SqlCatalogSearchDatabase(name, isSystem: false));
+            var named = new List<SqlServerDatabase>(scope.Databases.Count);
+            foreach (var name in scope.Databases) if (name.Length != 0) named.Add(new SqlServerDatabase(name, isSystem: false));
             databases = named;
         }
 

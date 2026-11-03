@@ -39,7 +39,7 @@
 | 查詢的 SQL、載入分層、連不上時的行為 | `Metadata/Querying/SqlMetadataQueries.cs`、`Metadata/Caching/SqlMetadataCatalog.cs` |
 | SQL Memory 開不起來、停用後仍擷取、心跳或維護沒跑 | `Core/SqlMemory/SqlMemoryRuntime.cs`（`Ssms22/SqlMemory/SqlMemoryHost.cs` 只接線） |
 | SQL Memory 清單篩選、分頁、晚到回應或選取還原 | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
-| 伺服器／資料庫篩選或套用查詢視窗的連線不對 | `Core/Connections/SqlConnectionScope.cs`；Search 的連線在 `Search/SqlSearchCatalogs.cs` |
+| 伺服器／資料庫篩選或套用查詢視窗的連線不對 | `Core/Connections/SqlConnectionScope.cs`；範圍列 `Connections/SqlCatalogScopeBar.cs` |
 | 批次複製的欄位、順序或「全部符合」讀不完 | `Core/SqlMemory/SqlMemoryCopy.cs`、`SqlMemoryBulk.cs`、`Ssms22/SqlMemory/SqlMemoryBrowser.cs`；Search 的欄位在 `Search/SqlSearchRow.cs` |
 | 批次刪除的分批、取消或衝突 | `Core/SqlMemory/SqlMemoryDeletion.cs`、`Ssms22/SqlMemory/SqlMemoryItemCommands.cs` |
 | 存檔後歷程掛錯文件、選取執行記錄的文字不對 | `SqlDocumentIdentity.cs`、`SqlSelectionText.cs`、`Ssms22/SqlMemory/SqlCaptureTracker.cs` |

@@ -6,6 +6,7 @@ using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Querying;
 using SqlAssist.Metadata.Search;
+using SqlAssist.Ssms22.Connections;
 
 namespace SqlAssist.Ssms22.Search;
 
@@ -27,7 +28,7 @@ internal sealed class SqlSearchProviders
 {
     private readonly SqlCatalogSearchIndexCache _indexCache = new();
     private readonly SqlAgentJobSearchSnapshotCache _jobCache = new();
-    private SqlSearchConnection? _connection;
+    private SqlCatalogConnection? _connection;
 
     /// <remarks>
     /// 順序就是分類 pill 的順序（聚合器照 provider 串接）：先資料庫物件，再伺服器層級的
@@ -58,8 +59,8 @@ internal sealed class SqlSearchProviders
     /// 每輪搜尋前那一次重讀先把新值記下，連線事件那一次就看不出換過，舊結果留著。
     /// </remarks>
     /// <returns>換到另一個目錄或另一台時為 true；同一份重設一次為 false。</returns>
-    public bool UseConnection(SqlSearchConnection? connection) =>
-        !SqlSearchConnection.SameScope(Interlocked.Exchange(ref _connection, connection), connection);
+    public bool UseConnection(SqlCatalogConnection? connection) =>
+        !SqlCatalogConnection.SameScope(Interlocked.Exchange(ref _connection, connection), connection);
 
     /// <summary>
     /// 這一輪的目標資料庫已經有索引了嗎；false 表示可能要先掃一次全表（含定義本文）。
@@ -148,7 +149,7 @@ internal sealed class SqlSearchProviders
             if (Volatile.Read(ref _owner._connection) is not { } connection) return Task.CompletedTask;
 
             return new SqlCatalogSearchProvider(
-                    connection.Catalog.ConnectionSource, connection.Origin, _owner._indexCache)
+                    connection.Catalog.ConnectionSource, new SqlSearchOrigin(connection.ServerName), _owner._indexCache)
                 .SearchAsync(query, sink, cancellationToken);
         }
     }
@@ -187,7 +188,7 @@ internal sealed class SqlSearchProviders
             if (Volatile.Read(ref _owner._connection) is not { } connection) return Task.CompletedTask;
 
             return new SqlAgentJobSearchProvider(
-                    connection.Catalog.ConnectionSource, connection.Origin, _owner._jobCache)
+                    connection.Catalog.ConnectionSource, new SqlSearchOrigin(connection.ServerName), _owner._jobCache)
                 .SearchAsync(query, sink, cancellationToken);
         }
     }

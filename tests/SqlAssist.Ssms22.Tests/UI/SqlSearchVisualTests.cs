@@ -14,6 +14,7 @@ using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Search;
+using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Search;
 using SqlAssist.Ssms22.UI;
 using Xunit;
@@ -267,8 +268,9 @@ public sealed class SqlSearchVisualTests
             var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
             var sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
             var refresh = SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理");
-            var toolbar = new SqlSearchToolbar(
-                new SqlInputRow(search, sort, refresh), segments, new[] { new[] { databases }, new[] { kinds } });
+            var toolbar = new SqlScopeToolbar(
+                new SqlInputRow(search, sort, refresh),
+                new[] { new[] { databases }, new[] { kinds }, new FrameworkElement[] { segments } });
 
             var host = new Border { Child = toolbar };
 
@@ -285,7 +287,7 @@ public sealed class SqlSearchVisualTests
                 element.TranslatePoint(new Point(0, element.ActualHeight / 2), toolbar).Y;
 
             var wide = Layout(720);
-            Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
+            Assert.Equal(SqlScopeToolbarMode.Full, toolbar.Mode);
             Assert.False(kinds.IsCompact);
 
             // 上層是 filters 與分段開關；搜尋框與排序／重新整理在下層，貼著清單。
@@ -304,7 +306,7 @@ public sealed class SqlSearchVisualTests
             var gap = Measured(SqlAssistChrome.CreateGroupDivider()).Width * 2;
             var second = databases.DesiredSize.Width + kinds.DesiredSize.Width + segments.DesiredSize.Width + gap;
             var compact = Layout(second - 1);
-            Assert.Equal(SqlSearchToolbarMode.Compact, toolbar.Mode);
+            Assert.Equal(SqlScopeToolbarMode.Compact, toolbar.Mode);
             Assert.True(kinds.IsCompact);
             Assert.Equal(wide.Height, compact.Height);
             Assert.InRange(Math.Abs(Middle(segments) - Middle(databases)), 0, 1);
@@ -312,7 +314,7 @@ public sealed class SqlSearchVisualTests
             // 再窄就整群換行：分段開關是常駐可見的，而它與過濾按鈕不會拆成一半一半。
             var wrapped = Layout(
                 databases.DesiredSize.Width + kinds.DesiredSize.Width + segments.DesiredSize.Width + gap - 1);
-            Assert.Equal(SqlSearchToolbarMode.Wrapped, toolbar.Mode);
+            Assert.Equal(SqlScopeToolbarMode.Wrapped, toolbar.Mode);
             Assert.True(wrapped.Height > compact.Height);
             Assert.True(Middle(segments) > Middle(databases) + databases.ActualHeight / 2);
             // 換行的單位是群：兩顆過濾按鈕仍在同一列，不會掉一顆下去。
@@ -322,7 +324,7 @@ public sealed class SqlSearchVisualTests
 
             // 拉回去要回到完整版，不停在窄版上。
             Layout(720);
-            Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
+            Assert.Equal(SqlScopeToolbarMode.Full, toolbar.Mode);
             Assert.False(kinds.IsCompact);
             Assert.InRange(Math.Abs(Middle(segments) - Middle(databases)), 0, 1);
         });
@@ -343,16 +345,19 @@ public sealed class SqlSearchVisualTests
                 var server = new SqlFilterFlyout(SqlKindText.Server, SqlIcon.Server, SqlFilterMode.Single);
                 var databases = new SqlFilterFlyout(SqlKindText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple);
                 var kinds = new SqlFilterFlyout(CommonText.Kind, SqlIcon.Filter);
-                server.UpdateSummary(SqlSearchText.NoServer, "");
+                server.UpdateSummary(ConnectionText.NotSelected, "");
                 databases.UpdateSummary(ChromeText.DatabaseCount(12), "");
                 kinds.UpdateSummary(SqlSearchText.CategoryCount(3), "");
-                var toolbar = new SqlSearchToolbar(
+                var toolbar = new SqlScopeToolbar(
                     new SqlInputRow(
                         search,
                         SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, SqlSearchText.Sort),
                         SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, SqlSearchText.Refresh)),
-                    segments,
-                    new[] { new FrameworkElement[] { server, databases }, new FrameworkElement[] { kinds } });
+                    new[]
+                    {
+                        new FrameworkElement[] { server, databases }, new FrameworkElement[] { kinds },
+                        new FrameworkElement[] { segments },
+                    });
 
                 var pager = new SqlListPager();
                 // 最長的那一種說明：不完整的缺口清單，前面還掛著狀態圖示。
@@ -854,8 +859,9 @@ public sealed class SqlSearchVisualTests
             var server = new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.Single);
             var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
             var kinds = new SqlFilterFlyout("種類", SqlIcon.Filter);
-            var toolbar = new SqlSearchToolbar(
-                new SqlInputRow(search), segments, new[] { new[] { server, databases }, new[] { kinds } });
+            var toolbar = new SqlScopeToolbar(
+                new SqlInputRow(search),
+                new[] { new[] { server, databases }, new[] { kinds }, new FrameworkElement[] { segments } });
             var host = new Border { Child = toolbar };
 
             void Layout(double width)
@@ -866,7 +872,7 @@ public sealed class SqlSearchVisualTests
             }
 
             Layout(900);
-            Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
+            Assert.Equal(SqlScopeToolbarMode.Full, toolbar.Mode);
 
             // 三條看得見：伺服器｜資料庫（群內）、資料庫｜種類、種類｜分段開關（群間）。
             // 列首那一條（伺服器前面）一開始就收起，不然第二列會從一條孤線開始。
@@ -902,13 +908,13 @@ public sealed class SqlSearchVisualTests
 
             // 窄到分段開關換行時，它前面那一條收起；前面兩條留著。
             Layout(server.DesiredSize.Width + databases.DesiredSize.Width + kinds.DesiredSize.Width);
-            Assert.Equal(SqlSearchToolbarMode.Wrapped, toolbar.Mode);
+            Assert.Equal(SqlScopeToolbarMode.Wrapped, toolbar.Mode);
             Assert.Equal(Visibility.Visible, dividers[0].Visibility);
             Assert.Equal(Visibility.Visible, dividers[1].Visibility);
             Assert.Equal(Visibility.Collapsed, dividers[2].Visibility);
 
             Layout(900);
-            Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
+            Assert.Equal(SqlScopeToolbarMode.Full, toolbar.Mode);
             Assert.All(dividers, divider => Assert.Equal(Visibility.Visible, divider.Visibility));
         });
     }

@@ -1,4 +1,5 @@
-using SqlAssist.Metadata.Search;
+using SqlAssist.Ssms22.Connections;
+using SqlAssist.Ssms22.Tests.Connections;
 using SqlAssist.Ssms22.Search;
 using Xunit;
 
@@ -44,6 +45,6 @@ public sealed class SqlSearchProvidersTests
         Assert.False(providers.UseConnection(null));
     }
 
-    private static SqlSearchConnection Connection(string database, string server = "LIBSQL01") =>
-        new(SqlSearchTestCatalogs.Create(database, server), new SqlSearchOrigin(server));
+    private static SqlCatalogConnection Connection(string database, string server = "LIBSQL01") =>
+        new(SqlTestCatalogs.Create(database, server), server);
 }

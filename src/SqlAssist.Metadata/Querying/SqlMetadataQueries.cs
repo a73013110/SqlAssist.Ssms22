@@ -315,7 +315,7 @@ FROM ";
     /// 這條退路就斷了。基底型別讀 <c>_desc</c>：它的值就是 T-SQL 的寫法（<c>float16</c>），
     /// 不必在這裡維護一份代碼對照。
     /// </remarks>
-    private const string NoVector = @"(
+    internal const string NoVector = @"(
     SELECT
         CONVERT(int, NULL) AS vector_dimensions,
         CONVERT(nvarchar(10), NULL) AS vector_base_type_desc

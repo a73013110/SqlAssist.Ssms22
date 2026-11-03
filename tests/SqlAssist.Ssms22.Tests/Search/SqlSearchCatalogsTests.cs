@@ -27,10 +27,10 @@ public sealed class SqlSearchCatalogsTests
     [InlineData("", "LIBSQL01", false)]
     public void 伺服器名稱只有一種比法(string? serverName, string? otherServerName, bool expected)
     {
-        Assert.Equal(expected, SqlSearchCatalogs.IsSameServer(serverName, otherServerName));
+        Assert.Equal(expected, SqlCatalogSelection.IsSameServer(serverName, otherServerName));
 
         // 樹上那一台的版本走同一條規則；兩處各寫一次的症狀是下拉說同一台、導航說不同台。
-        Assert.Equal(expected, SqlSearchCatalogs.IsSameServer(Server(serverName ?? ""), otherServerName));
+        Assert.Equal(expected, SqlCatalogSelection.IsSameServer(Server(serverName ?? ""), otherServerName));
     }
 
     [Fact]

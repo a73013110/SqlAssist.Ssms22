@@ -5,5 +5,18 @@
   "WindowNotCreated": "SSMS 沒有建立出新的查詢視窗。",
   "EditorUnavailable": "已開啟新的查詢視窗，但取不到它的編輯器，定義沒有寫入。",
   // 頁籤工具提示的最後一行；connection 是「伺服器 · 資料庫」。
-  "DatabaseTabTooltip": "這個索引標籤使用此色彩，因為它連線到 {connection}"
+  "DatabaseTabTooltip": "這個索引標籤使用此色彩，因為它連線到 {connection}",
+  // ── 範圍列（SQL Search 與資料字典共用）：伺服器與資料庫兩顆下拉 ──
+  // 單選的伺服器或資料庫還沒選時按鈕上的字。
+  "NotSelected": "未選擇",
+  "LoadingDatabases": "正在讀取資料庫清單…",
+  "UserDatabases": "使用者資料庫",
+  "SystemDatabases": "系統資料庫",
+  "DatabaseListUnavailable": "問不到資料庫清單；去看這個登入的權限，或按重新整理再試一次。",
+  "DatabaseListStale": "問不到最新的資料庫清單，這一份可能是舊的。",
+  "NoAccessibleDatabases": "這個登入在這台伺服器上進不去任何資料庫。",
+  "ExplorerServerDescription": "物件總管上已連線的這一台。",
+  "EditorServerDescription": "查詢視窗連著的這一台；用查詢視窗那條連線。",
+  "CurrentServerDescription": "目前選定的這一台。",
+  "ExplorerUnavailable": "問不到物件總管，只列得出查詢視窗連著的那一台。"
 }

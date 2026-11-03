@@ -55,6 +55,7 @@ public sealed class NotificationKindToggle
         new NotificationKindToggle(NotificationKind.Settings, "sqlAssist.notifications.settings", true, () => CommonText.Settings),
         new NotificationKindToggle(NotificationKind.SqlMemory, "sqlAssist.notifications.sqlMemory", true, () => "SQL Memory"),
         new NotificationKindToggle(NotificationKind.Search, "sqlAssist.notifications.search", true, () => "SQL Search"),
+        new NotificationKindToggle(NotificationKind.Dictionary, "sqlAssist.notifications.dictionary", true, () => NotificationCatalog.KindDictionary),
         // 漏分類要看得見，不能沿用預設隱藏的種類。
         new NotificationKindToggle(NotificationKind.Unclassified, "sqlAssist.notifications.unclassified", true, () => NotificationCatalog.KindUnclassified),
     };

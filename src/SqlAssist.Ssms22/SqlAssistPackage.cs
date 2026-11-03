@@ -10,6 +10,7 @@ using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.Commands;
 using SqlAssist.Ssms22.Connections;
+using SqlAssist.Ssms22.Dictionary;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Notifications;
 using SqlAssist.Ssms22.Preview;
@@ -24,7 +25,7 @@ namespace SqlAssist.Ssms22;
 // 版號一變，殼層下次載入就重建命令表快取。新增命令、選單項目或鍵繫結時**一定**要
 // 加一：不加的話換掉 DLL 也沒有用，殼層仍在用舊的命令表——症狀是新的選單項目不出現、
 // 新綁的鍵沒反應，而且沒有任何錯誤。與 MEF 快取是同一類的坑。
-[ProvideMenuResource("Menus.ctmenu", 35)]
+[ProvideMenuResource("Menus.ctmenu", 36)]
 [ProvideAutoLoad(NoSolutionUiContextGuid, PackageAutoLoadFlags.BackgroundLoad)]
 // 設定全部由 Unified Settings 提供：這個屬性在 pkgdef 寫下 SettingsManifests 項目，
 // 殼層啟動時就會讀進註冊檔，不必等套件載入。
@@ -33,6 +34,9 @@ namespace SqlAssist.Ssms22;
     Orientation = ToolWindowOrientation.Right, Window = "DocumentWell", DockedWidth = 440, Width = 440)]
 [ProvideToolWindow(typeof(SqlSearchToolWindow), Style = VsDockStyle.Linked,
     Orientation = ToolWindowOrientation.Right, Window = "DocumentWell", DockedWidth = 440, Width = 440)]
+// 資料字典比另外兩個寬：主從並排要放得下資料表清單與資料行的型別、說明兩欄。
+[ProvideToolWindow(typeof(SqlDictionaryToolWindow), Style = VsDockStyle.Linked,
+    Orientation = ToolWindowOrientation.Right, Window = "DocumentWell", DockedWidth = 640, Width = 640)]
 // 從浮動預覽移過來的結構：與另外兩個工具窗同一側，照著寫查詢時表結構就在旁邊。
 [ProvideToolWindow(typeof(SqlStructureToolWindow), Style = VsDockStyle.Linked,
     Orientation = ToolWindowOrientation.Right, Window = "DocumentWell", DockedWidth = 520, Width = 520)]

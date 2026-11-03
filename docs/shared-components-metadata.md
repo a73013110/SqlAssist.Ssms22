@@ -20,7 +20,7 @@ Core 見[共用元件表](shared-components.md)，Ssms22 接線層見[平台共�
 | 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
 | 重建資料表、型別、索引、條件約束與擴充屬性的排版 | `Metadata/Formatting/TSqlScriptRenderer.cs` |
 | 單獨一個條件約束是哪一種、在父物件上的哪一列 | `Metadata/Model/SqlConstraintMatch.cs`、`SqlObjectStructure.FindConstraint` |
-| 擴充屬性的 `sp_addextendedproperty` 八個引數 | `Metadata/Formatting/SqlExtendedPropertyScript.cs` |
+| 擴充屬性的新增、更新、卸除與查詢（`fn_listextendedproperty`）引數 | `Metadata/Formatting/SqlExtendedPropertyScript.cs` |
 | 說明收成單行與截斷 | `Metadata/Formatting/SqlDescriptionText.cs` |
 | 檔頭、健檢與降級摘要的逐行 SQL 註解 | `Metadata/Formatting/SqlScriptComment.cs` |
 | 索引選項的預設值是什麼 | `Metadata/Model/SqlIndexOptions.cs` |

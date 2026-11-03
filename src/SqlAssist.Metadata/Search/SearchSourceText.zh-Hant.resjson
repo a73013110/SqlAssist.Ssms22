@@ -11,8 +11,6 @@
   "AgentJobNamedStepTitle": "{job} › 第 {order} 步 {step}",
   // 伺服器說不出自己的名字時，膠囊上代替伺服器名稱的字。
   "UnknownServerName": "(不明伺服器)",
-  // 搜尋範圍的資料庫清單裡，系統資料庫名稱後面的標記。
-  "SystemDatabase": "{name}（系統）",
   // ── 完整度：這一輪沒搜到的來源 ──
   "DatabaseListUnavailable": "問不到這台伺服器的資料庫清單，這一輪沒有搜任何資料庫",
   // ── SQL Agent 作業步驟開成指令碼時的開頭註解 ──

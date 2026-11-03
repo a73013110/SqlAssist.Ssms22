@@ -71,7 +71,7 @@ internal sealed class SqlSearchDefinitionLoader
 
         if (resolved is not { } catalog)
         {
-            return new SqlSearchDefinitionText("", _catalogs.ServerName is { } server
+            return new SqlSearchDefinitionText("", _catalogs.Selection.ServerName is { } server
                 ? SqlSearchText.ServerUnreachable(server)
                 : SqlSearchText.NoServerForDefinition);
         }

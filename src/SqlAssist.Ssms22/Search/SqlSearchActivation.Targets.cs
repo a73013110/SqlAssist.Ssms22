@@ -2,6 +2,7 @@ using System;
 using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Search;
+using SqlAssist.Ssms22.Connections;
 
 namespace SqlAssist.Ssms22.Search;
 
@@ -55,7 +56,7 @@ internal static partial class SqlSearchActivation
     public static bool OpensUnconnected(SearchHit? hit, string? activeEditorServer) =>
         CanActivate(hit) &&
         OriginOf(hit) is { } origin &&
-        !SqlSearchCatalogs.IsSameServer(origin.ServerName, activeEditorServer);
+        !SqlCatalogSelection.IsSameServer(origin.ServerName, activeEditorServer);
 
     /// <summary>右鍵選單與停駐那一顆的名稱；未連線時在名稱上就說，不等使用者去讀提示。</summary>
     public static string ActivateLabel(bool unconnected) => unconnected ? SqlSearchText.ActivateUnconnected : SqlSearchText.Activate;

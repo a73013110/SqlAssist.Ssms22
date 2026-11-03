@@ -135,29 +135,11 @@ internal sealed class SqlSearchBrowserModel
     /// <summary>沒有勾任何一個分類時，按鈕與面板第一列上顯示的字。</summary>
     public static string AllCategoriesLabel => CommonText.All;
 
-    /// <summary>沒有勾任何一個資料庫時，按鈕與面板第一列上顯示的字：這台伺服器上進得去的每一個。</summary>
-    public static string AllDatabasesLabel => CommonText.All;
-
-    /// <summary>還沒選伺服器時伺服器按鈕上的字。</summary>
-    public static string NoServerLabel => SqlSearchText.NoServer;
-
     /// <summary>沒有可搜的連線（還沒選伺服器，或選的那一台連不上）時，狀態表面上那顆按鈕的字。</summary>
     /// <remarks>
     /// 死路要有出口：兩種情形的下一步都是換一台，所以只有這一顆，按下去打開伺服器面板。
     /// </remarks>
     public static string ChooseServerAction => SqlSearchText.ChooseServer;
-
-    /// <summary>
-    /// 系統資料庫的名稱；下拉清單把它們與使用者資料庫分成兩段。
-    /// </summary>
-    /// <remarks>
-    /// 這是<b>後備</b>：下拉的清單由伺服器自己說哪幾個是系統資料庫（見
-    /// <c>SqlCatalogSearchDatabase.IsSystem</c>），這份名單只用在還沒問到清單、
-    /// 而某個名稱已經被勾起來的那一刻。四個名稱在每一版 SQL Server 上都相同，
-    /// 分錯的代價也只是一個名字暫時排在另一段裡。
-    /// </remarks>
-    private static readonly HashSet<string> SystemDatabaseNames =
-        new(new[] { "master", "model", "msdb", "tempdb" }, StringComparer.OrdinalIgnoreCase);
 
     private readonly HashSet<string> _categoryIds = new(StringComparer.Ordinal);
 
@@ -248,7 +230,7 @@ internal sealed class SqlSearchBrowserModel
     /// <remarks>
     /// 伺服器單選：換一台換的是整份目錄，同時搜好幾台要的是每台一個 provider、一道硬性期限與
     /// 一份說得出「哪幾台沒回來」的文案，那些都還沒有。這一層只存<b>名稱</b>，連線由
-    /// <c>SqlSearchCatalogs</c> 負責；選的伺服器<b>不</b>進 <see cref="SearchScope.Servers"/>——那一格
+    /// <c>SqlCatalogSelection</c> 負責；選的伺服器<b>不</b>進 <see cref="SearchScope.Servers"/>——那一格
     /// 是給連結伺服器（四段式名稱）的，混用的症狀是 provider 看到它就整輪不回結果。
     ///
     /// 資料庫沒有勾就是「全部」：這台上進得去的每一個，第一輪要把每一個都索引一遍。
@@ -431,19 +413,9 @@ internal sealed class SqlSearchBrowserModel
         return true;
     }
 
-    /// <summary>這個名稱屬於系統資料庫那一段。</summary>
-    public static bool IsSystemDatabase(string database) => SystemDatabaseNames.Contains(database);
-
     /// <summary>種類按鈕上的摘要；十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果。</summary>
     public string CategorySummary() =>
         Summarize(_categoryIds.Count, AllCategoriesLabel, SingleCategoryLabel(), count => SqlSearchText.CategoryCount(count));
-
-    /// <summary>伺服器按鈕上的摘要：選定的那一台，還沒選時說「未選擇」。</summary>
-    public string ServerSummary() => Scope.Servers.Count == 0 ? NoServerLabel : Scope.Servers[0];
-
-    /// <summary>資料庫按鈕上的摘要；一個都沒勾就是「全部」，與面板第一列共用同一份字。</summary>
-    public string DatabaseSummary() =>
-        Summarize(Scope.Databases.Count, AllDatabasesLabel, Scope.Databases.Count == 1 ? Scope.Databases[0] : null, count => ChromeText.DatabaseCount(count));
 
     /// <summary>輸入或篩選改變：這一份結果已經不代表畫面上的條件，但清單留著等新結果。</summary>
     public void Invalidate()

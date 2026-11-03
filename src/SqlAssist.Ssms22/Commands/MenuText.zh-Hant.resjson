@@ -6,6 +6,7 @@
   "ShowSqlFavorites": "Favorites",
   "ShowSqlMemoryUsage": "SQL Memory 用量",
   "ShowSqlSearch": "Search",
+  "ShowDataDictionary": "資料字典",
   "AddToFavorites": "新增至收藏…",
   "ToggleEnabled": "啟用 SqlAssist",
   "ToggleSuggestions": "顯示即時建議",

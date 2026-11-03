@@ -231,31 +231,4 @@ INNER JOIN sys.objects AS o ON o.object_id = c.object_id
 WHERE o.is_ms_shipped = 0
   AND (@modifiedAfter IS NULL OR o.modify_date >= @modifiedAfter)
 ORDER BY c.object_id, c.column_id;";
-
-    /// <summary>
-    /// 這條連線看得到的每一個資料庫，連同進不進得去。
-    /// </summary>
-    /// <remarks>
-    /// 欄位順序：name、is_system、state_desc、is_accessible。
-    ///
-    /// 給資料庫多選用的<b>清單</b>，也是範圍「全部」那一輪要搜的名單，不是預先索引的名單：
-    /// 建索引仍然只發生在使用者真的要搜的時候。
-    ///
-    /// 進不去的（離線、還原中、<c>HAS_DBACCESS</c> 為 0）<b>照樣回傳</b>並標出來：多選清單只列
-    /// 進得去的，但「全部」那一輪要把它們列進完整度，說出哪幾個沒搜到。在這裡直接濾掉的話，
-    /// 畫面會說「已完整搜尋 38 個資料庫」，而使用者以為那是全部。
-    /// <c>HAS_DBACCESS</c> 對離線的資料庫回傳 NULL，所以比較寫成 <c>= 1</c>。
-    /// 這一族函式吃的是資料庫名稱而不是 object_id，不在「加不了限定字」那個坑裡。
-    ///
-    /// <c>database_id &lt;= 4</c> 就是 master／tempdb／model／msdb 四個；讓 UI 決定
-    /// 要不要預設收起來，而不是在這裡直接不回傳——使用者確實會去搜 msdb 的作業指令碼。
-    /// </remarks>
-    public const string Databases = @"
-SELECT
-    d.name,
-    CASE WHEN d.database_id <= 4 THEN 1 ELSE 0 END AS is_system,
-    d.state_desc,
-    CASE WHEN d.state = 0 AND HAS_DBACCESS(d.name) = 1 THEN 1 ELSE 0 END AS is_accessible
-FROM sys.databases AS d
-ORDER BY d.name;";
 }

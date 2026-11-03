@@ -564,8 +564,6 @@ public sealed class SqlSearchBrowserModelTests
         model.UseCategories(Categories());
 
         Assert.Equal(SqlSearchBrowserModel.AllCategoriesLabel, model.CategorySummary());
-        // 資料庫沒勾就是「全部」，與面板第一列同一句；有沒有連線都不換字。
-        Assert.Equal(SqlSearchBrowserModel.AllDatabasesLabel, model.DatabaseSummary());
 
         model.SetCategorySelected("catalog.table", selected: true);
         Assert.Equal("Table", model.CategorySummary());
@@ -575,16 +573,6 @@ public sealed class SqlSearchBrowserModelTests
         // 三個名字串起來會把按鈕撐到吃掉搜尋框；完整名單留在面板與 Tooltip。
         // 量詞不能省：只剩一個數字時，使用者分不出那是幾種還是幾個。
         Assert.Equal("3 種", model.CategorySummary());
-
-        // 伺服器單選，所以摘要永遠是一個名字；還沒選時說「未選擇」。
-        Assert.Equal(SqlSearchBrowserModel.NoServerLabel, model.ServerSummary());
-        model.Scope.SetServerSelected("LIBSQL01", selected: true);
-        Assert.Equal("LIBSQL01", model.ServerSummary());
-
-        model.Scope.SetDatabaseSelected("LibArchive", selected: true);
-        Assert.Equal("LibArchive", model.DatabaseSummary());
-        model.Scope.SetDatabaseSelected("LibReporting", selected: true);
-        Assert.Equal("2 個", model.DatabaseSummary());
     }
 
     [Fact]
@@ -596,7 +584,6 @@ public sealed class SqlSearchBrowserModelTests
             model.UseCategories(Categories());
 
             Assert.Equal("All", model.CategorySummary());
-            Assert.Equal("Not selected", model.ServerSummary());
 
             model.SetCategorySelected("catalog.table", selected: true);
             model.SetCategorySelected("catalog.view", selected: true);
@@ -669,14 +656,6 @@ public sealed class SqlSearchBrowserModelTests
         Assert.Equal(
             new[] { "catalog.table", "catalog.table", "catalog.view" },
             model.Arrange(hits).Select(hit => hit.CategoryId).ToArray());
-    }
-
-    [Fact]
-    public void 系統資料庫與使用者資料庫分成兩段()
-    {
-        Assert.True(SqlSearchBrowserModel.IsSystemDatabase("master"));
-        Assert.True(SqlSearchBrowserModel.IsSystemDatabase("TempDB"));
-        Assert.False(SqlSearchBrowserModel.IsSystemDatabase("LibArchive"));
     }
 
     [Fact]

@@ -167,6 +167,14 @@
         <CommandFlag>TextChanges</CommandFlag>
         <Strings><ButtonText>Search</ButtonText><CanonicalName>SqlAssist.ShowSqlSearch</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlSearch</LocCanonicalName></Strings>
       </Button>
+      <!-- 與 Search 同一群：兩個都是看伺服器上的物件；同樣沒有鍵繫結，理由見 CommandIds.ShowDataDictionary。 -->
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowDataDictionary" priority="0x0085" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSearchGroup" />
+        <Icon guid="ImageCatalogGuid" id="Table" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings><ButtonText>Data Dictionary</ButtonText><CanonicalName>SqlAssist.ShowDataDictionary</CanonicalName><LocCanonicalName>SqlAssist.ShowDataDictionary</LocCanonicalName></Strings>
+      </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0082" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
@@ -598,6 +606,7 @@
       <IDSymbol name="cmdidShowSqlMemoryUsageFromSettings" value="0x021A" />
       <IDSymbol name="cmdidShowSqlSearch" value="0x021B" />
       <IDSymbol name="cmdidFocusNotifications" value="0x021C" />
+      <IDSymbol name="cmdidShowDataDictionary" value="0x021D" />
       <IDSymbol name="cmdidProbeResultGrid" value="0x0300" />
       <IDSymbol name="cmdidResultGridTempTable" value="0x0301" />
       <IDSymbol name="cmdidResultGridInPredicate" value="0x0302" />

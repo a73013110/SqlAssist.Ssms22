@@ -37,6 +37,7 @@
 | `Analysis/` | 結構健檢的規則與分析器 |
 | `ResultGrid/` | 格線模型、值轉字面值、`#temp` 與 `IN` |
 | `Search/` | 目錄物件與 Agent 作業的搜尋來源、搜尋索引與它的快取 |
+| `Dictionary/` | 資料字典：資料表與資料行說明的載入、同名比較、過濾、貼上與寫回 |
 | `Completion/` | 建議清單的資料庫那一份：物件、欄位與參數轉成建議項，資料表來源的解析 |
 
 ## SQL Memory 儲存
@@ -58,10 +59,11 @@
 | `Wildcards/` | `SELECT *` 的展開與可展開提示（Tab 由 `Editor/` 分派） |
 | `Snippets/` | 片段檔、管理員視窗與 Expansion Session |
 | `Settings/` | Unified Settings 讀取與設定頁文字資源、預覽視窗尺寸、推給 SSMS 的語言偏好，以及套用介面語言 |
-| `Connections/` | 取得 SSMS 查詢視窗的連線，以及另開一個沿用連線的查詢視窗 |
+| `Connections/` | 取得 SSMS 查詢視窗的連線、另開一個沿用連線的查詢視窗，以及工具窗共用的伺服器／資料庫範圍列 |
 | `Commands/` | 命令識別碼、工具選單與診斷視窗 |
 | `Notifications/` | 通知島的呈現、形態狀態機、浮層與定位、全域控制器與提醒按鈕派送 |
 | `ResultGrid/` | 讀取選取範圍並輸出到視窗或剪貼簿 |
 | `Search/` | SQL Search 工具窗：篩選與排序、結果導航與定義預覽 |
+| `Dictionary/` | 資料字典工具窗：主從與資料字典兩種檢視、說明編輯與套用對話框 |
 | `SqlMemory/` | SQL Memory 的設定與計時器接線、編輯器擷取事件、工具窗與對話框 |
 | `UI/` | 全擴充共用外觀與佈景筆刷 |

@@ -165,16 +165,4 @@ public sealed class SqlCatalogSearchQueriesTests
         Assert.Contains(SqlCatalogSearchQueries.ModifiedAfterParameterName, SqlCatalogSearchQueries.Definitions);
         Assert.Contains(SqlCatalogSearchQueries.ModifiedAfterParameterName, SqlCatalogSearchQueries.Columns);
     }
-
-    /// <summary>資料庫清單只列進得去而且上線的。</summary>
-    /// <remarks>
-    /// 離線或進不去的資料庫列出來，只會讓使用者勾一個必然失敗的目標，而失敗在畫面上
-    /// 與「這裡面沒有東西」長得一樣。
-    /// </remarks>
-    [Fact]
-    public void 資料庫清單只列進得去而且上線的()
-    {
-        Assert.Contains("d.state = 0", SqlCatalogSearchQueries.Databases);
-        Assert.Contains("HAS_DBACCESS", SqlCatalogSearchQueries.Databases);
-    }
 }

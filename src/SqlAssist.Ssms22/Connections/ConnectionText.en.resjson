@@ -3,5 +3,16 @@
   "NoConnectionToReuse": "The current query window has no connection; cannot reuse it to open a new window.",
   "WindowNotCreated": "SSMS did not create a new query window.",
   "EditorUnavailable": "New query window opened, but the editor could not be accessed; the definition was not written.",
-  "DatabaseTabTooltip": "This tab is using this color because it is connected to {connection}"
+  "DatabaseTabTooltip": "This tab is using this color because it is connected to {connection}",
+  "NotSelected": "Not selected",
+  "LoadingDatabases": "Loading database list…",
+  "UserDatabases": "User databases",
+  "SystemDatabases": "System databases",
+  "DatabaseListUnavailable": "Cannot retrieve the database list; check this login's permissions or press Refresh and try again.",
+  "DatabaseListStale": "Cannot retrieve the latest database list; this copy may be outdated.",
+  "NoAccessibleDatabases": "This login has access to no databases on this server.",
+  "ExplorerServerDescription": "This server, connected in Object Explorer.",
+  "EditorServerDescription": "The server connected to the query window; uses that window's connection.",
+  "CurrentServerDescription": "The server currently selected.",
+  "ExplorerUnavailable": "Cannot reach Object Explorer; only the server connected to the query window is listed."
 }

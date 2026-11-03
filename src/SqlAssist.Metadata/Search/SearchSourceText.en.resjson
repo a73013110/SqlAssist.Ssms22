@@ -6,7 +6,6 @@
   "AgentJobStepTitle": "{job} › Step {order}",
   "AgentJobNamedStepTitle": "{job} › Step {order} {step}",
   "UnknownServerName": "(Unknown server)",
-  "SystemDatabase": "{name} (System)",
   "DatabaseListUnavailable": "couldn't list this server's databases, so none were searched this round",
   "AgentJobScriptJob": "SQL Agent job: {job}",
   "AgentJobScriptServer": "Server: {server}",

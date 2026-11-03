@@ -154,4 +154,32 @@ public sealed class SqlTabularTextTests
         var start = Offset(html, "StartFragment");
         return Encoding.UTF8.GetString(bytes, start, Offset(html, "EndFragment") - start);
     }
+
+    /// <summary>讀回來與寫出去是同一套規則：含換行與引號的一格貼回來仍是一格。</summary>
+    [Fact]
+    public void 讀TSV還原引號與格內換行()
+    {
+        var tsv = SqlTabularText.ToTsv(Columns, new[] { new Row("Loan", "借閱\r\n含\"引號\""), new Row("Branch", "") });
+
+        var rows = SqlTabularText.ParseTsv(tsv);
+
+        Assert.Equal(3, rows.Count);
+        Assert.Equal(new[] { "名稱", "說明" }, rows[0]);
+        Assert.Equal(new[] { "Loan", "借閱\r\n含\"引號\"" }, rows[1]);
+        Assert.Equal(new[] { "Branch", "" }, rows[2]);
+    }
+
+    /// <summary>LF 換行、沒有結尾換行、單欄與中間空白列都照樣讀。</summary>
+    [Fact]
+    public void 讀TSV收LF與最後一列沒有換行()
+    {
+        var rows = SqlTabularText.ParseTsv("讀者編號\n\n借閱日期");
+
+        Assert.Equal(3, rows.Count);
+        Assert.Equal(new[] { "讀者編號" }, rows[0]);
+        Assert.Equal(new[] { "" }, rows[1]);
+        Assert.Equal(new[] { "借閱日期" }, rows[2]);
+        Assert.Empty(SqlTabularText.ParseTsv(""));
+        Assert.Empty(SqlTabularText.ParseTsv(null));
+    }
 }

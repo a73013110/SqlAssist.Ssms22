@@ -11,6 +11,20 @@ namespace SqlAssist.Ssms22.UI;
 /// 工具窗停在右側時窄、停在下方時寬；寬版面下上下分割會讓清單只剩幾列高，旁邊卻空著一半，
 /// 所以寬到門檻就轉成左右。轉向在 <see cref="MeasureOverride"/> 決定，等到排版才換會閃一次舊版面。
 /// </remarks>
+/// <summary>明細那一塊叫什麼：抬頭上的字、展開收合的朗讀名稱與提示，以及摘要列的朗讀名稱。</summary>
+/// <remarks>
+/// SQL Search 與 SQL Memory 的明細是 SQL 預覽；資料字典的明細是一張表的資料行。抬頭寫死「預覽」的話，
+/// 資料字典的那一塊會叫錯名字，而另做一份主從區只為了換五個字，就是兩份轉向與比例規則。
+/// </remarks>
+internal sealed record MasterDetailLabels(
+    string Title, string Expand, string ExpandToolTip, string Collapse, string CollapseToolTip, string Strip)
+{
+    /// <summary>明細是 SQL 預覽（SQL Search、SQL Memory）。</summary>
+    public static MasterDetailLabels Preview => new(
+        ChromeText.Preview, ChromeText.ExpandPreview, ChromeText.ExpandPreviewToolTip,
+        ChromeText.CollapsePreview, ChromeText.CollapsePreviewToolTip, ChromeText.PreviewStrip);
+}
+
 internal sealed class MasterDetailView : Grid
 {
     /// <summary>轉成左右分割的預設門檻；兩塊各 <see cref="MinPaneWidth"/> 加上分隔線與外距。</summary>
@@ -27,6 +41,7 @@ internal sealed class MasterDetailView : Grid
     private readonly FrameworkElement? _summaryHost;
     private readonly double? _sideBySideWidth;
     private readonly bool? _motion;
+    private readonly MasterDetailLabels _labels;
 
     /// <summary>抬頭上那一顆箭頭；跨兩次 <see cref="UpdateHeading"/> 留著同一顆才轉得動。</summary>
     private readonly System.Windows.Shapes.Path _chevron;
@@ -74,9 +89,12 @@ internal sealed class MasterDetailView : Grid
     /// 寬到這個 DIP 就自動轉成左右分割；null 表示永遠上下分割。
     /// </param>
     /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
+    /// <param name="labels">明細那一塊叫什麼；null 是 SQL 預覽。</param>
     public MasterDetailView(UIElement master, UIElement detail, FrameworkElement? summary = null,
-        double? sideBySideWidth = null, bool? motion = null)
+        double? sideBySideWidth = null, bool? motion = null, MasterDetailLabels? labels = null)
     {
+        // 字在建構時取：換語言時工具窗整份重建，見 SqlLanguageSwitch。
+        _labels = labels ?? MasterDetailLabels.Preview;
         if (sideBySideWidth is <= 0) throw new ArgumentOutOfRangeException(nameof(sideBySideWidth));
 
         _master = master;
@@ -112,7 +130,7 @@ internal sealed class MasterDetailView : Grid
         if (summary is not null)
         {
             // 捲動、滾輪方向與鍵盤都走共用的單列資訊列；已選條件列用的是同一份。
-            var metadata = SqlAssistChrome.CreateHorizontalStrip(summary, ChromeText.PreviewStrip);
+            var metadata = SqlAssistChrome.CreateHorizontalStrip(summary, _labels.Strip);
             metadata.Margin = new Thickness(
                 SqlAssistChrome.Spacing.Group, SqlAssistChrome.Spacing.Tight,
                 SqlAssistChrome.Spacing.Tight, 0);
@@ -286,9 +304,9 @@ internal sealed class MasterDetailView : Grid
         _chevron.Margin = iconOnly ? default : new Thickness(0, 0, 6, 0);
         panel.Children.Add(_chevron);
         SqlAssistChrome.SetChevronExpanded(_chevron, IsDetailExpanded, _motion);
-        if (!iconOnly) panel.Children.Add(SqlAssistChrome.CreateButtonText(ChromeText.Preview));
+        if (!iconOnly) panel.Children.Add(SqlAssistChrome.CreateButtonText(_labels.Title));
         _toggle.Content = panel;
-        _toggle.ToolTip = IsDetailExpanded ? ChromeText.CollapsePreviewToolTip : ChromeText.ExpandPreviewToolTip;
-        AutomationProperties.SetName(_toggle, IsDetailExpanded ? ChromeText.CollapsePreview : ChromeText.ExpandPreview);
+        _toggle.ToolTip = IsDetailExpanded ? _labels.CollapseToolTip : _labels.ExpandToolTip;
+        AutomationProperties.SetName(_toggle, IsDetailExpanded ? _labels.Collapse : _labels.Expand);
     }
 }

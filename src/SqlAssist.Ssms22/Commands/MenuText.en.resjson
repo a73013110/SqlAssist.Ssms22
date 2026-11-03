@@ -3,6 +3,7 @@
   "ShowSqlFavorites": "Favorites",
   "ShowSqlMemoryUsage": "SQL Memory Usage",
   "ShowSqlSearch": "Search",
+  "ShowDataDictionary": "Data Dictionary",
   "AddToFavorites": "Add to Favorites…",
   "ToggleEnabled": "Enable SqlAssist",
   "ToggleSuggestions": "Show Live Suggestions",

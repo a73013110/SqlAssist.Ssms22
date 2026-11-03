@@ -5,15 +5,15 @@ using System.ComponentModel;
 namespace SqlAssist.Core.Connections;
 
 /// <summary>
-/// 範圍列上伺服器與資料庫兩個篩選的值；SQL Memory 與 SQL Search 共用這一份規則。
+/// 範圍列上伺服器與資料庫兩個篩選的值；SQL Memory、SQL Search 與資料字典共用這一份規則。
 /// </summary>
 /// <remarks>
 /// 兩個篩選都是<b>明確的值</b>，沒有「跟著查詢視窗」這種會自己變的狀態：切分頁、在查詢視窗換連線
 /// 都不動它，只有使用者勾選或按「套用查詢視窗的連線」（<see cref="Apply"/>）才換。跟著走的那一版，
 /// 使用者盯著同一組篩選，搜到的卻隨著他剛點過哪個分頁而不同。
 ///
-/// 資料庫空名單就是「全部」。伺服器空名單在多選時也是「全部」；單選（SQL Search 換一台換的是
-/// 整份目錄）時是「還沒選」，由宿主說那一句。
+/// 空名單在多選時是「全部」；單選時是「還沒選」，由宿主說那一句。伺服器單選是因為換一台換的是
+/// 整份目錄（SQL Search、資料字典）；資料庫單選是因為一份資料字典只屬於一個資料庫。
 ///
 /// 名稱怎麼比由宿主給：SQL Memory 比的是儲存層自己回的字（ordinal），SQL Search 比的是伺服器上的
 /// 名稱（大小寫由定序決定，一律不分大小寫）。
@@ -26,13 +26,17 @@ public sealed class SqlConnectionScope
 
     /// <param name="multipleServers">伺服器可以複選；false 時勾一台就換掉上一台，取消勾不算數。</param>
     /// <param name="comparer">名稱比對規則；伺服器與資料庫共用。</param>
-    public SqlConnectionScope(bool multipleServers, StringComparer comparer)
+    /// <param name="multipleDatabases">資料庫可以複選；false 時與單選的伺服器同一條規則。</param>
+    public SqlConnectionScope(bool multipleServers, StringComparer comparer, bool multipleDatabases = true)
     {
         MultipleServers = multipleServers;
+        MultipleDatabases = multipleDatabases;
         _comparer = comparer ?? throw new ArgumentNullException(nameof(comparer));
     }
 
     public bool MultipleServers { get; }
+
+    public bool MultipleDatabases { get; }
 
     /// <summary>勾起來的伺服器，依勾選順序；空表示全部（多選）或還沒選（單選）。</summary>
     public IReadOnlyList<string> Servers => _servers;
@@ -43,6 +47,15 @@ public sealed class SqlConnectionScope
     public bool IsServerSelected(string server) => IndexOf(_servers, server) >= 0;
 
     public bool IsDatabaseSelected(string database) => IndexOf(_databases, database) >= 0;
+
+    /// <summary>單選的名單：勾一個就換掉上一個，取消勾不算數（radio 本來也取消不掉）。</summary>
+    private static bool SelectSingle(List<string> names, int index, string name, bool selected)
+    {
+        if (!selected || (index >= 0 && names.Count == 1)) return false;
+        names.Clear();
+        names.Add(name);
+        return true;
+    }
 
     /// <summary>勾或取消勾一台伺服器。</summary>
     /// <returns>true 表示條件真的變了。</returns>
@@ -59,9 +72,7 @@ public sealed class SqlConnectionScope
 
         if (!MultipleServers)
         {
-            if (!selected || (index >= 0 && _servers.Count == 1)) return false;
-            _servers.Clear();
-            _servers.Add(server);
+            if (!SelectSingle(_servers, index, server, selected)) return false;
             _databases.Clear();
             return true;
         }
@@ -79,6 +90,7 @@ public sealed class SqlConnectionScope
     {
         RequireName(database, nameof(database));
         var index = IndexOf(_databases, database);
+        if (!MultipleDatabases) return SelectSingle(_databases, index, database, selected);
         if (selected == index >= 0) return false;
         if (selected) _databases.Add(database);
         else _databases.RemoveAt(index);
@@ -94,7 +106,7 @@ public sealed class SqlConnectionScope
         return true;
     }
 
-    /// <summary>回到「全部資料庫」。</summary>
+    /// <summary>回到「全部資料庫」；單選時是回到「還沒選」。</summary>
     public bool ClearDatabases()
     {
         if (_databases.Count == 0) return false;

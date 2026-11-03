@@ -10,6 +10,7 @@ using SqlAssist.Core.Settings;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
+using SqlAssist.Ssms22.Dictionary;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Notifications;
 using SqlAssist.Ssms22.Preview;
@@ -100,6 +101,7 @@ internal sealed class SqlAssistCommands
         // 永遠可用：沒有查詢視窗時工具窗自己說「尚未連線」，做成灰的會讓人以為功能壞了。
         // Show 內部不走 Guard，開不起來會跳訊息方塊——使用者是自己點選單的。
         AddCommand(CommandIds.ShowSqlSearch, (_, _) => SqlSearchToolWindow.Show(_package));
+        AddCommand(CommandIds.ShowDataDictionary, (_, _) => SqlDictionaryToolWindow.Show(_package));
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
         // 問一次要幾秒，連按只送出一次；結論走通知，所以不必等視窗。
         AddCommand(CommandIds.CheckForUpdates,
@@ -214,6 +216,7 @@ internal sealed class SqlAssistCommands
         CommandIds.ShowSqlFavorites => MenuText.ShowSqlFavorites,
         CommandIds.ShowSqlMemoryUsage => MenuText.ShowSqlMemoryUsage,
         CommandIds.ShowSqlSearch => MenuText.ShowSqlSearch,
+        CommandIds.ShowDataDictionary => MenuText.ShowDataDictionary,
         CommandIds.AddToFavorites or CommandIds.AddToFavoritesFromTools => MenuText.AddToFavorites,
         CommandIds.ToggleEnabled => MenuText.ToggleEnabled,
         CommandIds.ToggleSuggestions => MenuText.ToggleSuggestions,

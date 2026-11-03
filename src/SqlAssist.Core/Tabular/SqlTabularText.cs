@@ -36,6 +36,9 @@ public sealed class SqlTabularContent
 /// 兩個 <see cref="StringBuilder"/> 同一趟寫完，每一格的值只取一次，也不先串出整列字串：
 /// 上千列時逐格 <c>+</c> 串接是平方級的複製量。HTML 的位移在寫入時就逐字累計 UTF-8 位元組，
 /// 最後回填到預留的十位數欄位裡，不必為了量長度再編碼一次整份內容。
+///
+/// 讀回來（<see cref="ParseTsv"/>）照同一套引號規則：從 Excel 或這裡複製出去的一格說明含換行時，
+/// 貼回來仍是一格。
 /// </remarks>
 public static class SqlTabularText
 {
@@ -104,6 +107,79 @@ public static class SqlTabularText
         }
 
         return count;
+    }
+
+    /// <summary>
+    /// 把剪貼簿上的 TSV 讀成列與格；格內換行與引號照 Excel 的規則還原。
+    /// </summary>
+    /// <remarks>
+    /// 以雙引號開頭的格才算包引號，其中 <c>""</c> 是一個引號；格中間出現的引號照字面。
+    /// 最後一列結尾的換行不另算一列（Excel 複製出來一定帶著它），中間的空白列照樣是一列。
+    /// 換行收 CRLF 與 LF 兩種：記事本與網頁上複製的常是後者。
+    /// </remarks>
+    public static IReadOnlyList<IReadOnlyList<string>> ParseTsv(string? text)
+    {
+        var rows = new List<IReadOnlyList<string>>();
+        if (string.IsNullOrEmpty(text)) return rows;
+
+        var row = new List<string>();
+        var cell = new StringBuilder();
+        var index = 0;
+        var length = text!.Length;
+
+        while (index < length)
+        {
+            if (cell.Length == 0 && text[index] == '"')
+            {
+                index++;
+                while (index < length)
+                {
+                    if (text[index] == '"')
+                    {
+                        if (index + 1 < length && text[index + 1] == '"')
+                        {
+                            cell.Append('"');
+                            index += 2;
+                            continue;
+                        }
+
+                        index++;
+                        break;
+                    }
+
+                    cell.Append(text[index++]);
+                }
+
+                continue;
+            }
+
+            var character = text[index];
+
+            if (character == '\t')
+            {
+                row.Add(cell.ToString());
+                cell.Clear();
+                index++;
+            }
+            else if (character == '\r' || character == '\n')
+            {
+                row.Add(cell.ToString());
+                cell.Clear();
+                rows.Add(row);
+                row = new List<string>();
+                index += character == '\r' && index + 1 < length && text[index + 1] == '\n' ? 2 : 1;
+            }
+            else
+            {
+                cell.Append(character);
+                index++;
+            }
+        }
+
+        if (cell.Length > 0 || row.Count > 0) row.Add(cell.ToString());
+        if (row.Count > 0) rows.Add(row);
+
+        return rows;
     }
 
     /// <summary>

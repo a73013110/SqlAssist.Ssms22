@@ -212,6 +212,8 @@
   "NotificationsSqlMemoryDescription": "啟用、整理、清除與備份 SQL Memory，以及擷取被略過與容量警戒這類事件。",
   "NotificationsSearchTitle": "SQL Search",
   "NotificationsSearchDescription": "SQL Search 的複製、套用查詢視窗連線、搜尋失敗與預覽標不齊命中。移至定義與在物件總管中選取歸在「移至定義」。",
+  "NotificationsDictionaryTitle": "資料字典",
+  "NotificationsDictionaryDescription": "資料字典的載入、寫回與貼上說明，以及套用查詢視窗連線。",
   "NotificationsUnclassifiedTitle": "未分類",
   "NotificationsUnclassifiedDescription": "還沒歸類的工作。預設顯示，關掉之後新加入的工作可能整批安靜消失。",
   "NotificationsFailuresTitle": "顯示所有種類的失敗",

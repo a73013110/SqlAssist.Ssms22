@@ -3,10 +3,10 @@ using System.Data;
 using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Querying;
 
-namespace SqlAssist.Ssms22.Tests.Search;
+namespace SqlAssist.Ssms22.Tests.Connections;
 
 /// <summary>不開連線的目錄；只要快取鍵分得開伺服器與資料庫。</summary>
-internal static class SqlSearchTestCatalogs
+internal static class SqlTestCatalogs
 {
     internal static SqlMetadataCatalog Create(string database, string server = "LIBSQL01") =>
         new(new StubSource(server, database), TimeSpan.FromMinutes(5));

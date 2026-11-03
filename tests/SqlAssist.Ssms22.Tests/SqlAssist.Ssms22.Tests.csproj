@@ -76,21 +76,26 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlBusyNotice.cs" Link="Product\UI\SqlBusyNotice.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFilterBar.cs" Link="Product\UI\SqlFilterBar.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlInputRow.cs" Link="Product\UI\SqlInputRow.cs" />
-    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchToolbar.cs" Link="Product\UI\SqlSearchToolbar.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlScopeToolbar.cs" Link="Product\UI\SqlScopeToolbar.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Search.cs" Link="Product\UI\SqlAssistChrome.Search.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMatchToggles.cs" Link="Product\UI\SqlMatchToggles.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlEditorConnectionText.cs" Link="Product\UI\SqlEditorConnectionText.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchRow.cs" Link="Product\Search\SqlSearchRow.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchActivation.Targets.cs" Link="Product\Search\SqlSearchActivation.Targets.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchCatalogs.Servers.cs" Link="Product\Search\SqlSearchCatalogs.Servers.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Connections\SqlCatalogSelection.Servers.cs" Link="Product\Connections\SqlCatalogSelection.Servers.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Connections\SsmsObjectExplorerServer.cs" Link="Product\Connections\SsmsObjectExplorerServer.cs" />
     <!-- SqlSearchPreview 現在要 SSMS 的中繼資料服務與唯讀檢視，不再是純 WPF；可測的部分在 SqlSearchDefinition。 -->
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchDefinition.cs" Link="Product\Search\SqlSearchDefinition.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchBrowserModel.cs" Link="Product\Search\SqlSearchBrowserModel.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchCoverage.cs" Link="Product\Search\SqlSearchCoverage.cs" />
-    <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchScopeDatabases.cs" Link="Product\Search\SqlSearchScopeDatabases.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Connections\SqlCatalogDatabases.cs" Link="Product\Connections\SqlCatalogDatabases.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchProviders.cs" Link="Product\Search\SqlSearchProviders.cs" />
-    <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchConnection.cs" Link="Product\Search\SqlSearchConnection.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Connections\SqlCatalogConnection.cs" Link="Product\Connections\SqlCatalogConnection.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Connections\SqlCatalogScopeSummary.cs" Link="Product\Connections\SqlCatalogScopeSummary.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Dictionary\DictionaryText.cs" Link="Product\Dictionary\DictionaryText.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Dictionary\SqlDictionaryRows.cs" Link="Product\Dictionary\SqlDictionaryRows.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Dictionary\SqlDictionaryBrowserModel.cs" Link="Product\Dictionary\SqlDictionaryBrowserModel.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemoryRow.cs" Link="Product\SqlMemory\SqlMemoryRow.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemorySurfaceState.cs" Link="Product\SqlMemory\SqlMemorySurfaceState.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlFavoriteRevisionRow.cs" Link="Product\SqlMemory\SqlFavoriteRevisionRow.cs" />

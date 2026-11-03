@@ -21,6 +21,8 @@ public enum NotificationKind
     SqlMemory,
     /// <summary>SQL Search 工具窗上的搜尋、複製與套用連線；移至定義與在物件總管中選取仍是 <see cref="Navigation"/>。</summary>
     Search,
+    /// <summary>資料字典工具窗：載入字典、寫回說明、貼上說明與套用查詢視窗連線。</summary>
+    Dictionary,
     /// <summary>問 GitHub 有沒有新版本。</summary>
     Update,
     /// <summary>「關於與診斷」送出的測試通知；只由使用者按下去才會出現。</summary>

@@ -6,7 +6,9 @@
 | 這件事 | 唯一出處 |
 |---|---|
 | 停駐工具窗基底：開啟（輸入後才顯示、焦點進窗）、滑出後補排殼層根 | `Ssms22/UI/SqlToolWindowPane.cs` |
-| 停駐工具窗主從區 | `Ssms22/UI/MasterDetailView.cs` |
+| 停駐工具窗主從區（明細的名稱由 `MasterDetailLabels` 給，預設是預覽） | `Ssms22/UI/MasterDetailView.cs` |
+| 範圍工具列：上層幾群範圍、下層輸入列 | `Ssms22/UI/SqlScopeToolbar.cs` |
+| 伺服器／資料庫範圍列與套用查詢視窗連線（SQL Search、資料字典） | `Ssms22/Connections/SqlCatalogScopeBar.cs` |
 | 字型、基本控制項、資訊列、分頁（含右側工具 `TabStripTrailing`）、淡入與動作色調 | `Ssms22/UI/SqlAssistChrome.cs` |
 | 膠囊與分頁標籤（分頁一律由 `SqlAssistChrome.CreateTab` 建） | `Ssms22/UI/SqlPill.cs`、`SqlTabHeader.cs` |
 | 清單列、標頭骨架、右緣操作層、窄版降級與寬度門檻 | `Ssms22/UI/SqlAssistChrome.Rows.cs`、`SqlRowLayout.cs` |

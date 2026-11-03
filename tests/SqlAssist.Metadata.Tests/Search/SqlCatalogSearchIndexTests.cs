@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Model;
+using SqlAssist.Metadata.Querying;
 using SqlAssist.Metadata.Search;
 using Xunit;
 
@@ -439,7 +440,7 @@ public sealed class SqlCatalogSearchIndexTests
         server.Add("Library").WithObject(1, "dbo", "Loan", "U");
         server.Add("msdb", isSystem: true);
 
-        var databases = SqlCatalogSearchDatabases.TryList(server.SourceFor("Library"), CancellationToken.None);
+        var databases = SqlServerDatabases.TryList(server.SourceFor("Library"), CancellationToken.None);
 
         Assert.NotNull(databases);
         Assert.Equal(new[] { "Library", "msdb" }, databases!.Select(database => database.Name));
@@ -456,7 +457,7 @@ public sealed class SqlCatalogSearchIndexTests
         var server = new FakeCatalogServer();
         server.Add("Library").FailsOnOpen = true;
 
-        Assert.Null(SqlCatalogSearchDatabases.TryList(server.SourceFor("Library"), CancellationToken.None));
+        Assert.Null(SqlServerDatabases.TryList(server.SourceFor("Library"), CancellationToken.None));
     }
 
     internal static List<string> Capture(Action action)

@@ -31,6 +31,7 @@
 |命中高亮、上下一個|[命中高亮](search-highlight.md)|
 |文字標記底色、端點配色|[文字標記](text-marks.md)|
 |搜尋範圍、伺服器、資料庫清單|[範圍](search-scope.md)|
+|資料字典、改說明|[資料字典](data-dictionary.md)|
 |建議清單、排名、列尾標記、IntelliSense|[補全](completion.md)|
 |CompletionContext、觸發、大小寫|[上下文](completion-context.md)／[大寫](keyword-casing.md)|
 |定序、語言、時區、登入、使用者、ALTER／DROP 名稱格|[名單](completion-instance-lists.md)／[目錄](completion-catalog-names.md)|
@@ -46,7 +47,7 @@
 |自訂函式括號、引數預留值|[函式呼叫](function-call-insertion.md)|
 |關鍵字產生器、位置旗標|[關鍵字](completion-keywords.md)|
 |召回稽核|[召回稽核](completion-audit.md)|
-|SET 選項、子句片語、ClauseKeyword、WITH 選項清單|[片語](completion-phrases.md)／[產生器](phrase-generator.md)／[清單](phrase-lists.md)|
+|SET 選項、子句片語、WITH 選項清單|[片語](completion-phrases.md)／[產生器](phrase-generator.md)／[清單](phrase-lists.md)|
 |子句回溯、語句界線|[子句邊界](completion-boundaries.md)|
 |不開清單、軟選、別名、物件過濾|[名稱位置](completion-name-slots.md)|
 |內建函式、資料型別目錄|[函式與型別](completion-builtins.md)|
@@ -56,11 +57,11 @@
 |內容與接續建議|[片段](snippets.md)|
 |Tab Stop、Tab／Enter、欄位建議|[片段導航](snippet-navigation.md)|
 |包住選取範圍、`$surround$`|[片段包夾](snippet-surround.md)|
-|Popup 按鍵、`ShellKeyCapture`|[按鍵交還](popup-keys.md)|
+|Popup 按鍵交還|[按鍵交還](popup-keys.md)|
 |使用者 override、合併、存檔|[片段存放](snippet-storage.md)|
 |SELECT *、Wildcards、Tab 展開|[星號展開](wildcard-expansion.md)|
 |Pairing、括號、引號|[自動配對](auto-pairing.md)|
-|BEGIN／END、CASE、高亮、BlockMatcher|[區塊配對](block-matching.md)／[配色](block-colors.md)／[驗收](block-matching-validation.md)|
+|BEGIN／END、CASE、高亮|[區塊配對](block-matching.md)／[配色](block-colors.md)／[驗收](block-matching-validation.md)|
 |QuickInfo、暫存表／變數／CTE|[結構預覽](structure-preview.md)／[宣告](script-declared-objects.md)|
 |定位、焦點、收起、釘住、縮放、進出場|[視窗](preview-window.md)／[互動](preview-interaction.md)／[外觀](preview-surface.md)|
 |Chrome、配色、高對比|[UI 準則](ui-guidelines.md)／[骨架](ui-windows.md)／[主題](themes.md)／[對話框](ui-dialogs.md)|
@@ -80,7 +81,7 @@
 |版號、發布、安裝／移除|[發布](release.md)|
 |F5 偵錯、Deploy、MEF 快取、診斷紀錄|[偵錯](debugging.md)|
 |AI 工作流程、RTK|[AI](ai-workflow.md)／[RTK](ai-rtk.md)|
-|README 圖片、GIF、品牌圖|[圖片](images/README.md)／[提示詞](images/prompts.md)|
+|README 圖片、GIF|[圖片](images/README.md)／[提示詞](images/prompts.md)|
 |VitePress、Pages|[網站發布](website.md)|
 
 只使用產品時讀[開始使用](getting-started.md)。

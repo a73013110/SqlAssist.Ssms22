@@ -12,24 +12,12 @@
   "SortRelevance": "相關度",
   "SortKind": "物件種類",
   "Refresh": "重新整理：丟掉已建立的索引並重新搜尋；改過結構之後用它。",
-  // 伺服器按鈕上還沒選伺服器時的字。
-  "NoServer": "未選擇",
   "ChooseServer": "選擇伺服器",
   // 篩選按鈕只剩數量時的摘要；數量一定大於 1。資料庫數量用 ChromeText.DatabaseCount。
   "CategoryCount": "{count} 種",
   "AllCategoriesDescription": "不限物件種類；每一個來源宣告的種類都搜。",
-  "LoadingDatabases": "正在讀取資料庫清單…",
   "DatabaseOptionDescription": "只搜尋這個資料庫；每指名一個就是一次含定義本文的索引。",
   "AllDatabasesDescription": "搜這台伺服器上進得去的每一個資料庫；第一次要逐一建立索引。",
-  "UserDatabases": "使用者資料庫",
-  "SystemDatabases": "系統資料庫",
-  "DatabaseListUnavailable": "問不到資料庫清單；去看這個登入的權限，或按重新整理再試一次。",
-  "DatabaseListStale": "問不到最新的資料庫清單，這一份可能是舊的。",
-  "NoAccessibleDatabases": "這個登入在這台伺服器上進不去任何資料庫。",
-  "ExplorerServerDescription": "搜尋物件總管上這一台。",
-  "EditorServerDescription": "搜尋查詢視窗連著的這一台；用查詢視窗那條連線。",
-  "CurrentServerDescription": "目前搜尋的這一台。",
-  "ExplorerUnavailable": "問不到物件總管，只列得出查詢視窗連著的那一台。",
   // ── 清單頁尾與空白畫面 ──
   "Found": "找到 {count:N0} 項",
   // ── 進度：清單上方那一條 ──

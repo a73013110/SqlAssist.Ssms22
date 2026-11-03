@@ -190,6 +190,8 @@
   "NotificationsSqlMemoryDescription": "Enabling, cleaning up, clearing, and backing up SQL Memory, plus events such as skipped captures and size warnings.",
   "NotificationsSearchTitle": "SQL Search",
   "NotificationsSearchDescription": "SQL Search copying, applying a query window's connection, search failures, and preview matches that can't be highlighted. Go to Definition and Select in Object Explorer are under \"Go to Definition\".",
+  "NotificationsDictionaryTitle": "Data dictionary",
+  "NotificationsDictionaryDescription": "Loading the data dictionary, saving and pasting descriptions, and applying a query window's connection.",
   "NotificationsUnclassifiedTitle": "Unclassified",
   "NotificationsUnclassifiedDescription": "Work that hasn't been categorized yet. Shown by default; turning it off may silently hide whole groups of newly added work.",
   "NotificationsFailuresTitle": "Show all kinds of failures",

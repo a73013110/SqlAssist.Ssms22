@@ -46,6 +46,6 @@ Ssms22 接線層見[平台共用元件](shared-components-platform.md)，SQL Mem
 | 通知種類的 moniker、預設值與標題 | `Core/Notifications/NotificationKindToggle.cs` |
 | Snippet 展開／欄位／縮排 | `Core/Snippets/SqlSnippetExpansion.cs`、`SqlSnippetIndentation.cs` |
 | 片段在預覽顯示的文字 | `Core/Snippets/SqlSnippetPreview.cs` |
-| 表格文字：TSV（Excel 引號規則）與 CF_HTML 表格，同一趟寫完 | `Core/Tabular/SqlTabularText.cs`（欄位定義留在各功能） |
+| 表格文字：TSV（Excel 引號規則，寫與讀）與 CF_HTML 表格，同一趟寫完 | `Core/Tabular/SqlTabularText.cs`（欄位定義留在各功能） |
 | 清單頁尾的狀態（筆數、部分結果、續頁、說明的語氣）與分頁世代 | `Core/Lists/SqlListFooter.cs`、`PagedLoadState.cs` |
 | 區塊色彩 | [唯一實作](block-colors.md) |

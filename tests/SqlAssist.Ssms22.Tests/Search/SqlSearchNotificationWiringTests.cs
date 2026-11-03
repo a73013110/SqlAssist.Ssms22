@@ -45,10 +45,15 @@ public sealed class SqlSearchNotificationWiringTests
         foreach (var title in new[]
                  {
                      "NotificationCatalog.CopyingQualifiedName", "NotificationCatalog.CopyingSqlList",
-                     "NotificationCatalog.ApplyingEditorConnection", "NotificationCatalog.SearchingDatabaseObjects",
+                     "NotificationCatalog.SearchingDatabaseObjects",
                      "NotificationCatalog.RunningSearchAction",
                  })
             Assert.Contains(title, browser, StringComparison.Ordinal);
+
+        // 套用查詢視窗連線在共用的範圍列，種類由呼叫端給；SQL Search 給的是自己那一種。
+        Assert.Contains("NotificationCenter.Default.Post(NotificationCatalog.ApplyingEditorConnection, _options.NotificationKind,",
+            ReadProductSource("Connections/SqlCatalogScopeBar.cs"), StringComparison.Ordinal);
+        Assert.Contains("NotificationKind.Search)", browser, StringComparison.Ordinal);
 
         var preview = ReadProductSource(Preview);
         Assert.Contains("NotificationCatalog.HighlightingMatches", preview, StringComparison.Ordinal);

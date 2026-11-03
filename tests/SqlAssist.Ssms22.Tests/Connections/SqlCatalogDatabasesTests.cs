@@ -3,26 +3,26 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Metadata.Caching;
-using SqlAssist.Metadata.Search;
-using SqlAssist.Ssms22.Search;
+using SqlAssist.Metadata.Querying;
+using SqlAssist.Ssms22.Connections;
 using Xunit;
 
-namespace SqlAssist.Ssms22.Tests.Search;
+namespace SqlAssist.Ssms22.Tests.Connections;
 
 /// <summary>
 /// 範圍那顆下拉的資料庫清單：問一次、留一份，換連線與問不到各有自己的規則。
 /// </summary>
 /// <remarks>
-/// 這一份不驗伺服器回什麼——那是 <c>SqlCatalogSearchDatabases</c> 與它的查詢在驗的事。
+/// 這一份不驗伺服器回什麼——那是 <c>SqlServerDatabases</c> 與它的查詢在驗的事。
 /// 這裡只問「送了幾條查詢」與「哪一份留在手上」，而那兩件正是使用者看得到的症狀。
 /// </remarks>
-public sealed class SqlSearchScopeDatabasesTests
+public sealed class SqlCatalogDatabasesTests
 {
     [Fact]
     public async Task 展開兩次只問一條查詢()
     {
         var calls = 0;
-        using var scope = new SqlSearchScopeDatabases((_, _) =>
+        using var scope = new SqlCatalogDatabases((_, _) =>
         {
             calls++;
             return List("Library", "LibArchive");
@@ -44,7 +44,7 @@ public sealed class SqlSearchScopeDatabasesTests
     {
         var gate = new TaskCompletionSource<bool>();
         var calls = 0;
-        using var scope = new SqlSearchScopeDatabases((_, _) =>
+        using var scope = new SqlCatalogDatabases((_, _) =>
         {
             calls++;
             gate.Task.GetAwaiter().GetResult();
@@ -67,12 +67,12 @@ public sealed class SqlSearchScopeDatabasesTests
     [Fact]
     public async Task 換一台就重問而且不留上一台的名稱()
     {
-        var databases = new Queue<IReadOnlyList<SqlCatalogSearchDatabase>?>(new[]
+        var databases = new Queue<IReadOnlyList<SqlServerDatabase>?>(new[]
         {
             List("Library"),
             List("LibReporting")
         });
-        using var scope = new SqlSearchScopeDatabases((_, _) => databases.Dequeue());
+        using var scope = new SqlCatalogDatabases((_, _) => databases.Dequeue());
 
         Assert.Equal(new[] { "Library" }, Names(await scope.EnsureAsync(Catalog("Library"))));
 
@@ -86,14 +86,14 @@ public sealed class SqlSearchScopeDatabasesTests
     /// </summary>
     /// <remarks>
     /// 宿主在面板展開時會先畫手上這一份（已經勾起來的條件必須看得見），只有在
-    /// <see cref="SqlSearchScopeDatabases.IsLoaded"/> 是 false 時才去重問。比對只寫在
+    /// <see cref="SqlCatalogDatabases.IsLoaded"/> 是 false 時才去重問。比對只寫在
     /// <c>EnsureAsync</c> 裡的那一版，換一台之後 IsLoaded 仍是上一台的 true，
     /// 宿主據此提早收工——下拉從此畫著上一台的資料庫，而且不會自己好。
     /// </remarks>
     [Fact]
     public async Task 換一台之後手上那一份當場作廢而不是等到重問才換()
     {
-        using var scope = new SqlSearchScopeDatabases((_, _) => List("Library"));
+        using var scope = new SqlCatalogDatabases((_, _) => List("Library"));
 
         await scope.EnsureAsync(Catalog("Library"));
         Assert.True(scope.IsLoaded);
@@ -111,13 +111,13 @@ public sealed class SqlSearchScopeDatabasesTests
     [Fact]
     public async Task 問不到時留住上一份並且下一次展開再試()
     {
-        var results = new Queue<IReadOnlyList<SqlCatalogSearchDatabase>?>(new[]
+        var results = new Queue<IReadOnlyList<SqlServerDatabase>?>(new[]
         {
             List("Library", "LibArchive"),
             null,
             List("Library", "LibArchive", "LibReporting")
         });
-        using var scope = new SqlSearchScopeDatabases((_, _) => results.Dequeue());
+        using var scope = new SqlCatalogDatabases((_, _) => results.Dequeue());
 
         var catalog = Catalog("Library");
         Assert.Equal(2, (await scope.EnsureAsync(catalog)).Count);
@@ -138,7 +138,7 @@ public sealed class SqlSearchScopeDatabasesTests
     public async Task 重新整理之後重問()
     {
         var calls = 0;
-        using var scope = new SqlSearchScopeDatabases((_, _) =>
+        using var scope = new SqlCatalogDatabases((_, _) =>
         {
             calls++;
             return List("Library");
@@ -157,7 +157,7 @@ public sealed class SqlSearchScopeDatabasesTests
     public async Task 沒有目錄時不問也不清掉手上那一份()
     {
         var calls = 0;
-        using var scope = new SqlSearchScopeDatabases((_, _) =>
+        using var scope = new SqlCatalogDatabases((_, _) =>
         {
             calls++;
             return List("Library");
@@ -173,16 +173,16 @@ public sealed class SqlSearchScopeDatabasesTests
     }
 
     private static SqlMetadataCatalog Catalog(string database, string server = "LIBSQL01") =>
-        SqlSearchTestCatalogs.Create(database, server);
+        SqlTestCatalogs.Create(database, server);
 
-    private static IReadOnlyList<SqlCatalogSearchDatabase> List(params string[] names)
+    private static IReadOnlyList<SqlServerDatabase> List(params string[] names)
     {
-        var databases = new List<SqlCatalogSearchDatabase>(names.Length);
-        foreach (var name in names) databases.Add(new SqlCatalogSearchDatabase(name, isSystem: false));
+        var databases = new List<SqlServerDatabase>(names.Length);
+        foreach (var name in names) databases.Add(new SqlServerDatabase(name, isSystem: false));
         return databases;
     }
 
-    private static string[] Names(IReadOnlyList<SqlCatalogSearchDatabase> databases)
+    private static string[] Names(IReadOnlyList<SqlServerDatabase> databases)
     {
         var names = new string[databases.Count];
         for (var index = 0; index < databases.Count; index++) names[index] = databases[index].Name;

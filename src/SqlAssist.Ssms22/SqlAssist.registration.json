@@ -839,6 +839,15 @@
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "additionalKeywords": [ "SQL Search", "搜尋" ]
     },
+    "sqlAssist.notifications.dictionary": {
+      "type": "boolean",
+      "default": true,
+      "order": 307,
+      "title": "@NotificationsDictionaryTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsDictionaryDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
+      "additionalKeywords": [ "資料字典", "data dictionary", "說明", "MS_Description" ]
+    },
     "sqlAssist.notifications.unclassified": {
       "type": "boolean",
       "default": true,
